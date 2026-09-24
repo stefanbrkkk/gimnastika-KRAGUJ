@@ -10,6 +10,8 @@ export interface ResultItem {
   date: string;
   sourceUrl: string;
   kind: "medalja" | "nastup";
+  /** Medal marks shown next to a "medalja" item (no counts — the club has not confirmed them). */
+  medals?: readonly ("gold" | "silver" | "bronze")[];
 }
 
 export const RESULTS: readonly ResultItem[] = [
@@ -18,12 +20,14 @@ export const RESULTS: readonly ResultItem[] = [
     text: "Zlato, srebro i bronza na finalu Prvenstva Srbije u B programu",
     date: "Beograd, 2. 12. 2023.",
     sourceUrl: SOURCES.bulletin2023,
+    medals: ["gold", "silver", "bronze"],
   },
   {
     kind: "medalja",
     text: "1. mesto ekipno — I kolo B programa",
     date: "Kostolac, 29. 5. 2022.",
     sourceUrl: SOURCES.bulletin2022,
+    medals: ["gold"],
   },
   {
     kind: "nastup",

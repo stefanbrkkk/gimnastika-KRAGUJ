@@ -1,1 +1,152 @@
-/* notfound section styles — owned by the notfound section. Use theme tokens from app/globals.css. */
+/* 404 „Ravnoteža na gredi“ — owned by the SEO/404 agent. Dark theme tokens (data-theme="dark"). */
+
+.nf {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  outline: none;
+}
+
+.nf__inner {
+  display: flex;
+  flex-direction: column;
+  padding-block: 20px 48px;
+}
+
+.nf__brand {
+  align-self: flex-start;
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--color-white);
+}
+
+.nf__logo {
+  width: 132px;
+  height: auto;
+}
+
+/* Start-aligned (not centred): the iOS tilt button appears after mount below the
+   stage, and nothing above it may move (CLS). */
+.nf__body {
+  display: grid;
+  align-content: start;
+  gap: 40px;
+  margin-top: clamp(32px, 7vh, 72px);
+}
+
+.nf__code {
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+.nf__title {
+  max-width: 16ch;
+  font-size: clamp(2rem, 1.2rem + 3vw, 3.5rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-weight: 780;
+}
+
+.nf__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  margin-top: 32px;
+  max-width: 360px;
+}
+
+@media (min-width: 480px) {
+  .nf__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    max-width: none;
+  }
+}
+
+/* The stage: a contact-sheet frame around the scene. */
+.nf__stage {
+  padding: 6px;
+  background: var(--color-navy-950);
+  box-shadow: 0 0 0 1px var(--hairline);
+  border-radius: 2px;
+}
+
+.nf-scene {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* phones: a centre crop of the scene (x 110…610), so the gymnast reads larger */
+  aspect-ratio: 500 / 286;
+}
+
+@media (min-width: 640px) {
+  .nf-scene {
+    aspect-ratio: 720 / 286;
+  }
+}
+
+.nf-scene__floor {
+  stroke: var(--color-steel-300);
+  stroke-width: 1.5;
+  opacity: 0.6;
+}
+
+.nf-scene__beam line {
+  stroke: var(--color-steel-300);
+  stroke-width: 6;
+  stroke-linecap: round;
+  opacity: 0.55;
+}
+
+.nf-scene__beam rect {
+  fill: var(--color-steel-300);
+}
+
+.nf-scene__figure {
+  color: var(--color-white);
+}
+
+/* iOS only: shown after mount when DeviceOrientation needs a tap to be allowed. */
+.nf__tilt {
+  margin-top: 16px;
+}
+
+@media (min-width: 1024px) {
+  .nf__inner {
+    padding-block: 32px 64px;
+  }
+
+  .nf__logo {
+    width: 160px;
+  }
+
+  /* Centred in the viewport; the iOS button below is out of flow here, so
+     centring never moves anything when it appears (iPad). */
+  .nf__body {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: 24px;
+    align-items: start;
+    margin-block: auto;
+    padding-block: 32px 48px;
+  }
+
+  .nf__copy {
+    grid-column: 1 / span 5;
+  }
+
+  .nf__stage-wrap {
+    position: relative;
+    grid-column: 6 / span 7;
+    margin-top: 8px;
+  }
+
+  .nf__tilt {
+    position: absolute;
+    top: 100%;
+    left: 0;
+  }
+}

@@ -1,1 +1,396 @@
-/* results section styles — owned by the results section. Use theme tokens from app/globals.css. */
+/* ==========================================================================
+   S7 Results „Uspesi“ (components/sections/results/*). Darker theme (navy-950):
+   the judges' scoreboard. Doto only for the numerals (≥32px, tabular).
+   Gold/silver/bronze only for medal marks; the leotard gradient only on the
+   „Medalje“ header band, with no text on it.
+   ========================================================================== */
+
+/* --- Scoreboard ------------------------------------------------------------ */
+.scoreboard {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--hairline);
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 1px var(--hairline);
+  overflow: hidden;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px 12px 4px;
+  background: var(--color-navy-900);
+}
+
+/* The display window of each scoreboard unit. */
+.stat__value {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 0.35em;
+  margin: 0;
+  padding: 14px 12px 12px;
+  border-radius: var(--radius-sm);
+  background:
+    radial-gradient(circle at center, rgba(141, 169, 198, 0.09) 0.9px, transparent 1.3px) 0 0 / 7px 7px,
+    var(--color-navy-950);
+  box-shadow: inset 0 0 0 1px rgba(141, 169, 198, 0.16);
+}
+
+.stat__prefix {
+  font-size: 1rem;
+  line-height: 1;
+  font-weight: 600;
+  font-stretch: 100%;
+  color: var(--muted);
+}
+
+.stat__num {
+  font-size: clamp(2.5rem, 1.35rem + 4.4vw, 5.25rem);
+  line-height: 0.9;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--color-iceblue-200);
+  white-space: nowrap;
+}
+
+.stat__flap {
+  display: inline-block;
+  backface-visibility: hidden;
+}
+
+.stat__label {
+  margin: 0;
+  max-width: 26ch;
+  padding-inline: 2px;
+  font-size: var(--text-small);
+  line-height: 1.4;
+  font-weight: 520;
+  color: var(--fg);
+}
+
+.stat__source {
+  margin-top: auto;
+  align-self: flex-start;
+}
+
+@media (min-width: 640px) {
+  .stat {
+    padding: 16px 16px 6px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .scoreboard {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .stat {
+    padding: 20px 20px 8px;
+    gap: 16px;
+  }
+  .stat__value {
+    padding: 22px 18px 18px;
+  }
+  .stat__prefix {
+    font-size: 1.125rem;
+  }
+}
+
+/* --- Photo + lists ----------------------------------------------------------- */
+.results__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 48px;
+  margin-top: 48px;
+}
+
+.results__photo-inner {
+  position: relative;
+}
+
+.results__figure {
+  width: 100%;
+}
+
+/* White brush annotation over photo 01 — sits exactly on the photo box (frame padding 6px). */
+.results-brush {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: calc(100% - 12px);
+  height: auto;
+  aspect-ratio: 4 / 3;
+  overflow: visible;
+  pointer-events: none;
+  fill: none;
+  stroke: var(--color-white);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (min-width: 1024px) {
+  .results__body {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: 24px;
+    align-items: start;
+    margin-top: 72px;
+  }
+  .results__photo {
+    grid-column: 1 / span 7;
+  }
+  .results__lists {
+    grid-column: 8 / -1;
+  }
+}
+
+/* --- „Medalje“ ------------------------------------------------------------------ */
+.medals {
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--color-navy-900);
+  box-shadow: 0 0 0 1px var(--hairline);
+}
+
+/* Gradient header band: no text here, only the podium drawing. */
+.medals__band {
+  display: flex;
+  align-items: flex-end;
+  height: 96px;
+  padding-inline: 16px;
+  background: var(--grad-leotard);
+}
+
+.podium {
+  display: block;
+  height: 80px;
+  width: auto;
+  overflow: visible;
+}
+
+.podium__line {
+  fill: none;
+  stroke: var(--color-navy-950);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.podium__mark {
+  stroke: var(--color-navy-950);
+  stroke-width: 2.6;
+}
+
+.medals__body {
+  padding: 20px 20px 4px;
+}
+
+.medals__title {
+  margin: 0 0 4px;
+}
+
+.medal-fill--gold {
+  fill: var(--color-gold);
+  background-color: var(--color-gold);
+}
+
+.medal-fill--silver {
+  fill: var(--color-silver);
+  background-color: var(--color-silver);
+}
+
+.medal-fill--bronze {
+  fill: var(--color-bronze);
+  background-color: var(--color-bronze);
+}
+
+@media (min-width: 1024px) {
+  .medals__band {
+    height: 112px;
+    padding-inline: 24px;
+  }
+  .podium {
+    height: 94px;
+  }
+  .medals__body {
+    padding: 24px 24px 8px;
+  }
+}
+
+/* --- Result rows (Medalje + Nastupi) ----------------------------------------- */
+.result-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.result-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "marks body"
+    "marks source";
+  column-gap: 14px;
+  padding-top: 16px;
+}
+
+.result-row + .result-row {
+  margin-top: 4px;
+  border-top: 1px solid var(--hairline);
+}
+
+.result-row__marks {
+  grid-area: marks;
+  display: flex;
+  padding-top: 3px;
+}
+
+.medal-mark {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--color-navy-900);
+}
+
+.medal-mark + .medal-mark {
+  margin-left: -6px;
+}
+
+.result-row__body {
+  grid-area: body;
+  min-width: 0;
+}
+
+.result-row__text {
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: 1.38;
+  font-weight: 650;
+  color: var(--fg);
+}
+
+.result-row__meta {
+  margin: 4px 0 0;
+  font-size: var(--text-small);
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.result-row__source {
+  grid-area: source;
+  justify-self: start;
+  margin-left: -4px;
+}
+
+@media (min-width: 640px) {
+  .result-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "marks body source";
+    padding-bottom: 12px;
+  }
+  .result-row__source {
+    margin: -12px -4px 0 0;
+  }
+}
+
+/* „Nastupi“: plain and smaller — appearances, never styled as wins. */
+.appearances {
+  margin-top: 40px;
+  padding-inline: 2px;
+}
+
+.appearances__title {
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.3;
+  font-weight: 700;
+  font-stretch: 104%;
+  color: var(--fg);
+}
+
+.result-list--plain .result-row {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "body"
+    "source";
+  padding-top: 12px;
+}
+
+.result-list--plain .result-row__text {
+  font-size: var(--text-small);
+  font-weight: 560;
+}
+
+.result-list--plain .result-row__meta {
+  font-size: 0.875rem;
+}
+
+@media (min-width: 640px) {
+  .result-list--plain .result-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "body source";
+    padding-bottom: 8px;
+  }
+}
+
+/* --- Trust row ------------------------------------------------------------------ */
+.trust-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 48px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trust-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 18px;
+  border-radius: var(--radius-full);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  color: var(--fg);
+  font-size: var(--text-small);
+  line-height: 1.3;
+  font-weight: 600;
+  text-decoration: none;
+  transition: box-shadow 0.18s var(--ease-stick);
+}
+
+.trust-link:hover {
+  box-shadow: inset 0 0 0 1.5px var(--color-steel-300);
+}
+
+.trust-link__icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (min-width: 1024px) {
+  .trust-row {
+    justify-content: flex-end;
+    margin-top: 56px;
+  }
+}
+
+/* The inset hairline would otherwise replace the global focus ring (unlayered beats @layer base). */
+.trust-link:focus-visible {
+  box-shadow:
+    0 0 0 3px var(--bg),
+    0 0 0 5px var(--focus),
+    inset 0 0 0 1px var(--hairline);
+}

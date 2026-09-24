@@ -9,6 +9,8 @@ export interface TimelineItem {
   text?: string;
   /** Source links (the first is the primary one). */
   sources?: readonly string[];
+  /** Optional visible labels per source (default „izvor“). */
+  sourceLabels?: readonly string[];
   /** Only rendered when the named flag is true. */
   flag?: "SHOW_EQUIPMENT_2026";
 }
@@ -50,6 +52,7 @@ export const TIMELINE: readonly TimelineItem[] = [
     year: 2026,
     title: "42 registrovane takmičarke u sportskoj i 12 u aerobnoj gimnastici",
     sources: [SOURCES.registered2026Zsg, SOURCES.registered2026Aer],
+    sourceLabels: ["izvor (sportska)", "izvor (aerobna)"],
   },
   {
     year: 2026,

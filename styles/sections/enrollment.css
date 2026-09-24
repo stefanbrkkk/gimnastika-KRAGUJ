@@ -1,1 +1,451 @@
-/* enrollment section styles — owned by the enrollment section. Use theme tokens from app/globals.css. */
+/* enrollment section styles — owned by the enrollment section (S10 „Upis i prvi trening“).
+   Steps = three frames of one leap (ghost → ghost → landed), a year-round strip,
+   the „Šta poneti“ checklist (ticks draw once: stroke-dashoffset) and the FAQ
+   (<details>, + → ×, 0fr → 1fr in 280ms). Motion: transform, opacity,
+   stroke-dashoffset, grid rows (details only). */
+
+/* --------------------------------------------------------------------------
+   Steps
+   -------------------------------------------------------------------------- */
+.en-steps {
+  position: relative;
+  display: grid;
+  gap: 28px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.en-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-areas:
+    "leap num"
+    "leap text";
+  column-gap: 16px;
+  align-items: start;
+}
+
+.en-step__leap {
+  grid-area: leap;
+  width: 64px;
+  height: auto;
+  margin-top: 6px;
+  overflow: visible;
+  color: var(--ghost);
+  opacity: var(--o);
+}
+
+.en-step[data-frame="solid"] .en-step__leap {
+  color: var(--accent);
+  opacity: 1;
+}
+
+/* Numerals: ghost outlines for the first two frames, solid for the landing. */
+.en-step__num {
+  grid-area: num;
+  font-size: clamp(2.5rem, 1.9rem + 2.6vw, 4.5rem);
+  line-height: 0.9;
+  font-weight: 800;
+  font-stretch: 112%;
+  letter-spacing: -0.03em;
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--color-royal-500);
+  paint-order: stroke fill;
+}
+
+.en-step[data-frame="solid"] .en-step__num {
+  color: var(--color-navy-900);
+  -webkit-text-stroke: 0;
+}
+
+.en-step__text {
+  grid-area: text;
+  max-width: 24ch;
+  margin: 10px 0 0;
+  font-size: clamp(1.1875rem, 1.05rem + 0.6vw, 1.5rem);
+  line-height: 1.25;
+  font-weight: 680;
+  font-stretch: 104%;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+/* Tablet+: three columns on the floor line — the leap travels left → right. */
+@media (min-width: 640px) {
+  .en-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    padding-top: 8px;
+  }
+
+  /* The mat line the silhouette lands on. */
+  .en-steps::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 104px;
+    height: 1.5px;
+    background: color-mix(in oklab, var(--color-steel-300) 60%, transparent);
+  }
+
+  .en-step {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "leap"
+      "num"
+      "text";
+  }
+
+  .en-step__leap {
+    width: 118px;
+    height: 77px;
+    margin: 0 0 30px;
+  }
+
+  /* One arc across the three frames: takeoff low, apex high, landing on the line. */
+  .en-step:nth-child(1) .en-step__leap {
+    transform: translateY(20px) rotate(-8deg);
+  }
+  .en-step:nth-child(2) .en-step__leap {
+    transform: translateY(-6px);
+  }
+  .en-step:nth-child(3) .en-step__leap {
+    transform: translateY(22px);
+  }
+  .en-step__num {
+    margin-top: 12px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .en-steps {
+    gap: 24px;
+  }
+  .en-step__leap {
+    width: 138px;
+    height: 90px;
+  }
+  .en-steps::before {
+    top: 116px;
+  }
+  .en-step:nth-child(1) .en-step__leap {
+    transform: translateY(24px) rotate(-8deg);
+  }
+  .en-step:nth-child(3) .en-step__leap {
+    transform: translateY(26px);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Year-round strip + actions
+   -------------------------------------------------------------------------- */
+.en-year {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--hairline);
+}
+
+.en-year__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: 650;
+}
+
+/* Twelve months, all open. */
+.en-year__months {
+  display: inline-grid;
+  grid-template-columns: repeat(12, 8px);
+  gap: 4px;
+}
+
+.en-year__months i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.en-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+@media (max-width: 479px) {
+  .en-actions .btn {
+    flex: 1 1 100%;
+  }
+}
+
+@media (min-width: 1024px) {
+  .en-year {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 56px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Lower: checklist card + FAQ
+   -------------------------------------------------------------------------- */
+.en-lower {
+  display: grid;
+  gap: 48px;
+  margin-top: 56px;
+}
+
+@media (min-width: 1024px) {
+  .en-lower {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: 24px;
+    margin-top: 96px;
+  }
+  .en-kit {
+    grid-column: 1 / span 5;
+    align-self: start;
+    position: sticky;
+    top: 112px;
+  }
+  .en-faq {
+    grid-column: 7 / span 6;
+  }
+}
+
+/* The kit list: a packing card. */
+.en-kit {
+  max-width: 520px;
+  padding: 24px 22px 20px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px var(--hairline),
+    var(--shadow-2);
+}
+
+@media (min-width: 640px) {
+  .en-kit {
+    padding: 32px 32px 26px;
+  }
+}
+
+.en-kit__title {
+  margin: 0 0 16px;
+}
+
+.en-check {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.en-check__item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 52px;
+  border-bottom: 1px dashed var(--hairline);
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.en-check__item:last-child {
+  border-bottom: 0;
+}
+
+.en-check__box {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  overflow: visible;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.en-check__frame {
+  stroke: var(--fg);
+  stroke-width: 2;
+}
+
+.en-check__tick {
+  stroke: var(--accent);
+  stroke-width: 2.6;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+/* Tick-in once on enter (ChecklistTicks sets data-ticked). Only under html.js-motion. */
+html.js-motion .en-check:not([data-ticked]) .en-check__tick {
+  stroke-dashoffset: 1;
+}
+
+html.js-motion .en-check:not([data-ticked]) .en-check__box {
+  transform: scale(0.86);
+}
+
+html.js-motion .en-check .en-check__tick {
+  transition: stroke-dashoffset 0.36s var(--ease-stick) calc(0.12s + var(--i) * 0.06s);
+}
+
+html.js-motion .en-check .en-check__box {
+  transform-origin: center;
+  transform-box: fill-box;
+  transition: transform 0.35s var(--ease-rebound) calc(var(--i) * 0.06s);
+}
+
+.en-kit__note {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--hairline);
+  font-size: var(--text-small);
+  line-height: var(--text-small--line-height);
+  color: var(--muted);
+}
+
+/* --------------------------------------------------------------------------
+   FAQ — native <details>
+   -------------------------------------------------------------------------- */
+.en-faq__title {
+  margin: 0 0 12px;
+}
+
+.faq {
+  border-top: 1px solid var(--hairline);
+}
+
+.faq__item {
+  border-bottom: 1px solid var(--hairline);
+}
+
+.faq__q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 64px;
+  padding: 14px 2px;
+  list-style: none;
+  cursor: pointer;
+  font-size: 1.0625rem;
+  line-height: 1.35;
+  font-weight: 650;
+  font-stretch: 104%;
+  border-radius: var(--radius-sm);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.faq__q::-webkit-details-marker {
+  display: none;
+}
+
+.faq__q::marker {
+  content: "";
+}
+
+.faq__q:hover .faq__q-text {
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.2em;
+  text-decoration-color: var(--hairline);
+}
+
+.faq__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  box-shadow: inset 0 0 0 1.5px var(--hairline);
+  color: var(--fg);
+  transition: transform 0.28s var(--ease-stick);
+}
+
+.faq__icon svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* „+“ turns into „×“. */
+.faq__item[open] .faq__icon {
+  transform: rotate(45deg);
+  background: var(--color-navy-900);
+  color: var(--color-white);
+  box-shadow: none;
+}
+
+.faq__a p {
+  margin: 0;
+  padding: 0 52px 22px 2px;
+  max-width: 64ch;
+  color: var(--muted);
+}
+
+/* 0fr → 1fr in 280ms where ::details-content exists; elsewhere the answer simply appears. */
+@supports selector(::details-content) {
+  .faq__item::details-content {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition:
+      grid-template-rows 0.28s var(--ease-stick),
+      content-visibility 0.28s allow-discrete;
+  }
+  .faq__item[open]::details-content {
+    grid-template-rows: 1fr;
+  }
+  .faq__a {
+    min-height: 0;
+    overflow: hidden;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .faq__item::details-content {
+      transition: none;
+    }
+  }
+}
+
+.faq__last {
+  margin: 24px 0 0;
+  font-weight: 600;
+}
+
+.faq__tel {
+  display: inline-block;
+  padding-block: 12px;
+  margin-block: -12px;
+  color: var(--accent);
+  font-weight: 700;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.2em;
+}
+
+.faq__tel:hover {
+  text-decoration-thickness: 2.5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .faq__icon {
+    transition: none;
+  }
+  html.js-motion .en-check .en-check__tick,
+  html.js-motion .en-check .en-check__box {
+    transition: none;
+  }
+}

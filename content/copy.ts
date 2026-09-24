@@ -42,6 +42,10 @@ export const QUIZ = {
   resultCta: "Zakažite probni trening za ovu grupu",
   finalNote: "Konačnu grupu predlaže trenerica posle probnog treninga.",
   competitiveTitle: "Takmičarske grupe (A, B i C program)",
+  back: "Nazad",
+  restart: "Počnite ponovo",
+  /** Age unit, as in the schedule's „(3–8 god.)“. */
+  ageUnit: "god.",
 } as const;
 
 export type Experience = (typeof QUIZ.experience)[number];
@@ -147,6 +151,16 @@ export const BOOKING = {
   after: `Poruka je spremna — pošaljite je u aplikaciji. Ako vam se ne javimo, pozovite ${PRIMARY_PHONE.display}.`,
   viberFailed: `Viber se nije otvorio — pozovite ${PRIMARY_PHONE.display} ili pošaljite SMS.`,
   close: "Zatvorite",
+  /** "Grupa" select option when the parent has not chosen a group. */
+  groupUndecided: "Neka trenerica predloži",
+  /** How the undecided group reads inside the message. */
+  groupUndecidedMessage: "neka trenerica predloži",
+  errors: {
+    parent: "Upišite ime roditelja.",
+    phoneMissing: "Upišite broj telefona.",
+    phoneInvalid: "Proverite broj telefona — dozvoljene su cifre, razmaci i „+“ na početku.",
+    birthYearMissing: "Upišite godište deteta.",
+  },
 } as const;
 
 export const STICKY_BAR = { call: "Pozovite", sms: "SMS", viber: "Viber", schedule: "Raspored" } as const;

@@ -4,8 +4,6 @@ import { ChronoMark } from "./ChronoMark";
 interface SectionHeadingProps {
   /** id for the <h2> (referenced by the section's aria-labelledby). */
   id: string;
-  /** Section frame number (S1…S11) → "KR·03". */
-  n: number;
   title: string;
   /** Optional short line under the title. */
   intro?: ReactNode;
@@ -15,23 +13,25 @@ interface SectionHeadingProps {
 }
 
 /**
- * Section title with the chronophotograph "landing" mark. On desktop, titles
- * alternate left/right along the page's diagonal spine; mobile is always left.
+ * Section title. The chronophotograph mark (ghost frames → solid silhouette)
+ * lands on the end of the title — "the silhouette lands on section titles" (§1).
+ * On desktop, titles alternate left/right along the page's diagonal spine.
  */
-export function SectionHeading({ id, n, title, intro, align = "left", className }: SectionHeadingProps) {
-  const frame = `KR·${String(n).padStart(2, "0")}`;
+export function SectionHeading({ id, title, intro, align = "left", className }: SectionHeadingProps) {
+  // The last word and the mark never separate across lines.
+  const cut = title.lastIndexOf(" ");
+  const head = cut > 0 ? title.slice(0, cut + 1) : "";
+  const last = cut > 0 ? title.slice(cut + 1) : title;
   return (
     <header className={["section-heading", className].filter(Boolean).join(" ")} data-align={align}>
-      <div className="section-heading__row">
-        <p className="label-caps text-muted tabular" aria-hidden="true">
-          {frame}
-        </p>
-        <ChronoMark className="section-heading__mark" />
-      </div>
-      <h2 id={id} className="text-h2 measure">
-        {title}
+      <h2 id={id} className="section-heading__title text-h2">
+        {head}
+        <span className="whitespace-nowrap">
+          {last}
+          <ChronoMark className="section-heading__mark" />
+        </span>
       </h2>
-      {intro ? <div className="section-heading__intro mt-4 text-muted measure">{intro}</div> : null}
+      {intro ? <div className="section-heading__intro text-muted measure">{intro}</div> : null}
     </header>
   );
 }

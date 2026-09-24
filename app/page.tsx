@@ -1,4 +1,5 @@
 import { BookingSheet } from "@/components/booking/BookingSheet";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { About } from "@/components/sections/about/About";
 import { Camp } from "@/components/sections/camp/Camp";
 import { Coaches } from "@/components/sections/coaches/Coaches";
@@ -40,6 +41,7 @@ export default function HomePage() {
       <Footer />
       <StickyBar />
       <BookingSheet />
+      <JsonLd />
     </>
   );
 }

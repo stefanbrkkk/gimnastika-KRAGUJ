@@ -1,1 +1,343 @@
-/* hero section styles — owned by the hero section. Use theme tokens from app/globals.css. */
+/* ==========================================================================
+   S1 HERO — "LET KRAGUJA" signature moment (§4 HERO, §5 S1). Owned by the hero.
+   Layout: the leap (art band) above the mat line = the floor; the statement below.
+   Phones: one column. ≥1024: H1 in cols 1–8, sub/CTAs/trust in cols 9–12.
+   ========================================================================== */
+
+.hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  overflow: clip;
+  isolation: isolate;
+}
+
+.hero__inner {
+  position: relative;
+  z-index: 1;
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* room for the floating header */
+  padding-top: 80px;
+  padding-bottom: 48px;
+}
+
+/* ---- Decorative layer (aria-hidden). Hidden only under html.js-motion until
+        the motion layer sets data-hero-ready (rule in app/globals.css). ---- */
+.hero__art {
+  position: relative;
+  pointer-events: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hero-art {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.hero-art--compact {
+  aspect-ratio: 713 / 404;
+}
+
+.hero-art--wide {
+  display: none;
+  aspect-ratio: 1650 / 256;
+}
+
+/* Portrait tablets keep the high leap, capped and aligned to the container's right edge. */
+@media (min-width: 640px) {
+  .hero-art--compact {
+    max-width: 540px;
+    margin-left: auto;
+  }
+}
+
+/* Landscape phones/tablets and desktop: the long, low travelling leap. */
+@media (min-width: 640px) and (orientation: landscape), (min-width: 1024px) {
+  .hero-art--compact {
+    display: none;
+  }
+  .hero-art--wide {
+    display: block;
+  }
+}
+
+.hero-art__path {
+  fill: none;
+  stroke: none;
+}
+
+.hero-art__wordmark,
+.hero-art__leap {
+  color: var(--color-white);
+}
+
+/* Tap target of the easter egg: the silhouette's whole box, not just its ink. */
+.hero-art__hit {
+  pointer-events: all;
+}
+
+/* Frame marks on the floor under each ghost frame (Marey's measuring rule). */
+.hero-art__ticks line {
+  stroke: var(--color-steel-300);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The mat line: viewport-left → container-right, exactly 1.5px at any scale. */
+.hero-mat {
+  position: absolute;
+  top: 100%;
+  left: calc(50% - 50vw);
+  /* an <svg> does not stretch between left/right: size it explicitly */
+  width: calc(50% + 50vw);
+  height: 4px;
+  margin-top: -2px;
+  overflow: visible;
+}
+
+.hero-mat path {
+  fill: none;
+  stroke: var(--color-steel-300);
+  stroke-opacity: 0.6;
+  stroke-width: 1.5;
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 0;
+}
+
+/* Desktop scrub: the floor-exercise diagonal (created by the motion layer). */
+.hero-spine {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.hero-spine path {
+  fill: none;
+  stroke: var(--color-steel-300);
+  stroke-opacity: 0.6;
+  stroke-width: 1.5;
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+}
+
+/* ---- Statement ---- */
+.hero__eyebrow {
+  margin-top: 22px;
+  max-width: 44ch;
+  color: var(--muted);
+}
+
+.hero__title {
+  margin-top: 14px;
+  color: var(--fg);
+  font-stretch: 105%;
+  hyphens: manual;
+}
+
+.hero__sub {
+  margin-top: 20px;
+  max-width: 36em;
+  color: color-mix(in oklab, var(--fg) 88%, var(--bg));
+}
+
+.hero__ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.hero__ctas .btn {
+  flex: 1 1 auto;
+}
+
+.hero__trust {
+  display: grid;
+  gap: 10px;
+  margin: 26px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-small);
+  line-height: var(--text-small--line-height);
+  color: color-mix(in oklab, var(--fg) 88%, var(--bg));
+}
+
+.hero__trust li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.hero__tick {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 0.18em;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (min-width: 640px) {
+  .hero__title {
+    font-stretch: 112%;
+  }
+  .hero__ctas .btn {
+    flex: 0 1 auto;
+  }
+  .hero__trust {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 28px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero__inner {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: 24px;
+    align-content: center;
+    padding-top: 92px;
+    padding-bottom: 20px;
+  }
+  .hero__art,
+  .hero__eyebrow {
+    grid-column: 1 / -1;
+  }
+  .hero__eyebrow {
+    margin-top: 20px;
+    max-width: none;
+  }
+  .hero__title {
+    grid-column: 1 / 9;
+    grid-row: 3;
+    margin-top: 12px;
+    font-stretch: 118%;
+  }
+  .hero__aside {
+    grid-column: 9 / 13;
+    grid-row: 3;
+    align-self: start;
+    /* the sub's first line sits on the H1's cap line */
+    padding-top: calc(12px + 0.1 * var(--text-display-xl));
+  }
+  .hero__sub {
+    margin-top: 0;
+  }
+  .hero__ctas .btn {
+    flex: 1 1 auto;
+  }
+  .hero__trust {
+    display: grid;
+    gap: 10px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .hero__title {
+    font-stretch: 125%;
+  }
+}
+
+/* ---- Easter egg: Montreal 1976 scoreboard ---- */
+.hero-egg {
+  position: absolute;
+  z-index: 5;
+  width: min(300px, calc(100% - 32px));
+  padding: 16px 44px 16px 16px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow:
+    0 0 0 1px var(--hairline),
+    0 8px 16px -4px rgba(10, 26, 56, 0.5),
+    0 30px 50px -12px rgba(10, 26, 56, 0.6);
+}
+
+.hero-egg__board {
+  position: relative;
+  display: inline-grid;
+  perspective: 400px;
+  padding: 2px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-navy-950);
+  color: var(--color-lav-200);
+}
+
+.hero-egg__face {
+  grid-area: 1 / 1;
+  justify-self: end;
+  font-size: 40px;
+  line-height: 1.1;
+  font-weight: 900;
+  backface-visibility: hidden;
+  transform-origin: 50% 50%;
+  transition: transform 0.45s var(--ease-stick);
+}
+
+.hero-egg__face--to {
+  transform: rotateX(-90deg);
+}
+
+.hero-egg[data-flipped] .hero-egg__face--from {
+  transform: rotateX(90deg);
+  transition-timing-function: var(--ease-takeoff);
+  transition-duration: 0.2s;
+}
+
+.hero-egg[data-flipped] .hero-egg__face--to {
+  transform: none;
+  transition-delay: 0.18s;
+}
+
+.hero-egg__text {
+  margin-top: 12px;
+  font-size: var(--text-small);
+  line-height: var(--text-small--line-height);
+}
+
+.hero-egg__close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.hero-egg__close svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-egg__face {
+    transition: none;
+  }
+  .hero-egg[data-flipped] .hero-egg__face--from {
+    transform: none;
+    visibility: hidden;
+  }
+}

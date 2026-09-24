@@ -1,1 +1,609 @@
-/* schedule section styles — owned by the schedule section. Use theme tokens from app/globals.css. */
+/* S4 "Raspored treninga" — owned by the schedule section. Light theme; clarity first:
+   no scroll choreography. Motion: sliding tab pill (transform), Flip on filtering (JS),
+   a short fade when the user switches a view/day. Everything is readable without JS. */
+
+/* ---------- layout ---------- */
+.sched-layout {
+  display: grid;
+  gap: 32px;
+}
+@media (min-width: 1024px) {
+  .sched-layout {
+    grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+    column-gap: 48px;
+    align-items: start;
+  }
+}
+
+/* ---------- controls (JS only) ---------- */
+.sched-controls {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+html:not(.js) .sched-controls {
+  display: none;
+}
+
+.sched-views {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-ice-50);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+@media (min-width: 640px) {
+  .sched-views {
+    width: 360px;
+  }
+}
+.sched-views__pill {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  border-radius: var(--radius-full);
+  background: var(--color-navy-900);
+  box-shadow: var(--shadow-press);
+  transition: transform 0.28s var(--ease-stick);
+}
+.sched-views[data-active="day"] .sched-views__pill {
+  transform: translateX(100%);
+}
+.sched-views__tab {
+  position: relative;
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-button);
+  font-weight: var(--text-button--font-weight);
+  color: var(--fg);
+  cursor: pointer;
+  transition: color 0.18s var(--ease-stick);
+  -webkit-tap-highlight-color: transparent;
+}
+.sched-views__tab[aria-selected="true"] {
+  color: var(--color-white);
+}
+
+/* Filter pills: a swipeable row on phones, wrapping from 640px. */
+.sched-filters {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  margin-inline: -20px;
+  padding: 6px 20px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-padding-inline: 20px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+.sched-filters::-webkit-scrollbar {
+  display: none;
+}
+@media (min-width: 640px) {
+  .sched-filters {
+    flex-wrap: wrap;
+    margin-inline: -6px;
+    padding-inline: 6px;
+    overflow: visible;
+  }
+}
+.sched-pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--fg);
+  white-space: nowrap;
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition:
+    background-color 0.18s var(--ease-stick),
+    color 0.18s var(--ease-stick);
+  -webkit-tap-highlight-color: transparent;
+}
+.sched-pill:hover {
+  box-shadow: inset 0 0 0 1.5px var(--color-steel-300);
+}
+.sched-pill[aria-pressed="true"] {
+  background: var(--color-navy-900);
+  color: var(--color-white);
+  box-shadow: none;
+}
+.sched-pill[aria-pressed="true"] .sched-swatch {
+  box-shadow: 0 0 0 2px var(--color-white);
+}
+
+/* Program swatch: color + a navy ring, always next to a text label. */
+.sched-swatch {
+  flex: none;
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-full);
+  background: var(--swatch, var(--color-line));
+  box-shadow: inset 0 0 0 1.5px var(--color-navy-900);
+}
+.sched-swatch--lg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ---------- panels ---------- */
+@keyframes sched-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sched-board[data-interacted] > .sched-panel:not([hidden]),
+  .sched-board[data-interacted] .sched-days[data-selected] > .sched-day {
+    animation: sched-in 0.28s var(--ease-stick) both;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sched-views__pill,
+  .sched-views__tab,
+  .sched-pill {
+    transition: none;
+  }
+}
+
+/* ---------- "Po grupi": cards ---------- */
+.sched-cards {
+  display: grid;
+  gap: 12px;
+}
+@media (min-width: 640px) {
+  .sched-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+@media (min-width: 1024px) {
+  .sched-cards {
+    gap: 24px;
+  }
+}
+.sched-card[hidden] {
+  display: none;
+}
+.sched-card__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100%;
+  padding: 20px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--hairline);
+}
+@media (min-width: 1024px) {
+  .sched-card__inner {
+    padding: 24px;
+  }
+}
+.sched-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.sched-card__head .sched-swatch {
+  margin-top: 0.3em;
+}
+.sched-card__title {
+  font-size: 1.25rem;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-stretch: 104%;
+}
+@media (min-width: 1024px) {
+  .sched-card__title {
+    font-size: 1.375rem;
+    font-stretch: 112%;
+  }
+}
+
+/* Week row Po…Ne: a strip of seven "frames" on one mat line. */
+.sched-week {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.sched-week::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: calc(100% / 14);
+  right: calc(100% / 14);
+  height: 1px;
+  background: var(--hairline);
+}
+.sched-week__day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.sched-week__dot {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+}
+.sched-week__dot::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1.5px var(--color-steel-300);
+}
+.sched-week__day[data-on] .sched-week__dot::before {
+  width: 20px;
+  height: 20px;
+  background: var(--swatch);
+  box-shadow:
+    inset 0 0 0 2px var(--color-navy-900),
+    0 0 0 3px var(--surface);
+}
+.sched-week__label {
+  font-size: var(--text-label);
+  line-height: 1;
+  font-weight: 500;
+  color: var(--muted);
+}
+.sched-week__day[data-on] .sched-week__label {
+  font-weight: 750;
+  color: var(--fg);
+}
+
+/* Blocks: days | times */
+.sched-blocks {
+  display: grid;
+  gap: 12px;
+}
+.sched-block {
+  display: grid;
+  grid-template-columns: 5.75rem minmax(0, 1fr);
+  column-gap: 12px;
+  align-items: baseline;
+}
+.sched-block__days {
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--muted);
+}
+.sched-times {
+  font-size: var(--text-time);
+  line-height: var(--text-time--line-height);
+  font-weight: var(--text-time--font-weight);
+  letter-spacing: -0.005em;
+}
+.sched-times__range {
+  white-space: nowrap;
+}
+.sched-times__or {
+  font-size: var(--text-small);
+  font-weight: 500;
+  color: var(--muted);
+}
+.sched-times__note {
+  font-size: var(--text-small);
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* Footer: next training + calendar links */
+.sched-card__foot {
+  display: grid;
+  gap: 4px;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline);
+}
+.sched-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 6px;
+  min-height: 36px;
+  font-size: var(--text-small);
+}
+.sched-next[data-state="ready"] {
+  justify-self: start;
+  padding: 4px 14px 4px 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-ice-50);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+.sched-next[data-state="none"],
+html:not(.js) .sched-next {
+  display: none;
+}
+.sched-next__leap {
+  flex: none;
+  width: 27px;
+  height: 18px;
+  margin-right: 2px;
+  color: var(--accent);
+}
+.sched-next__label {
+  font-weight: 600;
+  color: var(--muted);
+}
+.sched-next__value {
+  font-weight: 700;
+  color: var(--fg);
+}
+
+.sched-cal {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 20px;
+}
+.sched-cal__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.22em;
+}
+.sched-cal__link:hover {
+  text-decoration-thickness: 2px;
+}
+.sched-cal__note {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.sched-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- "Po danu" ---------- */
+/* Sticky day strip; sits below the floating header while the header is shown. */
+.sched-strip {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  margin-inline: -20px;
+  padding: 6px 4px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--hairline);
+}
+/* Header geometry (styles/sections/header.css): bottom edge 70px / 72px (≥640) / 84px (≥1024). */
+.sched-board {
+  --sched-header-offset: 76px;
+}
+@media (min-width: 640px) {
+  .sched-board {
+    --sched-header-offset: 80px;
+  }
+}
+@media (min-width: 1024px) {
+  .sched-board {
+    --sched-header-offset: 92px;
+  }
+}
+html:has([data-site-header][data-hidden="false"]) .sched-strip {
+  top: var(--sched-header-offset);
+}
+@media (min-width: 640px) {
+  .sched-strip {
+    margin-inline: 0;
+    padding: 4px;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: var(--color-ice-50);
+    box-shadow:
+      inset 0 0 0 1px var(--hairline),
+      0 0 0 6px var(--bg);
+  }
+}
+.sched-strip__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-height: 52px;
+  min-width: 0;
+  border-radius: 12px;
+  color: var(--fg);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.sched-strip__day:hover {
+  background: color-mix(in oklab, var(--color-line) 55%, transparent);
+}
+.sched-strip__short {
+  font-size: var(--text-body);
+  line-height: 1.1;
+  font-weight: 700;
+}
+.sched-strip__day[data-weekend] .sched-strip__short {
+  font-weight: 500;
+  color: var(--muted);
+}
+.sched-strip__today {
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.sched-strip__day[aria-selected="true"] {
+  background: var(--color-navy-900);
+  color: var(--color-white);
+}
+.sched-strip__day[aria-selected="true"] .sched-strip__short,
+.sched-strip__day[aria-selected="true"] .sched-strip__today {
+  color: var(--color-white);
+}
+
+.sched-days {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+.sched-days[data-selected="po"] > .sched-day:not([data-day="po"]),
+.sched-days[data-selected="ut"] > .sched-day:not([data-day="ut"]),
+.sched-days[data-selected="sr"] > .sched-day:not([data-day="sr"]),
+.sched-days[data-selected="ce"] > .sched-day:not([data-day="ce"]),
+.sched-days[data-selected="pe"] > .sched-day:not([data-day="pe"]),
+.sched-days[data-selected="su"] > .sched-day:not([data-day="su"]),
+.sched-days[data-selected="ne"] > .sched-day:not([data-day="ne"]) {
+  display: none;
+}
+.sched-day {
+  padding: 16px 20px 4px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--hairline);
+}
+@media (min-width: 1024px) {
+  .sched-day {
+    padding: 20px 24px 8px;
+  }
+}
+.sched-day__title {
+  padding-bottom: 12px;
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+  letter-spacing: var(--text-label--letter-spacing);
+  font-weight: 650;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-stretch: 100%;
+}
+.sched-rows {
+  display: flex;
+  flex-direction: column;
+}
+.sched-row {
+  display: grid;
+  gap: 6px;
+  padding: 16px 0;
+  border-top: 1px solid var(--hairline);
+}
+.sched-row[hidden] {
+  display: none;
+}
+@media (min-width: 640px) {
+  .sched-row {
+    grid-template-columns: 11.5rem minmax(0, 1fr);
+    column-gap: 24px;
+    align-items: baseline;
+  }
+}
+.sched-row__group {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-weight: 600;
+}
+.sched-row__group .sched-swatch {
+  margin-top: 0.4em;
+}
+.sched-day__filtered {
+  display: none;
+  padding: 16px 0 20px;
+  border-top: 1px solid var(--hairline);
+  color: var(--muted);
+}
+.sched-day:not(:has(.sched-row:not([hidden]))) .sched-day__filtered {
+  display: block;
+}
+.sched-day__empty {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0 20px;
+  border-top: 1px solid var(--hairline);
+}
+.sched-day__empty p {
+  font-weight: 600;
+}
+.sched-day__leap {
+  flex: none;
+  width: 60px;
+  height: 40px;
+  color: var(--color-steel-300);
+}
+
+/* ---------- location ---------- */
+.sched-location {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 24px 20px;
+  border-radius: var(--radius-lg);
+  background: var(--color-ice-50);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+@media (min-width: 1024px) {
+  .sched-location {
+    position: sticky;
+    top: 104px;
+    padding: 28px 28px 28px;
+  }
+}
+.sched-location__label {
+  color: var(--muted);
+}
+.sched-location__title {
+  margin-top: 10px;
+  font-size: var(--text-h3);
+  line-height: var(--text-h3--line-height);
+  letter-spacing: var(--text-h3--letter-spacing);
+  font-weight: var(--text-h3--font-weight);
+}
+.sched-location__nick {
+  margin-top: 6px;
+  color: var(--muted);
+}
+.sched-location__street {
+  margin-top: 16px;
+  font-weight: 600;
+}
+.sched-location__maps {
+  margin-top: 24px;
+}
+@media (max-width: 639px) {
+  .sched-location__maps {
+    align-self: stretch;
+  }
+}

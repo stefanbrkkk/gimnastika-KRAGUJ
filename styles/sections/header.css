@@ -1,1 +1,674 @@
-/* header section styles — owned by the header section. Use theme tokens from app/globals.css. */
+/* ==========================================================================
+   Page chrome — header, menu sheet, sticky bottom bar, footer.
+   Owned by the header section. Theme tokens come from app/globals.css.
+   Motion: transform / opacity / clip-path only; reduced motion = instant.
+   ========================================================================== */
+
+.chrome-icon {
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+
+/* --------------------------------------------------------------------------
+   Header — a solid floating bar, inset from the edges (never glass/blur).
+   Geometry lives in custom properties so the menu sheet can mirror it.
+   Bottom edge ≤ 84px < scroll-padding-top (88px).
+   -------------------------------------------------------------------------- */
+.site-header {
+  --hdr-top: 10px;
+  --hdr-inset: 12px;
+  --hdr-h: 60px;
+  --hdr-pad: 6px;
+  --hdr-lead: 16px;
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 50;
+  padding: var(--hdr-top) var(--hdr-inset) 0;
+  background: transparent;
+  color: var(--fg);
+  pointer-events: none;
+  transition: transform 0.28s var(--ease-stick);
+}
+
+@media (min-width: 640px) {
+  .site-header {
+    --hdr-top: 12px;
+    --hdr-inset: 20px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .site-header {
+    --hdr-top: 16px;
+    --hdr-inset: 24px;
+    --hdr-h: 68px;
+    --hdr-pad: 8px;
+    --hdr-lead: 24px;
+  }
+}
+
+/* Exit = takeoff (fast), entry = stick (landing). */
+.site-header[data-hidden="true"] {
+  transform: translateY(calc(-100% - 16px));
+  transition-duration: 0.2s;
+  transition-timing-function: var(--ease-takeoff);
+}
+
+/* Keyboard focus inside always shows the header (JS also clears data-hidden). */
+.site-header:has(:focus-visible) {
+  transform: none;
+}
+
+.site-header[data-theme="light"] {
+  --hdr-surface: var(--color-white);
+  --hdr-edge: 0 0 0 1px var(--color-line), var(--shadow-2);
+  --hdr-logo: var(--color-navy-900);
+}
+
+.site-header[data-theme="dark"],
+.site-header[data-theme="darker"] {
+  --hdr-surface: var(--color-navy-950);
+  --hdr-edge: 0 0 0 1px rgba(141, 169, 198, 0.3), 0 14px 30px -12px rgba(4, 10, 24, 0.6);
+  --hdr-logo: var(--color-white);
+}
+
+/* Over navy-950 sections the bar steps up to navy-900 to stay a distinct surface. */
+.site-header[data-theme="darker"] {
+  --hdr-surface: var(--color-navy-900);
+}
+
+.site-header__bar {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 1352px;
+  height: var(--hdr-h);
+  margin-inline: auto;
+  padding: var(--hdr-pad) var(--hdr-pad) var(--hdr-pad) var(--hdr-lead);
+  border-radius: var(--radius-full);
+  background: var(--hdr-surface);
+  box-shadow: var(--hdr-edge);
+}
+
+.site-header__logo {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  min-height: 48px;
+  min-width: 48px;
+  margin-block: -2px;
+  border-radius: var(--radius-sm);
+  color: var(--hdr-logo);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.site-header__logo-svg {
+  display: block;
+  width: 92px;
+  height: 40px;
+}
+
+@media (min-width: 1024px) {
+  .site-header__logo-svg {
+    width: 110px;
+    height: 48px;
+  }
+}
+
+/* Desktop links */
+.site-header__nav {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .site-header__nav {
+    display: flex;
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+  }
+}
+
+.site-header__list {
+  display: flex;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-header__link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding-inline: 13px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-small);
+  font-weight: 620;
+  font-stretch: 104%;
+  letter-spacing: 0.005em;
+  text-decoration: none;
+  color: var(--fg);
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (min-width: 1280px) {
+  .site-header__link {
+    padding-inline: 16px;
+    font-size: 1rem;
+  }
+}
+
+/* Landing line under the link: hover previews it, aria-current holds it. */
+.site-header__link::after {
+  content: "";
+  position: absolute;
+  left: 13px;
+  right: 13px;
+  bottom: 9px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.35;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition:
+    transform 0.28s var(--ease-stick),
+    opacity 0.18s linear;
+}
+
+@media (min-width: 1280px) {
+  .site-header__link::after {
+    left: 16px;
+    right: 16px;
+  }
+}
+
+.site-header__link:hover::after {
+  transform: scaleX(1);
+}
+
+.site-header__link[aria-current]::after {
+  background: var(--accent);
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.site-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+@media (min-width: 1024px) {
+  .site-header__actions {
+    margin-left: 0;
+  }
+}
+
+/* Header CTA: hidden on phones (hero, menu sheet and sections carry it). */
+.site-header__cta {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .site-header__cta {
+    display: inline-flex;
+    min-height: 48px;
+    padding-inline: 20px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .site-header__cta {
+    min-height: 52px;
+    padding-inline: 24px;
+  }
+}
+
+/* The theme swap is instant: no background/colour tweening while scrolling. */
+.site-header .btn {
+  transition-property: transform, box-shadow;
+}
+
+/* Menu button (and the sheet's close button, same geometry) */
+.menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 14px 0 18px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--fg);
+  box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--fg) 34%, transparent);
+  font: inherit;
+  font-size: var(--text-small);
+  font-weight: 650;
+  font-stretch: 104%;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.35s var(--ease-rebound);
+}
+
+.menu-btn:active {
+  transform: translateY(2px) scale(1.03, 0.94);
+  transition-duration: 0.1s;
+}
+
+@media (min-width: 1024px) {
+  .site-header .menu-btn {
+    display: none;
+  }
+}
+
+/* No JS: the sheet cannot open, so no dead button (the page is one scroll). */
+html:not(.js) .site-header .menu-btn {
+  display: none;
+}
+
+/* --------------------------------------------------------------------------
+   Menu sheet — native <dialog>, full screen, darkroom navy. Opens with a
+   shutter (clip-path from the top), rows land in a short stagger (≤ .28s).
+   -------------------------------------------------------------------------- */
+html:has(.menu-sheet[open]) {
+  overflow: hidden;
+}
+
+.menu-sheet {
+  pointer-events: auto; /* the header root is pointer-events: none */
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.menu-sheet::backdrop {
+  background: var(--color-navy-950);
+}
+
+.menu-sheet__inner {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  max-width: calc(1352px + 2 * var(--hdr-inset));
+  margin-inline: auto;
+  padding: var(--hdr-top) var(--hdr-inset) calc(20px + env(safe-area-inset-bottom));
+}
+
+.menu-sheet__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--hdr-h);
+  padding: var(--hdr-pad) var(--hdr-pad) var(--hdr-pad) var(--hdr-lead);
+}
+
+.menu-sheet__logo {
+  width: 92px;
+  height: 40px;
+  color: var(--color-white);
+}
+
+.menu-sheet__nav {
+  margin-top: 20px;
+  padding-inline: 8px;
+}
+
+.menu-sheet__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--hairline);
+}
+
+.menu-sheet__link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 64px;
+  padding-block: 8px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: clamp(1.75rem, 1.3rem + 2vw, 2.5rem);
+  line-height: 1.05;
+  font-weight: 760;
+  font-stretch: 108%;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+  color: var(--fg);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* "You are here": the silhouette has landed on the current section. */
+.menu-sheet__here {
+  flex: none;
+  width: 44px;
+  height: auto;
+  color: var(--accent);
+  opacity: 0;
+}
+
+.menu-sheet__link[aria-current] .menu-sheet__here {
+  opacity: 1;
+}
+
+.menu-sheet__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 32px;
+  padding-inline: 8px;
+}
+
+@media (min-width: 640px) {
+  .menu-sheet__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+.menu-sheet__trail {
+  align-self: flex-end;
+  width: min(62%, 300px);
+  height: auto;
+  margin-top: auto;
+  padding-top: 40px;
+  color: var(--color-steel-300);
+}
+
+.menu-sheet__trail .leap-solid {
+  color: var(--color-lav-200);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .menu-sheet[open] {
+    animation: menu-shutter 0.28s var(--ease-stick) both;
+  }
+
+  .menu-sheet[open] .menu-sheet__item {
+    animation: menu-land 0.28s var(--ease-stick) both;
+    animation-delay: calc(80ms + var(--i, 0) * 30ms);
+  }
+}
+
+@keyframes menu-shutter {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+
+@keyframes menu-land {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Sticky bottom bar (mobile) — 64px + safe area, edge to edge.
+   Hidden = translated off screen AND visibility:hidden (out of the tab order).
+   No JS: always visible on mobile.
+   -------------------------------------------------------------------------- */
+.sticky-bar {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 40;
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  /* hairline as a shadow, so the bar stays exactly 64px + safe area */
+  box-shadow:
+    inset 0 1px 0 var(--hairline),
+    0 -10px 24px -14px rgba(10, 26, 56, 0.45);
+  transform: translateY(calc(100% + 16px));
+  visibility: hidden;
+  transition:
+    transform 0.2s var(--ease-takeoff),
+    visibility 0s linear 0.2s;
+}
+
+.sticky-bar[data-visible="true"],
+html:not(.js) .sticky-bar {
+  transform: none;
+  visibility: visible;
+  transition:
+    transform 0.28s var(--ease-stick),
+    visibility 0s linear 0s;
+}
+
+/* No JS + scroll timelines: stay out of the hero's way, appear after ~one screen. */
+@supports (animation-timeline: scroll()) {
+  html:not(.js) .sticky-bar {
+    animation: sticky-bar-nojs linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 90svh;
+  }
+}
+
+@keyframes sticky-bar-nojs {
+  0%,
+  99% {
+    transform: translateY(calc(100% + 16px));
+    visibility: hidden;
+  }
+  100% {
+    transform: none;
+    visibility: visible;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sticky-bar {
+    display: none;
+  }
+}
+
+.sticky-bar__list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  max-width: 560px;
+  height: 48px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.sticky-bar__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
+  min-height: 48px;
+  padding-inline: 8px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-small);
+  font-weight: 650;
+  font-stretch: 100%;
+  white-space: nowrap;
+  text-decoration: none;
+  color: var(--fg);
+  box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--fg) 26%, transparent);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.35s var(--ease-rebound);
+}
+
+.sticky-bar__btn .chrome-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.sticky-bar__btn--primary {
+  background: var(--cta-bg);
+  color: var(--cta-fg);
+  box-shadow: 0 2px 0 0 rgba(10, 26, 56, 0.6);
+}
+
+.sticky-bar__btn:active {
+  transform: translateY(2px) scale(1.03, 0.94);
+  transition-duration: 0.1s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-header,
+  .site-header__link::after,
+  .menu-btn,
+  .sticky-bar,
+  .sticky-bar[data-visible="true"],
+  .sticky-bar__btn {
+    transition: none;
+  }
+
+  .menu-btn:active,
+  .sticky-bar__btn:active {
+    transform: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Footer — darkroom navy-950. The logo is the last frame of the roll.
+   -------------------------------------------------------------------------- */
+.site-footer {
+  padding-top: 64px;
+  padding-bottom: calc(32px + 64px + env(safe-area-inset-bottom)); /* clears the sticky bar */
+}
+
+@media (min-width: 1024px) {
+  .site-footer {
+    padding-top: 96px;
+    padding-bottom: 40px;
+  }
+}
+
+.site-footer__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 40px;
+}
+
+@media (min-width: 1024px) {
+  .site-footer__inner {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: 24px;
+    row-gap: 64px;
+    align-items: end;
+  }
+
+  .site-footer__brand {
+    grid-column: 1 / span 7;
+  }
+
+  .site-footer__links {
+    grid-column: 9 / span 4;
+  }
+
+  .site-footer__base {
+    grid-column: 1 / -1;
+  }
+}
+
+.site-footer__mark {
+  display: block;
+  width: min(100%, 560px);
+  height: auto;
+  color: var(--color-white);
+  overflow: visible;
+}
+
+.site-footer__mark .leap-ghost {
+  color: var(--color-steel-300);
+}
+
+.site-footer__line {
+  max-width: 60ch;
+  margin-top: 24px;
+  color: var(--muted);
+  text-wrap: balance;
+}
+
+.site-footer__links {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--hairline);
+}
+
+.site-footer__link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding-block: 8px;
+  border-bottom: 1px solid var(--hairline);
+  font-weight: 620;
+  text-decoration: none;
+  color: var(--fg);
+}
+
+.site-footer__link > span:first-of-type {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--fg) 38%, transparent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.24em;
+}
+
+.site-footer__link:hover > span:first-of-type {
+  text-decoration-color: var(--fg);
+}
+
+.site-footer__arrow {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.site-footer__link .chrome-icon:first-child {
+  color: var(--muted);
+}
+
+.site-footer__base {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 24px;
+  margin-top: -16px; /* the link list above already ends on a hairline */
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+
+@media (min-width: 1024px) {
+  .site-footer__base {
+    margin-top: 0;
+    padding-top: 20px;
+    border-top: 1px solid var(--hairline);
+  }
+}
+
+.site-footer__credit {
+  color: var(--fg);
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+}

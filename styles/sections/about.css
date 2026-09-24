@@ -1,1 +1,308 @@
-/* about section styles — owned by the about section. Use theme tokens from app/globals.css. */
+/* about section styles — owned by the about section (S5 „O nama“, ice theme).
+   Mission + history beside the club photo (a contact-sheet print with a ghost
+   exposure behind it), then the „Hronologija“ line: one node per year, a static
+   full line without JS; timeline-motion.ts advances it frame by frame (scaleY).
+   Motion: only transform. */
+
+/* --------------------------------------------------------------------------
+   Mission · photo · history
+   Mobile: mission → photo → history. Desktop: photo left (cols 1–5), text right.
+   -------------------------------------------------------------------------- */
+.about__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 44px;
+}
+
+.about__label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-stretch: 110%;
+}
+
+/* A short frame tick before the label — the contact-sheet edge marks. */
+.about__label::before {
+  content: "";
+  flex: none;
+  width: 22px;
+  height: 2px;
+  background: var(--fg);
+}
+
+.about__lead {
+  font-size: clamp(1.125rem, 1.02rem + 0.45vw, 1.3125rem);
+  line-height: 1.58;
+  font-weight: 450;
+  letter-spacing: -0.003em;
+}
+
+.about__text {
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
+}
+
+/* Print + ghost exposure (a faint offset outline, like a second frame on the sheet). */
+.about__prints {
+  display: grid;
+  gap: 28px;
+  justify-items: start;
+  padding: 12px 0 0 12px;
+}
+
+.about__print {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  max-width: 545px; /* photo 03: 533 px (native / 2) + frame padding */
+}
+
+.about__print::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  translate: -12px -12px;
+  border: 1.5px solid color-mix(in oklab, var(--ghost) 70%, transparent);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.about__print--second {
+  max-width: 432px;
+  justify-self: end;
+}
+
+@media (min-width: 640px) {
+  .about__prints {
+    padding: 14px 0 0 14px;
+  }
+  .about__print::before {
+    translate: -14px -14px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .about__grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: 24px;
+    row-gap: 48px;
+    align-items: start;
+  }
+  .about__prints {
+    grid-column: 1 / span 5;
+    grid-row: 1 / span 2;
+    padding: 16px 0 0 16px;
+  }
+  .about__print::before {
+    translate: -16px -16px;
+  }
+  .about__mission,
+  .about__history {
+    grid-column: 7 / span 6;
+  }
+  .about__mission {
+    grid-row: 1;
+    padding-top: 4px;
+  }
+  .about__history {
+    grid-row: 2;
+  }
+  .about__prints--pair .about__print--second {
+    margin-top: -64px;
+    margin-right: -24px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Hronologija
+   -------------------------------------------------------------------------- */
+.about__chrono {
+  margin-top: 72px;
+}
+
+.about__chrono-title {
+  margin-bottom: 32px;
+}
+
+@media (min-width: 1024px) {
+  .about__chrono {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: 24px;
+    margin-top: 128px;
+  }
+  .about__chrono-title {
+    grid-column: 1 / span 4;
+    align-self: start;
+    position: sticky;
+    top: 112px;
+    margin: 0;
+  }
+  .about__chrono .timeline {
+    grid-column: 5 / span 8;
+  }
+}
+
+.timeline {
+  --year-size: clamp(1.75rem, 1.35rem + 1.5vw, 2.75rem);
+  --node: 14px;
+  --gutter: 40px; /* rail column */
+  --node-y: calc(var(--year-size) * 0.52);
+  position: relative;
+}
+
+/* Track (pale, always full) and progress line (navy; scaled by timeline-motion.ts). */
+.timeline__track,
+.timeline__progress {
+  position: absolute;
+  left: calc(var(--node) / 2 - 1px);
+  top: var(--node-y);
+  bottom: 0;
+  width: 2px;
+  pointer-events: none;
+  /* The line runs on past the last year and fades — the story continues. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 64px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 64px), transparent);
+}
+
+.timeline__track {
+  background: color-mix(in oklab, var(--ghost) 55%, transparent);
+}
+
+.timeline__progress {
+  background: var(--fg);
+  transform-origin: 50% 0;
+}
+
+.timeline__list {
+  display: grid;
+  row-gap: 36px;
+  margin: 0;
+  padding: 0 0 72px;
+  list-style: none;
+}
+
+.timeline__item,
+.timeline__photo {
+  position: relative;
+  padding-left: var(--gutter);
+}
+
+.timeline__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 8px;
+}
+
+/* Node: a small frame square; the inner dot pops in when the line reaches it. */
+.timeline__node {
+  position: absolute;
+  left: 0;
+  top: calc(var(--node-y) - var(--node) / 2);
+  display: grid;
+  place-items: center;
+  width: var(--node);
+  height: var(--node);
+  border: 2px solid var(--fg);
+  border-radius: 3px;
+  background: var(--bg);
+}
+
+.timeline__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: var(--fg);
+  transition: transform 0.28s var(--ease-rebound) 0.22s;
+}
+
+.timeline[data-armed] .timeline__item:not([data-reached]) .timeline__dot {
+  transform: scale(0);
+  transition-duration: 0.18s;
+  transition-delay: 0s;
+}
+
+.timeline__year {
+  margin: 0;
+  font-size: var(--year-size);
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  font-stretch: 112%;
+}
+
+.timeline__entries {
+  display: grid;
+  row-gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline__title {
+  max-width: 52ch;
+  font-size: var(--text-body);
+  line-height: 1.45;
+  font-weight: 620;
+}
+
+.timeline__text {
+  max-width: 52ch;
+  margin-top: 2px;
+  color: var(--muted);
+}
+
+.timeline__sources {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 16px;
+  margin: -4px 0 -12px -4px; /* the links keep 48px targets without adding visual air */
+}
+
+.timeline__photo {
+  padding-top: 4px;
+}
+
+.timeline__print {
+  width: 100%;
+  max-width: 300px;
+}
+
+@media (min-width: 640px) {
+  .timeline {
+    --gutter: 48px;
+  }
+  .timeline__item {
+    grid-template-columns: 7.25rem minmax(0, 1fr);
+    column-gap: 24px;
+    align-items: start;
+  }
+  .timeline__entries {
+    padding-top: calc(var(--node-y) - 0.8em);
+  }
+  .timeline__photo {
+    padding-left: calc(var(--gutter) + 7.25rem + 24px);
+  }
+}
+
+@media (min-width: 1024px) {
+  .timeline__list {
+    row-gap: 44px;
+  }
+  .timeline__item {
+    grid-template-columns: 8.25rem minmax(0, 1fr);
+    column-gap: 32px;
+  }
+  .timeline__photo {
+    padding-left: calc(var(--gutter) + 8.25rem + 32px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline__dot {
+    transition: none;
+  }
+}

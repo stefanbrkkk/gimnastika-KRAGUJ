@@ -1,1 +1,324 @@
-/* contact section styles — owned by the contact section. Use theme tokens from app/globals.css. */
+/* ==========================================================================
+   S11 Contact + final CTA „doskok“ (components/sections/contact/*). Dark theme.
+   The leotard gradient frames a solid navy slab: text never sits on the gradient.
+   ========================================================================== */
+
+.contact__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 40px;
+}
+
+@media (min-width: 1024px) {
+  .contact__layout {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: 24px;
+    align-items: stretch;
+  }
+  .cta-panel {
+    grid-column: 1 / span 7;
+  }
+  .contact-block {
+    grid-column: 8 / -1;
+  }
+}
+
+/* --- CTA panel ------------------------------------------------------------ */
+.cta-panel {
+  padding: 10px;
+  border-radius: var(--radius-lg);
+  background: var(--grad-leotard);
+}
+
+.cta-panel__slab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  height: 100%;
+  padding: 22px 20px 18px;
+  border-radius: 12px;
+  background: var(--color-navy-950);
+  color: var(--color-ice-50);
+}
+
+.cta-panel__trust {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cta-panel__trust li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 1rem;
+  line-height: 1.35;
+  font-weight: 650;
+  font-stretch: 104%;
+  border-bottom: 1px solid rgba(141, 169, 198, 0.2);
+}
+
+.cta-panel__trust li:first-child {
+  padding-top: 0;
+}
+
+.cta-panel__trust li:last-child {
+  border-bottom: 0;
+}
+
+.cta-panel__trust svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--color-lav-200);
+}
+
+.cta-panel__foot {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cta-panel__privacy {
+  max-width: 34ch;
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: 1.45;
+  color: var(--color-steel-300);
+}
+
+@media (min-width: 640px) {
+  .cta-panel {
+    padding: 14px;
+  }
+  .cta-panel__slab {
+    gap: 24px;
+    padding: 40px 36px 32px;
+  }
+  .cta-panel__trust li {
+    font-size: 1.25rem;
+    padding: 14px 0;
+  }
+}
+
+/* ≥768: trust points top-left, landing bottom-right — the floor diagonal across the slab. */
+@media (min-width: 768px) {
+  .cta-panel__trust {
+    max-width: 40ch;
+  }
+  .cta-panel__foot {
+    flex-direction: row-reverse;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 32px;
+  }
+  .cta-panel__privacy {
+    max-width: 22ch;
+    padding-bottom: 4px;
+  }
+  .cta-panel__foot .doskok {
+    flex: 0 1 400px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .cta-panel {
+    padding: 16px;
+  }
+  .cta-panel__slab {
+    min-height: 420px;
+    padding: 44px 44px 40px;
+  }
+}
+
+/* --- „Doskok“: ghost frames of a short hop, landing on the button's top edge.
+   Static composition = final state (no JS, reduced motion). --------------- */
+.doskok {
+  --leap-w: 64px;
+  width: 100%;
+  max-width: 380px;
+}
+
+@media (min-width: 640px) {
+  .doskok {
+    --leap-w: 80px;
+    max-width: 400px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .doskok {
+    --leap-w: 88px;
+  }
+}
+
+.doskok__arc {
+  position: relative;
+  height: calc(var(--leap-w) * 1.4);
+}
+
+.doskok__frame {
+  position: absolute;
+  left: var(--x);
+  width: var(--leap-w);
+  height: auto;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.doskok__ghost {
+  bottom: var(--y);
+  color: var(--color-steel-300);
+  opacity: var(--o);
+}
+
+.doskok__body {
+  position: relative;
+  transform-origin: 50% 100%;
+}
+
+.doskok__landed {
+  bottom: calc(100% - 1px);
+  color: var(--color-white);
+}
+
+.doskok__btn {
+  width: 100%;
+}
+
+/* --- Contact block (no-JS target of every booking CTA) --------------------- */
+.contact-block {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 28px;
+  font-style: normal;
+}
+
+@media (min-width: 640px) and (max-width: 1023.98px) {
+  .contact-block {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    column-gap: 24px;
+    align-items: start;
+  }
+}
+
+.contact-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--hairline);
+}
+
+.contact-list > li {
+  border-bottom: 1px solid var(--hairline);
+}
+
+.contact-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 76px;
+  padding: 12px 4px;
+  border-radius: var(--radius-sm);
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.contact-row__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1.5px var(--hairline);
+  transition: background-color 0.18s var(--ease-stick);
+}
+
+.contact-row__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.contact-row__label {
+  margin: 0;
+  color: var(--muted);
+}
+
+.contact-row__value {
+  font-size: var(--text-body);
+  line-height: 1.3;
+  font-weight: 600;
+  overflow-wrap: anywhere; /* last resort; <wbr> marks the preferred breaks (before „@“, after „_“) */
+}
+
+.contact-row__value--phone {
+  font-size: var(--text-h3);
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  font-stretch: 104%;
+  white-space: nowrap;
+}
+
+.contact-row__go {
+  flex: none;
+  display: grid;
+  color: var(--muted);
+  transition:
+    transform 0.28s var(--ease-stick),
+    color 0.18s var(--ease-stick);
+}
+
+.contact-row:hover .contact-row__icon {
+  background: var(--color-navy-800);
+}
+
+.contact-row:hover .contact-row__go {
+  color: var(--fg);
+  transform: translateX(3px);
+}
+
+.contact-venue {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 20px 20px 22px;
+  border-radius: var(--radius-lg);
+  background: var(--color-navy-950);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.contact-venue__name {
+  margin: 6px 0 0;
+  font-size: var(--text-body);
+  line-height: 1.35;
+  font-weight: 650;
+}
+
+.contact-venue__street {
+  margin: 0;
+  color: var(--fg);
+}
+
+.contact-venue__maps {
+  margin-top: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contact-row__go,
+  .contact-row:hover .contact-row__go {
+    transition: none;
+    transform: none;
+  }
+}

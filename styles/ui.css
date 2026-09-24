@@ -41,26 +41,22 @@
     align-items: flex-end;
     text-align: right;
   }
-  .section-heading[data-align="right"] .section-heading__row {
-    flex-direction: row-reverse;
-  }
 }
-.section-heading__row {
-  display: flex;
-  align-items: flex-end;
-  gap: 14px;
-  margin-bottom: 10px;
+.section-heading__title {
+  max-width: 22ch;
 }
+.section-heading__intro {
+  margin-top: 16px;
+}
+/* The mark sits on the title's last line, raised, as if the leap landed on the word. */
 .chrono-mark {
-  width: 64px;
+  display: inline-block;
+  width: 1.7em;
   height: auto;
+  margin-left: 0.2em;
+  vertical-align: 0.05em;
   overflow: visible;
   color: var(--accent);
-}
-@media (min-width: 1024px) {
-  .chrono-mark {
-    width: 84px;
-  }
 }
 .chrono-ghost {
   color: var(--ghost);
@@ -76,7 +72,7 @@ html.js-motion .chrono-mark:not([data-landed]) .chrono-ghost {
 }
 html.js-motion .chrono-mark:not([data-landed]) .chrono-solid {
   opacity: 0;
-  transform: translate(-60px, -40px);
+  transform: translate(-40%, -45%);
 }
 html.js-motion .chrono-mark .chrono-ghost {
   transition: opacity 0.28s linear calc(var(--i) * 0.08s);

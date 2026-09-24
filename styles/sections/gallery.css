@@ -1,1 +1,501 @@
-/* gallery section styles — owned by the gallery section. Use theme tokens from app/globals.css. */
+/* gallery section styles — owned by the gallery section (S9 „Galerija“).
+   A contact sheet: CSS-columns masonry of framed prints (KR-xx), chips that
+   filter it, and a fullscreen lightbox (native <dialog>, scroll-snap track).
+   Motion: only transform and opacity (Flip, crossfades). */
+
+/* --------------------------------------------------------------------------
+   Head: heading (right on desktop) + chips/status (left on desktop)
+   -------------------------------------------------------------------------- */
+.gallery .gl-head {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.gallery .gl-head .section-heading {
+  margin-bottom: 0;
+}
+
+@media (min-width: 1024px) {
+  .gallery .gl-head {
+    flex-direction: row-reverse;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 48px;
+    margin-bottom: 56px;
+  }
+  .gallery .gl-filters {
+    flex: 1 1 auto;
+    max-width: 640px;
+  }
+}
+
+/* Chips — hidden without JS (every print is visible anyway). */
+html:not(.js) .gallery .gl-filters {
+  display: none;
+}
+
+.gl-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 0 16px 0 18px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--text-small);
+  font-weight: 620;
+  font-stretch: 104%;
+  line-height: 1.2;
+  box-shadow: inset 0 0 0 2px var(--hairline);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    background-color 0.18s var(--ease-stick),
+    color 0.18s var(--ease-stick),
+    transform 0.1s linear;
+}
+
+.gl-chip:hover {
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--fg) 45%, transparent);
+}
+
+.gl-chip:active {
+  transform: translateY(1px);
+}
+
+.gl-chip__check {
+  display: none;
+  width: 16px;
+  height: 16px;
+  margin-left: -4px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Frame count, like the exposure count on a film box. */
+.gl-chip__count {
+  min-width: 1.6em;
+  margin-left: 2px;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-white);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* Pressed: filled navy + check mark (shape, not color alone). */
+.gl-chip[aria-pressed="true"] {
+  background: var(--color-navy-900);
+  color: var(--color-white);
+  box-shadow: inset 0 0 0 2px var(--color-navy-900);
+}
+
+.gl-chip[aria-pressed="true"] .gl-chip__check {
+  display: block;
+}
+
+.gl-chip[aria-pressed="true"] .gl-chip__count {
+  background: var(--color-navy-800);
+  box-shadow: none;
+  color: var(--color-ice-50);
+}
+
+.gl-status {
+  min-height: 1.5em;
+  margin-top: 10px;
+  color: var(--muted);
+}
+
+.gl-status:empty {
+  margin-top: 0;
+}
+
+/* --------------------------------------------------------------------------
+   The sheet: CSS-columns masonry (2 / 3 columns), prints keep their aspect.
+   -------------------------------------------------------------------------- */
+.gl-grid {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  columns: 2;
+  column-gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .gl-grid {
+    columns: 3;
+    column-gap: 16px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .gl-grid {
+    column-gap: 24px;
+  }
+}
+
+.gl-item {
+  display: block;
+  break-inside: avoid;
+  margin-bottom: 12px;
+  /* Flip moves items between columns: keep them on their own layer only while moving. */
+}
+
+.gl-item[hidden] {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .gl-item {
+    margin-bottom: 16px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .gl-item {
+    margin-bottom: 24px;
+  }
+}
+
+/* A print. The frame keeps its native/2 cap (inline max-width from <Picture>). */
+.gl-print.frame {
+  width: 100%;
+  margin: 0;
+}
+
+.gl-print .frame-foot {
+  padding-right: 34px; /* room for the zoom mark */
+}
+
+.gl-print .frame-caption {
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+/* MINOR_PHOTOS=false placeholders: keep the note centred in narrow prints. */
+.gl-print .photo-placeholder {
+  padding-inline: 10px;
+}
+
+.gl-print .photo-placeholder__text {
+  text-align: center;
+}
+
+/* Narrow two-column prints: the category note would crowd the frame number. */
+@media (max-width: 479px) {
+  .gl-print .frame-caption {
+    display: none;
+  }
+  .gl-print .frame-foot {
+    padding-right: 30px;
+  }
+}
+
+.gl-open {
+  position: relative;
+  display: block;
+  border-radius: 2px;
+  color: inherit;
+  text-decoration: none;
+  cursor: zoom-in;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.28s var(--ease-stick);
+}
+
+.gl-open:active {
+  transform: translateY(1px) scale(0.99);
+  transition-duration: 0.1s;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gl-open:hover {
+    transform: translateY(-3px);
+  }
+}
+
+/* Always-visible "open larger" mark in the frame foot (not a hover-only cue). */
+.gl-zoom {
+  position: absolute;
+  right: 6px;
+  bottom: 3px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.gl-zoom svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.gl-open:hover .gl-zoom,
+.gl-open:focus-visible .gl-zoom {
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gl-open,
+  .gl-open:active,
+  .gl-open:hover,
+  .gl-chip,
+  .gl-chip:active {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Lightbox (native <dialog>, top layer; data-theme="darker")
+   -------------------------------------------------------------------------- */
+html[data-lightbox-open] {
+  overflow: hidden;
+  scrollbar-gutter: stable;
+}
+
+html[data-lightbox-open] body {
+  overflow: hidden;
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  overflow: hidden;
+  overscroll-behavior: contain;
+  --lb-top: 72px;
+  --lb-bottom: 92px;
+}
+
+.lightbox::backdrop {
+  background: transparent;
+}
+
+@media (min-width: 1024px) {
+  .lightbox {
+    --lb-bottom: 40px;
+  }
+}
+
+.lb-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 26, 56, 0.985);
+}
+
+.lb-track {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  /* Horizontal pans stay native (snap); vertical drags go to the swipe-down Observer. */
+  touch-action: pan-x pinch-zoom;
+}
+
+.lb-track::-webkit-scrollbar {
+  display: none;
+}
+
+.lb-slide {
+  flex: 0 0 100%;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: var(--lb-top) 16px var(--lb-bottom);
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
+
+@media (min-width: 1024px) {
+  .lb-slide {
+    padding-inline: 96px;
+  }
+}
+
+/* Never wider than native/2 CSS px (--cap), never taller than the stage; native aspect (never cropped). */
+.lb-media {
+  position: relative;
+  width: min(100%, var(--cap), calc((100svh - var(--lb-top) - var(--lb-bottom)) * var(--r)));
+  aspect-ratio: var(--ar);
+  background-color: var(--color-navy-900);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  box-shadow: 0 0 0 1px rgba(141, 169, 198, 0.18);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.lb-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  -webkit-user-drag: none;
+}
+
+/* Top bar: counter · frame label · close */
+.lb-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: var(--lb-top);
+  padding: max(12px, env(safe-area-inset-top)) 12px 12px 20px;
+  pointer-events: none;
+}
+
+.lb-top > * {
+  pointer-events: auto;
+}
+
+.lb-count {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: var(--fg);
+}
+
+.lb-frame {
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.lb-frame::before {
+  content: "▸ ";
+  font-size: 9px;
+}
+
+.lb-close {
+  margin-left: auto;
+}
+
+.lb-btn {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: rgba(17, 45, 95, 0.72);
+  color: var(--color-ice-50);
+  box-shadow: inset 0 0 0 1.5px rgba(141, 169, 198, 0.4);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    background-color 0.18s var(--ease-stick),
+    transform 0.1s linear;
+}
+
+.lb-btn:hover {
+  background: var(--color-navy-800);
+}
+
+.lb-btn:active {
+  transform: translateY(1px);
+}
+
+.lb-btn[aria-disabled="true"] {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.lb-btn svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Prev/next: bottom corners on phones, screen edges on desktop. */
+.lb-nav {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px calc(20px + env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+.lb-nav[hidden] {
+  display: none;
+}
+
+.lb-nav > * {
+  pointer-events: auto;
+}
+
+@media (min-width: 1024px) {
+  .lb-nav {
+    top: 0;
+    padding: 0 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lb-btn,
+  .lb-btn:active {
+    transition: none;
+    transform: none;
+  }
+}

@@ -1,1 +1,218 @@
-/* coaches section styles — owned by the coaches section. Use theme tokens from app/globals.css. */
+/* coaches section styles — owned by the coaches section (S6 „Trenerice“, light theme).
+   Two coach cards (portrait print + „Licenca GSS“ stamp + roles), then photo 05 as a
+   wide „Na takmičenju“ print carrying the white brush annotation. The cards switch
+   to a side-by-side layout with a container query, so the same card works stacked
+   (mobile/tablet) and in two columns (desktop). Motion: clip-path, transform,
+   opacity, stroke-dashoffset only (coaches-motion.ts). */
+
+/* --------------------------------------------------------------------------
+   Cards
+   -------------------------------------------------------------------------- */
+.coaches__cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 1024px) {
+  .coaches__cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+  }
+}
+
+.coach {
+  container-type: inline-size;
+  min-width: 0;
+}
+
+.coach__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 30px;
+  align-content: start; /* equal-height cards: extra height stays below, rows never stretch */
+  height: 100%;
+  padding: 20px 20px 22px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px var(--hairline),
+    var(--shadow-2);
+}
+
+.coach__media {
+  position: relative;
+  width: min(60%, 232px);
+}
+
+.coach__portrait .frame {
+  width: 100%;
+}
+
+/* Silhouette stand-in (no portrait yet): the same navy placeholder as MINOR_PHOTOS. */
+.coach__pending .coach__pending-leap {
+  width: 66%;
+  max-width: none;
+  opacity: 0.5;
+}
+
+.coach__name {
+  margin: 0 0 14px;
+}
+
+.coach__roles {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--hairline);
+}
+
+.coach__role {
+  padding: 10px 0 11px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: var(--text-small);
+  line-height: 1.45;
+}
+
+.coach__bio {
+  margin-top: 16px;
+}
+
+@container (min-width: 540px) {
+  .coach__inner {
+    grid-template-columns: 196px minmax(0, 1fr);
+    column-gap: 52px;
+    align-items: start;
+    padding: 24px;
+  }
+  .coach__media {
+    width: 100%;
+  }
+  .coach__body {
+    padding-top: 6px;
+  }
+}
+
+@container (min-width: 620px) {
+  .coach__inner {
+    grid-template-columns: 224px minmax(0, 1fr);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   „Licenca GSS“ stamp — centred near the print's lower-right corner.
+   -------------------------------------------------------------------------- */
+.licence-stamp {
+  position: absolute;
+  right: -30px;
+  bottom: -12px;
+  z-index: 2;
+  display: block;
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  color: var(--accent);
+  box-shadow: var(--shadow-2);
+}
+
+.licence-stamp__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.licence-stamp__disc {
+  fill: var(--surface);
+}
+
+.licence-stamp__ring {
+  fill: none;
+  stroke: currentColor;
+}
+
+.licence-stamp__arc,
+.licence-stamp__mark {
+  fill: currentColor;
+  font-family: var(--font-sans);
+}
+
+.licence-stamp__arc {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  font-stretch: 112%;
+}
+
+.licence-stamp__mark {
+  font-size: 25px;
+  font-weight: 820;
+  letter-spacing: 0.02em;
+  font-stretch: 118%;
+}
+
+.licence-stamp__dots {
+  fill: currentColor;
+}
+
+/* --------------------------------------------------------------------------
+   Photo 05 — wide print under the cards (≤600 CSS px), on the floor diagonal.
+   -------------------------------------------------------------------------- */
+.coaches__team {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 44px;
+}
+
+/* Desktop: the print starts on the second card's edge (cols 7–12) — heading top-left,
+   print bottom-right: the floor diagonal runs through the section. */
+@media (min-width: 1024px) {
+  .coaches__team {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: 24px;
+    margin-top: 56px;
+  }
+  .coaches-team {
+    grid-column: 7 / span 6;
+  }
+}
+
+.coaches-team {
+  position: relative;
+  width: 100%;
+  max-width: 612px; /* 600 px photo (native / 2) + frame padding */
+}
+
+/* Overlay = exactly the photo box inside the frame (6 px padding, 3:2). */
+.brush {
+  position: absolute;
+  z-index: 1;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  aspect-ratio: 3 / 2;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.brush__strand {
+  stroke: var(--color-white);
+}
+
+.brush__strand--mid {
+  opacity: 0.72;
+}
+
+.brush__strand--thin {
+  opacity: 0.5;
+}
+
+.brush__shadow {
+  stroke: var(--color-navy-900);
+  opacity: 0.2;
+}

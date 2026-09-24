@@ -34,3 +34,14 @@ export const GALLERY: readonly GalleryItem[] = [
 ];
 
 export const GALLERY_COPY = { heading: "Galerija" } as const;
+
+/** Mechanical gallery UI strings (chips, lightbox). */
+export const GALLERY_UI = {
+  all: "Sve",
+  filtersLabel: "Prikažite fotografije",
+  openHint: "Otvara veći prikaz fotografije.",
+  dialogLabel: "Galerija — veći prikaz",
+  close: "Zatvorite",
+  prev: "Prethodna fotografija",
+  next: "Sledeća fotografija",
+} as const;

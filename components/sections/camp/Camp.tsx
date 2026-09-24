@@ -1,15 +1,130 @@
-// SCAFFOLD STUB — replaced by the camp section implementation.
+import { Picture, isPhotoVisible } from "@/components/ui/Picture";
 import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { CAMP } from "@/content/copy";
+import type { PhotoId } from "@/content/photos";
+import { PRIMARY_PHONE } from "@/content/site";
+import { telHref } from "@/lib/links";
+import { belgradeNow } from "@/lib/time";
+import { postcardCounter } from "./camp-copy";
+import { CampIsland } from "./CampIsland";
+import { HORIZON_VIEWBOX, LEGS_D, WAVE_D } from "./horizon";
 
-export function Camp() {
+/**
+ * Postcards in stack order (top first). 09 only when CAMP_GROUP_PHOTOS allows it.
+ * No captions: nothing may imply that a photo was taken in Greece (§5 S8).
+ * `sizes` = the card's CSS width in the stack (see styles/sections/camp.css).
+ */
+const POSTCARDS: readonly { id: PhotoId; orient: "landscape" | "portrait"; sizes: string }[] = [
+  { id: "10", orient: "landscape", sizes: "(min-width: 1024px) 520px, (min-width: 640px) 70vw, 84vw" },
+  { id: "11", orient: "portrait", sizes: "(min-width: 1024px) 350px, (min-width: 640px) 48vw, 60vw" },
+  { id: "09", orient: "landscape", sizes: "(min-width: 1024px) 520px, (min-width: 640px) 70vw, 84vw" },
+];
+
+/** The camp note with the phone number as a tel: link (text stays exactly as in content/copy.ts). */
+function CampNote() {
+  const [before, after] = CAMP.note.split(PRIMARY_PHONE.display);
+  const hasPhone = after !== undefined;
   return (
-    <Section id="kamp" theme="light" labelledBy="kamp-title">
+    <p className="camp__note" data-camp-note="" data-until={CAMP.noteUntil}>
+      <svg className="camp__note-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="12" r="4.2" />
+        <path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" />
+      </svg>
+      <span>
+        {hasPhone ? (
+          <>
+            {before}
+            <a className="link tabular whitespace-nowrap" href={telHref(PRIMARY_PHONE.e164)}>
+              {PRIMARY_PHONE.display}
+            </a>
+            {after}
+          </>
+        ) : (
+          CAMP.note
+        )}
+      </span>
+    </p>
+  );
+}
+
+function Arrow({ dir }: { dir: "prev" | "next" }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="postcards__arrow">
+      <path d={dir === "prev" ? "M14.5 5.5 8 12l6.5 6.5" : "M9.5 5.5 16 12l-6.5 6.5"} />
+    </svg>
+  );
+}
+
+/**
+ * S8 — „Gimnastički kamp“ (§5 S8, §4 Camp). Light theme.
+ * - Postcards: a scroll-snap row without JS; with JS (html.js, set before first paint)
+ *   a stack that can be flicked sideways (Draggable x + Inertia, loaded when near)
+ *   plus prev/next buttons (WCAG 2.5.7). Vertical page scroll stays native.
+ * - Horizon: the beam that morphs into a sea wave on scroll (desktop fine pointer only);
+ *   the static state everywhere else is the wave.
+ * - Camp note: rendered while the BUILD date ≤ CAMP_NOTE_UNTIL and hidden after mount
+ *   when the visitor's Europe/Belgrade date is past it (DECISIONS D-19).
+ */
+export function Camp() {
+  const cards = POSTCARDS.filter((c) => isPhotoVisible(c.id));
+  const showNote = belgradeNow().ymd <= CAMP.noteUntil;
+  const multiple = cards.length > 1;
+
+  return (
+    <Section id="kamp" theme="light" labelledBy="kamp-title" className="camp">
       <div className="container-site">
-        <SectionHeading id="kamp-title" n={8} title={CAMP.heading} align="left" />
-        <p className="text-muted">TODO: camp</p>
+        <SectionHeading id="kamp-title" title={CAMP.heading} align="left" />
+
+        <div className="camp__layout" data-camp="">
+          <div className="camp__text">
+            <p className="camp__lead measure">{CAMP.lead}</p>
+            {showNote ? <CampNote /> : null}
+          </div>
+
+          <ul className="postcards" id="kamp-razglednice" data-postcards="" data-count={cards.length}>
+            {cards.map((c, i) => (
+              <li key={c.id} className="postcard" data-postcard="" data-orient={c.orient} data-slot={i}>
+                <Picture id={c.id} sizes={c.sizes} frame className="postcard__frame" />
+              </li>
+            ))}
+          </ul>
+
+          <svg
+            className="camp__horizon"
+            viewBox={`0 0 ${HORIZON_VIEWBOX.width} ${HORIZON_VIEWBOX.height}`}
+            preserveAspectRatio="none"
+            aria-hidden="true"
+            focusable="false"
+            data-horizon=""
+          >
+            <path className="camp__horizon-legs" d={LEGS_D} opacity="0" data-horizon-legs="" />
+            <path className="camp__horizon-line" d={WAVE_D} data-horizon-line="" />
+          </svg>
+
+          {multiple ? (
+            <div className="postcards__controls" data-postcards-controls="">
+              <button type="button" className="btn btn-secondary postcards__btn" data-postcards-dir="prev" aria-controls="kamp-razglednice">
+                <Arrow dir="prev" />
+                <span className="sr-only">{CAMP.prev}</span>
+              </button>
+              <p className="postcards__count label-caps tabular">
+                <span aria-hidden="true">
+                  <span data-postcards-index="">1</span> / {cards.length}
+                </span>
+                <span className="sr-only" aria-live="polite" data-postcards-live="">
+                  {postcardCounter(1, cards.length)}
+                </span>
+              </p>
+              <button type="button" className="btn btn-secondary postcards__btn" data-postcards-dir="next" aria-controls="kamp-razglednice">
+                <span className="sr-only">{CAMP.next}</span>
+                <Arrow dir="next" />
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
+      <CampIsland />
     </Section>
   );
 }

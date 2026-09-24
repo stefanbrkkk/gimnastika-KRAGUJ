@@ -144,6 +144,34 @@ export const formatGroup = (group: ScheduleGroup, showShiftNote?: boolean): stri
 /** Days (in week order) on which a group trains at all. */
 export const activeDays = (group: ScheduleGroup): Set<DayCode> => new Set(group.blocks.flatMap((b) => b.days));
 
+/**
+ * Schedule UI strings. "Po grupi", "Po danu", "Sledeći trening", "Dodajte u kalendar (.ics)",
+ * "Google Kalendar" and "Otvorite u mapama" are master-prompt copy (§5 S4); the rest are
+ * mechanical UI strings (aria labels, states).
+ */
+export const SCHEDULE_UI = {
+  viewsLabel: "Prikaz rasporeda",
+  byGroup: "Po grupi",
+  byDay: "Po danu",
+  filterLabel: "Program",
+  all: "Sve",
+  next: "Sledeći trening",
+  ics: "Dodajte u kalendar (.ics)",
+  gcal: "Google Kalendar",
+  newTab: "(otvara se u novoj kartici)",
+  weekLabel: "Dani treninga",
+  dayOn: "trening",
+  dayOff: "bez treninga",
+  dayStripLabel: "Dan u nedelji",
+  today: "danas",
+  filteredEmpty: "Izabrani program nema trening ovog dana.",
+  /** Shown on cards that mix fixed and "ili" slots: the calendar holds only the fixed ones. */
+  fixedOnly: (slots: string) => `U kalendar se dodaju samo termini sa stalnim vremenom: ${slots}.`,
+  addressLabel: "Adresa",
+  nicknamePrefix: "u gradu poznata kao",
+  maps: "Otvorite u mapama",
+} as const;
+
 export const SCHEDULE_LOCATION = {
   heading: "Raspored treninga",
   sub: "Sala Trgovinsko-ugostiteljske škole „Toza Dragović“ (u gradu poznata kao „ŠUP“), Save Kovačevića 25",

@@ -13,7 +13,14 @@
     "images": "node scripts/images.mjs",
     "svg": "node scripts/svg.mjs",
     "qa": "node qa/run-all.mjs",
-    "postbuild": "node scripts/prune-out.ts"
+    "postbuild": "node scripts/prune-out.ts",
+    "qa:bundle": "node qa/bundle.mjs",
+    "qa:content": "node qa/content.mjs",
+    "qa:shots": "node qa/shots.mjs",
+    "qa:trace": "node qa/trace.mjs",
+    "qa:behavior": "node qa/behavior.mjs",
+    "qa:axe": "node qa/axe.mjs",
+    "qa:lighthouse": "node qa/lighthouse.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
