@@ -1,0 +1,107 @@
+/* Shared UI primitives (owned by the scaffold, not by a section). */
+
+/* Skip link */
+.skip-link {
+  position: fixed;
+  left: 12px;
+  top: 12px;
+  z-index: 100;
+  transform: translateY(-160%);
+  padding: 12px 18px;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-full);
+  background: var(--color-lav-200);
+  color: var(--color-navy-900);
+  font-weight: 650;
+  text-decoration: none;
+  transition: transform 0.18s var(--ease-stick);
+}
+.skip-link:focus-visible,
+.skip-link:focus {
+  transform: none;
+  box-shadow:
+    0 0 0 3px var(--color-navy-900),
+    0 0 0 5px var(--color-lav-200);
+}
+
+/* Section heading + chronophotograph landing mark */
+.section-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 40px;
+}
+@media (min-width: 1024px) {
+  .section-heading {
+    margin-bottom: 64px;
+  }
+  .section-heading[data-align="right"] {
+    align-items: flex-end;
+    text-align: right;
+  }
+  .section-heading[data-align="right"] .section-heading__row {
+    flex-direction: row-reverse;
+  }
+}
+.section-heading__row {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+.chrono-mark {
+  width: 64px;
+  height: auto;
+  overflow: visible;
+  color: var(--accent);
+}
+@media (min-width: 1024px) {
+  .chrono-mark {
+    width: 84px;
+  }
+}
+.chrono-ghost {
+  color: var(--ghost);
+  opacity: var(--o);
+}
+.chrono-solid {
+  color: var(--accent);
+}
+
+/* Landing (HeadingLandings island adds data-landed). No-JS / reduced motion: static final state. */
+html.js-motion .chrono-mark:not([data-landed]) .chrono-ghost {
+  opacity: 0;
+}
+html.js-motion .chrono-mark:not([data-landed]) .chrono-solid {
+  opacity: 0;
+  transform: translate(-60px, -40px);
+}
+html.js-motion .chrono-mark .chrono-ghost {
+  transition: opacity 0.28s linear calc(var(--i) * 0.08s);
+}
+html.js-motion .chrono-mark .chrono-solid {
+  transform-box: fill-box;
+  transition:
+    opacity 0.18s linear 0.2s,
+    transform 0.6s var(--ease-stick) 0.2s;
+}
+
+/* Source link "izvor ↗" */
+.source-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  min-width: 48px;
+  padding-inline: 4px;
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.22em;
+}
+.source-link:hover {
+  text-decoration-thickness: 2px;
+}

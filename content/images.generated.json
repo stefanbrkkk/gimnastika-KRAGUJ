@@ -1,0 +1,146 @@
+{
+  "01-uspeh-medalje-ekipa": {
+    "width": 2400,
+    "height": 1800,
+    "widths": [
+      480,
+      960,
+      1600
+    ],
+    "blur": "data:image/webp;base64,UklGRmQAAABXRUJQVlA4IFgAAACwAQCdASoQAAwAA4BaJYwC7AEJ/S1AAN5UatjFjffr9pT1vgTVerEs45C/y/LXzBPPdCTlcb6Bw6BrJOUdmLWtuxtMSrtGg7F5sNSCqq06vxKPQp2X4AAA"
+  },
+  "02-zajednica-kamp-grupa": {
+    "width": 1600,
+    "height": 1200,
+    "widths": [
+      480,
+      960,
+      1600
+    ],
+    "blur": "data:image/webp;base64,UklGRk4AAABXRUJQVlA4IEIAAADQAQCdASoQAAwAA4BaJQBdgBnVJTCwAADeTQWDIyruEqts6yRreHe663fj6MOV1YsGGv8NzGYrEDSuqOwcpka6gAA="
+  },
+  "03-hala-ceo-klub-baner": {
+    "width": 1066,
+    "height": 1066,
+    "widths": [
+      480,
+      960
+    ],
+    "blur": "data:image/webp;base64,UklGRm4AAABXRUJQVlA4IGIAAAAQAgCdASoQABAAA4BaJQBOgBwogT/IX3kAAP7qQy48z0mFMMPv9LgBU1b8lBwkEsu4wGJEmF37gWd1BvFU+923B4t0qFqOVyxvnsQtAV8kjZIVB9ezvrbwcm+IrfBl6wAAAA=="
+  },
+  "04-trening-airtrack-skok": {
+    "width": 1066,
+    "height": 1066,
+    "widths": [
+      480,
+      960
+    ],
+    "blur": "data:image/webp;base64,UklGRmIAAABXRUJQVlA4IFYAAAAQAgCdASoQABAAA4BaJQBdgCPgiiszA1MAAP7k7gQu02uiZnFPcKNSfer+JB9Uq/YnS8jYHQ3F3Ptuhym9YqiZT4f3z69LVf/yJlZgAfwDiUN+nYAAAA=="
+  },
+  "05-treneri-zajedno": {
+    "width": 1200,
+    "height": 1600,
+    "widths": [
+      480,
+      960
+    ],
+    "blur": "data:image/webp;base64,UklGRqgAAABXRUJQVlA4IJwAAAAQBACdASoQABUAPu1iqU2ppaOiMAgBMB2JZAC1CExCBXEhIkQNny9IMAD64Hlpr/OJ411OgndzBiaKFppDIxkQ6zbDXJWmXXWZ8s7tDISzptlZSGZ6z+LafTE342x++jE16cfNB73XSx4dHZ33RRihGV68N17ekQDSJRkbNvTwDRm511F6dPq+oB7sTKBTCO5Z9wu3vJDSIHUEoAA="
+  },
+  "06-trener-portret-mladja": {
+    "width": 1170,
+    "height": 1426,
+    "widths": [
+      480,
+      960
+    ],
+    "blur": "data:image/webp;base64,UklGRpoAAABXRUJQVlA4II4AAABwBACdASoQABQAPu1iqU2ppaQiMAgBMB2JZACdMoFWwAP3bhOrw50r0lxcoAD+cgBWWJLjeh73O3jZ0pTnKRuwbiaQbm6jlMwD/mBvTwLSaS8L4azf3JAeMgaPVtzWRelgZ8jt6aVzDrwjF15BRn2d+HW69aY2pHvyKddSk93i2+b2PYbjefs46akTZSAA"
+  },
+  "08-aerobik-tim-selfie": {
+    "width": 2000,
+    "height": 1500,
+    "widths": [
+      480,
+      960,
+      1600
+    ],
+    "blur": "data:image/webp;base64,UklGRogAAABXRUJQVlA4IHwAAABwAgCdASoQAAwAA4BaJaACw7YtLzGKZhTA4eO4AP7dzb09wxs+bq43YxB0nDvggSPDC1P4XodLDm6HW16V1HImAeGFWvIp3KpMxJGw+cpU/U4UfMXm13CNfgcov6UKGPY+3mwiyb6+bCumZCboomdxjFWTJLVjdXcqWAAA"
+  },
+  "09-kamp-hala-sertifikati": {
+    "width": 2400,
+    "height": 1800,
+    "widths": [
+      480,
+      960,
+      1600
+    ],
+    "blur": "data:image/webp;base64,UklGRlgAAABXRUJQVlA4IEwAAADQAQCdASoQAAwAA4BaJaAC7AEPDspDgAD+W8U6gkqoXKEdrdsexlS67jrelWJ1M2IYukrci/5vfM4BcBHj+Xr9l9xABSwZw/YXTAAA"
+  },
+  "10-kamp-selfie-park": {
+    "width": 2000,
+    "height": 1500,
+    "widths": [
+      480,
+      960,
+      1600
+    ],
+    "blur": "data:image/webp;base64,UklGRmAAAABXRUJQVlA4IFQAAADwAQCdASoQAAwAA4BaJYwCsAEOJqxcI8AA4ga2j/Bmfm6tf85e0C8hoVCpl4dO7fVE69MaOi0aKDhHbF0KiP6pnUw9iiQTYQx7czmn8CwA3SInAAA="
+  },
+  "11-kamp-penjanje": {
+    "width": 1500,
+    "height": 2000,
+    "widths": [
+      480,
+      960
+    ],
+    "blur": "data:image/webp;base64,UklGRq4AAABXRUJQVlA4IKIAAACwAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JZgC7AYxYucJKVNk57AD+rP9iSOzgkj82ZuYYAFLlUsBxVZE1PEVgqItIYUC/ytD15yw7ZSGicTySYtjWUzZOSMPV7IzWWOrrKhVT4a40pgBd+UQH93Kd6Y96JPHtjPWpuKSjCOP5d4rFfSVcn6WDXzSLqHb4cphCdU/XHXSIgJiWYQCIcBwAAAA="
+  },
+  "12-greda-mural-poze": {
+    "width": 2000,
+    "height": 1500,
+    "widths": [
+      480,
+      960,
+      1600
+    ],
+    "blur": "data:image/webp;base64,UklGRnQAAABXRUJQVlA4IGgAAADwAQCdASoQAAwAA4BaJQBOgMX6bWTijAAA/gLiwyqEMdQDpH08ScrvcGcJt88dNxyqZlO7h/KHAiur0xuLvLHyBe24yR9aR1w2jBm+WJ7jfW81ut0X0bA6uPecGvFFqkrCJcSF/3sAAA=="
+  },
+  "14-greda-mural-sa-trenerom": {
+    "width": 2000,
+    "height": 1500,
+    "widths": [
+      480,
+      960,
+      1600
+    ],
+    "blur": "data:image/webp;base64,UklGRnQAAABXRUJQVlA4IGgAAABQAgCdASoQAAwAA4BaJYgCdADR3Xyqvt8QbIAA/d/nLINRgNCOxeYGw+fA7y37BtAAydhSOBGJnOGbEVq/smGCGtjsHKkkaTK1W4nw9seeFfxPO8l1OX7HNvd3ih8tUIj1J9W+a6AAAA=="
+  },
+  "15-razboj-trening-mutna": {
+    "width": 1066,
+    "height": 1066,
+    "widths": [
+      480,
+      960
+    ],
+    "blur": "data:image/webp;base64,UklGRnYAAABXRUJQVlA4IGoAAADwAQCdASoQABAAA4BaJZgCdACTUj9ejsAA/t4gH565elurX1kRbdHMMLTP7EGiPH63XhNzVF616dFVB4YLThnQ787arbAaMsDM47Zyn0180mt37EPqY96t4VRQ3Kk+DxJK0foEYpHosAAA"
+  },
+  "16-kamp-rucak": {
+    "width": 2000,
+    "height": 1500,
+    "widths": [
+      480,
+      960,
+      1600
+    ],
+    "blur": "data:image/webp;base64,UklGRmwAAABXRUJQVlA4IGAAAADQAQCdASoQAAwAA4BaJQBOj+AC/NkkAAD2G8hM6n7jkqSC1+pL3TW5Xzkg/yNOiYc+Pf4VqlFLgABhU7BbQwMEby8IHkuYpjamcmstX/3iTv+jhBnv7qohHNwGr3D7uAA="
+  },
+  "17-torta-rodjendan-kluba-2019": {
+    "width": 2000,
+    "height": 1500,
+    "widths": [
+      480,
+      960,
+      1600
+    ],
+    "blur": "data:image/webp;base64,UklGRmgAAABXRUJQVlA4IFwAAAAQAgCdASoQAAwAA4BaJQBdgBVY5TufdjgAAP7vgWazOM+1EWrSIlOjLaoczEP6qzpIb5cht32BbGdw8f0WbVn8bUs1Pr5h6J3VkzYKjFnYLhKdVJNrvgF2DLKAAA=="
+  }
+}

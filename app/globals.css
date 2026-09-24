@@ -1,0 +1,525 @@
+@import "tailwindcss";
+
+@import "../styles/ui.css";
+
+/* Section CSS (one file per section, owned by the section). */
+@import "../styles/sections/hero.css";
+@import "../styles/sections/header.css";
+@import "../styles/sections/quiz.css";
+@import "../styles/sections/programs.css";
+@import "../styles/sections/schedule.css";
+@import "../styles/sections/about.css";
+@import "../styles/sections/coaches.css";
+@import "../styles/sections/results.css";
+@import "../styles/sections/camp.css";
+@import "../styles/sections/gallery.css";
+@import "../styles/sections/enrollment.css";
+@import "../styles/sections/contact.css";
+@import "../styles/sections/booking.css";
+@import "../styles/sections/notfound.css";
+
+/* ==========================================================================
+   Design tokens (§3). Contrast-verified. Only these colors exist.
+   ========================================================================== */
+@theme {
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --color-navy-950: #0a1a38;
+  --color-navy-900: #112d5f; /* text on light 13.4:1; darkroom sections */
+  --color-navy-800: #1e4175;
+  --color-royal-600: #306098; /* links/active, 6.46:1 on white */
+  --color-royal-500: #457cb3; /* only text ≥24px / icons */
+  --color-steel-300: #8da9c6; /* muted text on navy 5.5:1; ghost frames */
+  --color-chalk: #f6f8fc; /* page bg — cool chalk, not cream */
+  --color-ice-50: #eef3fa;
+  --color-line: #d5e0ee;
+  --color-slate-600: #4a5f80; /* muted text on light 6.1:1 */
+  --color-lav-200: #c9b8ff; /* CTA on dark (navy text 7.5:1) */
+  --color-violet-500: #8e78f0; /* gradient stop / ghost fill only, never text */
+  --color-violet-600: #6b4fd8; /* focus ring on LIGHT only */
+  --color-iceblue-200: #cfe6ff;
+  --color-gold: #c9a13b; /* medals only */
+  --color-silver: #a7b1bf;
+  --color-bronze: #b0703a;
+
+  /* Program colors: one color = one program (S3, S4, S9), always with a text label. */
+  --color-program-mladja: #cfe6ff;
+  --color-program-starija: #8da9c6;
+  --color-program-c: #457cb3;
+  --color-program-ab: #112d5f;
+  --color-program-aerobik: #c9b8ff;
+
+  --font-sans: var(--font-mona), "Mona Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-dot: var(--font-doto), ui-monospace, monospace;
+
+  /* Type scale (fluid 360→1440). */
+  --text-display-xl: clamp(2.75rem, 0.5rem + 9.5vw, 9rem);
+  --text-display-xl--line-height: 0.88;
+  --text-display-xl--letter-spacing: -0.045em;
+  --text-display-xl--font-weight: 800;
+  --text-display: clamp(2.25rem, 1rem + 5.4vw, 6rem);
+  --text-display--line-height: 0.92;
+  --text-display--letter-spacing: -0.04em;
+  --text-display--font-weight: 800;
+  --text-h2: clamp(1.625rem, 1.2rem + 1.9vw, 2.75rem);
+  --text-h2--line-height: 1.04;
+  --text-h2--letter-spacing: -0.025em;
+  --text-h2--font-weight: 760;
+  --text-h3: clamp(1.25rem, 1.05rem + 0.9vw, 1.75rem);
+  --text-h3--line-height: 1.12;
+  --text-h3--letter-spacing: -0.012em;
+  --text-h3--font-weight: 700;
+  --text-body: 1.0625rem; /* 17px */
+  --text-body--line-height: 1.55;
+  --text-small: 0.9375rem; /* 15px */
+  --text-small--line-height: 1.5;
+  --text-label: 0.8125rem; /* 13px caps */
+  --text-label--line-height: 1.2;
+  --text-label--letter-spacing: 0.08em;
+  --text-label--font-weight: 600;
+  --text-time: 1.25rem; /* 20px tabular */
+  --text-time--line-height: 1.2;
+  --text-time--font-weight: 700;
+  --text-button: 1rem;
+  --text-button--line-height: 1.2;
+  --text-button--font-weight: 650;
+
+  /* Radii: 0 (full-bleed photos) / 8 / 14 / 20 (cards) / 28 (sheets) / 999 (pills). */
+  --radius-*: initial;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 999px;
+
+  /* Navy-tinted shadows only. */
+  --shadow-*: initial;
+  --shadow-2: 0 4px 8px -2px rgba(17, 45, 95, 0.08), 0 12px 24px -6px rgba(17, 45, 95, 0.1);
+  --shadow-3: 0 8px 16px -4px rgba(17, 45, 95, 0.08), 0 30px 50px -12px rgba(17, 45, 95, 0.18);
+  --shadow-press: 0 2px 0 0 rgba(17, 45, 95, 0.28);
+
+  /* Motion: phases of a leap. */
+  --ease-stick: cubic-bezier(0.16, 1, 0.3, 1); /* landing — entrances/reveals */
+  --ease-takeoff: cubic-bezier(0.7, 0, 0.84, 0); /* exits ≤200ms */
+  --ease-flight: cubic-bezier(0.45, 0, 0.55, 1); /* paths */
+  --ease-rebound: cubic-bezier(0.34, 1.56, 0.64, 1); /* badges, buttons, landing squash */
+
+  --grad-leotard: linear-gradient(118deg, #cfe6ff 0%, #c9b8ff 38%, #8e78f0 68%, #306098 100%);
+}
+
+/* Theme-aware semantic colors (resolve per section via data-theme). */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-surface: var(--surface);
+  --color-hairline: var(--hairline);
+  --color-accent: var(--accent);
+}
+
+/* ==========================================================================
+   Section themes. Light: chalk bg, navy text, navy CTA. Dark: navy bg,
+   ice text, lavender CTA with navy text. Focus: violet on light, lavender on dark.
+   ========================================================================== */
+:root,
+[data-theme="light"] {
+  --bg: var(--color-chalk);
+  --fg: var(--color-navy-900);
+  --muted: var(--color-slate-600);
+  --surface: var(--color-white);
+  --hairline: var(--color-line);
+  --accent: var(--color-royal-600);
+  --focus: var(--color-violet-600);
+  --cta-bg: var(--color-navy-900);
+  --cta-fg: var(--color-white);
+  --ghost: var(--color-steel-300);
+  color-scheme: light;
+}
+
+[data-theme="ice"] {
+  --bg: var(--color-ice-50);
+  --fg: var(--color-navy-900);
+  --muted: var(--color-slate-600);
+  --surface: var(--color-white);
+  --hairline: var(--color-line);
+  --accent: var(--color-royal-600);
+  --focus: var(--color-violet-600);
+  --cta-bg: var(--color-navy-900);
+  --cta-fg: var(--color-white);
+  --ghost: var(--color-steel-300);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --bg: var(--color-navy-900);
+  --fg: var(--color-ice-50);
+  --muted: var(--color-steel-300);
+  --surface: var(--color-navy-800);
+  --hairline: rgba(141, 169, 198, 0.28);
+  --accent: var(--color-lav-200);
+  --focus: var(--color-lav-200);
+  --cta-bg: var(--color-lav-200);
+  --cta-fg: var(--color-navy-900);
+  --ghost: var(--color-steel-300);
+  color-scheme: dark;
+}
+
+[data-theme="darker"] {
+  --bg: var(--color-navy-950);
+  --fg: var(--color-ice-50);
+  --muted: var(--color-steel-300);
+  --surface: var(--color-navy-900);
+  --hairline: rgba(141, 169, 198, 0.24);
+  --accent: var(--color-lav-200);
+  --focus: var(--color-lav-200);
+  --cta-bg: var(--color-lav-200);
+  --cta-fg: var(--color-navy-900);
+  --ghost: var(--color-steel-300);
+  color-scheme: dark;
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+@layer base {
+  html {
+    scroll-padding-top: 88px;
+    scroll-padding-bottom: calc(64px + env(safe-area-inset-bottom));
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    background: var(--color-navy-900);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
+  body {
+    background: var(--color-chalk);
+    color: var(--color-navy-900);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    font-stretch: 100%;
+    font-kerning: normal;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  [data-theme] {
+    background-color: var(--bg);
+    color: var(--fg);
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    font-stretch: 104%;
+  }
+
+  @media (min-width: 1024px) {
+    h1,
+    h2 {
+      font-stretch: 120%;
+    }
+    h3 {
+      font-stretch: 112%;
+    }
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  a {
+    color: inherit;
+  }
+
+  :focus-visible {
+    outline: 2px solid transparent; /* keeps a ring in forced-colors mode */
+    outline-offset: 2px;
+    box-shadow:
+      0 0 0 3px var(--bg),
+      0 0 0 5px var(--focus);
+  }
+
+  ::selection {
+    background: var(--color-lav-200);
+    color: var(--color-navy-900);
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+}
+
+/* ==========================================================================
+   Layout primitives
+   ========================================================================== */
+@utility container-site {
+  width: 100%;
+  max-width: calc(1320px + 2 * 48px);
+  margin-inline: auto;
+  padding-inline: 20px;
+  @media (min-width: 640px) {
+    padding-inline: 32px;
+  }
+  @media (min-width: 1024px) {
+    padding-inline: 48px;
+  }
+}
+
+/* Section vertical rhythm: 72px mobile / 144px desktop. */
+@utility section-y {
+  padding-block: 72px;
+  @media (min-width: 1024px) {
+    padding-block: 144px;
+  }
+}
+
+/* 4/8/12 columns at 360/640/1024+; gutters 12/16/24. */
+@utility grid-site {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: 12px;
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    column-gap: 16px;
+  }
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: 24px;
+  }
+}
+
+@utility measure {
+  max-width: 64ch;
+}
+
+@utility label-caps {
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+  letter-spacing: var(--text-label--letter-spacing);
+  font-weight: var(--text-label--font-weight);
+  text-transform: uppercase;
+}
+
+@utility font-dot {
+  font-family: var(--font-dot);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ==========================================================================
+   Buttons: min-height 52px, pill, 16px/650. Press = translateY(2px) + lip→0,
+   and the "doskok" squash on :active for all buttons.
+   ========================================================================== */
+@layer components {
+  .btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 52px;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-full);
+    font-size: var(--text-button);
+    line-height: var(--text-button--line-height);
+    font-weight: var(--text-button--font-weight);
+    font-stretch: 104%;
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition:
+      transform 0.35s var(--ease-rebound),
+      box-shadow 0.1s linear,
+      background-color 0.18s var(--ease-stick),
+      color 0.18s var(--ease-stick);
+  }
+
+  .btn:active {
+    transform: translateY(2px) scale(1.03, 0.94);
+    box-shadow: none;
+    transition-duration: 0.1s;
+  }
+
+  .btn-primary {
+    background: var(--cta-bg);
+    color: var(--cta-fg);
+    box-shadow: var(--shadow-press);
+  }
+
+  .btn-primary:hover {
+    background: color-mix(in oklab, var(--cta-bg) 88%, var(--fg));
+  }
+
+  [data-theme="dark"] .btn-primary,
+  [data-theme="darker"] .btn-primary {
+    box-shadow: 0 2px 0 0 rgba(10, 26, 56, 0.6);
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--fg);
+    box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--fg) 70%, transparent);
+  }
+
+  .btn-secondary:hover {
+    box-shadow: inset 0 0 0 2px var(--fg);
+  }
+
+  .btn-secondary:active {
+    box-shadow: inset 0 0 0 2px var(--fg);
+  }
+
+  .link {
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 0.2em;
+  }
+
+  .link:hover {
+    text-decoration-thickness: 2.5px;
+  }
+
+  /* Visually hidden, available to assistive tech. */
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .btn:active {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   Photo treatment — "contact sheet"
+   ========================================================================== */
+@layer components {
+  .frame {
+    position: relative;
+    display: block;
+    padding: 6px 6px 0;
+    background: var(--color-white);
+    box-shadow:
+      0 0 0 1px var(--hairline),
+      var(--shadow-2);
+    border-radius: 2px;
+  }
+
+  [data-theme="dark"] .frame,
+  [data-theme="darker"] .frame {
+    background: var(--color-navy-950);
+    box-shadow: 0 0 0 1px var(--hairline);
+  }
+
+  .frame-foot {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 26px;
+    padding: 6px 2px 7px;
+  }
+
+  .frame-label {
+    flex: none;
+    font-size: 11px;
+    line-height: 14px;
+    letter-spacing: 0.12em;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+  }
+
+  .frame-label::before {
+    content: "▸ ";
+    font-size: 9px;
+  }
+
+  .frame-caption {
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  .photo-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: var(--color-navy-900);
+    color: var(--color-steel-300);
+    width: 100%;
+  }
+
+  .photo-placeholder__leap {
+    width: 38%;
+    max-width: 180px;
+    opacity: 0.55;
+  }
+
+  .photo {
+    position: relative;
+    overflow: hidden;
+    background-size: cover;
+    background-position: center;
+  }
+
+  .photo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .photo[data-nocrop] img {
+    object-fit: contain;
+  }
+
+  /* 3–4% static grain; never animated. */
+  .photo::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("/img/grain.png");
+    background-size: 128px 128px;
+    opacity: 0.035;
+    mix-blend-mode: overlay;
+    pointer-events: none;
+  }
+}
+
+/* ==========================================================================
+   Hero anti-flash: ONLY html.js-motion hides the decorative hero layer.
+   H1, sub, CTAs and trust strip are never hidden.
+   ========================================================================== */
+html.js-motion [data-hero-decor]:not([data-hero-ready]) {
+  visibility: hidden;
+}

@@ -1,0 +1,13 @@
+GSU „Kraguj“ — materijali za sajt (24. 9. 2026)
+
+logo/            zvanični logo vektorizovan (navy, beli, crni, currentColor SVG + PNG), wordmark bez siluete, samostalna silueta skoka, originali logoa
+slike/web/       11 izabranih slika, optimizovane (JPG q82 + WebP), EXIF uklonjen
+slike/rezerva/   7 rezervnih slika (samo za galeriju, po potrebi)
+(originali fotografija namerno nisu u paketu — EXIF i vodeni žig; ostaju u mejlu i na Drive-u)
+pregled-izbora.jpg  pregled izbora na jednom listu
+
+Napomene:
+- 08-aerobik-tim-selfie: lice koje je klub zamutio dodatno je pikselizovano — nikad ga ne otkrivati.
+- Foto 07 (portret iz beauty studija) je isključena — Slađanina kartica koristi siluetu dok ne stigne portret u klupskoj opremi.
+- 03, 04 su 1066 px (sa Instagrama) — ne prikazivati šire od ~530 CSS px.
+- Objava fotografija dece tek uz potvrdu da klub ima saglasnost roditelja.
