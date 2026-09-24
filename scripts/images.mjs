@@ -58,7 +58,10 @@ for (let i = 0; i < noise.length; i++) {
   seed = (seed * 1664525 + 1013904223) >>> 0;
   noise[i] = 128 + ((seed >>> 24) - 128) * 0.9;
 }
-await sharp(noise, { raw: { width: SIZE, height: SIZE, channels: 1 } }).png({ compressionLevel: 9 }).toFile(`${OUT_DIR}/grain.png`);
+// 4-level palette: at 3.5 % overlay opacity the quantisation is invisible, and the tile drops from ~24 KB to a few KB.
+await sharp(noise, { raw: { width: SIZE, height: SIZE, channels: 1 } })
+  .png({ compressionLevel: 9, palette: true, colors: 4, dither: 0 })
+  .toFile(`${OUT_DIR}/grain.png`);
 
 await writeFile(MANIFEST, JSON.stringify(manifest, null, 2) + "\n");
 console.log(`\n${entries.length} photos → ${OUT_DIR}, manifest → ${MANIFEST}`);

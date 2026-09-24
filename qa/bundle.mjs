@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // §6/§7 bundle budgets, measured on the static export (gzip level 9):
-//   1. First-load JS for "/" = every <script src> in <out>/index.html.
+//   1. First-load JS for "/" = every <script src> in <out>/index.html, plus the
+//      scripts scripts/defer-scripts.mjs injects after the first paint (D-23).
 //      Module scripts are budgeted (≤160 KB gz, DECISIONS D-08); the noModule
 //      polyfill chunk is reported separately (module browsers never fetch it).
 //   2. Initial animation chunk (≤45 KB gz, D-09): the lazily loaded chunks that
@@ -81,7 +82,11 @@ await runScript("bundle", { target: OUT }, async (report) => {
   const html = readFileSync(join(OUT, "index.html"), "utf8");
 
   // 1 ─ first-load JS ─────────────────────────────────────────────────────────
-  const scripts = scriptTags(html).filter((s) => s.attrs.src);
+  // Scripts loaded after first paint by scripts/defer-scripts.mjs (D-23) are still first-load JS.
+  const deferredTag = scriptTags(html).find((s) => s.attrs.id === "kraguj-deferred-scripts");
+  const deferred = deferredTag ? JSON.parse(deferredTag.body).map((d) => ({ attrs: { src: d.src, deferred: "" } })) : [];
+  if (deferred.length) report.info("deferred", `${deferred.length} first-load scripts are injected after the first paint (D-23) and counted below`);
+  const scripts = [...scriptTags(html).filter((s) => s.attrs.src), ...deferred];
   const rows = scripts.map((s) => {
     const file = fileForSrc(s.attrs.src);
     const nomodule = "nomodule" in s.attrs;

@@ -13,7 +13,7 @@
     "images": "node scripts/images.mjs",
     "svg": "node scripts/svg.mjs",
     "qa": "node qa/run-all.mjs",
-    "postbuild": "node scripts/prune-out.ts",
+    "postbuild": "node scripts/prune-out.ts && node scripts/defer-scripts.mjs",
     "qa:bundle": "node qa/bundle.mjs",
     "qa:content": "node qa/content.mjs",
     "qa:shots": "node qa/shots.mjs",

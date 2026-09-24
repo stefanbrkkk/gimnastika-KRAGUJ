@@ -19,7 +19,7 @@ anything undecided was decided here and can be reverted by the club.
   step uses the TypeScript JS API. 5.9 is the latest 5.x.
 - **D-04 · ESLint 9 (flat config) with eslint-config-next 16.3.6.** ESLint 10 is out, but the
   Next plugin set is validated against 9. `next build` no longer lints, so `npm run lint` runs separately.
-- **D-05 · Mona Sans via `next/font/google`** (`Mona_Sans`, axes `['wdth']`, latin + latin-ext).
+- **D-05 · Mona Sans started on `next/font/google`** (`Mona_Sans`, axes `["wdth"]`, latin + latin-ext); superseded by D-22.
   The OFL woff2 from github.com/github/mona-sans is kept subset (Latin + Latin Extended-A) at
   `fonts/mona-sans-latin-ext.woff2`; `app/fonts.ts` documents the one-line swap for offline builds.
 - **D-06 · Doto is subset with pyftsubset** to digits, `.`, `:`, `–`, `~`, space (1.3 KB woff2).
@@ -40,6 +40,27 @@ anything undecided was decided here and can be reverted by the club.
   (+ the hero timeline) therefore form the *initial animation chunk*, loaded right after hydration
   via `next/dynamic(..., { ssr: false })` / `import()` (budget ≤45 KB gz). `lib/motion-env.ts` holds
   the gsap-free helpers; `lib/motion.ts` (gsap) is imported only from lazily loaded modules.
+
+- **D-22 · Mona Sans is self-hosted as one subset file (`next/font/local`, ≈61 KB) instead of
+  `next/font/google` (two files, ≈130 KB).** The master prompt names `next/font/local` as the
+  fallback; the switch was needed for the §6 LCP budget. `scripts/fonts.sh` rebuilds it from the
+  OFL source: opsz pinned, wght 400–900, wdth 100–125, Basic Latin + Serbian Latin + the
+  punctuation in use. New characters in content (e.g. ö) need a re-run (README).
+- **D-23 · Next's first-load scripts load right after the first contentful paint.** Measured cause
+  of the LCP miss (3.1–3.2 s simulated, Lighthouse mobile): Next 16 requests all ~150 KB gz of
+  first-load JS from `<head>` before anything paints, so on a slow phone the H1 waits for bandwidth
+  and main-thread time. A stripped-JS experiment gave 1.9 s. `scripts/defer-scripts.mjs` (postbuild)
+  moves those `<script async>`/preload tags into a tiny inline loader that injects the same files
+  on the `first-contentful-paint` entry (rAF fallback, 1.5 s safety timer). Same files, same order-
+  independent async loading, same hydration; the page is complete without JS anyway. `qa/bundle.mjs`
+  still counts these scripts as first-load JS.
+- **D-24 · `experimental.inlineCss: true`.** The 22 KB gz stylesheet is inlined into the HTML, removing
+  the only render-blocking request. Result with D-22…D-24: LCP 1.8 s, Performance 99 (median of 3),
+  TBT ≈100 ms, CLS 0.
+- **D-25 · The grain tile is a 4-colour palette PNG (4 KB instead of 24 KB)**; at 3.5 % overlay opacity
+  the quantisation is invisible.
+- **D-26 · Dependencies were reinstalled from scratch** after the first install was interrupted by a
+  full disk: the lockfile had lost the optional `@rolldown/binding-darwin-arm64`, so Vitest could not start.
 
 ## Images & privacy
 
