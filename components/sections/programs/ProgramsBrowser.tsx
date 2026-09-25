@@ -6,29 +6,27 @@ import {
   useRef,
   useState,
   type ComponentType,
+  type CSSProperties,
   type FocusEvent,
   type MouseEvent,
   type ReactNode,
 } from "react";
 import { flushSync } from "react-dom";
-import { loadMotion } from "@/lib/load-motion";
-import { DUR, EASE, motionAllowed, prefersLessMotion, queuePrimaryMotion, STAGGER, whenNear } from "@/lib/motion-env";
+import { motionAllowed, prefersLessMotion, whenNear } from "@/lib/motion-env";
 
 /**
- * Programs island (initial bundle — keep it small, no gsap import here).
- * - Age chips filter the server-rendered cards (Flip ≤280ms, loaded lazily;
- *   reduced motion: instant + 150ms crossfade). Status in an aria-live region.
- * - Tap on a card (or its + button) opens the detail sheet, a lazily loaded chunk
- *   (prefetched together with Flip when the section is ≤1 viewport away).
- * - Apparatus icons draw once when their card's plate is in view (CSS, data-drawn), after
- *   the section title has landed and through the page-wide primary-motion queue. Watching
- *   the 108px plate (not the whole card) makes every visible icon draw in one batch.
- * - Filter Flip: the state is captured BEFORE React commits the chip, status line and pager,
- *   so every layout change of the tap (status row, ✓ width, pager) moves inside the Flip.
- * - Pager for the mobile/tablet scroll-snap row (native scrolling stays the primary
- *   input). It sits above the row, next to the filter status, so it never floats
- *   under a short card; it counts program cards only (not the photo frame).
- * Without JS: chips, pager and + buttons are hidden by CSS; every card is visible.
+ * Programs island (initial bundle — keep it small: no gsap, no motion code here).
+ * - Age chips filter the server-rendered cards. With motion the change is a take-off/landing
+ *   Flip (./programs-motion, lazy); reduced motion: instant + 150ms crossfade. The pressed chip
+ *   carries the program count; the status line is an aria-live region (sr-only on phones).
+ * - Tap on a card (or its +) opens the detail sheet, a lazily loaded chunk.
+ * - Progress rail under the phone row: prev · one dot per program (the active one in its
+ *   colour, the club silhouette hopping onto it) · next. Native scrolling stays the primary input.
+ * - Quiz hand-off (QP-10): on „kraguj:recommend“ the recommended cards get a stamp and, while
+ *   the row is off-screen, the phone row opens on the first of them.
+ * - Motion (icon draw + perform, seam line, stamp-in, filter Flip) lives in ./programs-motion,
+ *   loaded when the section is ≤1 viewport away and motion is allowed.
+ * Without JS: chips, rail and + buttons are hidden by CSS; every card is visible and drawn.
  */
 
 type SheetModule = typeof import("./ProgramSheet");
@@ -36,6 +34,17 @@ type SheetComponent = SheetModule["default"];
 /** One import() call site = one chunk, shared by the near-prefetch and the first tap. */
 let sheetModule: Promise<SheetModule> | null = null;
 const loadSheet = () => (sheetModule ??= import("./ProgramSheet"));
+type MotionModule = typeof import("./programs-motion");
+let motionModule: Promise<MotionModule> | null = null;
+const loadProgramsMotion = () => (motionModule ??= import("./programs-motion"));
+
+/** Quiz → programs hand-off (dispatched by the S2 quiz when it shows a result). */
+const RECOMMEND_EVENT = "kraguj:recommend";
+interface RecommendDetail {
+  ids?: readonly string[];
+  /** The child's age from the quiz („Preporuka · 9 god.“). */
+  age?: number;
+}
 
 export interface BrowserChip {
   key: string;
@@ -44,13 +53,18 @@ export interface BrowserChip {
   ids: readonly string[];
   /** aria-live status text ("" = nothing hidden). */
   status: string;
+  /** Visible hint under the phone row („Pitajte trenericu i za aerobnu gimnastiku.“), or "". */
+  hint: string;
 }
 
 interface ProgramsBrowserProps {
   heading: ReactNode;
   chips: readonly BrowserChip[];
+  /** Program colours for the rail dots, in card order. */
+  dots: readonly { id: string; color: string }[];
   filtersLabel: string;
   pager: { prev: string; next: string };
+  stamp: { unit: string };
   total: number;
   /** Server-rendered cards (+ the photo frame). */
   children: ReactNode;
@@ -64,24 +78,20 @@ interface PagerState {
 }
 
 const CARD = "[data-program-card]";
-/** The colored plate that holds the apparatus icon (what the draw is about). */
-const PLATE = ".pc-plate";
 /** Set on cards that are leaving during a filter Flip: they must stay rendered while they fade
  *  (Tailwind's preflight makes [hidden] display:none!important, which Flip cannot override). */
 const OUT = "data-out";
-/** Section title landing (styles/ui.css .chrono-solid: 0.2s delay + 0.6s). */
-const LAND_MS = 800;
-/** Icon draw (programs.css): 0.6s + its stagger. */
-const DRAW_MS = DUR.reveal * 1000;
+const NB = " ";
 
 const visibleItems = (strip: HTMLElement) =>
   Array.from(strip.children).filter((el): el is HTMLElement => el instanceof HTMLElement && !el.hidden && !el.hasAttribute(OUT));
+const padStart = (strip: HTMLElement) => parseFloat(getComputedStyle(strip).paddingLeft) || 0;
 
-export function ProgramsBrowser({ heading, chips, filtersLabel, pager, total, children }: ProgramsBrowserProps) {
+export function ProgramsBrowser({ heading, chips, dots, filtersLabel, pager, stamp, total, children }: ProgramsBrowserProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
   const filterRun = useRef(0);
-  /** Flip is loaded (near warm-up done): a tap can capture the layout before anything commits. */
+  /** Filter motion is loaded (near warm-up done): a tap can capture the layout before anything commits. */
   const flipReady = useRef(false);
   const [active, setActive] = useState(chips[0]?.key ?? "");
   const [status, setStatus] = useState("");
@@ -94,13 +104,15 @@ export function ProgramsBrowser({ heading, chips, filtersLabel, pager, total, ch
   const pagerFocus = useRef<HTMLButtonElement | null>(null);
   const prevOff = page.atStart;
   const nextOff = page.atEnd || page.i >= page.n - 1;
+  const activeChip = chips.find((c) => c.key === active) ?? chips[0];
+  const railDots = dots.filter((d) => activeChip?.ids.includes(d.id) ?? true);
 
   /* An arrow that disables itself while focused would drop keyboard focus to <body>:
      hand it to the other arrow instead. */
   useEffect(() => {
     const was = pagerFocus.current;
-    const active = document.activeElement;
-    if (!was || (active !== was && active !== document.body)) return;
+    const activeEl = document.activeElement;
+    if (!was || (activeEl !== was && activeEl !== document.body)) return;
     if (nextOff && was === nextRef.current && !prevOff) prevRef.current?.focus();
     else if (prevOff && was === prevRef.current && !nextOff) nextRef.current?.focus();
   }, [prevOff, nextOff]);
@@ -111,13 +123,12 @@ export function ProgramsBrowser({ heading, chips, filtersLabel, pager, total, ch
     },
   };
 
-  /* Pager: index of the card at the snap start; rAF-throttled, no loop. */
+  /* Pager: index of the program card at the snap start; rAF-throttled, no loop. */
   const measure = useCallback(() => {
     const strip = stripRef.current;
     if (!strip) return;
-    const items = visibleItems(strip);
-    const cards = items.filter((el) => el.matches(CARD));
-    const pad = parseFloat(getComputedStyle(strip).paddingLeft) || 0;
+    const cards = visibleItems(strip).filter((el) => el.matches(CARD));
+    const pad = padStart(strip);
     const x = strip.scrollLeft;
     const max = strip.scrollWidth - strip.clientWidth;
     let i = 0;
@@ -151,78 +162,22 @@ export function ProgramsBrowser({ heading, chips, filtersLabel, pager, total, ch
     ro?.observe(strip);
     measure();
 
-    /* Icons draw once on enter. Without motion they are simply drawn. With motion, a batch
-       waits for the section title's landing to finish, then for the page-wide primary-motion
-       queue (§4: one primary motion per viewport). The plate is observed, not the card: a
-       tall card is barely 35% visible while its plate is fully in view, which split the two
-       desktop rows into two draws and could leave row-2 plates empty at rest. */
-    const cards = Array.from(strip.querySelectorAll<HTMLElement>(CARD));
-    let io: IntersectionObserver | null = null;
-    let mo: MutationObserver | null = null;
-    const timers = new Set<number>();
     let disposed = false;
-    if (!motionAllowed() || typeof IntersectionObserver === "undefined") {
-      cards.forEach((c) => c.setAttribute("data-drawn", ""));
-    } else {
-      const mark = root.closest("section")?.querySelector(".chrono-mark[data-land]") ?? null;
-      let landedAt = mark && !mark.hasAttribute("data-landed") ? Infinity : -Infinity;
-      if (mark && landedAt === Infinity) {
-        mo = new MutationObserver(() => {
-          if (!mark.hasAttribute("data-landed")) return;
-          landedAt = performance.now();
-          mo?.disconnect();
-        });
-        mo.observe(mark, { attributes: true, attributeFilter: ["data-landed"] });
-      }
-      const draw = (batch: HTMLElement[]) => {
-        if (disposed) return;
-        batch.forEach((el, k) => {
-          el.style.setProperty("--draw-delay", `${Math.min(k * STAGGER.cards, STAGGER.maxTotal)}s`);
-          el.setAttribute("data-drawn", "");
-        });
-      };
-      /* Plates that came into view and are waiting for their draw. Everything that arrives
-         before the draw starts joins the same batch (one staggered motion), so two desktop
-         rows crossing the threshold a moment apart still draw together. Only plates that are
-         really in view join: never the off-screen cards of the phone row. */
-      let pending: HTMLElement[] = [];
-      let waiting = false;
-      io = new IntersectionObserver(
-        (entries) => {
-          const hits = entries.filter((e) => e.isIntersecting);
-          if (!hits.length) return;
-          hits.forEach((e) => io?.unobserve(e.target));
-          pending.push(...hits.map((e) => (e.target.closest<HTMLElement>(CARD) ?? e.target) as HTMLElement));
-          if (waiting) return;
-          waiting = true;
-          // Title not landed yet (it lands as it enters): give it its full landing time.
-          const wait = landedAt === Infinity ? LAND_MS : Math.max(0, landedAt + LAND_MS - performance.now());
-          const t = window.setTimeout(() => {
-            timers.delete(t);
-            const stagger = Math.min((pending.length - 1) * STAGGER.cards, STAGGER.maxTotal) * 1000;
-            void queuePrimaryMotion(DRAW_MS + stagger).then(() => {
-              const batch = pending;
-              pending = [];
-              waiting = false;
-              draw(batch);
-            });
-          }, wait);
-          timers.add(t);
-        },
-        { threshold: 0.6 },
-      );
-      cards.forEach((c) => io!.observe(c.querySelector(PLATE) ?? c));
-    }
-
-    /* Warm up the sheet chunk and Flip when the section is ≤1 viewport away. */
+    let disarm: (() => void) | null = null;
+    /* ≤1 viewport away: warm up the sheet chunk and, with motion, arm the section's motion
+       (icon draw/perform, seam line) and preload Flip. If the motion chunk cannot load, the
+       drawings are shown finished instead of waiting for a draw that never comes. */
     const stopNear = whenNear(root, () => {
       void loadSheet();
-      if (motionAllowed())
-        void loadMotion()
-          .then((m) => m.loadFlip())
-          .then(() => {
-            flipReady.current = true;
-          });
+      if (!motionAllowed()) return;
+      loadProgramsMotion()
+        .then(async (m) => {
+          if (disposed) return;
+          disarm = m.armPrograms(root, strip);
+          await m.warmFlip();
+          flipReady.current = true;
+        })
+        .catch(() => strip.querySelectorAll(CARD).forEach((c) => c.setAttribute("data-drawn", "")));
     });
 
     return () => {
@@ -230,12 +185,40 @@ export function ProgramsBrowser({ heading, chips, filtersLabel, pager, total, ch
       strip.removeEventListener("scroll", onScroll);
       cancelAnimationFrame(raf);
       ro?.disconnect();
-      io?.disconnect();
-      mo?.disconnect();
-      timers.forEach((t) => clearTimeout(t));
       stopNear();
+      disarm?.();
     };
   }, [measure]);
+
+  /* Quiz hand-off (QP-10): stamp the recommended cards. */
+  useEffect(() => {
+    const onRecommend = (e: Event) => {
+      const strip = stripRef.current;
+      if (!strip) return;
+      const { ids = [], age } = (e as CustomEvent<RecommendDetail>).detail ?? {};
+      const picked: HTMLElement[] = [];
+      for (const card of Array.from(strip.querySelectorAll<HTMLElement>(CARD))) {
+        const on = ids.includes(card.dataset.programId ?? "");
+        card.toggleAttribute("data-recommended", on);
+        const el = card.querySelector<HTMLElement>("[data-stamp]");
+        if (!el) continue;
+        el.hidden = !on;
+        const ageEl = el.querySelector(".pc-stamp__age");
+        if (ageEl) ageEl.textContent = on && Number.isInteger(age) ? `${NB}·${NB}${age}${NB}${stamp.unit}` : "";
+        if (on) picked.push(card);
+      }
+      // Phone row: open on the first recommended card — only while the row is off-screen, so
+      // nothing moves under the reader's eyes.
+      const first = picked.find((c) => !c.hidden);
+      const r = strip.getBoundingClientRect();
+      if (first && strip.scrollWidth > strip.clientWidth && (r.bottom < 0 || r.top > window.innerHeight)) {
+        strip.scrollTo({ left: first.offsetLeft - padStart(strip), behavior: "instant" });
+      }
+      if (picked.length && motionAllowed()) void loadProgramsMotion().then((m) => m.stampIn(picked), () => {});
+    };
+    window.addEventListener(RECOMMEND_EVENT, onRecommend);
+    return () => window.removeEventListener(RECOMMEND_EVENT, onRecommend);
+  }, [stamp.unit]);
 
   const applyFilter = useCallback(
     async (chip: BrowserChip) => {
@@ -246,70 +229,54 @@ export function ProgramsBrowser({ heading, chips, filtersLabel, pager, total, ch
       const items = Array.from(strip.children).filter((el): el is HTMLElement => el instanceof HTMLElement);
       const cards = items.filter((el) => el.matches(CARD));
       const keeps = (el: HTMLElement) => chip.ids.includes(el.dataset.programId ?? "");
-      /** Final state: filtered-out cards are hidden (a11y tree included). */
-      const settle = () => {
-        for (const el of cards) {
-          el.hidden = !keeps(el);
-          el.removeAttribute(OUT);
-        }
-      };
-
-      if (motionAllowed()) {
-        // Tap before the near warm-up finished (rare): press the chip now, the rest follows.
-        if (!flipReady.current) setActive(chip.key);
-        const { gsap, loadFlip } = await loadMotion();
-        const Flip = await loadFlip();
-        flipReady.current = true;
-        if (run !== filterRun.current) return;
-        // getState() completes a Flip still running from a previous chip. It runs before the
-        // chip / status / pager commit, so their layout shift is part of the Flip.
-        const state = Flip.getState(items);
-        // Leaving cards get data-out (display:none in CSS, which Flip's inline display beats) so
-        // their fade actually renders; `hidden` is set once the Flip is done.
+      /** Filtered-out cards leave (a11y tree included). While a Flip runs they only get data-out
+       *  (display:none in CSS, beaten by Flip's inline display) and `hidden` once it is done. */
+      const apply = (fading: boolean) => {
         for (const el of cards) {
           if (keeps(el)) {
             el.hidden = false;
             el.removeAttribute(OUT);
-          } else if (!el.hidden) {
-            el.setAttribute(OUT, "");
+          } else if (fading) {
+            if (!el.hidden) el.setAttribute(OUT, "");
+          } else {
+            el.hidden = true;
+            el.removeAttribute(OUT);
           }
         }
-        strip.scrollTo({ left: 0, behavior: "instant" });
-        // One commit: pressed chip, status line and the real pager state of the final row
-        // (measure() reads the DOM above, where leaving cards are already display:none).
+        // The ≥1024 sheet drops the photo when it would leave an orphan card (QP-20, CSS).
+        strip.dataset.count = String(chip.ids.length);
+        // „Sve“ opens on the photo again; a filter opens on its first program.
+        const first = chip.ids.length < total ? cards.find(keeps) : undefined;
+        strip.scrollTo({ left: first ? first.offsetLeft - padStart(strip) : 0, behavior: "instant" });
+      };
+      /** After the Flip: leavers become `hidden` (unless another chip took over meanwhile). */
+      const settle = () => {
+        if (run === filterRun.current)
+          for (const el of cards) {
+            if (!keeps(el)) el.hidden = true;
+            el.removeAttribute(OUT);
+          }
+        measure();
+      };
+      const commit = () =>
         flushSync(() => {
           setActive(chip.key);
           setStatus(chip.status);
           measure();
         });
-        Flip.from(state, {
-          duration: DUR.base,
-          ease: EASE.stick,
-          scale: true,
-          absoluteOnLeave: true,
-          // Same enter/leave as the S4/S9 filters: a linear fade, so a leaving card is already
-          // half gone while the others glide past it; the exit scale keeps the takeoff ease.
-          onEnter: (els) =>
-            gsap.fromTo(
-              els,
-              { opacity: 0, scale: 0.96 },
-              { opacity: 1, scale: 1, duration: DUR.base, ease: EASE.stick, clearProps: "opacity,transform" },
-            ),
-          onLeave: (els) =>
-            gsap
-              .timeline()
-              .to(els, { opacity: 0, duration: DUR.fast, ease: "none" }, 0)
-              .to(els, { scale: 0.96, duration: DUR.fast, ease: EASE.takeoff }, 0),
-          onComplete: () => {
-            if (run === filterRun.current) settle();
-            measure();
-          },
-        });
+
+      if (motionAllowed()) {
+        // Tap before the near warm-up finished (rare): press the chip now, the rest follows.
+        if (!flipReady.current) setActive(chip.key);
+        const m = await loadProgramsMotion();
+        if (run !== filterRun.current) return;
+        // The layout is captured before the chip / status / rail commit, so their shift is part of the Flip.
+        await m.flipFilter({ items, apply: () => apply(true), commit, done: settle });
+        flipReady.current = true;
       } else {
+        apply(false);
         setActive(chip.key);
         setStatus(chip.status);
-        settle();
-        strip.scrollTo({ left: 0, behavior: "instant" });
         for (const el of items) {
           el.style.opacity = "";
           el.style.transform = "";
@@ -318,7 +285,7 @@ export function ProgramsBrowser({ heading, chips, filtersLabel, pager, total, ch
         measure();
       }
     },
-    [measure],
+    [measure, total],
   );
 
   const onStripClick = (e: MouseEvent<HTMLDivElement>) => {
@@ -339,7 +306,7 @@ export function ProgramsBrowser({ heading, chips, filtersLabel, pager, total, ch
     const strip = stripRef.current;
     if (!strip) return;
     const items = visibleItems(strip);
-    const pad = parseFloat(getComputedStyle(strip).paddingLeft) || 0;
+    const pad = padStart(strip);
     const x = strip.scrollLeft;
     const starts = items.map((el) => el.offsetLeft - pad);
     const target = dir > 0 ? starts.find((s) => s > x + 4) : [...starts].reverse().find((s) => s < x - 4);
@@ -365,52 +332,82 @@ export function ProgramsBrowser({ heading, chips, filtersLabel, pager, total, ch
                   <path d="M3.5 8.5l3 3 6-7" />
                 </svg>
                 {chip.label}
+                {/* How many programs the pressed chip shows (the status line says it to screen readers). */}
+                <span className="pg-chip__count tabular" aria-hidden="true">
+                  {chip.ids.length}
+                </span>
               </button>
             ))}
           </div>
           <p className="pg-status text-small" role="status" aria-live="polite">
             {status}
           </p>
-          {/* Controls precede the row they drive; hidden when there is nothing to page through. */}
-          <div className="pg-pager" hidden={page.n <= 1 || (page.atStart && page.atEnd)}>
-            <button
-              ref={prevRef}
-              type="button"
-              className="icon-btn pg-pager__btn"
-              aria-label={pager.prev}
-              aria-controls="programi-lista"
-              disabled={prevOff}
-              {...pagerFocusProps}
-              onClick={() => go(-1)}
-            >
-              <svg className="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M14.5 6l-6 6 6 6" />
-              </svg>
-            </button>
-            <span className="pg-pager__count label-caps tabular" aria-hidden="true">
-              {page.i + 1} / {page.n}
-            </span>
-            <button
-              ref={nextRef}
-              type="button"
-              className="icon-btn pg-pager__btn"
-              aria-label={pager.next}
-              aria-controls="programi-lista"
-              disabled={nextOff}
-              {...pagerFocusProps}
-              onClick={() => go(1)}
-            >
-              <svg className="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M9.5 6l6 6-6 6" />
-              </svg>
-            </button>
-          </div>
         </div>
       </div>
 
       <div ref={stripRef} id="programi-lista" className="pg-strip" data-programs-strip="" onClick={onStripClick}>
         {children}
       </div>
+
+      {/* Progress rail (<1024): under the row it drives, where the thumb swipes. */}
+      <div
+        className="pg-rail"
+        hidden={page.n <= 1 || (page.atStart && page.atEnd)}
+        style={{ "--i": page.i, "--n": Math.max(railDots.length, 1) } as CSSProperties}
+        data-hop={page.i % 2}
+      >
+        <button
+          ref={prevRef}
+          type="button"
+          className="icon-btn pg-rail__btn"
+          aria-label={pager.prev}
+          aria-controls="programi-lista"
+          disabled={prevOff}
+          {...pagerFocusProps}
+          onClick={() => go(-1)}
+        >
+          <svg className="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M14.5 6l-6 6 6 6" />
+          </svg>
+        </button>
+        <div className="pg-rail__track" aria-hidden="true">
+          <ol className="pg-rail__dots">
+            {railDots.map((d, k) => (
+              <li
+                key={d.id}
+                className="pg-rail__dot"
+                style={{ "--dot": d.color } as CSSProperties}
+                {...(k === page.i ? { "data-on": "" } : {})}
+              />
+            ))}
+          </ol>
+          <span className="pg-rail__flier">
+            <svg className="pg-rail__leap" viewBox="0 0 230 150" focusable="false">
+              <use href="#leap" width="230" height="150" />
+            </svg>
+          </span>
+        </div>
+        <button
+          ref={nextRef}
+          type="button"
+          className="icon-btn pg-rail__btn"
+          aria-label={pager.next}
+          aria-controls="programi-lista"
+          disabled={nextOff}
+          {...pagerFocusProps}
+          onClick={() => go(1)}
+        >
+          <svg className="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M9.5 6l6 6-6 6" />
+          </svg>
+        </button>
+      </div>
+
+      {activeChip?.hint ? (
+        <p className="pg-hint text-small" aria-hidden="true">
+          {activeChip.hint}
+        </p>
+      ) : null}
 
       {open && Sheet ? <Sheet programId={open.id} card={open.card} onClosed={() => setOpen(null)} /> : null}
     </div>

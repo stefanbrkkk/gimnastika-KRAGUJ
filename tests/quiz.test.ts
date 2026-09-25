@@ -187,3 +187,125 @@ describe("quiz — group name typography", () => {
     }
   });
 });
+
+describe("quiz — result views (S3 hand-off, plates, strip landing)", () => {
+  it("recommends program ids for S3 (deduplicated, display order)", async () => {
+    const { resultView } = await import("@/components/sections/quiz/views");
+    expect(resultView("mladja").programs).toEqual(["mladja"]);
+    expect(resultView("obe-pocetne").programs).toEqual(["mladja", "starija"]);
+    expect(resultView("starija").programs).toEqual(["starija"]);
+    expect(resultView("takmicarske").programs).toEqual(["ab-program", "c-program"]);
+  });
+
+  it("the single long flight is exactly the result reached without step 2", async () => {
+    const { resultView } = await import("@/components/sections/quiz/views");
+    for (const rule of QUIZ_RULES) {
+      expect(resultView(rule.kind).band.variant === "skip").toBe(rule.experience === null);
+    }
+    expect(resultView("mladja").band.apparatus).toBe("parter");
+    expect(resultView("starija").band).toEqual({ variant: "greda", apparatus: "greda" });
+    expect(resultView("takmicarske").band).toEqual({ variant: "flat", apparatus: "razboj" });
+  });
+
+  it("every plate carries S3's apparatus drawing and colour for its program", async () => {
+    const { isValidElement } = await import("react");
+    const { resultView, iconArt } = await import("@/components/sections/quiz/views");
+    const { programById } = await import("@/content/programs");
+    const { groupById } = await import("@/content/schedule");
+    for (const rule of QUIZ_RULES) {
+      for (const g of resultView(rule.kind).groups) {
+        const program = programById(groupById(g.id as Parameters<typeof groupById>[0]).programId);
+        expect(isValidElement(g.plate)).toBe(true);
+        const props = (g.plate as { props: { color: string; art: ReturnType<typeof iconArt> } }).props;
+        expect(props.color).toBe(program.color);
+        expect(props.art).toEqual(iconArt(program.icon));
+        expect(props.art.paths.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("the strip's apparatus anchors still match S3's drawings (floor y 42, beam top 21.5, high rail 11.5)", async () => {
+    const { iconArt } = await import("@/components/sections/quiz/views");
+    const all = (icon: "parter" | "greda" | "razboj") => iconArt(icon).paths.map((p) => p.d).join(" ");
+    const num = (n: string) => new RegExp(`(?<![\\d.])${n.replace(".", "\\.")}(?![\\d.])`);
+    expect(all("parter")).toMatch(num("42"));
+    expect(all("parter")).toMatch(num("22"));
+    expect(all("greda")).toMatch(num("21.5"));
+    expect(all("greda")).toMatch(num("42"));
+    expect(all("razboj")).toMatch(num("11.5"));
+    expect(all("razboj")).toMatch(num("42"));
+  });
+});
+
+describe("quiz — result CTA on two levels (QP-15)", () => {
+  it("splits before the last „ za “ without changing the text", async () => {
+    const { splitCta } = await import("@/components/sections/quiz/views");
+    const [main, sub] = splitCta(QUIZ.resultCta);
+    expect(main).toBe("Zakažite probni trening");
+    expect(sub).toBe("za ovu grupu");
+    expect(`${main} ${sub}`).toBe(QUIZ.resultCta);
+    expect(splitCta("Zakažite probni trening")).toEqual(["Zakažite probni trening", ""]);
+  });
+});
+
+describe("quiz — chronophotograph strip geometry", () => {
+  it("the flight model: a symmetric parabola in time, apex at 50 %", async () => {
+    const { hopAt, cubicBezier, pitchAt } = await import("@/components/sections/quiz/geometry");
+    expect(hopAt(0, 48)).toBe(0);
+    expect(hopAt(1, 48)).toBe(0);
+    expect(hopAt(0.5, 48)).toBeCloseTo(48, 3);
+    expect(hopAt(0.25, 48)).toBeCloseTo(hopAt(0.75, 48), 3);
+    expect(hopAt(1 / 3, 48)).toBeCloseTo(48 * (1 - 1 / 9), 1); // quadratic: 1 − (1 − 2/3)²
+    expect(cubicBezier(0.25, 0.1, 0.25, 1, 0.5)).toBeGreaterThan(0.5);
+    expect(pitchAt(0)).toBe(0);
+    expect(pitchAt(0.12)).toBeCloseTo(-18, 6);
+    expect(pitchAt(1)).toBe(0);
+  });
+
+  it("each in-flight exposure sits on the flier's path and develops when the flier passes it", async () => {
+    const g = await import("@/components/sections/quiz/geometry");
+    const byId = Object.fromEntries(g.EXPOSURES.map((e) => [e.id, e]));
+    const [x1, x2, x3] = g.FRAME_X;
+    const hop1 = { from: [x1, 0], to: [x2, 0], amp: g.HOP } as const;
+    expect(byId.a1!.pose.flat).toEqual(g.poseAt(hop1, 1 / 3));
+    expect(byId.a2!.pose.flat).toEqual(g.poseAt(hop1, 2 / 3));
+    expect(byId.a1!.delay).toBe(g.FLIGHT_MS / 3);
+    const hop2 = { from: [x2, 0], to: [x3, g.LIFT.greda], amp: g.HOP } as const;
+    expect(byId.b2!.pose.greda).toEqual(g.poseAt(hop2, 2 / 3));
+    const skip = { from: [x1, 0], to: [x3, g.LIFT.skip], amp: g.HOP_LONG } as const;
+    expect(byId.b1!.pose.skip).toEqual(g.poseAt(skip, 3 / 5));
+    expect(byId.b1!.delaySkip).toBe(Math.round((3 / 5) * g.FLIGHT_LONG_MS));
+    // The long flight exposes frames left to right.
+    const order = ["k1", "a1", "a2", "b1", "b2", "k3"].map((id) => byId[id]!.delaySkip);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+
+  it("the stuck landing rests on its surface: the mat, the floor or the beam", async () => {
+    const g = await import("@/components/sections/quiz/geometry");
+    expect(g.lowestY(g.FLIER.f0)).toBeCloseTo(g.MAT_Y, 0);
+    expect(g.lowestY(g.FLIER.f1)).toBeCloseTo(g.MAT_Y, 0);
+    for (const v of ["flat", "parter", "greda", "skip"] as const) {
+      expect(g.lowestY(g.FLIER.f2[v])).toBeCloseTo(g.MAT_Y - g.LIFT[v], 0);
+    }
+    expect(g.LIFT.flat).toBe(0);
+    expect(g.LIFT.greda).toBeGreaterThan(g.LIFT.parter);
+  });
+
+  it("no exposure sinks below the mat or leaves the strip", async () => {
+    const g = await import("@/components/sections/quiz/geometry");
+    for (const e of g.EXPOSURES) {
+      for (const p of Object.values(e.pose)) {
+        expect(g.lowestY(p)).toBeLessThanOrEqual(g.MAT_Y + 0.5);
+        expect(p.y + g.USE_Y).toBeGreaterThanOrEqual(-8); // top of the box (arm tips), unrotated
+        expect(p.x).toBeGreaterThan(0);
+        expect(p.x).toBeLessThan(g.VB_W);
+      }
+    }
+  });
+
+  it("the frame numbers sit under the frames", async () => {
+    const g = await import("@/components/sections/quiz/geometry");
+    const { FRAME_LEFT } = await import("@/components/sections/quiz/QuizBand");
+    g.FRAME_X.forEach((x, i) => expect(FRAME_LEFT[i]).toBe(`${((x / g.VB_W) * 100).toFixed(2)}%`));
+  });
+});

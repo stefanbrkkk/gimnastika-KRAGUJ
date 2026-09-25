@@ -11,10 +11,11 @@ interface NextTrainingProps {
 }
 
 /**
- * "Sledeći trening: danas u 18:00". Rendered empty on the server (its row keeps
- * its height, so nothing shifts when the text arrives after mount); updates
- * every minute via the shared clock. When no fixed slot is next it turns invisible
- * but keeps its row, so the card height never changes after hydration.
+ * The card's „Sledeći trening“ tag: „danas u 18:00“ on the card's top edge (≥640 px).
+ * The label is for screen readers only — the section scoreboard carries it visibly.
+ * Rendered empty on the server and absolutely positioned, so nothing shifts when the text
+ * arrives after mount or disappears (no fixed slot is next); updates every minute via the
+ * shared clock.
  */
 export function NextTraining({ slots, accusatives, label }: NextTrainingProps) {
   const now = useBelgradeMinute();
@@ -26,11 +27,8 @@ export function NextTraining({ slots, accusatives, label }: NextTrainingProps) {
           <svg className="sched-next__leap" viewBox="0 0 230 150" aria-hidden="true" focusable="false">
             <use href="#leap" />
           </svg>
-          {/* One text column: on a narrow card the value wraps under the label, never under the icon. */}
-          <span className="sched-next__text">
-            <span className="sched-next__label">{label}:</span>{" "}
-            <strong className="sched-next__value tabular">{formatNextTraining(next, accusatives)}</strong>
-          </span>
+          <span className="sr-only">{label}: </span>
+          <strong className="sched-next__value tabular">{formatNextTraining(next, accusatives)}</strong>
         </>
       ) : null}
     </p>

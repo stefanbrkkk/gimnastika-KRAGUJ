@@ -1,71 +1,153 @@
 /* enrollment section styles — owned by the enrollment section (S10 „Upis i prvi trening“).
-   Steps = three frames of one leap (ghost → ghost → landed), a year-round strip,
-   the „Šta poneti“ checklist (ticks draw once: stroke-dashoffset) and the FAQ
-   (<details>, + → ×, 0fr → 1fr in 280ms). Motion: transform, opacity,
-   stroke-dashoffset, grid rows (details only). */
+   „Jedan skok, tri kadra“: one chronophotograph band (takeoff · apex · stuck landing on
+   step 3) over the three steps, a year strip of twelve month lamps, the „Šta poneti“
+   packing list (real checkboxes; ticks draw on tap; a full bag lands a silhouette on the
+   card) and the FAQ (<details>, + → ×, 0fr → 1fr in 280ms, the answer settles in).
+   Motion: transform, opacity, stroke-dashoffset (+ grid rows for details). */
 
 /* --------------------------------------------------------------------------
-   Steps
+   The leap band (LeapBand.tsx). The static state is the final chronophotograph.
+   -------------------------------------------------------------------------- */
+.en-band {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.en-band[data-variant="wide"] {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .en-band[data-variant="wide"] {
+    display: block;
+  }
+  .en-band[data-variant="narrow"] {
+    display: none;
+  }
+}
+
+/* Mat line and Marey ticks: the floor the leap is measured on. */
+.en-band__mat,
+.en-band__tick {
+  stroke: var(--color-steel-300);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.en-band__mat {
+  stroke-opacity: 0.6;
+}
+
+/* Frame numbers under the narrow band's ticks (the steps are a list below it). */
+.en-band__num {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  font-variant-numeric: lining-nums tabular-nums;
+  fill: var(--muted);
+}
+
+/* The trajectory of the hips: dotted, like the timing marks on a Marey plate. */
+.en-band__path {
+  fill: none;
+  stroke: var(--color-steel-300);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-dasharray: 0 8;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Ghost → ghost → solid, in the shared leotard ghost tokens. */
+.en-band__frame[data-frame="takeoff"] {
+  color: var(--ghost-1);
+  opacity: var(--o);
+}
+.en-band__frame[data-frame="apex"] {
+  color: var(--ghost-2);
+  opacity: var(--o);
+}
+.en-band__frame[data-frame="landing"] {
+  color: var(--accent);
+}
+
+/* The flier exists only during the leap (leap-motion.ts). */
+.en-band__flier {
+  color: var(--accent);
+  opacity: 0;
+}
+
+/* Pre-state while the leap waits below the fold (LeapBandPlayer sets data-leap="armed"; the
+   motion keeps "play" until it lands, then "done"). Decoration only — every step text, the
+   year line and the actions stay visible; numerals wait at .35. Reduced motion: never. */
+@media (prefers-reduced-motion: no-preference) {
+  html.js-motion .en-leap:is([data-leap="armed"], [data-leap="play"]) :is(.en-band__frame, .en-band__path, .en-band__tick) {
+    opacity: 0;
+  }
+  html.js-motion .en-leap:is([data-leap="armed"], [data-leap="play"]) :is(.en-step__num, .en-band__num) {
+    opacity: 0.35;
+  }
+  html.js-motion .en-leap:is([data-leap="armed"], [data-leap="play"]) .en-month__lamp {
+    opacity: 0.2;
+    transform: scale(0.6);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Steps: a compact numbered list on phones, three columns under the frames from 640.
+   Numerals follow the frames' ghost → solid progression in one blue ramp (royal at 45% →
+   78% → solid navy); the frames carry the leotard colours. The ghosting is in the colour,
+   so the element's opacity stays free for the motion.
    -------------------------------------------------------------------------- */
 .en-steps {
-  position: relative;
   display: grid;
-  gap: 28px;
-  margin: 0;
+  gap: 20px;
+  margin: 20px 0 0;
   padding: 0;
   list-style: none;
 }
 
 .en-step {
-  position: relative;
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
-  grid-template-areas:
-    "leap num"
-    "leap text";
-  column-gap: 16px;
-  align-items: start;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 8px;
 }
 
-.en-step__leap {
-  grid-area: leap;
-  width: 64px;
-  height: auto;
-  margin-top: 6px;
-  overflow: visible;
-  color: var(--ghost);
-  opacity: var(--o);
-}
-
-.en-step[data-frame="solid"] .en-step__leap {
-  color: var(--accent);
-  opacity: 1;
-}
-
-/* Numerals: ghost outlines for the first two frames, solid for the landing. */
 .en-step__num {
-  grid-area: num;
-  font-size: clamp(2.5rem, 1.9rem + 2.6vw, 4.5rem);
-  line-height: 0.9;
+  font-size: 2.5rem;
+  line-height: 1;
   font-weight: 800;
   font-stretch: 112%;
   letter-spacing: -0.03em;
-  color: transparent;
-  -webkit-text-stroke: 1.5px var(--color-royal-500);
-  paint-order: stroke fill;
   /* Proportional figures: the tabular „1“ is a slab-footed glyph beside a grotesque „2“ and „3“. */
   font-variant-numeric: lining-nums proportional-nums;
 }
 
-.en-step[data-frame="solid"] .en-step__num {
-  color: var(--color-navy-900);
-  -webkit-text-stroke: 0;
+.en-step[data-frame="takeoff"] .en-step__num {
+  color: color-mix(in oklab, var(--color-royal-500) 45%, transparent);
+}
+.en-step[data-frame="apex"] .en-step__num {
+  color: color-mix(in oklab, var(--color-royal-500) 78%, transparent);
+}
+.en-step[data-frame="landing"] .en-step__num {
+  color: var(--fg);
+}
+
+.en-band__num[data-frame="takeoff"] {
+  fill: color-mix(in oklab, var(--color-royal-500) 70%, transparent);
+}
+.en-band__num[data-frame="apex"] {
+  fill: var(--color-royal-500);
+}
+.en-band__num[data-frame="landing"] {
+  fill: var(--fg);
 }
 
 .en-step__text {
-  grid-area: text;
   max-width: 24ch;
-  margin: 10px 0 0;
+  margin: 0;
   font-size: clamp(1.1875rem, 1.05rem + 0.6vw, 1.5rem);
   line-height: 1.25;
   font-weight: 680;
@@ -74,54 +156,23 @@
   text-wrap: balance;
 }
 
-/* Tablet+: three columns on the floor line — the leap travels left → right. */
 @media (min-width: 640px) {
   .en-steps {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
-    padding-top: 8px;
-  }
-
-  /* The mat line the silhouette lands on. */
-  .en-steps::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 104px;
-    height: 1.5px;
-    background: color-mix(in oklab, var(--color-steel-300) 60%, transparent);
+    margin-top: 14px;
   }
 
   .en-step {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      "leap"
-      "num"
-      "text";
-    /* Rows keep their content height: a step with a shorter text is stretched to the row
-       height, and stretched auto rows would push its numeral below its neighbours'. */
+    row-gap: 10px;
+    /* Rows keep their content height (a shorter text never pushes its numeral down). */
     align-content: start;
   }
 
-  .en-step__leap {
-    width: 118px;
-    height: 77px;
-    margin: 0 0 30px;
-  }
-
-  /* One arc across the three frames: takeoff low, apex high, landing on the line. */
-  .en-step:nth-child(1) .en-step__leap {
-    transform: translateY(20px) rotate(-8deg);
-  }
-  .en-step:nth-child(2) .en-step__leap {
-    transform: translateY(-6px);
-  }
-  .en-step:nth-child(3) .en-step__leap {
-    transform: translateY(22px);
-  }
   .en-step__num {
-    margin-top: 12px;
+    font-size: clamp(2.5rem, 1.9rem + 2.6vw, 4.25rem);
+    line-height: 0.9;
   }
 }
 
@@ -129,23 +180,10 @@
   .en-steps {
     gap: 24px;
   }
-  .en-step__leap {
-    width: 138px;
-    height: 90px;
-  }
-  .en-steps::before {
-    top: 116px;
-  }
-  .en-step:nth-child(1) .en-step__leap {
-    transform: translateY(24px) rotate(-8deg);
-  }
-  .en-step:nth-child(3) .en-step__leap {
-    transform: translateY(26px);
-  }
 }
 
 /* --------------------------------------------------------------------------
-   Year-round strip + actions
+   Year strip: twelve month lamps (all open) with their initials, the line, actions.
    -------------------------------------------------------------------------- */
 .en-year {
   display: flex;
@@ -160,24 +198,38 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 14px;
+  gap: 12px 18px;
   margin: 0;
   font-size: var(--text-body);
   font-weight: 650;
 }
 
-/* Twelve months, all open. */
 .en-year__months {
   display: inline-grid;
-  grid-template-columns: repeat(12, 8px);
-  gap: 4px;
+  grid-template-columns: repeat(12, 14px);
+  column-gap: 4px;
 }
 
-.en-year__months i {
+.en-month {
+  display: grid;
+  justify-items: center;
+  row-gap: 5px;
+}
+
+.en-month__lamp {
+  display: block;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--accent);
+}
+
+.en-month__init {
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
 }
 
 .en-actions {
@@ -194,15 +246,23 @@
 
 @media (min-width: 1024px) {
   .en-year {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
     margin-top: 56px;
   }
 }
 
+/* One row once the lamps, the line and both actions fit side by side. */
+@media (min-width: 1280px) {
+  .en-year {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
 /* --------------------------------------------------------------------------
-   Lower: checklist card + FAQ
+   Lower: the packing list + FAQ. Side by side from 768: the two titles share a row
+   (subgrid), so the card's top edge is the FAQ's first hairline and the rows run on
+   one 64px rhythm.
    -------------------------------------------------------------------------- */
 .en-lower {
   display: grid;
@@ -210,38 +270,55 @@
   margin-top: 56px;
 }
 
-/* Tablets: the kit card beside the FAQ (5/7), as at ≥1024 but not sticky. */
-@media (min-width: 768px) and (max-width: 1023.98px) {
+@media (min-width: 768px) {
   .en-lower {
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    grid-template-rows: auto auto;
     column-gap: 24px;
+    row-gap: 0;
   }
-  .en-kit {
-    align-self: start;
+  .en-kit,
+  .en-faq {
+    display: grid;
+    grid-row: span 2;
+    grid-template-rows: subgrid;
+    align-content: start;
+  }
+  .en-kit__title,
+  .en-faq__title {
+    align-self: end;
   }
 }
 
 @media (min-width: 1024px) {
   .en-lower {
     grid-template-columns: repeat(12, minmax(0, 1fr));
-    column-gap: 24px;
     margin-top: 96px;
   }
   .en-kit {
     grid-column: 1 / span 5;
-    align-self: start;
-    position: sticky;
-    top: 112px;
   }
   .en-faq {
     grid-column: 7 / span 6;
   }
 }
 
-/* The kit list: a packing card. */
-.en-kit {
+.en-kit__title,
+.en-faq__title {
+  margin: 0 0 12px;
+}
+
+/* Room at the right for the silhouette that lands on the card's edge. */
+.en-kit__title {
+  padding-right: 92px;
+}
+
+/* The packing card. */
+.en-kit__card {
+  position: relative;
+  align-self: start;
   max-width: 520px;
-  padding: 24px 22px 20px;
+  padding: 8px 22px 20px;
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow:
@@ -250,13 +327,16 @@
 }
 
 @media (min-width: 640px) {
-  .en-kit {
-    padding: 32px 32px 26px;
+  .en-kit__card {
+    padding: 8px 32px 26px;
   }
 }
 
-.en-kit__title {
-  margin: 0 0 16px;
+/* Side by side: the first checklist row sits on the first FAQ row (both 64 + 1px). */
+@media (min-width: 768px) {
+  .en-kit__card {
+    padding-top: 1px;
+  }
 }
 
 .en-check {
@@ -266,17 +346,38 @@
 }
 
 .en-check__item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 14px;
-  min-height: 52px;
+  min-height: 56px;
   border-bottom: 1px dashed var(--hairline);
   font-size: 1.125rem;
   font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.en-check__item:last-child {
+.en-check li:last-child .en-check__item {
   border-bottom: 0;
+}
+
+/* Side by side: 65px incl. the dashed rule = the FAQ pitch (64px row + 1px hairline). */
+@media (min-width: 768px) {
+  .en-check__item {
+    min-height: 65px;
+  }
+}
+
+/* The native checkbox covers the whole row (the row is the target); the drawn box shows it. */
+.en-check__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .en-check__box {
@@ -287,6 +388,7 @@
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
+  border-radius: 8px;
 }
 
 .en-check__frame {
@@ -298,30 +400,109 @@
   stroke: var(--accent);
   stroke-width: 2.6;
   stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+
+.en-check__input:checked + .en-check__box .en-check__tick {
   stroke-dashoffset: 0;
 }
 
-/* Tick-in once on enter (ChecklistTicks sets data-ticked). The hidden pre-state exists only
-   under html.js-motion AND no-preference, so a live switch to reduced motion shows the ticks at
-   once. Box: the landing squash (--dur-slow-squash, rebound); tick: draws in --dur-base;
-   stagger 60ms (STAGGER.cards, 5 items = 240ms ≤ .36s). Total ≈ 620ms (TICKS_MS). */
+/* Keyboard focus lands on the drawn box (the input itself is invisible). */
+.en-check__input:focus-visible + .en-check__box {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.en-check__label {
+  transition: color var(--dur-fast) linear;
+}
+
+/* Packed: the item reads as done — muted, with a steel strike. */
+.en-check__input:checked ~ .en-check__label {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: var(--color-steel-300);
+}
+
+/* Tap: the tick draws (180ms, stick) and the box takes a small squash (a button-like
+   control: rebound). */
 @media (prefers-reduced-motion: no-preference) {
-  html.js-motion .en-check:not([data-ticked]) .en-check__tick {
-    stroke-dashoffset: 1;
+  .en-check__tick {
+    transition: stroke-dashoffset var(--dur-fast) var(--ease-stick);
   }
-
-  html.js-motion .en-check:not([data-ticked]) .en-check__box {
-    transform: scale(0.86);
+  .en-check__input:checked + .en-check__box {
+    animation: en-box-squash var(--dur-base) var(--ease-rebound);
   }
+}
 
-  html.js-motion .en-check .en-check__tick {
-    transition: stroke-dashoffset var(--dur-base) var(--ease-stick) calc(var(--dur-tap) + var(--i) * 60ms);
+@keyframes en-box-squash {
+  from {
+    scale: 1.06 0.9;
   }
+  to {
+    scale: 1 1;
+  }
+}
 
-  html.js-motion .en-check .en-check__box {
-    transform-origin: center;
-    transform-box: fill-box;
-    transition: transform var(--dur-slow-squash) var(--ease-rebound) calc(var(--i) * 60ms);
+/* A full bag = a stuck landing: the ghost silhouette on the card's top edge hops forward and
+   lands solid (compress and hold). Unticking any item sends it back to rest. CSS :has(); an
+   engine without it simply keeps the ghost at rest. */
+.en-kit__flier {
+  position: absolute;
+  right: 52px;
+  bottom: 100%;
+  width: 40px;
+  height: auto;
+  overflow: visible;
+  color: var(--accent);
+  opacity: 0.35;
+  transform-origin: 96% 100%;
+  translate: 0 0;
+  pointer-events: none;
+}
+
+.en-kit__card:not(:has(.en-check__input:not(:checked))) .en-kit__flier {
+  opacity: 1;
+  translate: 24px 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .en-kit__flier {
+    transition:
+      opacity var(--dur-fast) linear,
+      translate var(--dur-fast) var(--ease-stick);
+  }
+  .en-kit__card:not(:has(.en-check__input:not(:checked))) .en-kit__flier {
+    animation:
+      en-kit-hop 420ms linear,
+      en-kit-stick var(--dur-land) var(--ease-land) 420ms;
+  }
+}
+
+@keyframes en-kit-hop {
+  0% {
+    translate: 0 0;
+    opacity: 0.35;
+    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+  }
+  50% {
+    translate: 12px -16px;
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.32, 0, 0.67, 0);
+  }
+  100% {
+    translate: 24px 0;
+    opacity: 1;
+  }
+}
+
+@keyframes en-kit-stick {
+  from {
+    scale: 1.03 0.94;
+  }
+  to {
+    scale: 1 1;
   }
 }
 
@@ -337,10 +518,6 @@
 /* --------------------------------------------------------------------------
    FAQ — native <details>
    -------------------------------------------------------------------------- */
-.en-faq__title {
-  margin: 0 0 12px;
-}
-
 .faq {
   border-top: 1px solid var(--hairline);
 }
@@ -383,6 +560,10 @@
 /* Two-line questions split evenly (no lone „počne?“ on the second line). */
 .faq__q-text {
   text-wrap: balance;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.2em;
+  text-decoration-color: transparent;
 }
 
 .faq__q::-webkit-details-marker {
@@ -391,15 +572,6 @@
 
 .faq__q::marker {
   content: "";
-}
-
-@media (hover: hover) {
-  .faq__q:hover .faq__q-text {
-    text-decoration: underline;
-    text-decoration-thickness: 1.5px;
-    text-underline-offset: 0.2em;
-    text-decoration-color: var(--hairline);
-  }
 }
 
 .faq__icon {
@@ -411,10 +583,22 @@
   border-radius: var(--radius-full);
   box-shadow: inset 0 0 0 1.5px var(--hairline);
   color: var(--fg);
+  /* The + → × quarter turn finishes still (a stuck landing, --ease-land). */
   transition:
-    transform var(--dur-base) var(--ease-stick),
+    transform var(--dur-base) var(--ease-land),
+    box-shadow var(--dur-fast) var(--ease-stick),
     translate var(--dur-slow-squash) var(--ease-rebound),
     scale var(--dur-slow-squash) var(--ease-rebound);
+}
+
+/* Hover (a pointer state, not scroll-driven): the question underlines, the ring darkens. */
+@media (hover: hover) {
+  .faq__q:hover .faq__q-text {
+    text-decoration-color: color-mix(in oklab, var(--fg) 35%, transparent);
+  }
+  .faq__q:hover .faq__icon {
+    box-shadow: inset 0 0 0 1.5px var(--fg);
+  }
 }
 
 /* An action glyph (.ui-icon: stroke in CSS px). */
@@ -435,14 +619,39 @@
   box-shadow: none;
 }
 
-.faq__a p {
-  margin: 0;
+.faq__a-in {
   padding: 0 52px 22px 2px;
+}
+
+.faq__a p {
   max-width: 64ch;
+  margin: 0;
   color: var(--muted);
 }
 
-/* 0fr → 1fr in 280ms where ::details-content exists; elsewhere the answer simply appears. */
+/* The next action under an answer (maps, schedule): a 48px target, no layout jump. */
+.faq__more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  margin-top: 2px;
+  margin-bottom: -10px;
+  color: var(--accent);
+  font-size: var(--text-small);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.2em;
+}
+
+@media (hover: hover) {
+  .faq__more:hover {
+    text-decoration-thickness: 2.5px;
+  }
+}
+
+/* 0fr → 1fr in 280ms where ::details-content exists; elsewhere the answer simply appears.
+   The answer then settles in: a 6px drop and fade, 60ms behind the opening (CSS only). */
 @supports selector(::details-content) {
   .faq__item::details-content {
     display: grid;
@@ -458,9 +667,30 @@
     min-height: 0;
     overflow: hidden;
   }
+  /* The focus ring of the answer's link may paint just outside the clipped box. */
+  @supports (overflow-clip-margin: 6px) {
+    .faq__a {
+      overflow: clip;
+      overflow-clip-margin: 6px;
+    }
+  }
   @media (prefers-reduced-motion: reduce) {
     .faq__item::details-content {
       transition: none;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .faq__item[open] .faq__a-in {
+    transition:
+      opacity var(--dur-base) var(--ease-stick) 60ms,
+      translate var(--dur-base) var(--ease-stick) 60ms;
+  }
+  @starting-style {
+    .faq__item[open] .faq__a-in {
+      opacity: 0;
+      translate: 0 -6px;
     }
   }
 }

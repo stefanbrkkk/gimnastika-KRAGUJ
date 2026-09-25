@@ -112,10 +112,16 @@
   height: 40px;
 }
 
+/* Desktop: the 68px bar takes the logo at 129×56, so the „GIMNASTIČKI KLUB“ micro-line
+   stops being a smudge at DPR 1 (ID-09). It overhangs the 52px content box by 2px a side. */
 @media (min-width: 1024px) {
+  .site-header__logo {
+    margin-block: -4px;
+  }
+
   .site-header__logo-svg {
-    width: 110px;
-    height: 48px;
+    width: 129px;
+    height: 56px;
   }
 }
 
@@ -126,10 +132,36 @@
 
 @media (min-width: 1024px) {
   .site-header__nav {
+    position: relative; /* the spy line's box */
     display: flex;
     flex: 1;
     justify-content: center;
     min-width: 0;
+  }
+}
+
+/* From 1200px the link group sits on the page axis (logo and CTA in equal side columns;
+   measured: ≥67px spare per side at 1200). 1024–1199 keeps the flex row, where a centred
+   group would run into the CTA (ID-10). */
+@media (min-width: 1200px) {
+  .site-header__bar {
+    display: grid;
+    grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
+  }
+
+  .site-header__logo {
+    justify-self: start;
+  }
+
+  /* The bar's padding is 24px left / 8px right (the CTA is concentric with the bar's end),
+     so the middle column is 8px right of the bar's centre: shift it back onto the axis. */
+  .site-header__nav {
+    flex: none;
+    left: calc((var(--hdr-pad) - var(--hdr-lead)) / 2);
+  }
+
+  .site-header__actions {
+    justify-self: end;
   }
 }
 
@@ -201,6 +233,104 @@
   transform: scaleX(1);
 }
 
+/* Nav spy (MO-03, chrome-motion.ts, ≥1024 with hover): one line hops between the links
+   instead of each link drawing its own. Outer box: x (linear); arc: y parabola + a stuck
+   landing; line: width (scaleX of a 100px line, flight). */
+.site-header__spy {
+  display: none;
+}
+
+.site-header[data-spy] .site-header__spy {
+  position: absolute;
+  top: calc(var(--spy-y, 0px) - 11px); /* 9px above the link's bottom, like the per-link line */
+  left: 0;
+  display: block;
+  width: 100px;
+  height: 2px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(var(--spy-x, 0px));
+  transition:
+    transform var(--dur-base) linear,
+    opacity var(--dur-fast) linear;
+}
+
+.site-header[data-spy] .site-header__spy[data-on="true"] {
+  opacity: 1;
+}
+
+.site-header__spy-arc {
+  display: block;
+  height: 100%;
+}
+
+.site-header__spy-line {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: scaleX(calc(var(--spy-w, 0) / 100));
+  transform-origin: left center;
+  transition: transform var(--dur-base) var(--ease-flight);
+}
+
+.site-header__spy[data-jump="true"],
+.site-header__spy[data-jump="true"] .site-header__spy-line {
+  transition: opacity var(--dur-fast) linear;
+}
+
+.site-header__spy[data-hop="a"] .site-header__spy-arc {
+  animation: spy-hop-a 460ms linear;
+}
+
+.site-header__spy[data-hop="b"] .site-header__spy-arc {
+  animation: spy-hop-b 460ms linear;
+}
+
+.site-header[data-spy] .site-header__link[aria-current]::after {
+  opacity: 0;
+  transform: scaleX(0);
+  transition: none;
+}
+
+/* 0–61% = the 280ms flight (rise ease-out, fall ease-in: a parabola), then the line
+   sticks the landing: it thickens and settles (compress and hold, no bounce). */
+@keyframes spy-hop-a {
+  0% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.33, 0.66, 0.66, 1);
+  }
+  30% {
+    transform: translateY(-5px);
+    animation-timing-function: cubic-bezier(0.33, 0, 0.66, 0.33);
+  }
+  61% {
+    transform: translateY(0) scaleY(1.7);
+    animation-timing-function: var(--ease-land);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes spy-hop-b {
+  0% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.33, 0.66, 0.66, 1);
+  }
+  30% {
+    transform: translateY(-5px);
+    animation-timing-function: cubic-bezier(0.33, 0, 0.66, 0.33);
+  }
+  61% {
+    transform: translateY(0) scaleY(1.7);
+    animation-timing-function: var(--ease-land);
+  }
+  100% {
+    transform: none;
+  }
+}
+
 .site-header__actions {
   display: flex;
   align-items: center;
@@ -238,6 +368,53 @@
   transition-property: translate, scale;
 }
 
+/* One primary CTA per viewport (ID-06, C-15): the pill steps aside while the hero CTAs
+   or the S11 finale are on screen (data-cta, StickyBarBehavior) and lands in the bar once
+   they are passed — a stuck landing (drop, compress, hold). It keeps its box, so nothing
+   in the bar moves. With JS it starts out stepped aside, so it never pops out after
+   hydration; the failsafe brings it back if the behaviour never runs. Keyboard focus in
+   the header always shows it. */
+.site-header .site-header__cta {
+  transition:
+    translate var(--dur-slow-squash) var(--ease-rebound),
+    scale var(--dur-slow-squash) var(--ease-rebound),
+    opacity var(--dur-fast) linear,
+    transform var(--dur-base) var(--ease-land),
+    visibility 0s linear 0s;
+}
+
+.site-header[data-cta="hidden"] .site-header__cta,
+html.js .site-header:not([data-cta]) .site-header__cta {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px) scale(0.94);
+  transition:
+    translate var(--dur-slow-squash) var(--ease-rebound),
+    scale var(--dur-slow-squash) var(--ease-rebound),
+    opacity var(--dur-fast) var(--ease-takeoff),
+    transform var(--dur-fast) var(--ease-takeoff),
+    visibility 0s linear var(--dur-fast);
+}
+
+html.js .site-header:not([data-cta]) .site-header__cta {
+  animation: hdr-cta-failsafe 0s linear 4s forwards;
+}
+
+@keyframes hdr-cta-failsafe {
+  to {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+}
+
+html .site-header.site-header:has(:focus-visible) .site-header__cta {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition-delay: 0s;
+}
+
 /* "Meni" (a link to the footer's #meni until hydration, then a button) and the
    sheet's close button — same geometry. */
 .menu-btn {
@@ -250,9 +427,9 @@
   padding: 0 14px 0 18px;
   border: 0;
   border-radius: var(--radius-full);
-  background: transparent;
+  /* A tint, not a second ring inside the bar's ring (ID-15). */
+  background: color-mix(in oklab, var(--fg) 10%, transparent);
   color: var(--fg);
-  box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--fg) 34%, transparent);
   font: inherit;
   font-size: var(--text-small);
   font-weight: 650;
@@ -272,7 +449,14 @@
 .menu-btn:active {
   translate: 0 1px;
   scale: 1.03 0.94;
+  background: color-mix(in oklab, var(--fg) 16%, transparent);
   transition-duration: var(--dur-tap);
+}
+
+@media (hover: hover) {
+  .menu-btn:hover {
+    background: color-mix(in oklab, var(--fg) 16%, transparent);
+  }
 }
 
 /* Beside the 52px CTA pill from 640px: same height. */
@@ -384,17 +568,36 @@ html:has(.menu-sheet[open]) {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* "You are here": the silhouette has landed on the current section. */
+/* "You are here": the silhouette has landed on the current section's row, its take-off
+   and apex frames behind it (C-22). --here = the silhouette's width; the svg is 522/230
+   of it (the two frames reach 1.27 × --here to the left). */
 .menu-sheet__here {
+  --here: 44px;
   flex: none;
-  width: 44px;
+  width: calc(var(--here) * 522 / 230);
   height: auto;
+  overflow: visible;
   color: var(--accent);
   opacity: 0;
 }
 
 .menu-sheet__link[aria-current] .menu-sheet__here {
   opacity: 1;
+}
+
+.here-ghost--1 {
+  color: var(--ghost-1);
+  opacity: var(--ghost-1-o);
+}
+
+.here-ghost--2 {
+  color: var(--ghost-2);
+  opacity: var(--ghost-2-o);
+}
+
+.here-pitch {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
 }
 
 .menu-sheet__actions {
@@ -412,23 +615,41 @@ html:has(.menu-sheet[open]) {
   }
 }
 
-.menu-sheet__trail {
-  align-self: flex-end;
-  width: min(62%, 300px);
-  height: auto;
-  margin-top: auto;
-  padding-top: 40px;
-  color: var(--color-steel-300);
+/* Tall sheets: the index hangs from the top, the CTA and the call stand at the foot of the
+   sheet, in thumb reach (the space between is the sheet's, not a missing trail). */
+@media (min-height: 700px) {
+  .menu-sheet__actions {
+    margin-top: auto;
+    padding-top: 40px;
+  }
 }
 
-.menu-sheet__trail .leap-solid {
-  color: var(--color-lav-200);
-}
+/* Tall tablets (C-14): the sheet is a statement surface, not a phone menu in the top
+   half — display-size links on 96px rows and larger actions. One column: with the
+   here-frames a two-column row needs ≈360px at 768 (measured) and overflowed at 640–800. */
+@media (min-width: 640px) and (min-height: 800px) {
+  .menu-sheet__nav {
+    margin-top: 28px;
+  }
 
-/* The ghost-frame trail is decoration: never let it push the sheet into scrolling. */
-@media (max-height: 780px) {
-  .menu-sheet__trail {
-    display: none;
+  .menu-sheet__link {
+    min-height: 96px;
+    font-size: clamp(2.5rem, 1rem + 4vw, 4rem);
+    letter-spacing: -0.03em;
+  }
+
+  .menu-sheet__here {
+    --here: 56px;
+  }
+
+  .menu-sheet__actions {
+    gap: 16px;
+  }
+
+  .menu-sheet__actions .btn {
+    min-height: 60px;
+    padding-inline: 1.75rem;
+    font-size: 1.125rem;
   }
 }
 
@@ -453,7 +674,7 @@ html:has(.menu-sheet[open]) {
   }
 
   .menu-sheet__here {
-    width: 28px;
+    --here: 28px;
   }
 
   .menu-sheet__actions {
@@ -484,6 +705,87 @@ html:has(.menu-sheet[open]) {
   .menu-sheet[open][data-closing] {
     animation: menu-shutter-out var(--dur-fast) var(--ease-takeoff) both;
   }
+
+  /* M-05: just after its row lands, the silhouette hops into the current row from its
+     take-off frame — x linear, y a parabola through the apex frame, torso pitch in the
+     air — and sticks the landing (compress and hold). Each frame is exposed as she
+     passes it: the chronophotograph at the scale of the navigation. */
+  html.js-motion .menu-sheet[open] .menu-sheet__link[aria-current] {
+    --hop-at: calc(200ms + var(--i, 0) * 40ms);
+  }
+
+  html.js-motion .menu-sheet[open] .menu-sheet__link[aria-current] .here-fly {
+    animation: here-fly 380ms linear var(--hop-at) both;
+  }
+
+  html.js-motion .menu-sheet[open] .menu-sheet__link[aria-current] .here-arc {
+    animation: here-arc 380ms linear var(--hop-at) both;
+  }
+
+  html.js-motion .menu-sheet[open] .menu-sheet__link[aria-current] .here-pitch {
+    animation:
+      here-pitch 380ms linear var(--hop-at) both,
+      here-stick var(--dur-land) var(--ease-land) calc(var(--hop-at) + 380ms);
+  }
+
+  html.js-motion .menu-sheet[open] .menu-sheet__link[aria-current] .here-ghost--1 {
+    animation: here-expose var(--dur-tap) linear calc(var(--hop-at) + 40ms) both;
+  }
+
+  html.js-motion .menu-sheet[open] .menu-sheet__link[aria-current] .here-ghost--2 {
+    animation: here-expose var(--dur-tap) linear calc(var(--hop-at) + 190ms) both;
+  }
+}
+
+/* Units: the HereMark viewBox (leap-box units; take-off frame at x −292, apex −44). */
+@keyframes here-fly {
+  from {
+    transform: translateX(-292px);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes here-arc {
+  0% {
+    transform: none;
+    animation-timing-function: cubic-bezier(0.33, 0.66, 0.66, 1);
+  }
+  50% {
+    transform: translateY(-44px);
+    animation-timing-function: cubic-bezier(0.33, 0, 0.66, 0.33);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes here-pitch {
+  0% {
+    rotate: -12deg;
+  }
+  55% {
+    rotate: 4deg;
+  }
+  100% {
+    rotate: 0deg;
+  }
+}
+
+@keyframes here-stick {
+  0% {
+    scale: 1.05 0.86;
+  }
+  100% {
+    scale: 1 1;
+  }
+}
+
+@keyframes here-expose {
+  from {
+    opacity: 0;
+  }
 }
 
 @keyframes menu-shutter {
@@ -512,20 +814,28 @@ html:has(.menu-sheet[open]) {
 }
 
 /* --------------------------------------------------------------------------
-   Sticky bottom bar (mobile) — 64px + safe area, edge to edge.
-   Hidden = translated off screen AND visibility:hidden (out of the tab order).
-   No JS: always visible on mobile.
+   Sticky bottom bar (mobile) — a floating dock, the same pill family as the
+   header (C-07): 60px, 8px above the bottom edge + safe area, max 560px.
+   Its shadow is static (never animated). Hidden = translated off screen AND
+   visibility:hidden (out of the tab order). No JS: always visible on mobile.
+   Arrival is a vault take-off (MD-17): the dock springs up with a small
+   overshoot and the pills rise into it one after another; it leaves fast.
    -------------------------------------------------------------------------- */
 .sticky-bar {
+  --dock-gap: 8px;
   position: fixed;
-  inset: auto 0 0;
+  inset: auto var(--dock-gap) calc(var(--dock-gap) + env(safe-area-inset-bottom));
   z-index: 40;
-  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
-  /* hairline as a shadow, so the bar stays exactly 64px + safe area */
+  max-width: 560px;
+  margin-inline: auto;
+  padding: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-navy-950);
   box-shadow:
-    inset 0 1px 0 var(--hairline),
-    0 -10px 24px -14px rgba(10, 26, 56, 0.45);
-  transform: translateY(calc(100% + 16px));
+    0 0 0 1px rgba(141, 169, 198, 0.22),
+    0 8px 16px -4px rgba(10, 26, 56, 0.35),
+    0 24px 40px -12px rgba(10, 26, 56, 0.45);
+  transform: translateY(calc(100% + 16px + var(--dock-gap) + env(safe-area-inset-bottom)));
   visibility: hidden;
   transition:
     transform var(--dur-fast) var(--ease-takeoff),
@@ -537,8 +847,27 @@ html:not(.js) .sticky-bar {
   transform: none;
   visibility: visible;
   transition:
-    transform var(--dur-base) var(--ease-stick),
+    transform var(--dur-spring) var(--ease-spring),
     visibility 0s linear 0s;
+}
+
+/* The pills (motion allowed: no reduced motion, no Save-Data): reset only once the dock is
+   gone (so it never leaves empty), rise in on arrival. */
+html.js-motion .sticky-bar__list > li {
+  transition:
+    opacity 0s linear var(--dur-fast),
+    transform 0s linear var(--dur-fast);
+}
+
+html.js-motion .sticky-bar:not([data-visible="true"]) .sticky-bar__list > li {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+html.js-motion .sticky-bar[data-visible="true"] .sticky-bar__list > li {
+  transition:
+    opacity var(--dur-fast) linear calc(90ms + var(--i, 0) * 40ms),
+    transform var(--dur-fast) var(--ease-stick) calc(90ms + var(--i, 0) * 40ms);
 }
 
 /* No JS + scroll timelines: stay out of the hero's way, appear after ~one screen. */
@@ -553,7 +882,7 @@ html:not(.js) .sticky-bar {
 @keyframes sticky-bar-nojs {
   0%,
   99% {
-    transform: translateY(calc(100% + 16px));
+    transform: translateY(calc(100% + 16px + var(--dock-gap) + env(safe-area-inset-bottom)));
     visibility: hidden;
   }
   100% {
@@ -573,10 +902,9 @@ html:not(.js) .sticky-bar {
 .sticky-bar__list {
   container: sticky-bar / inline-size; /* for the enlarged-text rule below */
   display: flex;
-  gap: 8px;
-  max-width: 560px;
+  gap: 6px;
   height: 48px;
-  margin: 0 auto;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
@@ -619,11 +947,12 @@ html:not(.js) .sticky-bar {
 /* Below 360px (320px phones): tighter geometry so the three pills still fit. */
 @media (max-width: 359.98px) {
   .sticky-bar {
-    padding-inline: 8px;
+    --dock-gap: 6px;
+    padding: 5px;
   }
 
   .sticky-bar__list {
-    gap: 6px;
+    gap: 5px;
   }
 
   .sticky-bar__btn {
@@ -671,11 +1000,21 @@ html:not(.js) .sticky-bar {
 @media (prefers-reduced-motion: reduce) {
   .site-header,
   .site-header__link::after,
+  .site-header .site-header__cta,
+  .site-header[data-cta] .site-header__cta,
+  .site-header__spy,
+  .site-header__spy-line,
   .menu-btn,
   .sticky-bar,
   .sticky-bar[data-visible="true"],
+  html.js-motion .sticky-bar .sticky-bar__list > li,
+  html.js-motion .sticky-bar[data-visible="true"] .sticky-bar__list > li,
   .sticky-bar__btn {
     transition: none;
+  }
+
+  .site-header__spy-arc {
+    animation: none;
   }
 
   .menu-btn:active,
@@ -692,7 +1031,8 @@ html:not(.js) .sticky-bar {
    -------------------------------------------------------------------------- */
 .site-footer {
   padding-top: 64px;
-  padding-bottom: calc(32px + 64px + env(safe-area-inset-bottom)); /* clears the sticky bar */
+  /* clears the floating dock: 8px gap + 60px dock + safe area */
+  padding-bottom: calc(32px + 68px + env(safe-area-inset-bottom));
 }
 
 @media (min-width: 1024px) {
@@ -716,9 +1056,65 @@ html:not(.js) .sticky-bar {
   overflow: visible;
 }
 
-.site-footer__mark .leap-ghost {
-  color: var(--color-steel-300);
+/* The leap fades out past the logo along the leotard steps (shared ghost tokens). */
+.leap-ghost--3 {
+  color: var(--ghost-3);
+  opacity: var(--ghost-3-o);
 }
+
+.leap-ghost--2 {
+  color: var(--ghost-2);
+  opacity: var(--ghost-2-o);
+}
+
+.leap-ghost--1 {
+  color: var(--ghost-1);
+  opacity: var(--ghost-1-o);
+}
+
+.leap-push {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+
+/* MO-05 take-off (chrome-motion.ts arms it only while the mark is off screen): the landed
+   silhouette crouches and springs off, and the three frames stream out past it. Units:
+   the mark's viewBox (≈ 0.64 CSS px at 560px). */
+@media (prefers-reduced-motion: no-preference) {
+  html.js-motion .site-footer__mark[data-armed]:not([data-played]) .leap-ghost {
+    opacity: 0;
+  }
+
+  html.js-motion .site-footer__mark[data-played] .leap-push {
+    animation: footer-push 440ms linear both;
+  }
+
+  html.js-motion .site-footer__mark[data-played] .leap-ghost {
+    animation: footer-ghost 380ms var(--ease-flight) calc(150ms + var(--i, 0) * 90ms) both;
+  }
+}
+
+@keyframes footer-push {
+  0% {
+    scale: 1 1;
+    animation-timing-function: cubic-bezier(0.5, 0, 0.75, 0.4);
+  }
+  30% {
+    scale: 1.03 0.92;
+    animation-timing-function: var(--ease-spring);
+  }
+  100% {
+    scale: 1 1;
+  }
+}
+
+@keyframes footer-ghost {
+  from {
+    opacity: 0;
+    translate: -40px 14px;
+  }
+}
+
 
 .site-footer__line {
   max-width: 60ch;
@@ -770,11 +1166,60 @@ html:not(.js) .sticky-bar {
   }
 }
 
+/* The trial CTA and the call as index links (ID-11): the doskok above stays the finale.
+   Lavender underline (2px, 4px offset); the → hops forward on hover. */
 .site-footer__actions {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 20px;
+  gap: 4px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-footer__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  font-size: 1.25rem;
+  line-height: 1.25;
+  font-weight: 620;
+  font-stretch: 104%;
+  letter-spacing: -0.005em;
+  color: var(--fg);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.site-footer__action > span {
+  text-decoration: underline;
+  text-decoration-color: var(--color-lav-200);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.site-footer__action-arrow {
+  width: 22px;
+  height: 22px;
+  color: var(--color-lav-200);
+  transition: translate var(--dur-base) var(--ease-land);
+}
+
+@media (hover: hover) {
+  .site-footer__action:hover > span {
+    text-decoration-color: currentColor;
+  }
+
+  .site-footer__action:hover .site-footer__action-arrow {
+    translate: 4px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-footer__action-arrow {
+    transition: none;
+  }
 }
 
 @media (min-width: 640px) {
@@ -787,6 +1232,7 @@ html:not(.js) .sticky-bar {
   .site-footer__actions {
     flex-direction: row;
     flex-wrap: wrap;
+    gap: 4px 32px;
   }
 }
 

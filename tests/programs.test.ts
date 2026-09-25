@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   blockParts,
   chipByKey,
+  filterHint,
   filterStatus,
   glueDash,
   matchingIds,
+  PROGRAM_BIB,
   PROGRAM_CHIPS,
+  programDays,
   programSchedule,
   TIME_JOINER,
   usableChips,
@@ -87,6 +90,12 @@ describe("programs: age chips", () => {
     expect(filterStatus(chipByKey("takmicarke"), VISIBLE)).toBe(`Prikazano: 2 od 5 programa. ${QUIZ.aerobicHint}`);
   });
 
+  it("keeps the aerobic hint separately for the phone line under the row", () => {
+    expect(filterHint(chipByKey("svi"), VISIBLE)).toBe("");
+    expect(filterHint(chipByKey("8+"), VISIBLE)).toBe(QUIZ.aerobicHint);
+    expect(filterHint(chipByKey("3-8"), ["mladja", "starija"])).toBe("");
+  });
+
   it("uses only program ids that exist", () => {
     const known = new Set(PROGRAMS.map((p) => p.id));
     for (const chip of PROGRAM_CHIPS) for (const id of chip.ids ?? []) expect(known.has(id)).toBe(true);
@@ -97,5 +106,31 @@ describe("programs: typography", () => {
   it("glues a spaced dash to the word before it, text otherwise unchanged", () => {
     expect(glueDash("Takmičarke — C program")).toBe("Takmičarke\u00A0— C program");
     expect(glueDash("Mlađa početna grupa")).toBe("Mlađa početna grupa");
+  });
+});
+
+describe("programs: plate print", () => {
+  it("renders each bib from the program's own age line or title — no new fact", () => {
+    for (const p of visiblePrograms(false)) {
+      const bib = PROGRAM_BIB[p.id];
+      if (bib === null) {
+        expect(p.age).toBeNull(); // no age claim, no bib (aerobic gymnastics)
+        expect(p.id).toBe("aerobik");
+        continue;
+      }
+      const source = `${p.age ?? ""} ${p.title}`;
+      for (const token of bib.split(/[·+]/).filter(Boolean)) expect(source).toContain(token);
+    }
+    expect(PROGRAM_BIB.mladja).toBe("3–8");
+    expect(PROGRAM_BIB.starija).toBe("8+");
+    expect(PROGRAM_BIB["c-program"]).toBe("C");
+    expect(PROGRAM_BIB["ab-program"]).toBe("A·B");
+  });
+
+  it("gives the card one week row: the union of all its groups' days", () => {
+    const days = (id: ProgramId) => [...programDays(programById(id))].sort();
+    expect(days("mladja")).toEqual(["pe", "po", "sr"]);
+    expect(days("c-program")).toEqual(["ce", "pe", "po", "sr", "ut"]); // starije Po Sr Pe + mlađe Ut Če Pe
+    expect(days("ab-program")).toEqual(["ce", "pe", "po", "sr", "ut"]);
   });
 });

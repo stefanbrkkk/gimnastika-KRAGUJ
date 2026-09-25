@@ -117,10 +117,13 @@ function measureTargets() {
   return { checked, exempt, small };
 }
 
-function probeTarget(i) {
+async function probeTarget(i) {
   const el = document.querySelector(`[data-qa-tap="${i}"]`);
   if (!el) return { ok: false, reason: "gone" };
   el.scrollIntoView({ block: "center", inline: "center", behavior: "instant" });
+  // Two frames: scroll-linked layout (the desktop hero pin is position:fixed until
+  // ScrollTrigger sees the jump) settles before hit-testing, as it does for a real tap.
+  await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
   const r = el.getBoundingClientRect();
   const cx = r.left + r.width / 2;
   const cy = r.top + r.height / 2;

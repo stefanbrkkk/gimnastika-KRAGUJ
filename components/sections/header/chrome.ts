@@ -93,11 +93,14 @@ export interface StickyBarInputs {
   shortViewport?: boolean;
   /** The floating header is currently shown (data-hidden="false"). */
   headerShown?: boolean;
+  /** At least half of the S10 action row (.en-actions: trial CTA + call) is in the viewport. */
+  enrollActionsVisible?: boolean;
 }
 
 /**
  * The bar is mobile-only, appears once the hero CTAs are passed, and steps
- * aside over the contact block, for the keyboard and for form fields. On short
+ * aside over the contact block and the S10 action row (their own call/booking
+ * buttons are on screen), for the keyboard and for form fields. On short
  * viewports it also yields to the header, so the two fixed bars never cover
  * the same screen together (they swap on scroll direction).
  */
@@ -105,9 +108,24 @@ export const stickyBarVisible = (s: StickyBarInputs): boolean =>
   s.mobile &&
   s.heroCtasPassed &&
   !s.contactVisible &&
+  !s.enrollActionsVisible &&
   !s.keyboardOpen &&
   !s.fieldFocused &&
   !(s.shortViewport && s.headerShown);
+
+export interface HeaderCtaInputs {
+  /** Any part of the hero CTA group ([data-hero-ctas]) is in the viewport. */
+  heroCtasInView: boolean;
+  /** Any part of the S11 contact block (with the doskok CTA) is in the viewport. */
+  contactVisible: boolean;
+}
+
+/**
+ * The header's „Zakažite probni trening“ pill steps aside while the same CTA is
+ * already on screen in the page — the hero CTA group or the S11 finale — so a
+ * viewport never shows two identical primary buttons (design review ID-06, C-15).
+ */
+export const headerCtaHidden = (s: HeaderCtaInputs): boolean => s.heroCtasInView || s.contactVisible;
 
 /**
  * The on-screen keyboard shrinks the visual viewport but not the layout

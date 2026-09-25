@@ -1,12 +1,20 @@
-/* about section styles — owned by the about section (S5 „O nama“, ice theme).
-   Mission + history beside the club photo (a contact-sheet print with a ghost
-   exposure behind it), then the „Hronologija“ line: one node per year, a static
-   full line without JS; timeline-motion.ts advances it frame by frame (scaleY).
-   Motion: only transform. */
+/* about section styles — owned by the about section (S5 „O nama“, light theme).
+   Mission (a display statement, then body copy) and history beside the club print, then a
+   full-bleed darkroom band cut on the floor diagonal: „Hronologija“ as a Marey plate — one
+   exposure of the club's leaping gymnast per year on a vertical rail, earlier years as ghost
+   frames, the last as the solid landing. Static and complete without JS; the motion modules
+   add the print's landing and the flier riding the rail. Motion: transform + opacity only. */
+
+/* The band ends the section: the dark → light edge divides it from S6 (coaches.css gives S6
+   its full top spacing), so no chalk strip is left under the band. */
+#o-nama {
+  padding-bottom: 0;
+}
 
 /* --------------------------------------------------------------------------
    Mission · photo · history
-   Mobile: mission → photo → history. Desktop: photo left (cols 1–5), text right.
+   Mobile: mission → photo → history. Tablet: the print right (zig-zag against the text).
+   Desktop: photo left (cols 1–5), text right (cols 7–12).
    -------------------------------------------------------------------------- */
 .about__grid {
   display: grid;
@@ -32,30 +40,33 @@
   background: var(--fg);
 }
 
+/* The mission: its first sentence is the statement, the rest reads as body copy (display-only
+   split, About.tsx Mission) — an entry point instead of a wall of lead text. */
 .about__lead {
-  font-size: clamp(1.125rem, 1.02rem + 0.45vw, 1.3125rem);
-  line-height: 1.58;
-  font-weight: 450;
-  letter-spacing: -0.003em;
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
 }
 
-/* Phones: the mission's first sentence is the statement (h3 step), the rest reads as body copy —
-   an entry point instead of a 15-line lead. Display-only split (About.tsx Mission); from 640 px
-   the span is inline and the lead above applies unchanged. */
-@media (max-width: 639px) {
-  .about__lead {
-    font-size: var(--text-body);
-    line-height: var(--text-body--line-height);
-  }
+.about__lead-first {
+  display: block;
+  max-width: 22ch;
+  margin-bottom: 16px;
+  font-size: 1.5rem;
+  line-height: 1.14;
+  font-weight: 720;
+  font-stretch: 106%;
+  letter-spacing: -0.018em;
+  color: var(--fg);
+  text-wrap: balance;
+}
+
+@media (min-width: 640px) {
   .about__lead-first {
-    display: block;
-    margin-bottom: 12px;
-    font-size: var(--text-h3);
-    line-height: 1.25;
-    font-weight: 650;
-    font-stretch: 104%;
-    letter-spacing: var(--text-h3--letter-spacing);
-    color: var(--fg);
+    margin-bottom: 20px;
+    font-size: clamp(1.75rem, 1.1rem + 1.4vw, 2.5rem);
+    line-height: 1.1;
+    font-stretch: 112%;
+    letter-spacing: -0.022em;
   }
 }
 
@@ -64,12 +75,19 @@
   line-height: var(--text-body--line-height);
 }
 
-/* Print + ghost exposure (a faint offset outline, like a second frame on the sheet). */
+/* „2007.“ in the history: the founding year as a figure. */
+.about__year {
+  font-weight: 700;
+  color: var(--fg);
+}
+
+/* The club print. No static outline: the second exposures exist only in motion (two paper
+   ghosts that collapse into the print as it lands — print-motion.ts), so at rest the frame's
+   left edge sits on the text column. */
 .about__prints {
   display: grid;
   gap: 28px;
   justify-items: start;
-  padding: 12px 0 0 12px;
 }
 
 .about__print {
@@ -79,15 +97,25 @@
   max-width: 545px; /* photo 03: 533 px (native / 2) + frame padding */
 }
 
-.about__print::before {
-  content: "";
+.about__ghost {
+  display: none;
+}
+
+/* Paper ghosts outlined in the shared ghost steps (royal → violet on light). */
+html.js-motion .about__ghost {
   position: absolute;
   z-index: -1;
   inset: 0;
-  translate: -12px -12px;
-  border: 1.5px solid color-mix(in oklab, var(--ghost) 70%, transparent);
+  display: block;
+  border: 1.5px solid var(--ghost-1);
   border-radius: 2px;
+  background: var(--color-white);
+  opacity: 0;
   pointer-events: none;
+}
+
+html.js-motion .about__ghost + .about__ghost {
+  border-color: var(--ghost-2);
 }
 
 .about__print--second {
@@ -95,12 +123,10 @@
   justify-self: end;
 }
 
-@media (min-width: 640px) {
+/* Tablet: the print answers the left-aligned text from the right — the floor diagonal. */
+@media (min-width: 640px) and (max-width: 1023.98px) {
   .about__prints {
-    padding: 14px 0 0 14px;
-  }
-  .about__print::before {
-    translate: -14px -14px;
+    justify-items: end;
   }
 }
 
@@ -108,23 +134,19 @@
   .about__grid {
     grid-template-columns: repeat(12, minmax(0, 1fr));
     column-gap: 24px;
-    row-gap: 48px;
+    row-gap: 56px;
     align-items: start;
   }
   .about__prints {
     grid-column: 1 / span 5;
     grid-row: 1 / span 2;
-    padding: 16px 0 0 16px;
   }
-  /* Where the text runs longer than the single print (1024–1279), the print travels with
-     the reader (sticky, 112 px — the header's clearance) instead of leaving a hole.
-     Not for the taller pair (CAMP_GROUP_PHOTOS), which could outgrow the viewport. */
+  /* Where the text runs longer than the single print, the print travels with the reader
+     (sticky, 112 px — the header's clearance) instead of leaving a hole. Not for the taller
+     pair (CAMP_GROUP_PHOTOS), which could outgrow the viewport. */
   .about__prints:not(.about__prints--pair) {
     position: sticky;
     top: 112px;
-  }
-  .about__print::before {
-    translate: -16px -16px;
   }
   .about__mission,
   .about__history {
@@ -144,14 +166,29 @@
 }
 
 /* --------------------------------------------------------------------------
-   Hronologija
+   Darkroom band — full bleed, top edge cut on the floor diagonal (.edge-cut, styles/ui.css)
    -------------------------------------------------------------------------- */
-.about__chrono {
+.about__band.edge-cut {
+  position: relative;
   margin-top: 72px;
+  padding-top: calc(64px + var(--cut));
+  padding-bottom: 32px;
+}
+
+@media (min-width: 1024px) {
+  .about__band.edge-cut {
+    margin-top: 96px;
+    padding-top: calc(112px + var(--cut));
+    padding-bottom: 64px;
+  }
+}
+
+.about__chrono {
+  --year-size: clamp(1.75rem, 1.35rem + 1.5vw, 2.75rem);
 }
 
 .about__chrono-title {
-  margin-bottom: 32px;
+  margin-bottom: 36px;
 }
 
 @media (min-width: 1024px) {
@@ -159,55 +196,60 @@
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
     column-gap: 24px;
-    margin-top: 128px;
   }
-  /* Static title: cols 1–4 below it carry the KR-17 margin print (.timeline__photo). */
+  /* The label in cols 1–4; below it the KR-17 margin print (.timeline__photo). */
   .about__chrono-title {
     grid-column: 1 / span 4;
     align-self: start;
-    margin: 0;
+    /* level with the first year's cap centre */
+    margin: calc(var(--year-size) * 0.52 - 0.6em) 0 0;
   }
   .about__chrono .timeline {
     grid-column: 5 / span 8;
   }
 }
 
+/* --------------------------------------------------------------------------
+   Hronologija — the rail and its exposures
+   -------------------------------------------------------------------------- */
 .timeline {
-  --year-size: clamp(1.75rem, 1.35rem + 1.5vw, 2.75rem);
-  --node: 14px;
-  --gutter: 40px; /* rail column */
-  --node-y: calc(var(--year-size) * 0.52);
+  --node-w: 36px;
+  --node-h: calc(var(--node-w) * 150 / 230); /* the #leap box */
+  --rail-x: calc(var(--node-w) / 2);
+  --gutter: calc(var(--node-w) + 16px);
+  --node-y: calc(var(--year-size) * 0.52); /* the year's cap centre */
+  --row-gap: 36px;
   position: relative;
 }
 
-/* Track (pale, always full) and progress line (navy; scaled by timeline-motion.ts). */
+/* Track (steel, always full) and progress line (lavender; scaled by timeline-motion.ts). */
 .timeline__track,
 .timeline__progress {
   position: absolute;
-  left: calc(var(--node) / 2 - 1px);
+  left: calc(var(--rail-x) - 1px);
   top: var(--node-y);
   bottom: 0;
   width: 2px;
   pointer-events: none;
-  /* The line runs on past the last year and fades — the story continues. */
+  /* The rail runs on past the last year and fades — the story continues. */
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 64px), transparent);
   mask-image: linear-gradient(to bottom, #000 calc(100% - 64px), transparent);
 }
 
 .timeline__track {
-  background: color-mix(in oklab, var(--ghost) 55%, transparent);
+  background: color-mix(in oklab, var(--color-steel-300) 35%, transparent);
 }
 
 .timeline__progress {
-  background: var(--fg);
+  background: var(--accent);
   transform-origin: 50% 0;
 }
 
 .timeline__list {
   display: grid;
-  row-gap: 36px;
+  row-gap: var(--row-gap);
   margin: 0;
-  padding: 0 0 72px;
+  padding: 0 0 56px;
   list-style: none;
 }
 
@@ -223,33 +265,92 @@
   row-gap: 8px;
 }
 
-/* Node: a small frame square; the inner dot pops in when the line reaches it. */
+/* One exposure per year. The node's dark backing cuts the rail around it, so the years read
+   as frames on a strip; earlier years are ghosts in the leotard steps (--node-c/--node-o set
+   per year in Timeline.tsx), the last year is the solid landing. */
 .timeline__node {
   position: absolute;
+  z-index: 1;
   left: 0;
-  top: calc(var(--node-y) - var(--node) / 2);
-  display: grid;
-  place-items: center;
-  width: var(--node);
-  height: var(--node);
-  border: 2px solid var(--fg);
-  border-radius: 3px;
+  top: calc(var(--node-y) - var(--node-h) / 2 - 5px);
+  width: var(--node-w);
+  padding-block: 5px;
   background: var(--bg);
 }
 
-.timeline__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 1px;
-  background: var(--fg);
-  /* Pops as the line (DUR.reveal, ease stick) reaches the node — ~0.22 s into the leg. */
-  transition: transform var(--dur-base) var(--ease-rebound) 0.22s;
+.timeline__leap {
+  display: block;
+  width: 100%;
+  height: var(--node-h);
+  overflow: visible;
 }
 
-.timeline[data-armed] .timeline__item:not([data-reached]) .timeline__dot {
-  transform: scale(0);
-  transition-duration: var(--dur-fast);
-  transition-delay: 0s;
+.timeline__node .timeline__leap {
+  color: var(--node-c, var(--ghost));
+  /* The leap is a thin figure at this size: the shared ghost steps are lifted by half so the
+     plate still reads as exposures (ice .27 → lavender .42 → violet .63). */
+  opacity: calc(var(--node-o, 0.28) * 1.5);
+}
+
+.timeline__item:last-child .timeline__node .timeline__leap {
+  color: var(--accent);
+  opacity: 1;
+}
+
+/* The flier (motion only): rides the rail's head and lands on each year. */
+.timeline__flier {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  top: calc(var(--node-y) - var(--node-h) / 2);
+  display: none;
+  width: var(--node-w);
+  height: var(--node-h);
+  color: var(--accent);
+  pointer-events: none;
+}
+
+.timeline__flier-body {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.timeline[data-armed] .timeline__flier {
+  display: block;
+  will-change: transform;
+}
+
+/* Armed: a year's ghost is exposed when the flier leaves it; the flier itself is the solid
+   frame (so the last node stays empty under it). Years not reached yet wait at .38. */
+.timeline[data-armed] .timeline__node .timeline__leap {
+  transition: opacity var(--dur-fast) linear;
+}
+
+.timeline[data-armed] .timeline__item:not([data-left]) .timeline__node .timeline__leap {
+  opacity: 0;
+}
+
+.timeline[data-armed] .timeline__year {
+  transition: opacity var(--dur-base) var(--ease-stick);
+}
+
+.timeline[data-armed] .timeline__item:not([data-lit]) .timeline__year {
+  opacity: 0.38;
+}
+
+/* The year the flier lands on settles with it (stuck landing, no bounce). */
+.timeline[data-armed] .timeline__item[data-lit="land"] .timeline__year {
+  animation: timeline-year-land var(--dur-base) var(--ease-land);
+}
+
+@keyframes timeline-year-land {
+  from {
+    translate: 0 -6px;
+  }
+  to {
+    translate: 0 0;
+  }
 }
 
 .timeline__year {
@@ -286,7 +387,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 26px 16px; /* wrapped rows: the 48 px targets never overlap */
-  margin: 9px 0 0 -4px;
+  margin: 4px 0 0 -4px;
 }
 
 /* The link box — and so its focus ring — hugs the text instead of crossing the title
@@ -302,18 +403,38 @@
   inset: calc(50% - 24px) 0;
 }
 
+/* Axis break on the 2007 → 2017 leg: ten years compressed into one step. Two slanted ticks
+   whose dark backing cuts the rail, and a little more room after 2007. */
+.timeline__item:first-child {
+  margin-bottom: 16px;
+}
+
+.timeline__item:first-child::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--rail-x) - 7px);
+  top: calc(100% + (var(--row-gap) + 16px) / 2 - 4px);
+  width: 14px;
+  height: 8px;
+  border-block: 2px solid var(--fg);
+  background: var(--bg);
+  transform: skewY(-30deg);
+  pointer-events: none;
+}
+
 .timeline__photo {
   padding-top: 4px;
 }
 
 .timeline__print {
   width: 100%;
-  max-width: 300px;
+  max-width: 360px;
 }
 
 @media (min-width: 640px) {
   .timeline {
-    --gutter: 48px;
+    --node-w: 44px;
+    --gutter: calc(var(--node-w) + 20px);
   }
   .timeline__item {
     grid-template-columns: 7.25rem minmax(0, 1fr);
@@ -329,31 +450,45 @@
 }
 
 @media (min-width: 1024px) {
-  .timeline__list {
-    row-gap: 44px;
+  .timeline {
+    --node-w: 52px;
+    --row-gap: 44px;
   }
   .timeline__item {
     grid-template-columns: 8.25rem minmax(0, 1fr);
     column-gap: 32px;
   }
-  /* KR-17 hangs in the empty cols 1–4 as a margin print, level with the 2017 → 2022 leg:
-     the list item (and so the reading order) stays; it only drops out of the flow. Right edge
-     48 px short of the rail; width = cols 1–4 − 24 px (269 px at 1024), capped at 300 px —
-     the caption stays on one line. The zero-height item keeps one 44 px row gap. */
+  /* KR-17 hangs in the empty cols 1–4 as a margin print, centred on the 2017 → 2022 leg, with
+     a 1 px leader to the rail: the list item (and so the reading order) stays; it only drops
+     out of the flow. Right edge 48 px short of the rail; width = cols 1–4 − 24 px, capped at
+     300 px. The zero-height item keeps one row gap. */
   .timeline__photo {
     height: 0;
     padding: 0;
   }
   .timeline__photo .timeline__print {
     position: absolute;
-    top: -24px;
+    top: 0;
     right: calc(100% + 48px);
     width: min(300px, calc((100% + 24px) / 2 - 48px));
+    translate: 0 -50%;
+  }
+  .timeline__print::after {
+    content: "";
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    width: calc(48px + var(--rail-x));
+    height: 1px;
+    background: color-mix(in oklab, var(--ghost) 70%, transparent);
+    pointer-events: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .timeline__dot {
+  .timeline__node .timeline__leap,
+  .timeline__year {
     transition: none;
+    animation: none;
   }
 }

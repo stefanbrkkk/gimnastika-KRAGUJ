@@ -8,12 +8,26 @@
  * the beam. The one-path silhouette is therefore cut at the waist (logo y ≈ 150,
  * where only the 26-unit-wide torso crosses) with two clip paths that overlap by
  * a few units, and only the upper body rotates, about the waist centre.
+ *
+ * The view ends exactly on the floor: the gym floor itself is a full-bleed CSS
+ * line under the scene (notfound.css .nf__stage::after), so the beam stands on
+ * the same floor that runs across the page.
  */
-export const VIEW = { x: 0, y: 84, width: 720, height: 286 } as const;
 export const FLOOR_Y = 352;
+export const VIEW = { x: 0, y: 84, width: 720, height: FLOOR_Y - 84 } as const;
 export const BEAM = { x: 64, y: 250, width: 592, height: 12, radius: 3 } as const;
-/** Beam supports (x of each post). */
+/** Padded top face of the beam (lighter than the steel body, so it reads as a beam, not a bench). */
+export const BEAM_TOP = 2.5;
+/** Beam supports (x of each A-frame's apex). */
 export const LEGS = [168, 552] as const;
+/**
+ * A-frame supports drawn like the S8 camp beam: two legs splayed ±14° from the
+ * beam's underside to a 68-unit foot bar resting on the floor.
+ */
+export const LEG_SPLAY = Math.round((FLOOR_Y - (BEAM.y + BEAM.height)) * Math.tan((14 * Math.PI) / 180) * 10) / 10;
+export const FOOT_HALF = 34;
+/** Stroke centre of the foot bars (6-unit stroke: its bottom edge sits on the floor). */
+export const FOOT_Y = FLOOR_Y - 3;
 /** Beam centre top = where her hip rests. */
 export const PIVOT = { x: 360, y: 250 } as const;
 /** Her hip (lowest ink between the legs) inside the #leap box: logo (377, 186) − (262, 48). */
@@ -37,13 +51,22 @@ export const WAIST = { x: L(372, 152)[0], y: L(372, 152)[1] } as const;
 
 /**
  * Ghost frames of the sway she has just caught (static composition = final
- * state): extra rotation of the upper body, colour (leotard-gradient steps) and
- * opacity. Oldest first.
+ * state): extra rotation of the upper body. Oldest first; colour and opacity
+ * come from the shared --ghost-1…3 tokens (ice → lavender → violet on dark).
  */
-export const GHOSTS = [
-  { fan: -21, color: "var(--color-iceblue-200)", opacity: 0.2 },
-  { fan: -14, color: "var(--color-lav-200)", opacity: 0.3 },
-  { fan: -7, color: "var(--color-violet-500)", opacity: 0.42 },
+export const GHOSTS = [{ fan: -21 }, { fan: -14 }, { fan: -7 }] as const;
+
+/**
+ * The judges' board (C-19): before the catch it shows a perfect 10.00; the
+ * wobble costs points and it posts 4.04. Aligned on the decimal point, so the
+ * tens digit goes dark. [before, after] per display cell.
+ */
+export const SCORE_CELLS = [
+  ["1", ""],
+  ["0", "4"],
+  [".", "."],
+  ["0", "0"],
+  ["0", "4"],
 ] as const;
 
 const r2 = (v: number) => Math.round(v * 100) / 100;

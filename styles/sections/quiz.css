@@ -1,28 +1,53 @@
 /* ==========================================================================
    S2 QUIZ — „Koji program je za vaše dete?“ (owned by the quiz section)
-   One card: a darkroom chronophotograph strip (the silhouette leaps one frame per
-   answer) over the current question or the result. Tokens from app/globals.css.
+   A darkroom chronophotograph strip (the silhouette leaps one hop per answer and the
+   print develops behind it) beside / above the current question or the result.
+   Phones–tablets: one card, strip on top. ≥1024: the strip is its own print in the
+   left column (sticky), the white card holds only the question or the result.
+   Tokens from app/globals.css; ghost colours from styles/ui.css (the strip is data-theme=dark).
    ========================================================================== */
 
-/* ---- Layout: heading left (sticky on desktop), card right ---------------- */
+/* ---- Layout -------------------------------------------------------------- */
 .quiz-layout {
   display: grid;
 }
 @media (min-width: 1024px) {
+  /* The strip and the card become grid items of the layout (display: contents on their
+     wrappers — the island with JS, the static guide without). DOM order is unchanged
+     for assistive tech; the strip is aria-hidden. */
   .quiz-layout {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    column-gap: 24px;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    grid-template-areas:
+      "head card"
+      "band card";
+    grid-template-rows: auto 1fr;
+    column-gap: 32px;
     align-items: start;
   }
+  html.js .quiz-stage,
+  html.js .quiz-app,
+  html:not(.js) .quiz-stage,
+  html:not(.js) .quiz-guide {
+    display: contents;
+  }
   .quiz-heading {
-    grid-column: 1 / span 4;
+    grid-area: head;
+    margin-bottom: 32px;
+  }
+  .quiz-layout .quiz-band {
+    grid-area: band;
     position: sticky;
     top: 112px;
-    margin-bottom: 0;
-    padding-top: 12px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-2);
   }
-  .quiz-stage {
-    grid-column: 5 / span 8;
+  .quiz-layout .quiz-body {
+    grid-area: card;
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow:
+      0 0 0 1px var(--hairline),
+      var(--shadow-2);
   }
 }
 
@@ -58,18 +83,27 @@ html:not(.js) .quiz-app {
   }
 }
 
-/* ---- Darkroom strip (chronophotograph) ----------------------------------- */
+/* ---- Darkroom strip: frame -------------------------------------------------- */
 .quiz-band {
-  /* Poses relative to the landed frame 03 (SVG user units): 01 takeoff, 02 flight. */
-  --pose-1: translate(-460px, -10px) rotate(-11deg) scale(0.9);
-  --pose-2: translate(-230px, -70px) rotate(-5deg) scale(0.95);
-  padding: 10px 14px 10px;
+  /* Flight: 600 ms hop, 700 ms for the single long flight (geometry.ts FLIGHT_MS). */
+  --qb-fly: 600ms;
+  --qb-hop: 48;
+  padding: 10px 14px;
   background: var(--color-navy-900);
   color: var(--color-steel-300);
+}
+.quiz-band[data-step="2"][data-v="skip"] {
+  --qb-fly: 700ms;
+  --qb-hop: 64;
 }
 @media (min-width: 640px) {
   .quiz-band {
     padding: 14px 24px 12px;
+  }
+}
+@media (min-width: 1024px) {
+  .quiz-band {
+    padding: 20px 28px 16px;
   }
 }
 .quiz-band__edge,
@@ -82,6 +116,8 @@ html:not(.js) .quiz-app {
   text-transform: uppercase;
 }
 .quiz-band__edge {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -90,8 +126,7 @@ html:not(.js) .quiz-app {
   margin: 0;
 }
 /* The answers so far are real text: 13px (the label floor), set as written („9 god. · Tek
-   počinje“) so both answers fit one line on a phone; only the frame code „KR-Q“ and the
-   frame numbers keep the 11px caps frame-label style. */
+   počinje“); only the frame code „KR-Q“ and the frame numbers keep the 11px caps style. */
 .quiz-band__caption {
   min-width: 0;
   color: var(--color-ice-50);
@@ -106,34 +141,36 @@ html:not(.js) .quiz-app {
 .quiz-band__code {
   flex: none;
 }
-.quiz-band__svg {
-  display: block;
+.quiz-band__svg,
+.quiz-band__frames {
   width: 100%;
   max-width: 600px;
+  margin-inline: auto;
+}
+@media (min-width: 1024px) {
+  .quiz-band__svg,
+  .quiz-band__frames {
+    max-width: none;
+  }
+}
+/* Phones in landscape: a smaller print, so the question still shares the screen with it. */
+@media (orientation: landscape) and (max-height: 520px) and (max-width: 1023.98px) {
+  .quiz-band__svg,
+  .quiz-band__frames {
+    max-width: 440px;
+  }
+}
+.quiz-band__svg {
+  display: block;
   height: auto;
-  margin: 4px auto 0;
+  margin-top: 2px;
   overflow: visible;
-}
-.quiz-band__grid line {
-  stroke: var(--color-steel-300);
-  stroke-width: 1;
-  opacity: 0.13;
-  vector-effect: non-scaling-stroke;
-}
-.quiz-band__mat,
-.quiz-band__tick {
-  stroke: var(--color-steel-300);
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
-}
-.quiz-band__mat {
-  opacity: 0.6;
 }
 .quiz-band__frames {
   position: relative;
-  max-width: 600px;
   height: 14px;
-  margin: 4px auto 0;
+  margin-top: 4px;
+  margin-bottom: 0;
   padding: 0;
   list-style: none;
 }
@@ -143,64 +180,357 @@ html:not(.js) .quiz-app {
   transform: translateX(-50%);
   color: var(--color-steel-300);
 }
-/* Steel-300 on navy stays ≥5.5:1 in every state (no dimming by opacity):
-   current = white, done = steel, todo = steel + lighter weight, skipped = struck through. */
+/* Steel-300 on navy stays ≥5.5:1 in every state (no dimming by opacity): current = white,
+   done = steel, todo = steel + lighter weight. A skipped 02 (ages 3–7, one long flight)
+   is simply not there — its number and tick fade out and the mat runs dotted under the flight. */
 .quiz-band__frames li[data-state="current"] {
   color: var(--color-white);
   font-weight: 700;
 }
-.quiz-band__frames li[data-state="todo"],
-.quiz-band__frames li[data-state="skip"] {
+.quiz-band__frames li[data-state="todo"] {
   font-weight: 450;
 }
 .quiz-band__frames li[data-state="skip"] {
-  text-decoration: line-through;
+  opacity: 0;
 }
 
-.quiz-leap {
-  /* Rotate/scale around the figure's pivot: each <g> sits at the pivot (see QuizBand.tsx). */
+/* ---- Darkroom strip: the picture (QuizBandArt) ------------------------------ */
+.quiz-band__svg :is(.qb-fly, .qb-hop, .qb-pitch, .qb-stick, .qf, .qb-puff circle) {
+  /* Every group rotates/scales around its own local origin (set by the nesting in
+     QuizBandArt: centre of mass, feet), never on transform-box support for <use>. */
   transform-box: view-box;
   transform-origin: 0 0;
 }
-.quiz-leap--fig {
-  color: var(--color-white);
+/* Measuring grid: minor lines every 46 units (ten per hop), majors on the three frames. */
+.qb-grid line {
+  stroke: var(--color-steel-300);
+  stroke-width: 1;
+  opacity: 0.08;
+  vector-effect: non-scaling-stroke;
 }
-.quiz-leap--ghost1 {
-  color: var(--color-iceblue-200);
-  opacity: 0.22;
-  transform: var(--pose-1);
+.qb-grid line[data-major] {
+  opacity: 0.28;
 }
-.quiz-leap--ghost2 {
-  color: var(--color-lav-200);
-  opacity: 0.32;
-  transform: var(--pose-2);
+.qb-mat,
+.qb-tick {
+  stroke: var(--color-steel-300);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.qb-mat {
+  opacity: 0.6;
+}
+.qb-mat--air {
+  opacity: 0;
+  stroke-dasharray: 2 6;
+  stroke-linecap: round;
+}
+.quiz-band[data-step="2"][data-v="skip"] .qb-mat--span,
+.quiz-band[data-step="2"][data-v="skip"] .qb-tick--2 {
+  opacity: 0;
+}
+.quiz-band[data-step="2"][data-v="skip"] .qb-mat--air {
+  opacity: 0.6;
 }
 
-/* The leap follows the answers — transform/opacity only. Static final composition under
-   reduced motion, Save-Data (data-lite, set by the island) and in the no-JS guide. */
+/* The recommended program's apparatus under frame 03 (S3's ProgramIcon drawings). */
+.qb-app {
+  opacity: 0;
+}
+.qb-app path {
+  fill: none;
+  stroke: var(--color-steel-300);
+  stroke-width: 1.15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1 2;
+  stroke-dashoffset: 1.02;
+}
+.qb-app path[data-k="rail"] {
+  stroke-width: 1.5;
+}
+.qb-app path[data-k="thin"] {
+  stroke-width: 0.8;
+  stroke-opacity: 0.7;
+}
+.quiz-band[data-app="parter"] .qb-app--parter,
+.quiz-band[data-app="greda"] .qb-app--greda,
+.quiz-band[data-app="razboj"] .qb-app--razboj {
+  opacity: 1;
+}
+.quiz-band[data-app="parter"] .qb-app--parter path,
+.quiz-band[data-app="greda"] .qb-app--greda path,
+.quiz-band[data-app="razboj"] .qb-app--razboj path {
+  stroke-dashoffset: 0;
+}
+
+/* The seven exposures (k = the answers 01/02/03, a/b = in flight). Poses per landing
+   variant come inline (--t-*). A latent print: 10 % ice; passed in-flight frames develop
+   to ghost 1 (ice), passed key frames to ghost 2 (lavender); the frame the flier stands
+   on is hidden under it. */
+.qf {
+  color: var(--ghost-1);
+  opacity: 0.1;
+  transform: var(--t-flat);
+}
+.quiz-band[data-v="parter"] .qf {
+  transform: var(--t-parter);
+}
+.quiz-band[data-v="greda"] .qf {
+  transform: var(--t-greda);
+}
+.quiz-band[data-v="skip"] .qf {
+  transform: var(--t-skip);
+}
+.quiz-band[data-step="0"] .qf--k1,
+.quiz-band[data-step="1"] .qf--k2,
+.quiz-band[data-step="2"] .qf--k3,
+.quiz-band[data-step="2"][data-v="skip"] .qf--k2 {
+  opacity: 0;
+}
+.quiz-band:not([data-step="0"]) :is(.qf--a1, .qf--a2),
+.quiz-band[data-step="2"] :is(.qf--b1, .qf--b2) {
+  opacity: var(--ghost-1-o);
+}
+.quiz-band:not([data-step="0"]) .qf--k1,
+.quiz-band[data-step="2"]:not([data-v="skip"]) .qf--k2 {
+  color: var(--ghost-2);
+  opacity: var(--ghost-2-o);
+}
+
+/* The flier: resting on 01 / 02 / the landing at 03 (per variant). */
+.qb-fly {
+  color: var(--color-white);
+  transform: var(--f0);
+}
+.quiz-band[data-step="1"] .qb-fly {
+  transform: var(--f1);
+}
+.quiz-band[data-step="2"] .qb-fly {
+  transform: var(--f2-flat);
+}
+.quiz-band[data-step="2"][data-v="parter"] .qb-fly {
+  transform: var(--f2-parter);
+}
+.quiz-band[data-step="2"][data-v="greda"] .qb-fly {
+  transform: var(--f2-greda);
+}
+.quiz-band[data-step="2"][data-v="skip"] .qb-fly {
+  transform: var(--f2-skip);
+}
+.qb-puff circle {
+  fill: var(--color-ice-50);
+  opacity: 0;
+}
+
+/* ---- Darkroom strip: motion (island only; reduced motion / Save-Data = the same states
+   without transitions). Direct feedback to a tap — never queued. Forward answer: a real
+   leap — X linear, Y a parabola (out-quad up, in-quad down), torso pitch, a STUCK landing
+   compressed from the feet (--ease-land) and a chalk puff at the front foot; the print
+   develops each exposure exactly when the flier passes it (--d, geometry.ts). Going back
+   rewinds the film (no leap). -------------------------------------------------------- */
 @media (prefers-reduced-motion: no-preference) {
-  .quiz-app:not([data-lite]) .quiz-leap--fig {
-    transition: transform var(--dur-reveal) var(--ease-stick);
-  }
-  .quiz-app:not([data-lite]) .quiz-band[data-step="0"] .quiz-leap--fig {
-    transform: var(--pose-1);
-  }
-  .quiz-app:not([data-lite]) .quiz-band[data-step="1"] .quiz-leap--fig {
-    transform: var(--pose-2);
-  }
-  .quiz-app:not([data-lite]) .quiz-leap--ghost1,
-  .quiz-app:not([data-lite]) .quiz-leap--ghost2 {
-    transition: opacity var(--dur-base) linear 0.12s;
-  }
-  .quiz-app:not([data-lite]) .quiz-band[data-step="0"] .quiz-leap--ghost1,
-  .quiz-app:not([data-lite]) .quiz-band:not([data-step="2"]) .quiz-leap--ghost2,
-  .quiz-app:not([data-lite]) .quiz-band:not([data-asked]) .quiz-leap--ghost2 {
+  /* The latent print surfaces once, left to right, right after the section title's mark has
+     landed (data-landed from the page's one heading observer — no observer of its own). */
+  html.js-motion #kviz:not(:has(.chrono-mark[data-landed])) .quiz-app:not([data-lite]):not([data-entered]) .qf {
     opacity: 0;
+  }
+  html.js-motion #kviz:has(.chrono-mark[data-landed]) .quiz-app:not([data-lite]):not([data-entered]) .qf:not(.qf--k1) {
+    animation: qf-surface 900ms var(--ease-stick) calc(560ms + var(--i) * 40ms) backwards;
+  }
+
+  .quiz-app:not([data-lite]) .qf {
+    --qb-d: 0ms;
+    transition:
+      transform var(--qb-fly) var(--ease-flight),
+      opacity var(--dur-reveal) var(--ease-stick) var(--qb-d),
+      color 0s linear var(--qb-d);
+  }
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"] .qf {
+    --qb-d: var(--d);
+  }
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-step="2"][data-v="skip"] .qf {
+    --qb-d: var(--ds);
+  }
+  /* 02 on the way in: hidden only when the flier lands on it. */
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-step="1"] .qf--k2 {
+    --qb-d: var(--qb-fly);
+  }
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="back"] .qf {
+    transition:
+      transform var(--dur-slow) var(--ease-flight),
+      opacity var(--dur-fast) linear,
+      color 0s linear;
+  }
+
+  .quiz-app:not([data-lite]) .qb-fly {
+    transition: transform var(--qb-fly) linear;
+  }
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="back"] .qb-fly {
+    transition: transform 420ms var(--ease-flight);
+  }
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-step="1"] .qb-hop {
+    animation: qb-hop-a var(--qb-fly) linear;
+  }
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-step="2"] .qb-hop {
+    animation: qb-hop-b var(--qb-fly) linear;
+  }
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-step="1"] .qb-pitch {
+    animation: qb-pitch-a var(--qb-fly) linear;
+  }
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-step="2"] .qb-pitch {
+    animation: qb-pitch-b var(--qb-fly) linear;
+  }
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-step="1"] .qb-stick {
+    animation: qb-stick-a var(--dur-land) var(--ease-land) var(--qb-fly);
+  }
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-step="2"] .qb-stick {
+    animation: qb-stick-b var(--dur-land) var(--ease-land) var(--qb-fly);
+  }
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-step="1"] .qb-puff circle {
+    animation: qb-puff-a 420ms var(--ease-stick) calc(var(--qb-fly) + var(--i) * 20ms);
+  }
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-step="2"] .qb-puff circle {
+    animation: qb-puff-b 420ms var(--ease-stick) calc(var(--qb-fly) + var(--i) * 20ms);
+  }
+
+  /* She lands on her apparatus: it is drawn in under her during the descent. */
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="parter"] .qb-app--parter,
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="greda"] .qb-app--greda,
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="razboj"] .qb-app--razboj {
+    transition: opacity 0s linear calc(var(--qb-fly) * 0.4);
+  }
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="parter"] .qb-app--parter path,
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="greda"] .qb-app--greda path,
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="razboj"] .qb-app--razboj path {
+    transition: stroke-dashoffset 500ms var(--ease-stick) calc(var(--qb-fly) * 0.4);
+  }
+
+  .quiz-app:not([data-lite]) .quiz-band :is(.qb-mat--span, .qb-mat--air, .qb-tick--2) {
+    transition: opacity var(--dur-base) linear;
+  }
+  /* The frame number lights up when the flier lands on it (a discrete switch, not animated). */
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"] .quiz-band__frames li {
+    transition:
+      color 0s linear var(--qb-fly),
+      font-weight 0s linear var(--qb-fly);
   }
 
   .quiz-app[data-entered]:not([data-lite]) .quiz-step,
   .quiz-app[data-entered]:not([data-lite]) .quiz-result {
     animation: quiz-in var(--dur-base) var(--ease-stick) both;
+  }
+  /* The result's program plate stamps in as the flier sticks the landing (a badge: rebound). */
+  .quiz-app[data-entered]:not([data-lite]) .quiz-live .quiz-group .quiz-plate {
+    animation: quiz-stamp var(--dur-slow-squash) var(--ease-rebound) calc(var(--dur-reveal) + var(--i) * 60ms) both;
+  }
+}
+@keyframes qf-surface {
+  0% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.24;
+  }
+}
+/* a/b: identical pairs, alternated by step so each answer restarts the leap. */
+@keyframes qb-hop-a {
+  0% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.333, 0.667, 0.667, 1);
+  }
+  50% {
+    transform: translateY(calc(var(--qb-hop) * -1px));
+    animation-timing-function: cubic-bezier(0.333, 0, 0.667, 0.333);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+@keyframes qb-hop-b {
+  0% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.333, 0.667, 0.667, 1);
+  }
+  50% {
+    transform: translateY(calc(var(--qb-hop) * -1px));
+    animation-timing-function: cubic-bezier(0.333, 0, 0.667, 0.333);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+/* geometry.ts PITCH_KEYS: nose up at take-off, level at the apex, nose down into the landing. */
+@keyframes qb-pitch-a {
+  0% {
+    transform: rotate(0deg);
+  }
+  12% {
+    transform: rotate(-18deg);
+  }
+  50% {
+    transform: rotate(-4deg);
+  }
+  88% {
+    transform: rotate(4deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+@keyframes qb-pitch-b {
+  0% {
+    transform: rotate(0deg);
+  }
+  12% {
+    transform: rotate(-18deg);
+  }
+  50% {
+    transform: rotate(-4deg);
+  }
+  88% {
+    transform: rotate(4deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+/* Stuck landing: compress from the feet and hold (no bounce), as the section-title marks. */
+@keyframes qb-stick-a {
+  0% {
+    transform: scale(1.05, 0.88);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+@keyframes qb-stick-b {
+  0% {
+    transform: scale(1.05, 0.88);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+/* Magnesium puff at the front foot. */
+@keyframes qb-puff-a {
+  0% {
+    opacity: 0.75;
+    transform: translate(0, 0) scale(0.3);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(1);
+  }
+}
+@keyframes qb-puff-b {
+  0% {
+    opacity: 0.75;
+    transform: translate(0, 0) scale(0.3);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(1);
   }
 }
 /* §4 offset token: 16px mobile / 24px desktop (--offset-reveal). */
@@ -208,6 +538,12 @@ html:not(.js) .quiz-app {
   from {
     opacity: 0;
     transform: translateY(var(--offset-reveal));
+  }
+}
+@keyframes quiz-stamp {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
   }
 }
 
@@ -220,9 +556,9 @@ html:not(.js) .quiz-app {
   box-shadow: none;
 }
 
-/* Sticker chips: 2px border, radius 12, ≥56px targets, a press lip that flattens on tap. */
+/* Answer chips: 2px border, radius 12, a press lip that flattens on tap (the take-off
+   compression: the global :active squash eases back like .btn). */
 .quiz-chip {
-  --tilt: 0deg;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -236,19 +572,12 @@ html:not(.js) .quiz-app {
   box-shadow: var(--shadow-press);
   font: inherit;
   cursor: pointer;
-  rotate: var(--tilt);
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  /* translate/scale: the global press squash (app/globals.css) eases back like .btn. */
-  /* MI-04: the pressed state swaps instantly; only rotation and the squash ease. */
+  /* MI-04: the pressed state swaps instantly; only the squash eases. */
   transition:
-    rotate var(--dur-base) var(--ease-rebound),
     translate var(--dur-slow-squash) var(--ease-rebound),
     scale var(--dur-slow-squash) var(--ease-rebound);
-}
-/* Focus: the global outline ring (3px gap + 2px); the chip only straightens. */
-.quiz-chip:focus-visible {
-  --tilt: 0deg;
 }
 .quiz-chip:active {
   translate: 0 2px;
@@ -256,14 +585,12 @@ html:not(.js) .quiz-app {
   transition-duration: var(--dur-tap);
 }
 .quiz-chip[aria-pressed="true"] {
-  --tilt: 0deg;
   background: var(--color-navy-900);
   border-color: var(--color-navy-900);
   color: var(--color-white);
 }
 @media (hover: hover) and (pointer: fine) {
   .quiz-chip:hover {
-    --tilt: 0deg;
     background: var(--color-ice-50);
   }
   .quiz-chip[aria-pressed="true"]:hover {
@@ -271,39 +598,45 @@ html:not(.js) .quiz-app {
   }
 }
 
+/* Age keypad: 4 × 4 on phones, 8 × 2 from 640 across the full question width; 5:4 keys. */
 .quiz-ages {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
-  max-width: 340px;
+}
+@media (max-width: 359.98px) {
+  .quiz-ages {
+    gap: 8px;
+  }
 }
 @media (min-width: 640px) {
   .quiz-ages {
     grid-template-columns: repeat(8, minmax(0, 1fr));
     gap: 12px;
-    max-width: 600px;
   }
 }
+/* 1024–1279: the card is the 7/12 pane (≈435px inside) — eight keys would be under 48px wide,
+   so the keypad stays 4 × 4, as on a phone, with landscape keys. */
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  .quiz-ages {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .quiz-ages .quiz-chip--age {
+    aspect-ratio: auto;
+    min-height: 60px;
+  }
+}
+/* width: 100% — a definite width, so min-height (56) clamps the height instead of being
+   transferred through aspect-ratio into a 70px minimum width that overflows narrow cells. */
 .quiz-chip--age {
-  aspect-ratio: 1;
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 5 / 4;
   font-size: 1.375rem;
   line-height: 1;
   font-weight: 700;
   font-stretch: 108%;
   letter-spacing: -0.01em;
-}
-/* A loose sticker sheet: each chip sits a hair off-square until touched. */
-.quiz-chip--age:nth-child(4n + 1) {
-  --tilt: -1.2deg;
-}
-.quiz-chip--age:nth-child(4n + 2) {
-  --tilt: 0.7deg;
-}
-.quiz-chip--age:nth-child(4n + 3) {
-  --tilt: -0.5deg;
-}
-.quiz-chip--age:nth-child(4n) {
-  --tilt: 1deg;
 }
 
 .quiz-exps {
@@ -313,19 +646,13 @@ html:not(.js) .quiz-app {
   max-width: 460px;
 }
 /* Three content-sized tracks (auto → stretched over the free space), so every answer stays on
-   one line: equal thirds wrapped „Treniralo je rekreativno“ at 768–1680. Where the card column
-   is too narrow for that (1024–1279, card in cols 5–12), the answers stack as on a phone.
+   one line where the card is wide enough (tablet full width; the 7/12 pane from 1360);
+   otherwise the answers stack as on a phone.
    The arrow keys read the column count from the computed grid (QuizApp onChipKeys). */
-@media (min-width: 768px) {
+@media (min-width: 768px) and (max-width: 1023.98px), (min-width: 1360px) {
   .quiz-exps {
     grid-template-columns: repeat(3, auto);
     max-width: none;
-  }
-}
-@media (min-width: 1024px) and (max-width: 1279.98px) {
-  .quiz-exps {
-    grid-template-columns: minmax(0, 1fr);
-    max-width: 460px;
   }
 }
 .quiz-chip--exp {
@@ -416,7 +743,7 @@ html:not(.js) .quiz-app {
 }
 .quiz-groups {
   display: grid;
-  gap: 22px;
+  gap: 24px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -427,17 +754,79 @@ html:not(.js) .quiz-app {
     gap: 24px;
   }
 }
-/* Three columns only where each is wide enough for „08:30–10:30 ili 16:00–18:00“ on one line. */
-@media (min-width: 1280px) {
-  .quiz-groups[data-count="3"] {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 20px;
-  }
+
+/* The S3 program plate: program colour + its apparatus drawing in the plate ink. */
+.quiz-plate {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--pc);
+  color: var(--pc-ink);
+  box-shadow: inset 0 0 0 1px rgba(17, 45, 95, 0.14);
+}
+.quiz-plate svg {
+  width: 28px;
+  height: 28px;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.quiz-plate path {
+  vector-effect: non-scaling-stroke;
+}
+.quiz-plate path[data-k="rail"] {
+  stroke-width: 2.25;
+}
+.quiz-plate path[data-k="thin"] {
+  stroke-width: 1;
+}
+.quiz-plate circle {
+  fill: currentColor;
+  stroke: none;
+}
+.quiz-groups:is([data-count="2"], [data-count="3"]) .quiz-plate {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+.quiz-groups:is([data-count="2"], [data-count="3"]) .quiz-plate svg {
+  width: 21px;
+  height: 21px;
+}
+.quiz-plate--hint {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+}
+.quiz-plate--hint svg {
+  width: 16px;
+  height: 16px;
+}
+.quiz-plate--hint path {
+  stroke-width: 1.5;
+}
+
+/* Plate beside the name (and the age line), schedule chips under both. */
+.quiz-group {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 14px;
+  align-items: center;
+}
+.quiz-group > .quiz-plate {
+  grid-row: 1;
+}
+.quiz-group[data-meta] > .quiz-plate {
+  grid-row: 1 / span 2;
 }
 .quiz-group__name {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
+  grid-column: 2;
   margin: 0;
   text-wrap: balance;
   font-size: var(--text-h3);
@@ -451,27 +840,19 @@ html:not(.js) .quiz-app {
   letter-spacing: 0;
   font-weight: 700;
 }
-.quiz-swatch {
-  flex: none;
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  border-radius: var(--radius-full);
-  box-shadow: inset 0 0 0 1px rgba(17, 45, 95, 0.28);
-}
-.quiz-group__name .quiz-swatch {
-  translate: 0 -0.08em;
-}
 .quiz-group__meta {
-  margin: 4px 0 0 24px;
+  grid-column: 2;
+  margin: 2px 0 0;
   color: var(--muted);
   font-size: var(--text-small);
+  line-height: 1.35;
 }
 .quiz-slots {
+  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 12px 0 0;
+  margin: 14px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -520,9 +901,37 @@ html:not(.js) .quiz-app {
   padding-top: 24px;
   border-top: 1px dashed var(--hairline);
 }
+
+/* Result CTA: one-line pill from 640px; on phones two deliberate levels — the action,
+   then its object, quieter (QP-15) — instead of a wrapped two-line lozenge. */
 .quiz-cta {
   width: 100%;
   text-wrap: balance;
+}
+.quiz-cta__main,
+.quiz-cta__sub {
+  display: inline;
+}
+@media (max-width: 639.98px) {
+  .quiz-cta:has(.quiz-cta__sub) {
+    min-height: 64px;
+    padding-block: 10px;
+    border-radius: 18px;
+  }
+  .quiz-cta:has(.quiz-cta__sub) .quiz-cta__main {
+    display: block;
+    font-size: 1rem;
+    line-height: 1.25;
+    font-weight: 650;
+  }
+  .quiz-cta:has(.quiz-cta__sub) .quiz-cta__sub {
+    display: block;
+    margin-top: 1px;
+    font-size: var(--text-label);
+    line-height: 1.25;
+    font-weight: 550;
+    opacity: 0.78;
+  }
 }
 @media (min-width: 640px) {
   .quiz-cta {
@@ -539,11 +948,8 @@ html:not(.js) .quiz-app {
 }
 .quiz-hint {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
-}
-.quiz-hint .quiz-swatch {
-  translate: 0 0.12em;
 }
 .quiz-hint__text {
   flex: 1 1 auto;
@@ -601,6 +1007,16 @@ html:not(.js) .quiz-app {
 .quiz-guide .quiz-group__name {
   font-size: 1.1875rem;
 }
+/* The guide's names are small (19px): every plate is the 32px step. */
+.quiz-guide .quiz-groups .quiz-plate {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+.quiz-guide .quiz-groups .quiz-plate svg {
+  width: 21px;
+  height: 21px;
+}
 /* The guide's answer column is narrow next to the ages: its groups always stack. */
 .quiz-guide .quiz-groups {
   grid-template-columns: minmax(0, 1fr);
@@ -610,7 +1026,7 @@ html:not(.js) .quiz-app {
   margin-top: 14px;
 }
 
-/* ---- Reduced motion: no tilt transitions, no press travel ----------------- */
+/* ---- Reduced motion: no press travel -------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   .quiz-chip,
   .quiz-chip:active,

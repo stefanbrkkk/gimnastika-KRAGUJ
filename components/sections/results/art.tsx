@@ -1,59 +1,106 @@
 /**
  * S7 decorative SVGs (server-rendered, complete final state; results-motion.ts
- * draws them once on enter when motion is allowed).
+ * plays them once on enter when motion is allowed).
  */
 
 export type MedalKind = "gold" | "silver" | "bronze";
 
 /**
- * Three-step podium drawn up from the bottom edge of the „Medalje“ gradient band:
- * 2nd (left) · 1st (centre) · 3rd (right), then the two step dividers.
- * Medal marks rest above the steps (gold/silver/bronze tokens only here).
- * Under the line sits its dotted ghost (the chronophotograph „ghost → solid“): hidden
- * by the solid line in the final state, it is what shows while the draw waits its turn.
+ * The podium rising out of the „Medalje“ panel (design review v2, RC-05): three solid
+ * navy blocks (2nd · 1st · 3rd) standing on the bottom edge of the gradient band, the
+ * same navy as the panel body below, so the podium and the panel read as one silhouette.
+ * A 2.5 navy-950 outline draws over them and a medal with a V-ribbon stands on each step.
+ * No place numerals: digits next to „Medalje“ would read as medal counts, which the club
+ * has not confirmed (SOURCE RULE; qa results.noMedalCounts). Step heights + medal colours
+ * carry the order.
+ * Under the outline sits its dotted ghost (chronophotograph „ghost → solid“): hidden by the
+ * outline in the final state, visible only while the ceremony waits for its turn.
+ * Units: the floor is y = 116 (the band's bottom edge).
  */
-export const PODIUM = {
-  viewBox: "0 0 296 112",
-  d: "M36 112V68H108V38H180V82H252V112M108 68V112M180 82V112",
-  marks: [
-    { kind: "silver", cx: 72, cy: 53 },
-    { kind: "gold", cx: 144, cy: 23 },
-    { kind: "bronze", cx: 216, cy: 67 },
-  ] satisfies { kind: MedalKind; cx: number; cy: number }[],
-} as const;
+const FLOOR = 116;
+const STEP_W = 88;
+const STEPS = [
+  { place: "2", kind: "silver", x: 28, h: 44 },
+  { place: "1", kind: "gold", x: 116, h: 64 },
+  { place: "3", kind: "bronze", x: 204, h: 30 },
+] as const satisfies readonly { place: string; kind: MedalKind; x: number; h: number }[];
+
+const top = (h: number) => FLOOR - h;
+const cx = (x: number) => x + STEP_W / 2;
+/** Disc radius and the gap between the disc and its step. */
+const R = 10;
+const OUTLINE = (() => {
+  const [second, first, third] = STEPS;
+  return (
+    `M${second.x} ${FLOOR}V${top(second.h)}H${first.x}V${top(first.h)}H${third.x}V${top(third.h)}H${third.x + STEP_W}V${FLOOR}` +
+    `M${first.x} ${top(second.h)}V${FLOOR}M${third.x} ${top(third.h)}V${FLOOR}`
+  );
+})();
+
+export const PODIUM_VIEWBOX = { x: 16, y: 10, width: 288, height: FLOOR - 10 } as const;
 
 export function Podium() {
+  const { x, y, width, height } = PODIUM_VIEWBOX;
   return (
-    <svg className="podium" viewBox={PODIUM.viewBox} aria-hidden="true" focusable="false" data-podium="">
-      <path className="podium__ghost" d={PODIUM.d} />
-      <path className="podium__line" d={PODIUM.d} data-podium-line="" />
-      {PODIUM.marks.map((m) => (
-        <circle key={m.kind} className={`podium__mark medal-fill--${m.kind}`} cx={m.cx} cy={m.cy} r="9" data-podium-mark="" />
+    <svg className="podium" viewBox={`${x} ${y} ${width} ${height}`} aria-hidden="true" focusable="false" data-podium="">
+      {STEPS.map((s) => (
+        <g key={s.place} className="podium__step" data-podium-step="">
+          {/* +1: the block overlaps the band edge, so no seam shows against the panel body. */}
+          <rect className="podium__block" x={s.x} y={top(s.h)} width={STEP_W} height={s.h + 1} data-podium-block="" />
+        </g>
       ))}
+      <path className="podium__ghost" d={OUTLINE} />
+      <path className="podium__line" d={OUTLINE} data-podium-line="" />
+      {STEPS.map((s) => {
+        const mx = cx(s.x);
+        const my = top(s.h) - R - 1.5;
+        return (
+          <g key={s.kind} className="podium__medal" data-podium-medal={s.kind}>
+            <path className="podium__ribbon" d={`M${mx - 7} ${my - R - 10}L${mx} ${my - R + 1}L${mx + 7} ${my - R - 10}`} />
+            <circle className={`podium__disc medal-fill--${s.kind}`} cx={mx} cy={my} r={R} />
+            <circle className="podium__disc-ring" cx={mx} cy={my} r={5.4} />
+          </g>
+        );
+      })}
     </svg>
   );
 }
 
 /**
- * White dry-brush stroke over photo 01 (one of the page's two brush annotations),
- * echoing the white strokes on the club-jacket sleeves. It sweeps up across the empty
- * floor in the lower right — beside the group, never over a person.
- * Coordinates are in the photo's own 960 × 720 space (4:3, uncropped).
+ * The white dry-brush underline under „Medalje“ — one of the page's two brush annotations
+ * (§3), echoing the white strokes on the club-jacket sleeves: a coach marking the wins on
+ * the result sheet (RC-01). It rises gently left → right along the floor diagonal and flicks
+ * up at the end. One band of overlapping strands along a hand-set centreline: solid where
+ * the brush is loaded, ragged at the start, splitting into dry streaks towards the end.
+ * The SVG scales uniformly with the word (no preserveAspectRatio="none"), so the weights
+ * stay in proportion and DrawSVG measures true lengths.
  */
-const BRUSH = [
-  // body of the stroke, then a heavier core (the loaded middle), then dry bristle streaks
-  { d: "M672 708C768 706 858 676 906 616C934 580 948 530 951 468", w: 10, o: 1 },
-  { d: "M712 704C790 698 858 668 898 622C920 596 934 562 940 522", w: 17, o: 1 },
-  { d: "M688 698C778 694 850 664 894 610C918 580 932 540 938 492", w: 3, o: 0.8 },
-  { d: "M730 714C806 710 870 684 912 636M926 614C938 592 946 562 949 528", w: 2.5, o: 0.75 },
-  { d: "M752 695C806 688 852 668 884 640", w: 2, o: 0.6 },
+const brushY = (x: number) => 23 - 0.035 * x - 0.00012 * x * x;
+const brushPath = (spans: readonly (readonly [number, number])[], dy: number): string =>
+  spans
+    .map(([x0, x1]) => {
+      const pts: string[] = [];
+      for (let x = x0; x < x1; x += 8) pts.push(`${x} ${(brushY(x) + dy).toFixed(1)}`);
+      pts.push(`${x1} ${(brushY(x1) + dy).toFixed(1)}`);
+      return `M${pts.join("L")}`;
+    })
+    .join("");
+
+/** Strands: offset across the band, width, opacity and the spans where the bristle touches. */
+const MEDAL_BRUSH = [
+  { dy: 0, w: 6, o: 1, spans: [[8, 226]] },
+  { dy: -1.4, w: 3, o: 1, spans: [[3, 236]] },
+  { dy: -3.8, w: 4, o: 1, spans: [[14, 194], [202, 222]] },
+  { dy: 3.4, w: 4.2, o: 1, spans: [[6, 184], [193, 213]] },
+  { dy: -6.4, w: 2.2, o: 0.82, spans: [[24, 148], [158, 188], [197, 231]] },
+  { dy: 6.1, w: 2, o: 0.72, spans: [[12, 130], [141, 174], [185, 205]] },
 ] as const;
 
-export function Brush() {
+export function MedalBrush() {
   return (
-    <svg className="results-brush" viewBox="0 0 960 720" aria-hidden="true" focusable="false" data-brush="">
-      {BRUSH.map((b, i) => (
-        <path key={i} d={b.d} strokeWidth={b.w} opacity={b.o} data-brush-stroke="" />
+    <svg className="medals__brush" viewBox="0 0 240 32" aria-hidden="true" focusable="false" data-medal-brush="">
+      {MEDAL_BRUSH.map((b, i) => (
+        <path key={i} d={brushPath(b.spans, b.dy)} strokeWidth={b.w} opacity={b.o} data-brush-stroke="" />
       ))}
     </svg>
   );

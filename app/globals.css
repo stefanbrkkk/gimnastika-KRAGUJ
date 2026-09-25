@@ -219,7 +219,7 @@
 @layer base {
   html {
     scroll-padding-top: 88px;
-    scroll-padding-bottom: calc(64px + env(safe-area-inset-bottom));
+    scroll-padding-bottom: calc(76px + env(safe-area-inset-bottom));
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
     background: var(--color-navy-900);

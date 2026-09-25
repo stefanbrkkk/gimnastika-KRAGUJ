@@ -1,33 +1,41 @@
-import { Picture, isPhotoPlaceholder } from "@/components/ui/Picture";
+import { Picture } from "@/components/ui/Picture";
 import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { SourceLink } from "@/components/ui/SourceLink";
 import { RESULTS, RESULTS_COPY, STATS, TRUST_ROW, type ResultItem, type StatTile } from "@/content/results";
 import { typesetSr } from "@/lib/typeset";
-import { Brush, Podium, type MedalKind } from "./art";
+import { MedalBrush, Podium, type MedalKind } from "./art";
 import { ResultsMotion } from "./ResultsMotion";
 
 const NEW_WINDOW = "(otvara se u novom prozoru)";
+
+/** A founding-year tile („2007“): a 4-digit 19xx/20xx value without a prefix. */
+const isYearTile = ({ prefix, value }: StatTile): boolean => !prefix && /^(19|20)\d{2}$/.test(value);
+
+/**
+ * Presentation order (RC-17): competitive strength leads, heritage closes — the year tile
+ * goes last (42 · 12 · oko 120 · 2007). content/results.ts is unchanged.
+ */
+const BOARD: readonly StatTile[] = [...STATS.filter((s) => !isYearTile(s)), ...STATS.filter(isYearTile)];
 
 /**
  * What a tile's „izvor“ link proves, for its accessible name. A year tile reads like
  * the §5 S7 line („2007 — početak rada“); the others read as one phrase
  * („42 registrovane takmičarke …“, „oko 120 članova (2024)“).
  */
-const statContext = ({ prefix, value, label }: StatTile): string =>
-  !prefix && /^(19|20)\d{2}$/.test(value) ? `${value} — ${label}` : `${prefix ? `${prefix} ` : ""}${value} ${label}`;
+const statContext = (stat: StatTile): string =>
+  isYearTile(stat) ? `${stat.value} — ${stat.label}` : `${stat.prefix ? `${stat.prefix} ` : ""}${stat.value} ${stat.label}`;
 
+/**
+ * The display window: a pure LED face. The prefix („oko“) is a scoreboard field tag in its
+ * top-left corner (RC-11). The numeral is aria-hidden; the sr-only copy carries the value.
+ */
 function StatValue({ stat }: { stat: StatTile }) {
-  const head = stat.value.slice(0, -1);
-  const last = stat.value.slice(-1);
   return (
     <p className="stat__value">
-      {stat.prefix ? <span className="stat__prefix">{stat.prefix} </span> : null}
-      <span className="stat__num font-dot tabular" aria-hidden="true">
-        {head}
-        <span className="stat__flap" data-flip="">
-          {last}
-        </span>
+      {stat.prefix ? <span className="stat__prefix">{`${stat.prefix} `}</span> : null}
+      <span className="stat__num font-dot tabular" aria-hidden="true" data-score="">
+        {stat.value}
       </span>
       <span className="sr-only">{stat.value}</span>
     </p>
@@ -70,22 +78,23 @@ function ExternalIcon() {
 }
 
 /**
- * S7 — „Uspesi“ (§5 S7, §4 Results). Darker theme: the judges' scoreboard.
- * Everything here is the complete final state; ResultsMotion (lazy, motion allowed only)
- * plays, in sequence and never overlapping: the title's line mask → the last digit of each
- * numeral flips once → the podium line draws → the brush stroke over photo 01 draws.
+ * S7 — „Uspesi“ (§5 S7, §4 Results). Darker theme: the judges' scoreboard, its top edge cut
+ * on the floor diagonal. Everything here is the complete final state; ResultsMotion (lazy,
+ * motion allowed only) plays, one at a time: the title's line mask → the scores post on the
+ * LED board → (phones) the photo's shutter opens → the medal ceremony on the podium, closed
+ * by the brush underline under „Medalje“.
  */
 export function Results() {
   const medals = RESULTS.filter((r) => r.kind === "medalja");
   const appearances = RESULTS.filter((r) => r.kind === "nastup");
 
   return (
-    <Section id="uspesi" theme="darker" labelledBy="uspesi-title" className="results">
+    <Section id="uspesi" theme="darker" edge="up" labelledBy="uspesi-title" className="results">
       <div className="container-site" data-results="">
         <SectionHeading id="uspesi-title" title={typesetSr(RESULTS_COPY.heading)} align="right" className="results__heading" />
 
         <ul className="scoreboard" data-scoreboard="">
-          {STATS.map((stat) => (
+          {BOARD.map((stat) => (
             <li key={stat.label} className="stat">
               <StatValue stat={stat} />
               <p className="stat__label">{typesetSr(stat.label)}</p>
@@ -100,27 +109,28 @@ export function Results() {
         </ul>
 
         <div className="results__body">
-          <div className="results__photo">
-            <div className="results__photo-inner">
-              <Picture
-                id="01"
-                sizes="(min-width: 1440px) 760px, (min-width: 1024px) 54vw, (min-width: 640px) calc(100vw - 64px), calc(100vw - 40px)"
-                frame
-                caption={typesetSr(RESULTS_COPY.photoCaption)}
-                className="results__figure"
-              />
-              {/* The annotation belongs to the photo: never over the „Fotografija uskoro“ placeholder. */}
-              {isPhotoPlaceholder("01") ? null : <Brush />}
-            </div>
+          <div className="results__photo" data-results-photo="">
+            <Picture
+              id="01"
+              sizes="(min-width: 1440px) 760px, (min-width: 1024px) 54vw, (min-width: 640px) calc(100vw - 64px), calc(100vw - 40px)"
+              frame
+              caption={typesetSr(RESULTS_COPY.photoCaption)}
+              className="results__figure"
+            />
           </div>
 
           <div className="results__lists">
             <div className="medals" data-medals="">
-              <div className="medals__band" aria-hidden="true">
+              <div className="medals__band" aria-hidden="true" data-medals-band="">
                 <Podium />
               </div>
               <div className="medals__body">
-                <h3 className="medals__title text-h3">{typesetSr(RESULTS_COPY.medalsHeading)}</h3>
+                <h3 className="medals__title text-h3">
+                  <span className="medals__word">
+                    {typesetSr(RESULTS_COPY.medalsHeading)}
+                    <MedalBrush />
+                  </span>
+                </h3>
                 <ul className="result-list">
                   {medals.map((item) => (
                     <ResultRow key={item.sourceUrl} item={item} marks={item.medals} />
@@ -138,19 +148,20 @@ export function Results() {
               </ul>
             </div>
           </div>
-        </div>
 
-        <ul className="trust-row">
-          {TRUST_ROW.map((t) => (
-            <li key={t.href + t.text}>
-              <a className="trust-link" href={t.href} target="_blank" rel="noopener noreferrer">
-                <span>{typesetSr(t.text)}</span>
-                <ExternalIcon />
-                <span className="sr-only">{` ${NEW_WINDOW}`}</span>
-              </a>
-            </li>
-          ))}
-        </ul>
+          {/* ≥1024: under the proof photo (RC-09); below: the section's closing row. */}
+          <ul className="trust-row">
+            {TRUST_ROW.map((t) => (
+              <li key={t.href + t.text}>
+                <a className="trust-link" href={t.href} target="_blank" rel="noopener noreferrer">
+                  <span>{typesetSr(t.text)}</span>
+                  <ExternalIcon />
+                  <span className="sr-only">{` ${NEW_WINDOW}`}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
       <ResultsMotion />
     </Section>

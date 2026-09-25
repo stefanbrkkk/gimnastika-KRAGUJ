@@ -2,6 +2,7 @@ import { Fragment, type CSSProperties } from "react";
 import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { BOOKING, CONTACT, HERO } from "@/content/copy";
+import { SCHEDULE_UI } from "@/content/schedule";
 import { CTA, EMAIL, FLAGS, PHONES, PRIMARY_PHONE, SOCIAL, VENUE } from "@/content/site";
 import { mailtoHref, smsHref, telHref } from "@/lib/links";
 import { typesetSr } from "@/lib/typeset";
@@ -13,17 +14,13 @@ const LEAP_W = 230;
 const LEAP_H = 150;
 
 /**
- * „Doskok“ chronophotograph: three ghost frames of a short hop along the button's
- * top edge (x = % of the button width, y = % of the arc box height), then the solid
- * landed frame. This static composition IS the no-JS / reduced-motion final state;
- * ContactDoskok animates the hop through exactly these points when the CTA enters.
+ * „Doskok“ chronophotograph — the last three frames of the finale's dismount (a back
+ * salto opening out of its rotation) and the solid landed frame on the button's top edge.
+ * Positions and tilts live in contact.css (per breakpoint); this static composition IS
+ * the no-JS / reduced-motion final state. ContactDoskok flies the silhouette from the
+ * title's mark through exactly these frames onto the button.
  */
-const HOP = [
-  { x: 0, y: 18, o: 0.16 },
-  { x: 17, y: 50, o: 0.26 },
-  { x: 34, y: 44, o: 0.38 },
-] as const;
-const LANDED_X = 52;
+const GHOSTS = [1, 2, 3] as const;
 
 function Leap({ className, style, ...data }: { className: string; style?: CSSProperties } & Record<`data-${string}`, string>) {
   return (
@@ -41,10 +38,8 @@ interface Row {
   external?: boolean;
 }
 
-// Phone numbers use proportional figures, like every other „060 028 7631“ on the page
-// (tabular figures swap in a slab-footed „1“); tabular stays for times and counters.
+// The other channels (the two phones share one „Pozovite“ row, see below).
 const rows: Row[] = [
-  ...PHONES.map<Row>((p) => ({ icon: "phone", label: CONTACT.callLabel, value: p.display, href: telHref(p.e164) })),
   { icon: "mail", label: CONTACT.emailLabel, value: EMAIL, href: mailtoHref(EMAIL) },
   { icon: "instagram", label: CONTACT.instagramLabel, value: SOCIAL.instagramHandle, href: SOCIAL.instagram, external: true },
   ...(FLAGS.SHOW_FACEBOOK
@@ -78,29 +73,33 @@ function breakable(value: string) {
 }
 
 /**
- * S11 — Contact + final CTA „doskok“ (§5 S11, §4 Final CTA). Dark theme.
- * Self-sufficient without JS: every other booking CTA lands here (href="#kontakt"),
- * the doskok button texts the coach, and the call / e-mail rows are plain links.
+ * S11 — Contact + final CTA „doskok“ (§5 S11, §4 Final CTA). Dark theme, top edge cut
+ * on the floor diagonal. Self-sufficient without JS: every other booking CTA lands here
+ * (href="#kontakt"), the doskok button texts the coach, the call / e-mail rows are links.
  *
  * [data-contact-block] wraps the heading, the CTA panel and the contact channels —
  * NOT the venue card: the mobile sticky bar (StickyBarBehavior) hides while any of
  * that block is on screen and comes back once only the venue card and the footer
  * are left, so a one-tap call stays in reach at the end of the page.
- * Layout ≥640: the wrapper is a subgrid of .contact__grid so the venue card can sit
- * beside the channels (tablet) or under them (desktop) while staying outside it.
+ * Layout ≥640: the wrapper is a subgrid of .contact__grid. ≥1024 the panel stands in
+ * the right 7 columns, straight under the right-aligned title, so the finale reads
+ * title → panel → button in one column and the leap drops from the title's mark onto
+ * the button; phones, e-mail, Instagram and the venue take the left 5 columns.
  *
- * The finale title is set on the §3 display step (contact.css) and its chronophotograph
- * mark is static (land={false}): the doskok is S11's one landing (D-S11-9 rev).
+ * The finale title is set on the §3 display step (contact.css); its chronophotograph
+ * mark is static (land={false}) — it is the take-off frame of the doskok flight.
  * Visible copy goes through typesetSr() (display only; content/* stays raw).
  */
 export function Contact() {
+  const [primaryPhone, ...otherPhones] = PHONES;
   return (
-    <Section id="kontakt" theme="dark" labelledBy="kontakt-title" className="contact">
+    <Section id="kontakt" theme="dark" edge="up" labelledBy="kontakt-title" className="contact">
       <div className="container-site contact__grid">
         <div className="contact__block" data-contact-block="">
           <SectionHeading id="kontakt-title" title={typesetSr(CONTACT.heading)} align="right" land={false} className="contact__heading" />
 
-          {/* Leotard-gradient CTA panel: text only ever sits on the solid navy slab. */}
+          {/* The CTA panel: a navy slab with a leotard-gradient sash (≥640) or mat band (<640).
+              Text only ever sits on the navy. */}
           <div className="cta-panel">
             <div className="cta-panel__slab">
               <ul className="cta-panel__trust">
@@ -114,36 +113,55 @@ export function Contact() {
                 ))}
               </ul>
 
-              <div className="cta-panel__foot">
-                <div className="doskok" data-doskok="">
-                  <div className="doskok__arc" aria-hidden="true" data-doskok-arc="">
-                    {HOP.map((f, i) => (
-                      <Leap
-                        key={i}
-                        className="doskok__frame doskok__ghost"
-                        style={{ ["--x" as string]: `${f.x}%`, ["--y" as string]: `${f.y}%`, ["--o" as string]: f.o }}
-                        data-doskok-ghost={String(f.o)}
-                      />
-                    ))}
-                  </div>
-                  <div className="doskok__body" data-doskok-body="">
-                    <Leap
-                      className="doskok__frame doskok__landed"
-                      style={{ ["--x" as string]: `${LANDED_X}%` }}
-                      data-doskok-leap=""
-                    />
-                    <a href={NO_JS_TRIAL_HREF} data-booking="" className="btn btn-primary doskok__btn">
-                      {typesetSr(CTA.trial)}
-                    </a>
-                  </div>
+              <div className="doskok" data-doskok="">
+                <div className="doskok__arc" aria-hidden="true" data-doskok-arc="">
+                  {GHOSTS.map((n) => (
+                    <Leap key={n} className={`doskok__frame doskok__ghost doskok__ghost--${n}`} data-doskok-ghost={String(n)} />
+                  ))}
                 </div>
-                <p className="cta-panel__privacy">{typesetSr(BOOKING.privacy)}</p>
+                <div className="doskok__body" data-doskok-body="">
+                  <Leap className="doskok__frame doskok__landed" data-doskok-leap="" />
+                  <a href={NO_JS_TRIAL_HREF} data-booking="" className="btn btn-primary doskok__btn">
+                    {typesetSr(CTA.trial)}
+                  </a>
+                </div>
               </div>
+
+              <p className="cta-panel__privacy">{typesetSr(BOOKING.privacy)}</p>
             </div>
           </div>
 
           <address className="contact-channels">
             <ul className="contact-list">
+              {/* Both numbers under ONE „Pozovite“ (§5: no role labels until the club says
+                  who answers which) — two separate tel: links, the first one larger. */}
+              {primaryPhone ? (
+                <li>
+                  <div className="contact-row contact-row--phones">
+                    <span className="contact-row__icon">
+                      <ContactIcon name="phone" />
+                    </span>
+                    <span className="contact-row__text">
+                      {/* Shown once; each link carries it for screen readers („Pozovite 060 028 7631“). */}
+                      <span className="contact-row__label label-caps" aria-hidden="true">
+                        {typesetSr(CONTACT.callLabel)}
+                      </span>
+                      <span className="contact-phones">
+                        {[primaryPhone, ...otherPhones].map((p, i) => (
+                          <a
+                            key={p.e164}
+                            className={["contact-phone", i === 0 ? "contact-phone--primary" : ""].filter(Boolean).join(" ")}
+                            href={telHref(p.e164)}
+                          >
+                            <span className="sr-only">{CONTACT.callLabel} </span>
+                            {typesetSr(p.display)}
+                          </a>
+                        ))}
+                      </span>
+                    </span>
+                  </div>
+                </li>
+              ) : null}
               {rows.map((r) => (
                 <li key={r.href}>
                   <a
@@ -156,14 +174,16 @@ export function Contact() {
                     </span>
                     <span className="contact-row__text">
                       <span className="contact-row__label label-caps">{typesetSr(r.label)}</span>
-                      <span className={["contact-row__value", r.icon === "phone" ? "contact-row__value--phone" : ""].filter(Boolean).join(" ")}>
-                        {breakable(r.value)}
-                      </span>
+                      <span className="contact-row__value">{breakable(r.value)}</span>
                       {r.external ? <span className="sr-only">{NEW_WINDOW}</span> : null}
                     </span>
-                    <span className="contact-row__go">
-                      <ContactIcon name={r.external ? "external" : "arrow"} />
-                    </span>
+                    {/* Only the external link gets a trailing glyph (↗ = leaves the site);
+                        the leading pictogram already names what a call / e-mail row does. */}
+                    {r.external ? (
+                      <span className="contact-row__go">
+                        <ContactIcon name="external" />
+                      </span>
+                    ) : null}
                   </a>
                 </li>
               ))}
@@ -175,6 +195,8 @@ export function Contact() {
         <div className="contact-venue">
           <p className="contact-row__label label-caps">{typesetSr(CONTACT.addressLabel)}</p>
           <p className="contact-venue__name">{typesetSr(VENUE.name)}</p>
+          {/* Wayfinding: how Kragujevac knows the school (the S4 location card's line). */}
+          <p className="contact-venue__aka">{typesetSr(`${SCHEDULE_UI.nicknamePrefix} ${VENUE.nickname}`)}</p>
           <p className="contact-venue__street">
             <span className="whitespace-nowrap">{typesetSr(VENUE.street)},</span>{" "}
             <span className="whitespace-nowrap">{typesetSr(`${VENUE.postalCode} ${VENUE.city}`)}</span>

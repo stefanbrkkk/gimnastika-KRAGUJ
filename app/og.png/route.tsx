@@ -1,5 +1,7 @@
 /**
- * Share image (Open Graph + Twitter), generated at build → out/og.png.
+ * Share image (Open Graph + Twitter), generated at build → out/og.png: a
+ * still of the hero's floor pass (components/sections/hero/og-art.ts, drawn by
+ * the hero's own pose model) with the eyebrow and the H1.
  * A route handler with a real .png name instead of the opengraph-image file
  * convention: under output:"export" that convention writes an extensionless
  * out/opengraph-image, which static hosts (Cloudflare Pages) serve as
@@ -12,7 +14,8 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
-import { ART, OG_SIZE, ogArtSvg, svgDataUri } from "@/components/seo/art";
+import { ART, OG_SIZE, svgDataUri } from "@/components/seo/art";
+import { ogPlateSvg } from "@/components/sections/hero/og-art";
 import { HERO } from "@/content/copy";
 
 export const dynamic = "force-static";
@@ -25,7 +28,7 @@ export async function GET(): Promise<Response> {
     (
       <div style={{ width: OG_SIZE.width, height: OG_SIZE.height, display: "flex", position: "relative", background: ART.navy900 }}>
         {/* eslint-disable-next-line @next/next/no-img-element -- rendered by Satori at build, not in a page */}
-        <img src={svgDataUri(ogArtSvg())} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: "absolute", left: 0, top: 0 }} />
+        <img src={svgDataUri(ogPlateSvg())} width={OG_SIZE.width} height={OG_SIZE.height} alt="" style={{ position: "absolute", left: 0, top: 0 }} />
         <div
           style={{
             position: "absolute",

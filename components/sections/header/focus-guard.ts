@@ -31,7 +31,8 @@ function clearFocus(t: HTMLElement, header: HTMLElement | null, headerBar: HTMLE
     viewportHeight: vh,
     headerShown: Boolean(header && headerBar) && header?.dataset.hidden !== "true",
     headerBottom: headerBar ? headerBar.offsetTop + headerBar.offsetHeight : 0,
-    barTop: bar && barShown ? vh - bar.offsetHeight : null,
+    // The bar floats (8px + safe area above the bottom): its resting top edge, transforms ignored.
+    barTop: bar && barShown ? vh - bar.offsetHeight - (parseFloat(getComputedStyle(bar).bottom) || 0) : null,
   });
   if (dy !== 0) window.scrollBy({ top: dy, behavior: "instant" });
 }

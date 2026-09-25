@@ -1,19 +1,37 @@
 /* S4 "Raspored treninga" — owned by the schedule section. Light theme; clarity first:
-   no scroll choreography. Motion: sliding tab pill (transform), Flip on filtering (JS),
-   a short fade when the user switches a view/day. Everything is readable without JS. */
+   no scroll choreography. Motion (gymnastics vocabulary, schedule-enhance.ts + below):
+   the tab pills travel like a beam walk and stick their landing; filtering dismounts,
+   glides and sticks (Flip); a card's training days land on the mat line once; the
+   „Sledeći trening“ scoreboard posts its numerals row by row like an LED judges' board;
+   the location pictogram draws the floor diagonal and drops its pin. Everything is
+   readable without JS, and reduced motion / Save-Data show the final state. */
 
 /* ---------- layout ----------
-   Up to 1279px: controls, panel, location card stacked (cards 2-up from 640px). From
-   1280px: the controls run the full width (so the six program pills fit on one line),
-   the panel takes 8 columns and the location card sits beside it (sticky). At 1024 an
-   8/4 split would squeeze the cards to ~290px (3-line titles, wrapped chips).
-   No-JS: the controls row is display:none and the panel + card start at the top. */
+   Up to 1279px everything stacks: heading, tabs, pills, scoreboard, panel, location card
+   (cards 2-up from 640px). From 1024px the tabs sit in the heading row. From 1280px the
+   panel takes 8 columns and the scoreboard + location card stand beside it as a sticky
+   stack (the location card's offset uses the scoreboard's fixed height there).
+   No-JS: tabs, pills, scoreboard and card tags are display:none. */
+.sched-board {
+  --sched-score-h: 9.5rem;
+}
+.sched-score {
+  margin-top: 20px;
+}
+.sched-panel {
+  margin-top: 28px;
+}
 /* Positioned (z 1) so the opaque card paints over a card that is fading out of the
    positioned .sched-cards above it when a filter pulls the card up (stacked layouts). */
 .sched-aside {
   position: relative;
   z-index: 1;
-  margin-top: 32px;
+  margin-top: 40px;
+}
+@media (min-width: 640px) {
+  .sched-panel {
+    margin-top: 32px;
+  }
 }
 @media (min-width: 1280px) {
   .sched-board {
@@ -22,39 +40,37 @@
     column-gap: 48px;
     align-items: start;
   }
-  .sched-controls {
+  .sched-head,
+  .sched-filters {
     grid-column: 1 / -1;
   }
   .sched-panel {
     grid-column: 1;
-    grid-row: 2;
+    grid-row: 3;
   }
+  .sched-score,
   .sched-aside {
     grid-column: 2;
-    grid-row: 2;
+    grid-row: 3;
     position: sticky;
     top: 104px;
-    margin-top: 0;
+    margin-top: 32px;
+  }
+  .sched-score {
+    height: var(--sched-score-h);
+  }
+  .sched-aside {
+    top: calc(104px + var(--sched-score-h) + 16px);
+    margin-top: calc(32px + var(--sched-score-h) + 16px);
+  }
+  /* No JS: no scoreboard above the location card. */
+  html:not(.js) .sched-aside {
+    top: 104px;
+    margin-top: 32px;
   }
 }
 
-/* ---------- controls (JS only) ---------- */
-.sched-controls {
-  container: sched-controls / inline-size;
-  display: grid;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-@media (min-width: 1024px) {
-  .sched-controls {
-    gap: 16px;
-    margin-bottom: 24px;
-  }
-}
-html:not(.js) .sched-controls {
-  display: none;
-}
-
+/* ---------- heading row + view tabs (tabs: JS only) ---------- */
 .sched-views {
   position: relative;
   display: grid;
@@ -69,16 +85,55 @@ html:not(.js) .sched-controls {
     width: 360px;
   }
 }
-.sched-views__pill {
+/* From 1024px the segmented control stands in the heading row, right of the intro, so the
+   schedule starts ~70px higher: the heading box dissolves into the row's grid (the h2 spans
+   both columns; the intro and the tabs share the last row, bottoms aligned). */
+@media (min-width: 1024px) {
+  .sched-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "title title"
+      "intro tabs";
+    column-gap: 48px;
+    align-items: end;
+  }
+  .sched-head > .section-heading {
+    display: contents;
+  }
+  .sched-head .section-heading__title {
+    grid-area: title;
+  }
+  .sched-head .section-heading__intro {
+    grid-area: intro;
+  }
+  .sched-views {
+    grid-area: tabs;
+    width: 320px;
+  }
+}
+html:not(.js) .sched-views,
+html:not(.js) .sched-filters,
+html:not(.js) .sched-score,
+html:not(.js) .sched-next {
+  display: none;
+}
+
+/* Sliding pill of both tab systems: travels like a beam walk (flight ease), then sticks its
+   landing (a short squash, schedule-enhance.ts). */
+.sched-views__pill,
+.sched-strip__pill {
   position: absolute;
   top: 4px;
   bottom: 4px;
   left: 4px;
-  width: calc(50% - 4px);
-  border-radius: var(--radius-full);
   background: var(--color-navy-900);
   box-shadow: var(--shadow-press);
-  transition: transform var(--dur-base) var(--ease-stick);
+  transition: transform 320ms var(--ease-flight);
+}
+.sched-views__pill {
+  width: calc(50% - 4px);
+  border-radius: var(--radius-full);
 }
 .sched-views[data-active="day"] .sched-views__pill {
   transform: translateX(100%);
@@ -99,19 +154,52 @@ html:not(.js) .sched-controls {
     scale var(--dur-slow-squash) var(--ease-rebound);
   -webkit-tap-highlight-color: transparent;
 }
-.sched-views__tab[aria-selected="true"] {
+/* The white labels over the pill: the same grid, clipped to the pill's box (clip-path moves
+   with the pill's transform, same duration and ease). The tab labels below stay navy. */
+.sched-views__lit,
+.sched-strip__lit {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  pointer-events: none;
   color: var(--color-white);
+  transition: clip-path 320ms var(--ease-flight);
+}
+.sched-views__lit {
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+  clip-path: inset(4px calc(50% - var(--v, 0) * (50% - 4px)) 4px calc(4px + var(--v, 0) * (50% - 4px)) round 999px);
+  font-size: var(--text-button);
+  font-weight: var(--text-button--font-weight);
+}
+.sched-views__lit > span {
+  display: grid;
+  place-items: center;
+  padding: 0 16px;
 }
 
-/* Filter pills: a swipeable row on phones (the edge with more pills behind it fades —
-   data-more-start / data-more-end, set by the island), wrapping from 640px. */
+/* Only the label under the pill (and, for one slide, the one it leaves) is rendered: the
+   clipped-away white copies must not exist for contrast checkers or forced colours. */
+.sched-views__lit > span,
+.sched-strip__lit > span {
+  visibility: hidden;
+  transition: visibility 0s linear 320ms;
+}
+.sched-views__lit > span[data-on],
+.sched-strip__lit > span[data-on] {
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+/* ---------- filter pills ----------
+   A swipeable row on phones (the edge with more pills behind it fades — data-more-start /
+   data-more-end, set by the island), wrapping from 640px. */
 .sched-filters {
   --fade-start: 0px;
   --fade-end: 0px;
   position: relative;
-  display: flex;
-  gap: 8px;
-  margin-inline: -20px;
+  margin: 12px -20px 0;
   padding: 6px 20px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
@@ -130,21 +218,30 @@ html:not(.js) .sched-controls {
 .sched-filters::-webkit-scrollbar {
   display: none;
 }
+.sched-filters__track {
+  display: flex;
+  gap: 8px;
+  width: max-content;
+}
 .sched-filters__line {
   display: contents;
 }
 @media (min-width: 640px) {
   .sched-filters {
-    flex-wrap: wrap;
+    container: sched-filters / inline-size;
     margin-inline: -6px;
     padding-inline: 6px;
     overflow: visible;
     -webkit-mask-image: none;
     mask-image: none;
   }
+  .sched-filters__track {
+    flex-wrap: wrap;
+    width: auto;
+  }
   /* Too narrow for one line of six pills (measured ≈951px): two real lines (Sve + 2 | 3). */
-  @container sched-controls (width < 960px) {
-    .sched-filters {
+  @container sched-filters (width < 960px) {
+    .sched-filters__track {
       flex-direction: column;
       align-items: flex-start;
     }
@@ -155,13 +252,18 @@ html:not(.js) .sched-controls {
     }
   }
 }
+@media (min-width: 1024px) {
+  .sched-filters {
+    margin-top: 28px;
+  }
+}
 /* Same chip vocabulary as the S3 program chips and the S9 gallery chips:
    2px hairline ring, pressed = navy fill + white text + check mark (shape, not color alone). */
 .sched-pill {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-height: 48px;
   padding: 0 18px;
   border-radius: var(--radius-full);
@@ -192,8 +294,9 @@ html:not(.js) .sched-controls {
   color: var(--color-white);
   box-shadow: inset 0 0 0 2px var(--color-navy-900);
 }
+/* Pressed: the ✓ and the navy fill carry the state; the program bar steps aside. */
 .sched-pill[aria-pressed="true"] .sched-swatch {
-  box-shadow: 0 0 0 2px var(--color-white);
+  display: none;
 }
 .sched-pill__check {
   display: none;
@@ -217,36 +320,206 @@ html:not(.js) .sched-controls {
   transition-duration: var(--dur-tap);
 }
 
-/* Program swatch: color + a navy ring, always next to a text label. */
+/* Program swatch: a short mat/beam bar in the program colour with a navy edge, always next
+   to a text label (a round swatch read as a radio button; circles mean days here). */
 .sched-swatch {
   flex: none;
   display: inline-block;
-  width: 12px;
-  height: 12px;
-  border-radius: var(--radius-full);
+  width: 16px;
+  height: 6px;
+  border-radius: 3px;
   background: var(--swatch, var(--color-line));
   box-shadow: inset 0 0 0 1.5px var(--color-navy-900);
 }
 .sched-swatch--lg {
-  width: 16px;
-  height: 16px;
+  width: 22px;
+  height: 8px;
+  border-radius: 4px;
+}
+
+/* ---------- „Sledeći trening“: the judges' scoreboard ----------
+   A dot-matrix display (the S7 window), Doto numerals only here (≥32px, tabular).
+   Phones and the ≥1280 sidebar: label / day over the numerals, the group below a rule;
+   640–1279: one strip. Its height never depends on the time (no shift after mount). */
+.sched-score {
+  --score-size: 2.5rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "label time"
+    "when time"
+    "group group";
+  align-items: end;
+  column-gap: 16px;
+  padding: 16px 18px 14px;
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at center, rgba(141, 169, 198, 0.1) 0.9px, transparent 1.3px) 0 0 / 7px 7px,
+    var(--color-navy-950);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    var(--shadow-2);
+  color: var(--color-ice-50);
+}
+.sched-score__label {
+  grid-area: label;
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+  letter-spacing: var(--text-label--letter-spacing);
+  font-weight: var(--text-label--font-weight);
+  text-transform: uppercase;
+  color: var(--color-steel-300);
+}
+.sched-score__when {
+  grid-area: when;
+  min-height: 1.35em;
+  margin-top: 2px;
+  font-size: var(--text-body);
+  line-height: 1.35;
+  font-weight: 650;
+  color: var(--color-lav-200);
+}
+.sched-score__time {
+  grid-area: time;
+  align-self: center;
+  font-size: var(--score-size);
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--color-iceblue-200);
+  /* Doto's trailing cell space (0.105em + tracking): the last digit's ink meets the padding. */
+  margin-right: -0.125em;
+}
+.sched-score__c {
+  display: inline-block;
+}
+/* Two LEDs, dot-sized like Doto's (.09em), 0.2em and 0.5em above the baseline. Doto digits
+   sit left in a 0.6em cell (0.105em trailing), so the colon steps back by that much to sit
+   exactly between its neighbours. */
+.sched-score__colon {
+  position: relative;
+  width: 0.34em;
+  height: 0.7em;
+  margin-left: -0.12em;
+}
+.sched-score__colon::before,
+.sched-score__colon::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 0.09em;
+  height: 0.09em;
+  margin-left: -0.045em;
+  border-radius: 50%;
+  background: currentColor;
+}
+.sched-score__colon::before {
+  bottom: 0.455em;
+}
+.sched-score__colon::after {
+  bottom: 0.155em;
+}
+/* No fixed start is next (or the time is not known yet): the board shows dashes, as a
+   scoreboard does before a score is posted. */
+.sched-score:not([data-state="ready"]) .sched-score__time {
+  color: var(--color-steel-300);
+  opacity: 0.8;
+}
+.sched-score__group {
+  grid-area: group;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-height: calc(1.4em + 11px);
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(141, 169, 198, 0.2);
+  font-size: var(--text-small);
+  line-height: 1.4;
+  font-weight: 600;
+  color: var(--color-ice-50);
+  text-wrap: balance;
+}
+.sched-score__group .sched-swatch {
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.35);
+  transform: translateY(-2px);
+}
+/* 320–359px: the label takes its own line above day + numerals, and a long group name may
+   take two lines — reserved, so nothing moves. */
+@media (max-width: 359.98px) {
+  .sched-score {
+    grid-template-areas:
+      "label label"
+      "when time"
+      "group group";
+  }
+  .sched-score__when {
+    margin-top: 6px;
+  }
+  .sched-score__group {
+    min-height: calc(2.8em + 11px);
+  }
+}
+@media (min-width: 640px) and (max-width: 1279.98px) {
+  .sched-score {
+    --score-size: 3rem;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    grid-template-areas:
+      "label time group"
+      "when time group";
+    align-items: center;
+    column-gap: 28px;
+    padding: 14px 28px;
+  }
+  .sched-score__label {
+    align-self: end;
+  }
+  .sched-score__when {
+    align-self: start;
+  }
+  .sched-score__group {
+    align-self: stretch;
+    align-items: center;
+    min-height: 0;
+    margin: 0;
+    padding: 0 0 0 28px;
+    border-top: 0;
+    border-left: 1px solid rgba(141, 169, 198, 0.2);
+    font-size: var(--text-body);
+  }
+  .sched-score__group .sched-swatch {
+    transform: none;
+  }
+}
+@media (min-width: 1280px) {
+  .sched-score {
+    --score-size: 3.5rem;
+    align-content: space-between;
+    padding: 20px 22px 16px;
+  }
 }
 
 /* ---------- panels ---------- */
+/* A view switch eases the new panel in from a visible start (never a blank frame). */
 @keyframes sched-in {
   from {
-    opacity: 0;
-    transform: translateY(var(--offset-reveal));
+    opacity: 0.35;
+    transform: translateY(8px);
   }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .sched-board[data-interacted] > .sched-panel:not([hidden]),
-  .sched-board[data-interacted] .sched-days[data-selected] > .sched-day {
-    animation: sched-in var(--dur-base) var(--ease-stick) both;
+  .sched-board[data-switched] > .sched-panel:not([hidden]) {
+    animation: sched-in 220ms var(--ease-stick) both;
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .sched-views__pill,
+  .sched-strip__pill,
+  .sched-views__lit,
+  .sched-strip__lit,
+  .sched-views__lit > span,
+  .sched-strip__lit > span,
   .sched-views__tab,
   .sched-pill,
   .sched-strip__day {
@@ -269,25 +542,32 @@ html:not(.js) .sched-controls {
   display: grid;
   gap: 12px;
 }
+/* Cards keep their natural height (ragged bottoms read as intentional; a hole inside a
+   card never does). The row gap leaves room for the tags on the cards' top edges. */
 @media (min-width: 640px) {
   .sched-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
+    align-items: start;
+    gap: 32px 16px;
+  }
+  /* A lone card (a one-group filter) takes the whole row, head beside the times. */
+  .sched-cards[data-count="1"] {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 @media (min-width: 1024px) {
   .sched-cards {
-    gap: 24px;
+    column-gap: 24px;
   }
 }
 .sched-card[hidden] {
   display: none;
 }
 .sched-card__inner {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  height: 100%;
   padding: 20px;
   border-radius: var(--radius-lg);
   background: var(--surface);
@@ -295,9 +575,28 @@ html:not(.js) .sched-controls {
     0 0 0 1px var(--hairline),
     var(--shadow-2);
 }
+.sched-card__a,
+.sched-card__b {
+  display: contents;
+}
 @media (min-width: 1024px) {
   .sched-card__inner {
     padding: 24px;
+  }
+}
+/* (Cards fading out of a filter keep their own layout.) */
+@media (min-width: 640px) {
+  .sched-cards[data-count="1"] > :not([data-leaving]) .sched-card__inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 32px;
+    align-items: start;
+  }
+  .sched-cards[data-count="1"] > :not([data-leaving]) .sched-card__a,
+  .sched-cards[data-count="1"] > :not([data-leaving]) .sched-card__b {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
   }
 }
 .sched-card__head {
@@ -306,7 +605,7 @@ html:not(.js) .sched-controls {
   gap: 12px;
 }
 .sched-card__head .sched-swatch {
-  margin-top: 0.3em;
+  margin-top: 0.45em;
 }
 .sched-card__title {
   font-size: 1.25rem;
@@ -323,6 +622,48 @@ html:not(.js) .sched-controls {
   }
 }
 
+/* The card's „Sledeći trening“ tag, on its top edge like a start-number tag (≥640px; on
+   phones the scoreboard answers it). Absolutely positioned: arriving or leaving after
+   mount never moves anything. */
+.sched-next {
+  display: none;
+}
+@media (min-width: 640px) {
+  .sched-next[data-state="ready"] {
+    position: absolute;
+    top: 0;
+    right: 20px;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 12px 0 9px;
+    border-radius: var(--radius-full);
+    background: var(--color-navy-900);
+    color: var(--color-white);
+    font-size: var(--text-label);
+    line-height: 1;
+    transform: translateY(-50%);
+    box-shadow: 0 0 0 3px var(--bg);
+  }
+}
+@media (min-width: 1024px) {
+  .sched-next[data-state="ready"] {
+    right: 24px;
+  }
+}
+.sched-next__leap {
+  flex: none;
+  width: 24px;
+  height: 16px;
+  color: var(--color-lav-200);
+}
+.sched-next__value {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 /* Week row Po…Ne: a strip of seven "frames" on one mat line. */
 .sched-week {
   position: relative;
@@ -337,6 +678,7 @@ html:not(.js) .sched-controls {
   right: calc(100% / 14);
   height: 1px;
   background: var(--hairline);
+  transform-origin: 0 50%;
 }
 .sched-week__day {
   position: relative;
@@ -366,6 +708,7 @@ html:not(.js) .sched-controls {
   box-shadow:
     inset 0 0 0 2px var(--color-navy-900),
     0 0 0 3px var(--surface);
+  transform-origin: 50% 100%;
 }
 .sched-week__label {
   font-size: var(--text-label);
@@ -378,7 +721,63 @@ html:not(.js) .sched-controls {
   color: var(--fg);
 }
 
-/* Blocks: days | times */
+/* MI-1 „Doskok na strunjaču“ (first view, once per card): the mat line draws, then the
+   training days land on it one by one, Po → Pe — a drop, a compressed touchdown, hold.
+   The day labels never move (they carry the information). Pre-state only under
+   html.js-motion; data-landed="go" plays the keyframes, then becomes "" so a filter that
+   hides and shows the card never replays them. */
+html.js-motion .sched-card:not([data-landed]) .sched-week::before {
+  transform: scaleX(0);
+}
+html.js-motion .sched-card:not([data-landed]) .sched-week__dot::before {
+  opacity: 0;
+}
+@keyframes sched-mat {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes sched-dot-appear {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes sched-dot-land {
+  0% {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.5);
+    animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.5);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(0) scale(1.14, 0.8);
+    animation-timing-function: var(--ease-land);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html.js-motion .sched-card[data-landed="go"] .sched-week::before {
+    animation: sched-mat 360ms var(--ease-stick) both;
+  }
+  html.js-motion .sched-card[data-landed="go"] .sched-week__dot::before {
+    animation: sched-dot-appear 180ms linear 120ms both;
+  }
+  html.js-motion .sched-card[data-landed="go"] .sched-week__day[data-on] .sched-week__dot::before {
+    animation: sched-dot-land 400ms calc(120ms + var(--k, 0) * 45ms) both;
+  }
+  /* 2-up rows: the second card of a row follows 60ms later (cards stagger .06). */
+  html.js-motion .sched-card:nth-child(even)[data-landed="go"] .sched-week::before {
+    animation-delay: 60ms;
+  }
+  html.js-motion .sched-card:nth-child(even)[data-landed="go"] .sched-week__day[data-on] .sched-week__dot::before {
+    animation-delay: calc(180ms + var(--k, 0) * 45ms);
+  }
+}
+
+/* Blocks: days | times. The wide gutter holds the hanging „ili“. */
 .sched-blocks {
   display: grid;
   gap: 12px;
@@ -386,7 +785,7 @@ html:not(.js) .sched-controls {
 .sched-block {
   display: grid;
   grid-template-columns: minmax(0, 5.75rem) minmax(min-content, 1fr);
-  column-gap: 12px;
+  column-gap: 32px;
   align-items: baseline;
 }
 .sched-block__days {
@@ -401,12 +800,26 @@ html:not(.js) .sched-controls {
   letter-spacing: -0.005em;
 }
 .sched-times__range {
+  position: relative;
   white-space: nowrap;
+}
+/* Two alternatives: one per line, same left edge; „ili“ hangs in the gutter to the left. */
+.sched-times[data-alt] .sched-times__range {
+  display: block;
+}
+.sched-times[data-alt] .sched-times__range + .sched-times__range {
+  margin-top: 2px;
 }
 .sched-times__or {
   font-size: var(--text-small);
   font-weight: 500;
   color: var(--muted);
+}
+.sched-times[data-alt] .sched-times__or {
+  position: absolute;
+  right: 100%;
+  bottom: 0.1em;
+  margin-right: 7px;
 }
 .sched-times__note {
   font-size: var(--text-small);
@@ -414,69 +827,85 @@ html:not(.js) .sched-controls {
   color: var(--muted);
 }
 
-/* Footer: next training + calendar links */
+/* Footer: calendar links. Phones: one „Dodajte u kalendar“ row (<details>) opens them. */
 .sched-card__foot {
   display: grid;
   gap: 4px;
-  margin-top: auto;
-  padding-top: 16px;
+  padding-top: 4px;
   border-top: 1px solid var(--hairline);
 }
-.sched-next {
+.sched-card__foot:not(.sched-cal-d) {
+  padding-top: 16px;
+}
+.sched-cal-d {
+  display: block;
+  margin-bottom: -8px;
+}
+.sched-cal-d__sum {
   display: flex;
   align-items: center;
-  column-gap: 6px;
-  min-height: 36px;
+  gap: 8px;
+  min-height: 48px;
+  list-style: none;
   font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.sched-next[data-state="ready"] {
-  justify-self: start;
-  padding: 4px 14px 4px 10px;
-  /* Half the 36px one-line height: a pill on one line, a soft ticket if a long day name wraps. */
-  border-radius: 18px;
-  background: var(--color-ice-50);
-  box-shadow: inset 0 0 0 1px var(--hairline);
-}
-/* No fixed slot is next right now (mixed groups): keep the row's height so the cards —
-   and every section below — never shrink after hydration (deep links land exactly).
-   The reserved row moves to the end of the foot (grid order), where it reads as bottom
-   padding instead of a hole under the hairline. */
-.sched-next[data-state="none"] {
-  visibility: hidden;
-  order: 99;
-}
-html:not(.js) .sched-next {
+.sched-cal-d__sum::-webkit-details-marker {
   display: none;
 }
-.sched-next__text {
-  min-width: 0;
-  line-height: 1.4;
-}
-.sched-nowrap {
-  white-space: nowrap;
-}
-/* „Trgovinsko-ugostiteljska“ is one atomic box: whole on a normal line (the h3 stays
-   balanced), broken at its hyphen only when it cannot fit (≤300px, zoom, text spacing). */
-.sched-location__title .sched-nowrap {
-  display: inline-block;
-  white-space: normal;
-  max-width: 100%;
-}
-.sched-next__leap {
-  flex: none;
-  width: 27px;
-  height: 18px;
-  margin-right: 2px;
-  color: var(--accent);
-}
-.sched-next__label {
-  font-weight: 600;
+.sched-cal-d__chev {
+  margin-left: auto;
   color: var(--muted);
+  transition: transform 180ms var(--ease-stick);
 }
-.sched-next__value {
-  font-weight: 700;
-  color: var(--fg);
-  white-space: nowrap;
+.sched-cal-d[open] .sched-cal-d__chev {
+  transform: rotate(180deg);
+}
+@media (hover: hover) {
+  .sched-cal-d__sum:hover .sched-cal-d__label {
+    text-decoration: underline;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 0.2em;
+  }
+}
+.sched-cal-d__body {
+  padding-bottom: 12px;
+}
+@keyframes sched-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sched-cal-d[open] .sched-cal-d__body {
+    animation: sched-drop 220ms var(--ease-stick);
+  }
+}
+/* From 640px the calendar links are simply shown: the closed <details> keeps its content
+   rendered and the toggle row goes away. Where ::details-content is unsupported the row
+   stays and works as on phones. */
+@media (min-width: 640px) {
+  @supports selector(::details-content) {
+    .sched-cal-d {
+      margin-bottom: 0;
+      padding-top: 12px;
+    }
+    .sched-cal-d::details-content {
+      display: block;
+      content-visibility: visible;
+    }
+    .sched-cal-d > .sched-cal-d__sum {
+      display: none;
+    }
+    .sched-cal-d__body {
+      padding-bottom: 0;
+      animation: none !important;
+    }
+  }
 }
 
 .sched-cal {
@@ -523,6 +952,9 @@ html:not(.js) .sched-next {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+.sched-nowrap {
+  white-space: nowrap;
+}
 
 /* ---------- "Po danu" ---------- */
 /* Sticky day strip; sits below the floating header while the header is shown. */
@@ -537,6 +969,46 @@ html:not(.js) .sched-next {
   padding: 6px 4px;
   background: var(--bg);
   border-bottom: 1px solid var(--hairline);
+  /* Covers the sliver between the floating header and the stuck strip. */
+  box-shadow: 0 -14px 0 0 var(--bg);
+}
+.sched-strip__pill {
+  top: 6px;
+  bottom: 6px;
+  width: calc((100% - 20px) / 7);
+  border-radius: 12px;
+  opacity: 0;
+  transform: translateX(calc(var(--i, 0) * (100% + 2px)));
+}
+.sched-strip[data-sel] .sched-strip__pill {
+  opacity: 1;
+}
+.sched-strip__lit {
+  --col: calc((100% - 20px) / 7);
+  --py: 6px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  padding: 6px 4px;
+  clip-path: inset(
+    var(--py) calc(100% - 4px - var(--col) - var(--i, 0) * (var(--col) + 2px)) var(--py) calc(4px + var(--i, 0) * (var(--col) + 2px))
+      round 12px
+  );
+}
+.sched-strip:not([data-sel]) .sched-strip__lit {
+  visibility: hidden;
+}
+.sched-strip__lit-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-height: 52px;
+  min-width: 0;
+}
+.sched-strip__lit .sched-strip__short,
+.sched-strip__lit .sched-strip__today {
+  color: var(--color-white) !important;
 }
 /* Header geometry (styles/sections/header.css): bottom edge 70px / 74px (≥640) / 84px (≥1024). */
 .sched-board {
@@ -566,8 +1038,27 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
       inset 0 0 0 1px var(--hairline),
       0 0 0 6px var(--bg);
   }
+  .sched-strip::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    right: -6px;
+    bottom: 100%;
+    height: 14px;
+    background: var(--bg);
+  }
+  .sched-strip__pill {
+    top: 4px;
+    bottom: 4px;
+  }
+  .sched-strip__lit {
+    --py: 4px;
+    padding: 4px;
+  }
 }
 .sched-strip__day {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -580,12 +1071,13 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   cursor: pointer;
   touch-action: manipulation;
   transition:
+    color var(--dur-fast) linear,
     translate var(--dur-slow-squash) var(--ease-rebound),
     scale var(--dur-slow-squash) var(--ease-rebound);
   -webkit-tap-highlight-color: transparent;
 }
 @media (hover: hover) {
-  .sched-strip__day:hover {
+  .sched-strip__day:not([aria-selected="true"]):hover {
     background: color-mix(in oklab, var(--color-line) 55%, transparent);
   }
 }
@@ -612,14 +1104,6 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   letter-spacing: 0.01em;
   color: var(--accent);
 }
-.sched-strip__day[aria-selected="true"] {
-  background: var(--color-navy-900);
-  color: var(--color-white);
-}
-.sched-strip__day[aria-selected="true"] .sched-strip__short,
-.sched-strip__day[aria-selected="true"] .sched-strip__today {
-  color: var(--color-white);
-}
 
 .sched-days {
   display: grid;
@@ -636,16 +1120,22 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   display: none;
 }
 .sched-day {
-  padding: 16px 20px 4px;
+  --day-px: 20px;
+  padding: 16px var(--day-px) 4px;
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow:
     0 0 0 1px var(--hairline),
     var(--shadow-2);
 }
+/* While rows glide (filter / day change) they stay inside the card. */
+.sched-day[data-flipping] {
+  overflow: clip;
+}
 @media (min-width: 1024px) {
   .sched-day {
-    padding: 20px 24px 8px;
+    --day-px: 24px;
+    padding: 20px var(--day-px) 8px;
   }
 }
 .sched-day__title {
@@ -664,10 +1154,13 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   display: flex;
   flex-direction: column;
 }
+/* Phones: time(s) over the group, with a gutter for the hanging „ili“. From 640px: two
+   columns, and both alternatives fit on one line. */
 .sched-row {
+  position: relative;
   display: grid;
   gap: 6px;
-  padding: 16px 0;
+  padding: 16px 0 16px 22px;
   border-top: 1px solid var(--hairline);
 }
 .sched-row[hidden] {
@@ -675,21 +1168,81 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
 }
 @media (min-width: 640px) {
   .sched-row {
-    grid-template-columns: 11.5rem minmax(0, 1fr);
+    grid-template-columns: 17.5rem minmax(0, 1fr);
     column-gap: 24px;
     align-items: baseline;
+    padding-left: 0;
+  }
+  .sched-row .sched-times[data-alt] .sched-times__range {
+    display: inline;
+  }
+  .sched-row .sched-times[data-alt] .sched-times__or {
+    position: static;
+    margin: 0;
   }
 }
 .sched-row__group {
   display: flex;
-  align-items: flex-start;
+  align-items: baseline;
   gap: 10px;
   font-weight: 600;
   text-wrap: balance;
 }
 .sched-row__group .sched-swatch {
-  margin-top: 0.4em;
+  transform: translateY(-3px);
 }
+
+/* Today (set after mount, every minute; static, also under reduced motion): finished
+   trainings go quiet (muted colour, not opacity: AA contrast holds), the next one gets a
+   royal rule on the card edge, and the „now“ line — the leap standing on it — separates
+   what has started from what is next. */
+.sched-times__range[data-past] {
+  color: var(--muted);
+  font-weight: 600;
+}
+.sched-row[data-past] .sched-row__group {
+  color: var(--muted);
+  font-weight: 520;
+}
+.sched-row[data-past] .sched-swatch {
+  opacity: 0.4;
+}
+.sched-row[data-next]::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--day-px));
+  top: 14px;
+  bottom: 14px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--color-royal-600);
+}
+.sched-row__now {
+  display: none;
+}
+.sched-row[data-now] {
+  border-top-color: transparent;
+}
+.sched-row[data-now]::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 20px;
+  right: 0;
+  height: 1.5px;
+  border-radius: 1px;
+  background: var(--color-royal-600);
+}
+.sched-row[data-now] .sched-row__now {
+  position: absolute;
+  top: -14px;
+  left: 0;
+  display: block;
+  width: 21px;
+  height: 14px;
+  color: var(--color-royal-600);
+}
+
 .sched-day__filtered {
   display: none;
   padding: 16px 0 20px;
@@ -699,49 +1252,78 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
 .sched-day:not(:has(.sched-row:not([hidden]))) .sched-day__filtered {
   display: block;
 }
+/* The mark beside the sentence where both fit; on phones the sentence goes under the mark. */
 .sched-day__empty {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  gap: 12px 20px;
   padding: 16px 0 20px;
   border-top: 1px solid var(--hairline);
 }
 .sched-day__empty p {
+  flex: 1 1 15rem;
   font-weight: 600;
+  text-wrap: balance;
 }
-.sched-day__leap {
+/* The weekend's chronophotograph: the landed leap (a weekend pick replays it). */
+.sched-day__empty .chrono-mark {
   flex: none;
-  width: 60px;
-  height: 40px;
-  color: var(--color-steel-300);
+  width: 124px;
+  margin: 0;
+}
+.sched-day__mark[data-reset],
+.sched-day__mark[data-reset] * {
+  transition: none !important;
+  animation: none !important;
 }
 
-/* ---------- location ---------- */
+/* ---------- location: the section's end-cap ---------- */
 .sched-location {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding: 24px 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "label label"
+    "title title"
+    "nick nick"
+    "street pict"
+    "maps maps";
+  column-gap: 16px;
+  padding: 20px 20px 24px;
   border-radius: var(--radius-lg);
-  background: var(--color-ice-50);
-  box-shadow: inset 0 0 0 1px var(--hairline);
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px var(--hairline),
+    var(--shadow-2);
 }
 /* 320–359px: 4px more room so „Trgovinsko-ugostiteljska“ (kept whole) stays inside the padding. */
-@media (max-width: 359px) {
+@media (max-width: 359.98px) {
   .sched-location {
     padding-inline: 16px;
   }
 }
 @media (min-width: 1024px) {
   .sched-location {
-    padding: 28px;
+    padding: 24px 28px 28px;
+  }
+}
+@media (min-width: 640px) and (max-width: 1279.98px) {
+  .sched-location {
+    grid-template-areas:
+      "label pict"
+      "title pict"
+      "nick pict"
+      "street maps";
+    column-gap: 32px;
   }
 }
 .sched-location__label {
+  grid-area: label;
   color: var(--muted);
 }
 .sched-location__title {
-  margin-top: 10px;
+  grid-area: title;
+  margin-top: 8px;
   font-size: var(--text-h3);
   line-height: var(--text-h3--line-height);
   letter-spacing: var(--text-h3--letter-spacing);
@@ -754,20 +1336,137 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
     font-size: clamp(1.5rem, 2.5vw - 0.5rem, 1.75rem);
   }
 }
+/* „Trgovinsko-ugostiteljska“ is one atomic box: whole on a normal line (the h3 stays
+   balanced), broken at its hyphen only when it cannot fit (≤300px, zoom, text spacing). */
+.sched-location__title .sched-nowrap {
+  display: inline-block;
+  white-space: normal;
+  max-width: 100%;
+}
 .sched-location__nick {
+  grid-area: nick;
   margin-top: 6px;
   color: var(--muted);
 }
 .sched-location__street {
+  grid-area: street;
+  align-self: end;
   margin-top: 16px;
   font-weight: 600;
 }
 .sched-location__maps {
+  grid-area: maps;
+  justify-self: start;
   margin-top: 24px;
 }
-@media (max-width: 639px) {
+@media (max-width: 639.98px) {
   .sched-location__maps {
-    align-self: stretch;
+    justify-self: stretch;
+  }
+}
+@media (min-width: 640px) and (max-width: 1279.98px) {
+  .sched-location__maps {
+    align-self: end;
+    justify-self: end;
+  }
+}
+
+/* Pictogram: the floor square, its diagonal and the pin in the far corner. */
+.sched-pict {
+  grid-area: pict;
+  justify-self: end;
+  align-self: end;
+  width: 64px;
+  height: 64px;
+  margin-top: 8px;
+  overflow: visible;
+}
+@media (min-width: 640px) and (max-width: 1279.98px) {
+  .sched-pict {
+    align-self: start;
+    width: 72px;
+    height: 72px;
+    margin-top: 0;
+  }
+}
+.sched-pict__floor {
+  fill: var(--color-ice-50);
+  stroke: var(--color-navy-900);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.sched-pict__edge {
+  fill: none;
+  stroke: var(--color-line);
+  stroke-width: 1;
+}
+.sched-pict__diag {
+  fill: none;
+  stroke: var(--color-royal-500);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+}
+.sched-pict__pin {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+.sched-pict__pin path {
+  fill: var(--color-navy-900);
+}
+.sched-pict__pin circle {
+  fill: var(--color-white);
+}
+/* MI-6 (first view, once): the diagonal draws across the mat, then the pin drops onto the
+   far corner and sticks its landing. */
+html.js-motion .sched-location:not([data-landed]) .sched-pict__diag {
+  stroke-dashoffset: 1;
+}
+html.js-motion .sched-location:not([data-landed]) .sched-pict__pin {
+  opacity: 0;
+}
+@keyframes sched-pin-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.9, 1.08);
+    animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.5);
+  }
+  45% {
+    opacity: 1;
+    transform: translateY(0) scale(1.12, 0.84);
+    animation-timing-function: var(--ease-land);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html.js-motion .sched-location[data-landed] .sched-pict__diag {
+    transition: stroke-dashoffset 480ms var(--ease-stick) 200ms;
+  }
+  html.js-motion .sched-location[data-landed] .sched-pict__pin {
+    animation: sched-pin-drop 420ms 560ms both;
+  }
+}
+
+/* MI-4: the scoreboard posts its numerals like an LED board — each cell lights up row by
+   row (7 steps: Doto is a 7-row dot matrix), left to right. On first view once; afterwards
+   only a cell whose digit changes (a new next training, another filter) posts again. */
+@keyframes sched-post {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+html.js-motion .sched-score:not([data-landed]) .sched-score__c {
+  clip-path: inset(0 0 100% 0);
+}
+@media (prefers-reduced-motion: no-preference) {
+  html.js-motion .sched-score[data-landed] .sched-score__c {
+    animation: sched-post 280ms var(--ease-score) calc(var(--c, 0) * 40ms) both;
   }
 }
 
@@ -781,6 +1480,7 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   .sched-card__inner,
   .sched-day,
   .sched-location,
+  .sched-score,
   .sched-next[data-state="ready"] {
     border: 1px solid CanvasText;
   }
@@ -788,7 +1488,10 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   .sched-location__maps {
     border: 2px solid ButtonText;
   }
-  .sched-views__pill {
+  .sched-views__pill,
+  .sched-strip__pill,
+  .sched-views__lit,
+  .sched-strip__lit {
     display: none;
   }
   .sched-views__tab[aria-selected="true"],
@@ -813,5 +1516,9 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   .sched-week__day[data-on] .sched-week__dot::before {
     forced-color-adjust: none;
     background: CanvasText;
+  }
+  .sched-row[data-next]::before,
+  .sched-row[data-now]::after {
+    background: Highlight;
   }
 }

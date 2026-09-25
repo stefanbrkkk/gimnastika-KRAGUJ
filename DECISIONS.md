@@ -79,6 +79,27 @@ anything undecided was decided here and can be reverted by the club.
   distant and not identifiable. If the club disagrees, set `hasMinors: true` for 05 in `content/photos.ts`.
 - **D-31 · Program 5's short label is „Aerobna gimnastika“** (was „Aerobik“), so the schedule pills, the program
   titles and the section copy use one name.
+- **D-32 · The inline RSC payload no longer repeats the stylesheet** (`scripts/slim-flight.mjs`, postbuild).
+  With D-24 the CSS (≈197 KB raw after design v2) sat in the HTML three times: the `<style>` in `<head>` plus two
+  text rows of `self.__next_f` (page tree and root not-found boundary). React adopts the existing `<style>` by its
+  `data-href` on hydration and never reads that text, and this one-page export has no client navigation, so the rows
+  become empty strings and the payload is emitted in one push. index.html: 207 → 132 KB gz. The script re-parses
+  its output and fails the build on any payload shape it does not know (Next upgrade guard). Hydration is covered by
+  qa/behavior (27 hydration-dependent checks).
+- **D-33 · Section chunks never load before the hero intro is over.** `whenNear()` (lib/motion-env.ts) waits for
+  `afterHeroIntro()`: html[data-intro] = done | skipped, at most 2.5 s, and not at all when there is no intro to
+  protect (motion off, no hero, hero off screen after a deep link). Cause: after the S2 redesign, S3 starts 1536 px
+  down at 1440×900, inside the 1-viewport margin, so its sheet, motion and Flip chunks were fetched during the hero
+  intro (initial animation chunk 50.4 KB against ≤45). Now 43 KB.
+- **D-34 · The S7 podium has no place numerals.** Digits next to „Medalje“ („2 1 3 Medalje“) read as medal counts,
+  which the club has not confirmed (TODO 10; qa results.noMedalCounts). Step heights and medal colours carry the order.
+- **D-35 · QA harness fixes (no check loosened):** qa/shots waits two frames after its instant scroll before hit-testing
+  (the desktop hero pin is `position: fixed` until ScrollTrigger sees the jump, so the probe hit the hero; a real tap
+  cannot happen in that frame). qa/content ignores React flight references (`"$Lea"` = `$L` + hex id) in the name scan.
+- **D-36 · The schedule's white "lit" tab labels render only under the pill** (visibility, delayed by the 320 ms slide
+  for the label it leaves). The clipped-away copies were real text for contrast checkers (axe 1.11:1, Lighthouse a11y 97).
+- **D-37 · The header tone follows nested full-bleed bands** marked `[data-header-band]` (S5 „Hronologija“ is dark
+  inside a light section), preferred over their parent section.
 
 ## Images & privacy
 
@@ -115,6 +136,7 @@ anything undecided was decided here and can be reverted by the club.
   S2 quiz light · S3 programs ice · S4 schedule light · S5 about ice · S6 coaches light ·
   S7 results darker (navy-950 scoreboard) · S8 camp light · S9 gallery ice · S10 enrollment light ·
   S11 contact dark · footer darker.
+  *Current (after round 1 AD-02 and design v2):* S3 programs dark · S5 about light with a dark „Hronologija“ band · S9 gallery darker; dark sections enter on a diagonal edge.
 - **D-21 · Section titles carry a small chronophotograph mark** (three ghost frames landing as the solid
   silhouette) — the "silhouette lands on section titles" idea from §1, done in CSS with one
   IntersectionObserver for the whole page. Titles alternate left/right on desktop (the floor diagonal).
@@ -164,12 +186,12 @@ Recorded by the area implementations (M1–M5); each line is one decision.
 - D-Q3 · No-JS fallback: a static age → group guide (QuizGuide) built from the same QUIZ_RULES and schedule data, with the CTA as a plain #kontakt link. html.js (set by the head script before first paint) hides the guide; html:not(.js) hides the island. Nothing swaps after hydration, so there is no layout shift.
 - D-Q4 · Chips use button semantics rather than radios, because choosing an answer moves to the next step and arrow keys must not trigger that. Each group is role=group labelled by its question, with aria-pressed, roving tabindex, grid-aware arrows and Home/End.
 - D-Q5 · Focus and live region: the result sits in a persistent aria-live="polite" region, per the spec. Focus moves to the new question heading or the result heading (tabIndex −1, no focus ring on headings) so it is never lost when the pressed chip unmounts.
-- D-Q6 · The „result card carries the silhouette“ idea is built as one card with a darkroom strip on top: a Marey-style chronophotograph with a faint measuring grid, the mat line and frames 01/02/03. The same #leap path moves one frame per answer (takeoff → flight → landing) and leaves ghost frames in #cfe6ff and #c9b8ff. Motion is transform/opacity only, 600ms ease-stick, pivot set by nested <g> (no transform-box on <use>). Under reduced motion, Save-Data and no-JS it is the static final composition.
+- D-Q6 · The „result card carries the silhouette“ idea is built as one card with a darkroom strip on top: a Marey-style chronophotograph with a faint measuring grid, the mat line and frames 01/02/03. The same #leap path moves one frame per answer (takeoff → flight → landing) and leaves ghost frames in #cfe6ff and #c9b8ff. Motion is transform/opacity only, 600ms ease-stick, pivot set by nested <g> (no transform-box on <use>). Under reduced motion, Save-Data and no-JS it is the static final composition. *(superseded by design v2: D-Q12…D-Q15)*
 - D-Q7 · Booking prefill labels: program titles for beginner results. „Mlađa početna grupa / Starija početna grupa“ for the age-8 beginner result. QUIZ.competitiveTitle for the competitive result. The booking dialog adds unknown labels as their own option.
 - D-Q8 · The competitive result lists its three schedule groups by their S4 names (Takmičarke — A i B program; C program, starije; C program, mlađe) as h4 under the title. Beginner results use the program title plus its age line („3–8 godina“ / „od 8 godina“).
 - D-Q9 · The answers so far appear as an edge print on the strip („9 GOD. · TEK POČINJE“). This replaces a kicker above the result heading (the craft floor bans eyebrows); the strip is aria-hidden.
-- D-Q10 · Frame numbers use full-contrast steel-300 / white on navy, never dimmed with opacity (axe color-contrast). Upcoming frames are lighter in weight, and a skipped frame 02 is struck through.
-- D-Q11 · Desktop layout: the heading sits sticky in columns 1–4 (top 112px) and the card in columns 5–12. This follows the page's left/right title rhythm. Below 1024px they stack.
+- D-Q10 · Frame numbers use full-contrast steel-300 / white on navy, never dimmed with opacity (axe color-contrast). Upcoming frames are lighter in weight, and a skipped frame 02 is struck through. *(superseded by design v2: D-Q18)*
+- D-Q11 · Desktop layout: the heading sits sticky in columns 1–4 (top 112px) and the card in columns 5–12. This follows the page's left/right title rhythm. Below 1024px they stack. *(superseded by design v2: D-Q17)*
 
 ### Programs (S3)
 
@@ -203,7 +225,7 @@ Recorded by the area implementations (M1–M5); each line is one decision.
 
 ### About (S5) and coaches (S6)
 
-- S5 uses theme „ice“ (D-20, page.tsx, task) although master §5 says „light“; ice is the light variant, so CTA and focus colours are unchanged.
+- S5 about is light with a full-bleed dark darkroom band for „Hronologija“ (design review v2, AC-02; replaces the earlier „ice“ choice, now matching master §5 „light“).
 - S5 order: mobile mission → photo 03 → history → timeline; desktop photo 03 in cols 1–5, text in cols 7–12, timeline in cols 5–12 with a sticky „Hronologija“ h3 in cols 1–4.
 - Timeline years with several entries (2024) share one node and render as a nested list.
 - Timeline motion is driven by IntersectionObserver: the line moves one node at a time as each year crosses 65% of the viewport. Not a scrub: no scroll listener, no rAF loop, same on mobile. Years already scrolled past show as reached without animation.
@@ -211,7 +233,7 @@ Recorded by the area implementations (M1–M5); each line is one decision.
 - Photo 17 (cake) is its own list item after 2017 with no year node, so no date is claimed.
 - Coach cards use a container query: side by side at card width ≥540 px (768 stacked; 1280/1440 two columns), stacked at 360 and at 1024 (two narrow columns).
 - Slađana's placeholder reuses the site's navy .photo-placeholder in the same 4:5 frame as Ivana's portrait. The frame label reads „Portret uskoro“ (COACHES_COPY.portraitPending).
-- „Licenca GSS“ badge: round stamp in the accent colour (royal-600 on white, 6.46:1) with „LICENCA“ on the arc and „GSS“ in the centre. No club or GSS logo, so it can't pass as an official GSS seal. Its final rotation is 0° per §4.
+- „Licenca GSS“ badge: round stamp in the accent colour (royal-600 on white, 6.46:1) with „LICENCA“ on the arc and „GSS“ in the centre. No club or GSS logo, so it can't pass as an official GSS seal. Its final rotation is 0° per §4. *(superseded by design v2: inked two-layer stamp, no shadow — see About/coaches v2)*
 - Photo 05 is shown as a 3:2 crop (object-position 50% 29%) of the 1200×1600 original, 600 CSS px max. On desktop it sits in cols 7–12 so the heading (top-left) and the print (bottom-right) form the floor diagonal.
 - Brush annotation = grease-pencil selection loop drawn as a dry brush. It is one of the page's two allowed annotations; the Results agent owns the other.
 - Coaches motion sequences are serialised (a shared 'busy until' clock): portraits, then stamps, then the brush. Only one primary motion per viewport.
@@ -238,9 +260,9 @@ Recorded by the area implementations (M1–M5); each line is one decision.
 - S9 lightbox = native <dialog> + showModal() (inert page, Esc) plus a strict Tab wrap. It is a lazy chunk (about 3.3 KB gz), warmed together with Flip and Observer when the gallery is ≤1 viewport away. Observer loads even under reduced motion, because swipe-to-close is a gesture, not decoration.
 - S9 lightbox shows the currently filtered set in sheet order; the „n / total“ counter refers to that set.
 - S9 focus returns to the print of the photo currently shown, which is where the close Flip lands, rather than always to the print that opened it.
-- S9 layout: 2-column masonry under 640px, 3 columns from 640px. The frame caption shows the category (a text cue for the filter) and is hidden under 480px to keep narrow frames clean.
+- S9 layout: 2-column masonry under 640px, 3 columns from 640px. The frame caption shows the category (a text cue for the filter) and is hidden under 480px to keep narrow frames clean. *(superseded by design v2: GE-01 justified contact-sheet strips)*
 - S9 swipe-down closes above 110px drag or 900px/s release velocity. During the drag the photo follows the finger, scales down to 0.9 at most, and the scrim fades toward the page.
-- S10 steps are three frames of one leap (ghost takeoff, ghost apex, solid landing on the mat line = „postaje član kluba“), with outline numerals for steps 1–2 and a solid numeral for 3.
+- S10 steps are three frames of one leap (ghost takeoff, ghost apex, solid landing on the mat line = „postaje član kluba“), with outline numerals for steps 1–2 and a solid numeral for 3. *(superseded by design v2: GE-06/GE-07 leap band and ghost-ramp numerals)*
 - S10 adds a booking CTA („Zakažite probni trening“, data-booking="") and a secondary call button („Pozovite 060 028 7631“) under the steps, reusing existing copy (CTA.trial, HERO.ctaSecondary), so a parent can act right where step 1 says „Javite se“. Never two filled buttons side by side.
 - S10 shows „Upis traje tokom cele godine.“ next to a decorative, aria-hidden row of 12 filled dots (all months open), echoing the schedule's week-dot rows.
 - S10 FAQ is not an exclusive accordion (no `name` attribute), so parents can open several answers. The height animation uses ::details-content grid rows plus content-visibility allow-discrete where supported, and is instant elsewhere.
@@ -249,9 +271,9 @@ Recorded by the area implementations (M1–M5); each line is one decision.
 
 ### Contact (S11) and booking sheet
 
-- D-S11-1: The S11 CTA panel is a leotard-gradient frame (10/14/16px) around a solid navy-950 slab, so no text ever sits on the gradient. Desktop splits 7/5 (panel left, contacts right under the right-aligned title); mobile stacks panel then contacts.
+- D-S11-1: The S11 CTA panel is a leotard-gradient frame (10/14/16px) around a solid navy-950 slab, so no text ever sits on the gradient. Desktop splits 7/5 (panel left, contacts right under the right-aligned title); mobile stacks panel then contacts. *(superseded by design v2: D-S11-18 leotard sash)*
 - D-S11-2: The slab repeats the hero trust points (HERO.trust) as the closing argument and puts BOOKING.privacy under the button. No new copy was invented.
-- D-S11-3: The „doskok“ is shown as a static chronophotograph: 3 steel-300 ghost frames plus a white landed frame doing a split on the button's top edge. This is the no-JS and reduced-motion final state. JS replays the hop through exactly those positions.
+- D-S11-3: The „doskok“ is shown as a static chronophotograph: 3 steel-300 ghost frames plus a white landed frame doing a split on the button's top edge. This is the no-JS and reduced-motion final state. JS replays the hop through exactly those positions. *(superseded by design v2: D-S11-19/20 back-salto doskok)*
 - D-S11-4: The landing squash animates a wrapper, not the <a>, so the global .btn:active squash (a CSS transition) keeps working.
 - D-S11-5: The doskok arms only when ≤1 viewport away (whenNear plus dynamic import). If the CTA is already on screen at arm time (deep link or restored scroll), the static state stays, so nothing flashes.
 - D-BK-1: The booking entry is split in two. BookingSheet is a tiny first-load listener (capture-phase delegated click plus BOOKING_EVENT). BookingDialog is a lazy chunk (~4.5 KB gz), preloaded on idle and on the first pointerdown/focus on any [data-booking].
@@ -323,8 +345,8 @@ These lines supersede earlier lines with the same ID in the per-area sections ab
 - D-S11-6: [data-contact-block] moved from the <address> to div.contact__block, which wraps the heading, the CTA panel and the contact channels. The venue card is outside it, so the mobile sticky bar returns over the venue card and footer. At ≥640 the wrapper is a CSS subgrid of .contact__grid: desktop 7/5 with the panel spanning channels + venue, tablet list | venue. It is guarded by @supports, with a single-column fallback.
 - D-S11-7: <address> now wraps only the contact channels (phones, e-mail, Instagram). The training venue card is a plain div: it is a location, not contact information.
 - D-S11-8: Without JS, the S11 doskok button's href is sms:+381600287631?&body=<BOOKING.message.intro>, the sheet's own hand-off. With JS it still opens the sheet (data-booking=""). All other booking CTAs keep href="#kontakt".
-- D-S11-9: The doskok waits for the S11 title's landing to finish (data-landed + 800 ms), then runs through queuePrimaryMotion(950 ms). A live switch to reduced motion reverts it to the static composition.
-- D-S11-10: The CTA panel's foot row (privacy left, doskok right) is a container query on the slab (content ≥520px), so the button label never wraps in the 7/12 column at 1024–1180; below that it stacks. At <360 the panel, slab, button and contact-row padding is tighter, so neither the CTA label nor „sladjanakovacevickg“ wraps mid-word. The trust items use text-wrap: balance, so no single word is left alone on the last line.
+- D-S11-9: The doskok waits for the S11 title's landing to finish (data-landed + 800 ms), then runs through queuePrimaryMotion(950 ms). A live switch to reduced motion reverts it to the static composition. *(superseded by design v2: D-S11-21 trigger)*
+- D-S11-10: The CTA panel's foot row (privacy left, doskok right) is a container query on the slab (content ≥520px), so the button label never wraps in the 7/12 column at 1024–1180; below that it stacks. At <360 the panel, slab, button and contact-row padding is tighter, so neither the CTA label nor „sladjanakovacevickg“ wraps mid-word. The trust items use text-wrap: balance, so no single word is left alone on the last line. *(superseded by design v2: D-S11-15 5/7 swap)*
 - New UI strings: „Izaberite“: first (disabled placeholder) option of the Godište deteta select (BOOKING.fields.birthYearPlaceholder) · „Dodajte napomenu“: quiet text button that reveals the Napomena field, with a drawn „+“ icon before it (BOOKING.addNote) · „Izaberite godište deteta.“: validation error; replaces „Upišite godište deteta.“ (BOOKING.errors.birthYearMissing) · Removed: „Upišite godište od četiri cifre, između {min}. i {max}.“ (unreachable with the year select)
 
 ### Quiz (S2) and programs (S3) — round 1
@@ -395,7 +417,7 @@ These lines supersede earlier lines with the same ID in the per-area sections ab
 
 ### Gallery (S9) and enrollment + FAQ (S10) — round 1
 
-- S9 sheet order is a presentation order (model.ts SHEET_ORDER = 01·16·08·05·12·10·04·14·03·11·15, applied by inSheetOrder() in Gallery.tsx); content/gallery.ts keeps the category mapping. Grouping by category left the CSS-columns masonry with one column about 430px short at 3 columns (1440). The new order spreads the two portraits and three squares across columns. Column spread, measured: 1440 ≈155px (was 435), 1024 ≈130 (was 343), 390/360 ≈45–50 (was 121–129). The near-identical mural frames 12/14 are never side by side. Filtered views stay balanced (Takmičenja 01·08·05, Kampovi 16·10·11). Photos not listed (02/09 with CAMP_GROUP_PHOTOS) follow in content order. The lightbox follows the sheet order.
+- S9 sheet order is a presentation order (model.ts SHEET_ORDER = 01·16·08·05·12·10·04·14·03·11·15, applied by inSheetOrder() in Gallery.tsx); content/gallery.ts keeps the category mapping. Grouping by category left the CSS-columns masonry with one column about 430px short at 3 columns (1440). The new order spreads the two portraits and three squares across columns. Column spread, measured: 1440 ≈155px (was 435), 1024 ≈130 (was 343), 390/360 ≈45–50 (was 121–129). The near-identical mural frames 12/14 are never side by side. Filtered views stay balanced (Takmičenja 01·08·05, Kampovi 16·10·11). Photos not listed (02/09 with CAMP_GROUP_PHOTOS) follow in content order. The lightbox follows the sheet order. *(superseded by design v2: GE-02 order 04·01·15·05·12·08·03·10·11·14·16)*
 - S9 filter status (aria-live „Takmičenja — 3 fotografije“) is screen-reader-only (sr-only). On screen the pressed chip (✓ + count badge) already says it, and the always-reserved empty status row had added about 32px between chips and prints plus a 10px jump on the first filter.
 - S9 desktop head: chips vertically centred on the right-aligned „Galerija“ heading (previously bottom-aligned, which put the chips visibly above the heading), matching S3 „Programi“.
 - S9 filter Flip: leaving prints fade out in place, beneath the moving prints (z-index 0 vs 1), for DUR.fast with ease takeoff. The data-leaving attribute stands in for `hidden` during the Flip because of Tailwind's [hidden]{display:none!important}; `hidden` is set on complete.
@@ -403,7 +425,7 @@ These lines supersede earlier lines with the same ID in the per-area sections ab
 - S10 FAQ: the global :active squash is moved from the full-width <summary> row onto its round +/× icon (same values: translate 0 1px, scale 1.03/.94, rebound on release). A 3% horizontal stretch of a 650px row pushed the text and icon past the hairline dividers and read as a glitch.
 - S10 FAQ questions use text-wrap: balance, so two-line questions split evenly (no lone „počne?“ at 320–360).
 - S10 steps (≥640): `.en-step { align-content: start }`. Stretched auto rows had pushed the numeral and text of the step with the shortest text 10–20px below its neighbours at 1024–1440. Numerals and texts now share one baseline at 640, 768, 1024, 1280 and 1440.
-- S10 checklist tick-in is S10's primary motion and goes through queuePrimaryMotion(620ms). Durations are tokenised (draw --dur-base, box squash --dur-slow-squash, stagger 60ms), and the pre-state is gated by prefers-reduced-motion: no-preference.
+- S10 checklist tick-in is S10's primary motion and goes through queuePrimaryMotion(620ms). Durations are tokenised (draw --dur-base, box squash --dur-slow-squash, stagger 60ms), and the pre-state is gated by prefers-reduced-motion: no-preference. *(superseded by design v2: GE-10 real checkboxes, animation only on tap)*
 
 ### 404 and error fallbacks — round 1
 
@@ -433,7 +455,7 @@ These lines supersede earlier lines with the same ID in the per-area sections ab
   - AD-01 (Section titles on the §3 display step at ≥1280 (not the quiz)): a 2× type jump at 1280 and a quiz title left at h2; section titles keep the h2 token (hierarchy is addressed by the larger, visible landing mark and the display-step finale TY-07)
   - AD-06 (Program cards: one filled action per frame; „Pogledajte raspored“ as a): §5 S3 specifies two buttons per card; each card already has exactly one filled action
   - AD-07 (S7: move the trust row under photo KR-01 to close the bottom-left empt): not reproduced (columns end 50px apart, not 300)
-  - AD-08 (S7 brush annotation marks nothing; make it mark the medals): the brush placement is documented (D-S7-6) and echoes the jacket strokes as §3 asks
+  - AD-08: done in design review v2 (RC-01) — the S7 brush now underlines „Medalje“.
   - AD-10 (S10 checklist: sticky only while an FAQ answer is open): the fix introduced a visible glitch in the pre-screen
   - AD-11 (Schedule cards: move the empty space from mid-card to the bottom): moves the whitespace and breaks footer alignment
   - AM-01 (Header over the hero: hide its logo, bar surface and (640–1023) CTA wh): §5 asks for the white logo and the header pill over dark sections
@@ -535,7 +557,7 @@ These lines supersede earlier lines with the same ID.
 
 ### gallery-enrollment
 
-- S9 sheet order (AD-03): SHEET_ORDER = 16·08·01·05·12·10·04·14·15·03·11. The gallery opens on photos no other section shows (≥640 first row KR-16 · KR-12 · KR-15; phones 16 | 04), with the same column membership and spreads as before (46/106/131/152/164 px at 390/768/1024/1280/1440).
+- S9 sheet order (AD-03): SHEET_ORDER = 16·08·01·05·12·10·04·14·15·03·11. The gallery opens on photos no other section shows (≥640 first row KR-16 · KR-12 · KR-15; phones 16 | 04), with the same column membership and spreads as before (46/106/131/152/164 px at 390/768/1024/1280/1440). *(superseded by design v2: GE-02)*
 - S9 public variant (BRK-01, same rule as D-S8-9): with MINOR_PHOTOS=false the sheet shows the real photos plus ONE „Fotografija uskoro“ placeholder, last. Chips count real photos only; with fewer than two categories there is no chip row. The kept placeholder shows under „Sve“ only. With MINOR_PHOTOS=true nothing changes.
 - S9 lightbox close (MI-02): every close path first calls revealPrint(), an instant scroll that brings the whole print link (frame + caption foot, i.e. the focus target) into the band scroll-padding + 12px, rounded outward to whole px. It runs while the lightbox still covers the page. Focus then returns with preventScroll, and finalize runs right after dialog.close(), so the opener never paints a ring and the page never scrolls after the photo lands. A forced close reveals in finalize.
 - S9 lightbox close scrim (MI-09): fades over DUR.fast (linear), an exit ≤200ms per §4; the photo's Flip.fit stays DUR.base, stick.
@@ -547,10 +569,10 @@ These lines supersede earlier lines with the same ID.
 
 ### booking-contact
 
-- D-S11-9 (rev) · The S11 title mark is static (SectionHeading land={false}), so the doskok is S11's only landing and no longer waits for the title (trackHeadingLanding removed). It plays when half of the hop band ([data-doskok-arc]) or half of the button is in view, with no bottom margin, through queuePrimaryMotion. So the hidden pre-state never rests as an empty band above a visible button, including after the header „Kontakt“ jump at 1024–1440 where the display title leaves the button at the fold.
+- D-S11-9 (rev) · The S11 title mark is static (SectionHeading land={false}), so the doskok is S11's only landing and no longer waits for the title (trackHeadingLanding removed). It plays when half of the hop band ([data-doskok-arc]) or half of the button is in view, with no bottom margin, through queuePrimaryMotion. So the hidden pre-state never rests as an empty band above a visible button, including after the header „Kontakt“ jump at 1024–1440 where the display title leaves the button at the fold. *(superseded by design v2: D-S11-21 trigger)*
 - D-S11-11 · Doskok flight (ANIM-05): the hop flies on EASE.hang (fast takeoff, hold at the apex, fast drop into the squash), and the ghost drops follow the same ease. The flier fades in over DUR.tap on the first ghost frame. DOSKOK_MS is unchanged.
-- D-S11-12 · The S11 title is the page's only use of the §3 display step (TY-07): clamp(2.25rem,1rem+5.4vw,6rem), line-height .92, letter-spacing −.04em, weight 800, max-width 14ch, balance, keeping the h2 width rules. Its mark is width max(1.1em, 4rem): proportional on desktop (≈103px at 1440) and never smaller than the other titles' phone marks (≈64px). At 320–343 the title is three lines („Dođite / na probni / trening“) because „probni trening“ (240px) does not fit a 280px line with any mark.
-- D-S11-13 · S11 icons use the shared .ui-icon system: contact pictograms stroke 1.75, the → and ↗ glyphs 2 (same weights as the chrome icons), the trust ✓ at 2. The maps pin is 20px (as in S4). Icon-to-label gap is 8px on the trust list; the contact rows keep 16px beside their 48px icon circle, as the list-row layout. Hover is gated by (hover: hover).
+- D-S11-12 · The S11 title is the page's only use of the §3 display step (TY-07): clamp(2.25rem,1rem+5.4vw,6rem), line-height .92, letter-spacing −.04em, weight 800, max-width 14ch, balance, keeping the h2 width rules. Its mark is width max(1.1em, 4rem): proportional on desktop (≈103px at 1440) and never smaller than the other titles' phone marks (≈64px). At 320–343 the title is three lines („Dođite / na probni / trening“) because „probni trening“ (240px) does not fit a 280px line with any mark. *(superseded by design v2: D-S11-16/17)*
+- D-S11-13 · S11 icons use the shared .ui-icon system: contact pictograms stroke 1.75, the → and ↗ glyphs 2 (same weights as the chrome icons), the trust ✓ at 2. The maps pin is 20px (as in S4). Icon-to-label gap is 8px on the trust list; the contact rows keep 16px beside their 48px icon circle, as the list-row layout. Hover is gated by (hover: hover). *(superseded by design v2: D-S11-24 (no → on call/e-mail rows))*
 - D-S11-14 · 640–719 (TY-08): venue card side padding 16px, maps button padding 12px with a 6px icon gap (a documented exception to the 8px gap, only in this range), and handle/email at 15px. Below 390 the handle and email are 16px. The maps button is one 52px line at every width; at 320 the handle keeps its <wbr> break after „_“.
 - D-BK-8 (rev, INT-09) · Validation errors: the error line is navy (--fg) at 15px/650 with an 8px gap and balanced lines. The icon is a filled royal-600 disc with a white „!“ (solid means stop; outline glyphs are info or actions). The invalid box has a 2px accent border (1px border plus 1px inset ring, no shift) on an ice-50 fill. Still no red, and colour is never the only signal.
 - D-BK-12 (rev, TY-01/AM-02/INT-03) · Both selects stop their text 40px from the right edge, with the chevron 12px in, so stacked chevrons line up. The 134px Godište box at 360 keeps „Izaberite“ on one line with 13.8px to the chevron, and the row stays 52px. overflow-wrap:anywhere remains only as a last resort for very large text.
@@ -574,6 +596,189 @@ Mechanical labels only (buttons, aria labels, states, validation). No facts. All
 - **Contact (S11) and booking sheet:** „Neka trenerica predloži“: label of the undecided Grupa option (lib/booking.ts GROUP_UNDECIDED.label) · „neka trenerica predloži“: how the undecided group reads in the message („grupa: neka trenerica predloži“) · „Upišite ime roditelja.“: validation error · „Upišite broj telefona.“: validation error · „Proverite broj telefona — dozvoljene su cifre, razmaci i „+“ na početku.“: validation error · „Upišite godište deteta.“: validation error · „Upišite godište od četiri cifre, između {min}. i {max}.“: validation error (currently 2008 and 2024) · „(otvara se u novom prozoru)“: sr-only on the Instagram and maps links (same wording as SourceLink) · „Viber: 060 028 7631“: desktop fallback when SHOW_VIBER=true · Reused, not new: HERO.trust (3 points) and BOOKING.privacy in the S11 CTA slab; CTA.trial on the doskok button; BOOKING.close as the aria-label of the sheet's close button
 - **SEO, icons, share image, 404:** OG/Twitter image alt: „Gimnastički klub Kraguj — logo kluba i silueta gimnastičarke u skoku“ · 404 document title (composed from NOT_FOUND.title + brand): „Ups — ova stranica je izgubila ravnotežu | Gimnastički klub Kraguj“ · 404 frame label: „▸ KR-404“ (contact-sheet frame label; the ▸ is aria-hidden) · Manifest short_name and apple-mobile-web-app-title: „Kraguj“ · JSON-LD sport values (not visible UI): „Sportska gimnastika“, „Aerobna gimnastika“ · Reused existing copy (not new): the OG image text uses HERO.eyebrow and HERO.h1; the 404 secondary button uses HERO.ctaSecondary „Pozovite 060 028 7631“; NOT_FOUND.title / cta / enableTilt
 
+## Design review v2 — decisions
+
+Second design pass (user request: critical design/UI review, sport-related motion, a better hero).
+Eight area critics scored and proposed; the orchestrator judged every proposal (scratchpad design-verdicts);
+eight fixers implemented the accepted ones. Where a line below contradicts an earlier decision, this one wins.
+
+### Shared layer (commit 88e88a1)
+
+- Section titles get their own step, `--text-section` (clamp 2rem → 4.25rem, 800, lh .95, ls −.035em), between display and h2.
+- Gymnastics motion vocabulary: `--ease-land` / `EASE.land` (stuck landing), `spring`, `wobble`, `swing` (elastic, sampled into CSS `linear()` by scripts/ease-tokens.mjs → styles/motion-tokens.css), `score` (steps). Every landing in the site uses `land`; nothing lands on a plain ease-out.
+- The title mark (ChronoMark) flies a real parabola (X linear, Y out-of-range cubic-bezier), pitches −10° → 4° → 0 and sticks the landing (1.05/.86 → 1). HeadingLandings sets `data-landing` / `data-landed`; accents never take a primary-motion slot.
+- Leotard ghost tokens `--ghost-1/2/3` (royal/violet on light; ice/lavender/violet on dark) for every chronophotograph trail.
+- Dark sections get a diagonal top edge (`<Section edge="up">`, `.edge-cut` + `.edge-line`, cut clamp(28px, 5.5vw, 88px)).
+- Source links are quiet footnotes (13px, muted). Photos get a visible cool grade (saturation .9, blue lift) in scripts/images.mjs.
+- Deliberate spec deviations accepted in this pass: the S7 split-flap flip became an LED score scan (same intent, D-S7-2 v2); S3 and S9 are dark „darkroom“ sections; the nav label is „Trenerice“ (both coaches are women); S5 is light with a dark „Hronologija“ band.
+
+### Hero lab (commit 480c3c6) and hero polish
+
+- Four hero concepts were built in isolated worktrees (sports photo, strobe, kinetic landing, floor pass) and judged by three independent judges (sports art director, parent on an Android phone, motion juror). Floor pass won 3/3 and was merged; the others were discarded.
+- D-HERO-24 · Floor pass v2: a chassé bound into a step-hop split leap. She enters in the air (whole, inside the frame), plants the push foot and takes off. The horizontal speed of the centre of mass is one smooth curve from the entry through the takeoff into the flight; the dip is spread over about 6 frames. The planted toe is solved so it never slides, the body compresses at most about 9%, and height follows an inverted pendulum plus a Hermite correction.
+- D-HERO-25 · Rig v2 is a ball joint. Each leg turns about the centre of a disc inscribed in the thigh (back [92.5,126.25] r 8.9, front [131,125.1] r 9.8, measured on the logo raster). The cut runs along two radii of the disc, so there is no notch or lump at any angle or DPR. The discs are drawn as ink with the torso.
+- D-HERO-26 · The chalk puff is removed (§4 bans sparkle); the mat flex stays, measured at touchdown.
+- D-HERO-27 · The stick uses EASE.land about the front toe: 0.94 / 1.03 in 70 ms, then EASE.land back over 260 ms and hold (no rebound). It is solved in pass.ts and tested against gsap CustomEase.
+- D-HERO-28 · The wordmark develops behind a clip edge slanted like the script (±30% of half the ink height ≈ 17°) that trails the back toe and runs on from touchdown. Nothing shows until the whole „K“ is inside the edge.
+- D-HERO-29 · Each ghost develops as she passes it: opacity rises to rest + 0.15 in 60 ms, then settles over 0.4 s. Opacity only, no white flash doubles.
+- D-HERO-30 · Compact plate uses viewBox 800×440 with the logo in the right 61%. Frames: bound, takeoff, then 4 flight frames evenly spaced by x, clear of the wordmark by at least 8 units and of the landed gymnast. Ticks are checked against a rasterised wordmark profile (never through „g“/„j“). The apex keeps at least 37 units under the art's top (header clearance).
+- D-HERO-31 · Desktop scrub: a white second exposure (a clone of #leap) runs the spine from the landed gymnast to the S2 title mark. The pin covers the hero's stretch; a second scrubbed trigger (pin end → mark top at 80% of the viewport) carries her on. At the end, 'kraguj:handoff' is dispatched and data-landing + data-landed are set on #kviz .chrono-mark. The spine is 2 px steel-300 at 0.8 with rounded corners and is recomputed on refreshInit (sticky title measured unstuck). The scrub code lives in scrub.ts, loaded with ScrollTrigger, so the initial animation chunk stays at 43 KB.
+- D-HERO-32 · Static composition: a halftone dot field from the club banner behind the landing zone only (two masked radial-gradient layers, static); trust strip in 3 columns at 640–1023; mat spans 100vw from 1680 px.
+- D-HERO-33 · Phone H1 = max(44px, min(17.8px + 8.5vw, 26.4px + 2.75svh, (100vw − 40px)/6.3)), so it is larger where the height allows and the primary CTA stays on the first screen. Landscape phones: hero padding-top 100 px for apex clearance under the header.
+- D-HERO-34 · The OG image renders the floor-pass plate from pass.ts (hero/og-art.ts). seo/art.ts ogArtSvg() and geometry.ts are no longer used by the route but are kept (geometry tests still cover them).
+- Frame numbers 1–6 not added (they collide with the eyebrow under the mat and crowd the feet above it).
+
+### Page chrome and 404 — design v2
+
+- D-chrome-24 · Header CTA step-aside (ID-06, C-15): data-cta on [data-site-header] comes from StickyBarBehavior (hero CTAs intersecting the viewport, or any part of [data-contact-block]). The pill keeps its box; take-off exit, stuck-landing return. With JS it starts stepped aside, with a 4s CSS failsafe; keyboard focus in the header always shows it; no JS = always shown. The header logo stays (§5).
+- D-chrome-25 · From 1200px the header bar is a 3-column grid with the nav on the page axis, offset by (8-24)/2px for the asymmetric bar padding; 1024-1199 keeps the flex row (ID-10). The desktop logo is 129x56 (ID-09).
+- D-chrome-26 · Sticky bar = floating dock (C-07): 8px (6px under 360) + safe area from the edges, max 560px, 60px tall (58 under 360), navy-950 pill with a static shadow. Spring arrival and pill rise (MD-17), 180ms take-off exit. It also steps aside while >=50% of S10 .en-actions is in view (GE-11). The focus guard uses the dock's resting top.
+- D-chrome-27 · Menu sheet (C-14, C-22, M-05): corner trail removed. The current row carries the „you are here“ silhouette with its take-off and apex frames and plays a hop with a stuck landing on open. Tall tablets get display-size links on 96px rows, in one column (two columns overflow at 640-800 with the row frames). On sheets >=700px tall the CTA and call stand at the foot of the sheet.
+- D-chrome-28 · Chrome motion (nav spy hop MO-03, footer take-off MO-05) lives in the lazy chunk chrome-motion.ts, imported on idle only when motionAllowed(). Pre-states are set by JS right before playing and only off-screen, so a failed chunk leaves the static chrome.
+- D-chrome-29 · The footer's trial CTA and call are index-style text links (ID-11), so the S11 doskok stays the page's finale. Footer and menu ghost frames use the shared --ghost tokens.
+- D-404-7 · 404 stage (C-16): no frame; the floor is a page-wide mat line level with the beam's feet; A-frame supports like S8; padded beam top; KR-404 as a bottom-left frame label under the floor (aria-hidden; the separate kicker above the h1 is removed). Desktop copy and beam share the floor line.
+- D-404-8 · 404 balance (C-17, MD-13): SPRING k100/c7 (ζ≈.35) and SETTLE_KICK -250 °/s give a 14° lean with three visible swings, still by 1.4s. The verdict's literal -150 with k90/c9 only swayed 7.7° (simulated and tested). Fine pointer: she leans toward the pointer, ±12°, through the same spring; DeviceOrientation stays primary.
+- D-404-9 · Judges' board (C-19, M-07): aria-hidden Doto plate. The static state shows 4.04; with motion it shows 10.00 and posts 4.04 row by row after the catch (data-posted from the tilt chunk; CSS failsafe at 3.6s). On phones it sits above the scene, because the raised hand fills the scene's top-right corner there.
+- First-load JS impact of this area: +0.3 KB gz (156.3 → 156.6 KB with the same tree), for the verdict-mandated CTA and S10 observers plus the lazy-loader stub; the motion code itself is lazy.
+- TODO for the club (ID-09): a small-size logo lockup (script „Kraguj“ + silhouette, without „GIMNASTIČKI KLUB“) for header and menu-sheet renders under 150px.
+- New or reused UI strings: „10.00“ → „4.04“: 404 judges' board numerals (decorative, aria-hidden, Doto); mechanical, no fact; „KR-404“: unchanged text, moved from the h1 kicker to a frame label under the scene (now aria-hidden; the ▸ comes from .frame-label::before); No new words: the footer index links reuse CTA.trial and „Pozovite 060 028 7631“ (CTA.call + PRIMARY_PHONE.display); the new → is a drawn aria-hidden icon
+
+### Quiz (S2) — design v2
+
+- D-Q12 · Quiz strip = one tumbling pass as a Marey print: 7 exposures (3 key frames + 2 in-flight frames per hop), figure 184 units in a 720×204 viewBox, mat at 192. Exposure positions and develop times are samples of the flight model the CSS plays (geometry.ts), so each ghost appears exactly where and when the flier passes it — a chronophotograph trail like the hero and title ghosts, not a content stagger.
+- D-Q13 · The strip's picture is a server component (QuizBandArt) passed to the island as a prop. The island only sets data-step / data-v / data-app / data-dir; all states and motion are CSS. Plates, the CTA label and the hint are also server-rendered nodes. Quiz island module: 2742 B gz (HEAD 2837 B); first-load JS 156.6 KB gz in a clean clone build.
+- D-Q14 · Flight = X linear (constant horizontal speed) + Y parabola (exact quadratic halves) + pitch 0/−18/−4/+4/0, 600 ms (700 ms for the single long flight of ages 3–7), then a stuck landing: 1.05/.88 → 1 in 260 ms with --ease-land from the feet, and a chalk puff at the front foot. Going back rewinds; it does not leap backwards.
+- D-Q15 · Landing per result: Mlađa → one long flight onto the floor (parter, landing 30 units up, mid-depth); 8 + Tek počinje → floor; Starija → split leap onto the beam top (45 units up); Takmičarske → off the uneven bars (high rail at the in-flight frames' chest height) onto the mat. Apparatus drawings are read from S3's ProgramIcon at build time (not copied); a test pins the anchor coordinates (floor y 42, beam top 21.5, high rail 11.5, floor back edge 22).
+- D-Q16 · The latent print surfaces 560 ms after the section title's mark lands (CSS :has(.chrono-mark[data-landed])): no observer in the island and no queue slot, since it follows an accent. Before that it is hidden only under html.js-motion.
+- D-Q17 · Desktop quiz follows QP-04 ("head card" / "band card", 5fr/7fr, sticky band). The keypad is 8×2 from 640, but 4×4 with 60px keys at 1024–1279, where 8 keys would each be under 48px. Experience answers are one row on tablets and from 1360; stacked (460px) at 1024–1359.
+- D-Q18 · Result plates: 44px for a single group, 32px for 2–3 groups and throughout the no-JS guide, 24px for the aerobic hint. Stroke is 1.75 CSS px (non-scaling); rails are heavier.
+- D-Q19 · QP-10 hand-off contract: window 'kraguj:recommend' with detail {ids: ProgramId[], age: number|null}, dispatched from the answer handlers. A clear ({ids:[], age:null}) is sent once when leaving a result.
+- D-Q20 · Phones in landscape (max-height 520): the strip's picture is capped at 440px wide, so the question shares the screen with it.
+- Replaces D-Q6 (static final composition under reduced motion), D-Q10 (struck-through 02 when step 2 is skipped) and D-Q11 (sticky heading in cols 1–4).
+
+### Programs (S3) — design v2
+
+- Programs icons (QP-05): every apparatus stands on the floor y=42 of its 48-unit drawing, the height of the plate's mat line. Stroke weight is ≈2.8 CSS px at every size (--sw 1.6/1.4/1.06 user-unit px at 84/96/132px). Uneven-bar rails are heavier (×1.4) than their uprights (×0.82).
+- ProgramIcon structure is a contract: .pi-latent (static print), .pi-part[data-part] with data-draw paths, .pi-fx (trails), stroke classes .pi-thin/.pi-rail/.pi-post and a head <circle>. The quiz's views.ts iconArt() reads the rendered tree, so these names must stay stable.
+- Programs motion lives in the lazy chunk programs-motion.ts (1.7 KB gz), loaded when the section is ≤1 viewport away and motion is allowed. It never imports @/lib/motion statically: a static import made Turbopack put gsap's MotionPath helpers (paths.js/matrix.js) in this chunk, so the hero intro started downloading it. gsap is reached only through loadMotion() for the filter Flip.
+- The icon draw no longer waits for the section-title landing (+800ms); it only goes through queuePrimaryMotion (≤250ms wait), in line with the v2 rule that content is never held behind decoration. The latent print covers the wait.
+- Every drawing performs once right after its draw. Phones perform again on snap (IntersectionObserver ≥0.85, ≥4s apart); hover devices on pointer enter or keyboard focus from outside the card. The hover answer is the perform (it includes the apparatus's own compression), not a squash held while hovering.
+- KR-04 opens the phone row at min(248px, 64vw). The photo box is capped at 533px tall (a square cover draws at the box's longer side = native/2), so on phones the slot ends on a static landing trail: 3 leap silhouettes in the ghost tokens on a mat line, aria-hidden, hidden from 1024.
+- With MINOR_PHOTOS=false the photo placeholder is the last frame at every width, including ≥1280 (it used to open the 3-column sheet).
+- No orphan card at ≥1024 (QP-20): data-count on the strip drops the photo in the 2-column sheet when the count is even, and in the 3-column sheet when it is a multiple of 3.
+- Phones: the pressed chip's count is a white corner tab (✓ + label + count do not fit the 136px chip at 320); from 640 the count sits inline, as in S9. The status line is screen-reader-only below 640, and the aerobic hint is shown as a visible line under the row there.
+- The filter scrolls the row to its first program (the photo stays off to the left); „Sve“ scrolls back to the photo.
+- Filter Flip (MI-06, supersedes the shared S3/S4/S9 recipe for S3 only): leaving cards lift 8px, shrink to 0.97 and fade in 180ms; arriving cards drop 16px on phones / 24px on desktop and stick the landing with a 3% compression at their feet on EASE.land. S3 cards stand for athletes' programs, so take-off and landing is the metaphor.
+- Rail flier: one dot cell wide, translated by whole cells. The first version was full-width and translated, which overflowed the page by 19px on phones and widened the mobile layout viewport.
+- The strip's scrollbar is hidden; the rail is its scroll indicator, with 48px prev/next buttons.
+- Recommendation stamp: lav-200 pill with a navy 1.5px ring, 22px tall, top-left of the plate (clears the high rail by ≥9px). It reads „Preporuka · 9 god.“ when the event carries an integer age, otherwise „Preporuka“. { ids: [] } clears it.
+- Desktop head gap is clamp(24px, 4.5vw − 16px, 48px), so at 1024 the four chips (with the count) stay on one line beside the title.
+- Tertiary „Pogledajte raspored“ applies at every width (one filled action per print). The detail sheet keeps its two-column filled + outlined footer (UIC-05).
+- The detail sheet shows the bib too, so it is the same print as the card, enlarged.
+- New or reused UI strings: „Preporuka“ — the quiz-recommendation stamp on a program plate (PROGRAMS_UI.recommended); „god.“ — age unit on that stamp, composed as „Preporuka · {age} god.“ with no-break spaces (PROGRAMS_UI.ageUnit; same unit as the quiz strip's „9 god.“); Competitor-bib numerals (aria-hidden, typographic renderings of the cards' own age lines and titles): „3–8“, „8+“, „C“, „A·B“ (model.ts PROGRAM_BIB); Reused, not new: QUIZ.aerobicHint as the visible line under the phone row when a chip hides aerobic gymnastics (aria-hidden; the sr status already says it); Removed: the visible „n / N“ pager count (it was aria-hidden), replaced by the aria-hidden dot rail
+
+### Schedule (S4) — design v2
+
+- S4 v2 · „Sledeći trening“ is a section scoreboard (navy-950 dot-matrix window, Doto 900 numerals, as in S7). It shows the earliest fixed start across the groups the filter shows, computed by earliestNext() (per-group nextTraining rules, so an „ili“ slot is never named), and updates every minute. SSR renders the shell with „––:––“; without JS it is hidden.
+- S4 v2 · Scoreboard placement: a sticky stack above the location card in the ≥1280 aside (fixed height 9.5rem, which sets the card's sticky offset); a one-row strip at 640–1279; a compact block under the pills on phones (label on its own line below 360).
+- S4 v2 · The scoreboard draws its colon as two CSS LEDs on Doto's dot grid (Doto's own colon is a pair of 5-dot clusters). The colon steps back 0.12em because Doto digits sit left in a 0.6em cell, and the time box takes back the trailing 0.125em.
+- S4 v2 · The card's „Sledeći trening“ chip is value-only („danas u 18:00“; the label stays for screen readers) and hangs as a navy tag on the card's top edge from 640px. It is absolutely positioned, so it never shifts layout and needs no reserved row. Phones drop it (the scoreboard answers it). This replaces the reserved invisible row of AM-05.
+- S4 v2 · Phones: calendar actions collapse into one native <details> row per card („Dodajte u kalendar“). From 640px the closed details stays rendered via ::details-content (@supports), so the links are simply shown; browsers without support keep a working disclosure.
+- S4 v2 · AD-11 revisited: cards keep their natural height (align-items:start), so no card has a hole in the middle; the row gap is 32px for the edge tags.
+- S4 v2 · From 1024px the view tabs stand in the heading row (SectionHeading display:contents inside .sched-head); pills 28px below. Tabs and pills stay 48px under a fine pointer as well (§3, qa 48×48 check).
+- S4 v2 · Alternatives („08:30–10:30 ili 16:00–18:00“) stack in cards with „ili“ hanging in a 32px gutter, so both ranges share a left edge. „Po danu“ rows ≥640 have a 17.5rem time column (one line); phone rows have a 22px gutter. Times stay at the §3 20px token.
+- S4 v2 · Program swatches are bars (16×6, navy edge; 22×8 in card heads) because circles mean days in S4. A pressed pill hides its bar.
+- S4 v2 · Both tab pills slide on the flight ease (320ms) with a white-label layer clipped to the pill, so labels invert exactly under it. Base labels stay navy; the selected day label is white and bold in the lit layer, weekends included.
+- S4 v2 · The filter Flip holds the card list's height with min-height (no height animation) until 0.36s, then releases it; on stacked layouts the location card lands in its new place. A day card clips its rows while they move. A card whose size changes lands again instead of being scaled.
+- S4 v2 · Day changes Flip rows keyed by data-flip-id="group|block": shared rows hold, new rows land, and rows missing from the new day vanish (they live in the other day's display:none panel).
+- S4 v2 · Today's „Po danu“ marks (static, also under reduced motion): finished ranges and rows go muted by colour (AA holds), the next visible row gets a royal rule on the card edge, and the „now“ line with the standing leap separates started rows from it. „ili“ rows are split by range.
+- S4 v2 · Motion code, today's marks, the Google Calendar date refresh, the stuck-strip scroll correction and the pill-row edge fades moved to schedule-enhance.ts. It is a lazy chunk (≈2.6 KB gz) imported when #raspored is ≤1 viewport away; GSAP and Flip load from it only when motion is allowed. If the chunk fails to load, every landing pre-state resolves and the static links remain.
+- S4 v2 · First-view landings (week-row days, scoreboard posting, location pictogram) are CSS keyed by data-landed, set by one IntersectionObserver at 35%. Cards are queued via queuePrimaryMotion (≤250ms); the scoreboard and pictogram are accents. Week-row keyframes run only while data-landed="go", so a filter never replays them.
+- S4 v2 · The location card is a white end-cap (hairline + shadow-2) with a drawn perspective floor square, its diagonal and a pin. The pictogram sits beside the street lines on phones and in the aside, and top-right at 640–1279 with the maps button bottom-right.
+- S4 v2 · The weekend empty state uses the shared ChronoMark (landed). A user's Su/Ne pick replays the leap toward Monday; on phones the sentence wraps under the mark.
+- S4 v2 · Bundle: first-load JS +21 B gz (160,117 → 160,138 B summed at gzip -9 over index.html's first-load chunks; qa:bundle reads 156.4 KB in both builds). Clone builds differed only in the schedule files and NEXT_PUBLIC_MINOR_PHOTOS=false.
+- New or reused UI strings: „Dodajte u kalendar“: summary of the phone calendar disclosure. It is §5 „Dodajte u kalendar (.ics)“ minus „(.ics)“, derived in code (ICS_SHORT).; „danas“ / „sutra“ / „u {ponedeljak…nedelju}“: the scoreboard's day part. These are the §5 chip forms split before „u HH:MM“ (formatNextDay).; „Sledeći trening: {danas u 18:00}, {group name}“: the scoreboard's sr-only sentence, composed from SCHEDULE_UI.next, the §5 chip form and the group name.; „––:––“: scoreboard placeholder glyphs (aria-hidden) when no fixed start is next or before mount.; The card tag label „Sledeći trening:“ is now sr-only; it is the existing string with no new text.
+
+### About (S5) and coaches (S6) — design v2
+
+- S5 switches from theme ice to light (master §5). „Hronologija“ moves into a full-bleed data-theme=dark darkroom band inside S5, cut on the floor diagonal with the shared .edge-cut/.edge-line. The band ends the section (#o-nama padding-bottom 0), and S6 restores full 72/144px top spacing because this is a dark→light edge (#o-nama + #treneri in coaches.css).
+- Timeline = Marey plate: one #leap exposure per year (36/44/52px), each with a dark backing that cuts the rail. Ghost colours step through the shared --ghost-1/2/3 from oldest to newest, with opacity lifted ×1.5 because the figure is thin at node size. The last year is solid lav-200. The static state is the finished plate.
+- The timeline flier IS the reached year's solid frame: the ghost of a year is exposed when the flier leaves it (attribute + CSS transition). This replaces a separate node-ring pop (MD-09).
+- Timeline legs: distance/1100 px·s⁻¹ clamped .22–.65s, or .9s for a multi-year flight. Years flown over light up at the exact crossing time (inverted ease). Years already scrolled past are placed instantly, never animated off-screen and never holding the primary-motion queue.
+- S5's two motions (KR-03 print landing, timeline flier) are separate lazy modules (print-motion.ts, timeline-motion.ts), each armed by AboutMotion only when its own element is ≤1 viewport away.
+- The KR-03 print lands through two paper ghosts outlined in --ghost-1/--ghost-2. They exist only under html.js-motion and are opacity 0 at rest, so no static misregistered outline remains (AC-07).
+- The KR-07 Marey plate carries data-theme=dark so its ghosts use the dark ghost steps. Its solid frame drops onto the mat and sticks (EASE.land) rather than rising from below.
+- Coach cards: no title wait; a card starts at 20% visible via queuePrimaryMotion. Safety net: a pre-hidden card ≥50% in view for 300ms without having started is shown statically. The brush is decoration: once half in view it is committed to play after running card reveals (≤1.2s), so its pending state is 'not drawn yet', never an empty frame.
+- The portrait clip reveals the whole print, paper included, and ends at inset(−40px) so the frame's hairline and shadow never pop when clip-path is cleared.
+- Licence stamp (AC-06 as amended): two layers (surface-tinted disc + ink), ink multiply on light sections, a static per-card vector speckle mask (SVG, deterministic, no PNG), no shadow, no z-index (so the ink can blend into the print), rest 0°. The press keeps −8°→0 with takeoff-down / land-settle physics and a one-off ink ring. Two cards' presses are kept ≥140ms apart.
+- Brush loop redrawn (AC-05): an open loop around heads and shoulders with a single-path taper (core ends where the loop closes; bristle strands run on through the flick). The thin strand's bristle gaps are a static dash mask so DrawSVG still works.
+- Coach licence source: below 1024px on its own line; from 1024px inline as „(GSS) · izvor ↗“. The role's last two words are bound with an NBSP (display-only) and ride with the link in a nowrap span. The link is inline-block for a clean focus ring.
+- Compact phone coach card (<520px container): portrait min(132px,42%) beside the name, roles full width; stamp 64px.
+- KR-17: 2:1 crop at 50% 55%; the desktop margin print is centred on the 2017→2022 leg with a 1px leader to the rail.
+- MI-AC-6 (S5→S6 handover diagonal) not built: the new darkroom band edge already divides the sections, and a line crossing it would compete with the S6 title's own landing.
+- New or reused UI strings: „·“ — visual separator before the inline „izvor ↗“ on coach licence lines at ≥1024px (CSS ::before inside the aria-hidden label span; not read by screen readers)
+
+### Results (S7) and camp (S8) — design v2
+
+- D-S7-2 (v2, RC-04/MD-05): the split-flap flip is replaced by the LED „score posts“ scan — a deviation from the literal §4 „flip“ with the same intent. At play time each numeral goes dark and re-lights one Doto dot row at a time, top to bottom (clip-path insets in em, calibrated to Doto's 7-row grid), then the board blinks once. Nothing is hidden in advance, a partly lit numeral only ever shows the top rows of the correct digits, and there is no count-up.
+- D-S7-4 (v2, RC-05): the podium rises out of the „Medalje“ panel as solid navy-900 blocks (the body's own colour; heights 64/44/30) with a 2.5 navy-950 outline, place numerals 2·1·3 inside the blocks (text on navy, never on the gradient) and r=10 medals with V-ribbons. It is about 64–72% of the band width, capped by the band height (band 144px from 1024 up, 120px below).
+- D-S7-5 (v2, MD-02/RC-10/MD-10): the title mask rises on its own IO (−15%, no queue) and the chrono mark lands through HeadingLandings like every other title; the split is reverted only when no hop is running. The primary steps are score posting → (phones) photo shutter → medal ceremony + brush. Each starts on the −18% line through queuePrimaryMotion (≤250 ms). A step that would wait more than 600 ms in the sequence shows its final state. Safety net: a pre-hidden element that stays ≥50% in view for 300 ms without its trigger plays now. headingWait is removed.
+- D-S7-6 (v2, RC-01, replaces the photo-01 swoosh and the AD-08 note): the S7 brush annotation is a white dry-brush underline under „Medalje“ (6 overlapping strands rising along the floor diagonal), drawn last in the medal ceremony. It marks the actual wins, never touches a child, and survives MINOR_PHOTOS=false. It is still one of the page's two brush annotations.
+- D-S7-8 (v2): obsolete. The brush no longer depends on photo 01, so the public build keeps it.
+- D-S7-14 (RC-02): below 640 px the scoreboard is a results list, one row per stat (132px window · label + izvor). Below 390 the window is 108px with a 36px numeral; below 360 it is 100px with 32px (Doto stays ≥32px).
+- D-S7-15 (RC-03/RC-11/RC-15/RC-17): S7 izvor links are quiet footnotes (steel-300 / 560, lav-200 on hover or focus) placed 6px under the label. The stat izvor focus ring hugs the word, not the 48px target. „oko“ is a field tag in the window corner. The numerals get a static LED bloom and the windows an inset bezel. Display order is 42 · 12 · oko 120 · 2007 (the year tile goes last; content unchanged). From 1024 up the numeral scales from 58px at 1024 to 84px at 1440 so „2007“ keeps air in its window.
+- D-S7-16 (RC-09): from 1024 up the trust row sits under photo 01 in the photo column; below 1024 it closes the section. The photo is not sticky, because the trust row shares its column.
+- D-S7-17 (MI-06): below 1024, photo 01 opens like a shutter from a slit when it enters (only if off-screen when the code arms).
+- D-S8-2 (v2, RC-07/MD-07/MI-04, a deviation from the §4 desktop scrub): the beam is a real one (10px bar on splayed legs), and a one-shot „last beam routine“ plays on every device where motion is allowed: leap with ghost frames → stuck landing and balance wobble → legs fold and bar fades → MorphSVG to the sea → echo swells ripple out. One morphing path, no ScrollTrigger in S8. The pre-state is set only if the horizon is off-screen when the code arms. The static state (no JS, reduced motion, Save-Data) is the wave plus echoes. The wobble is on the gymnast, not the beam, because rotating inside the stretched SVG distorts.
+- D-S8-7 (v2): superseded — the in-view guard now means „horizon on screen when the code arms → keep the static wave, no routine“.
+- D-S8-13 (RC-13): the sea has two static echo swells behind the wave (royal-500 .45/2px, steel-300 .5/1.5px). The horizon viewBox is 1440×80 and the SVG is 56/64/80px tall at phone/tablet/desktop, with margins re-anchored so the wave keeps its place.
+- D-S8-14 (RC-06): from 1024 up, the camp lead is a postcard headline (30–38px, 620, 112% width, max 13em) under the title, and the note stands at the base of the text column, 112px above the column bottom (not 88) so the leap has clear air. The lead glues short prepositions and its last word.
+- D-S8-15 (RC-08): from 1024 up, postcard exits are asymmetric — right exits go 0.62 of the stage width; left throws, prev and drags are bounded by the measured room beside the text column (never over the lead or note), with the z-index swap at the apex. The left flick threshold scales with that room. Phones are unchanged.
+- D-S8-16 (RC-12/MI-05/RC-14): every postcard has shadow-2, and the top card's shadow-3 crossfades by opacity (::after). The new top card lands on the pile with a small stuck-landing squash. The back slot is translate(22%, −8%) rotate(6°) so faces show.
+- D-S8-17 (RC-16): the camp note is an ice-50 card with a dashed, tilted postmark around the sun glyph.
+- TODO for the club (RC-14): may photo 16 (camp lunch, already public in S9 „Kampovi“) join the S8 postcard stack as a third card? §5 S8 lists only 10 and 11, so it stays out until the club agrees (TODO in Camp.tsx).
+
+### Gallery (S9) and enrollment + FAQ (S10) — design v2
+
+- S9 layout (GE-01; deviation from §4/§5 'CSS-columns masonry'): justified contact-sheet strips. Each print is a flex item with grow = aspect ratio and basis = ratio × row + 12px (the frame padding); row is a fraction of the sheet width (container units, vw fallback). Every strip has equal photo heights and flush ends. An ::after spacer (basis 30% of the width, 70% on phones) leaves only a clearly short last strip ragged.
+- S9 strips: phones <560: 04 | 01·15 | 05·12 | 08·03 | 10·11 | 14·16 (the lead print spans its strip, flex-basis 100%). 560–1023: 04·01 | 15·05·12 | 08·03·10 | 11·14·16. ≥1024: 04·01·15 | 05·12·08·03 | 10·11·14·16. Filtered views use one row height. All measured in the DOM: flush, equal, ≤ native/2.
+- S9 sheet order (GE-02, supersedes AD-03): 04·01·15·05·12·08·03·10·11·14·16. KR-14 stays (§5) and is never adjacent to KR-12.
+- S9 becomes a darkroom (GE-03): theme darker + edge up. Prints are white paper mounts through an inner .gl-mount data-theme="light" wrapper, so the link keeps the section's lavender focus ring. Chips use the dark recipe.
+- S9 Marey rule under every strip (≥640): each print draws its share of a 1px line plus end ticks. The colour is an opaque color-mix, so the ticks of neighbours coincide without doubling.
+- S9 frame caption (category) is hidden on prints ≤200px wide (container query) and on all phones, so no strip mixes feet.
+- S9 entrance (MD-08): the print link swings and the item fades, so the strip rule stays level. The lazy lightbox chunk arms it (armHang), adding no first-load bytes. It only runs when the sheet is below the fold at arm time and only on the prints in view (max 6). GE-M4 'Ekspozicija' is not built (one primary motion per viewport).
+- S9 filter motion moves to the lazy gallery-flip.ts. Flip scale:true (strips resize, so transform only). The newcomer tween is not returned to Flip, because Flip re-applied its start state. Resets restore each print's --ar after clearProps.
+- S9 lightbox: opaque navy-950 scrim. Per-slide print foot (frame · category, n / N, typeset alt caption) is aria-hidden; the live counter sits sr-only in the top bar. A Marey rule with a hopping marker sits under the stage. The stage reserves the foot's height. In landscape ≤560px tall: arrows at the sides, caption hidden.
+- S10 leap band (GE-06): geometry in leap-band.ts; the same module renders on the server and drives the motion, so the flight ends exactly on the landed frame. Pitches −24° / −10° / +6° (the logo pose is already tilted +10°; −10° is a level split). Mat contacts are the lowest silhouette points at each pitch, measured from the path. The trajectory is a quadratic through the hips. Ghosts use --ghost-1 / --ghost-2 at .42 / .62; the landing is accent.
+- S10 leap motion: data-leap armed/play/done on .en-leap. The pre-state exists only under html.js-motion + no-preference and hides decoration only (step texts, year line and actions stay visible; numerals wait at .35). It waits for the title mark's landing (+800ms), then queuePrimaryMotion(1460). A failsafe lands the final state.
+- S10 step numerals (GE-07): aria-hidden (the <ol> gives the order). Ghost ramp in one blue: royal-500 at 45% → 78% → navy. The leotard violet stays on the frames because violet is not allowed as text.
+- S10 year strip (GE-08): lamps with J–D initials. The row layout starts at ≥1280; at 1024 the actions had stacked.
+- S10 kit + FAQ (GE-09): no sticky. The H3 sits above the card. From 768 the titles share a subgrid row, so the card top = the FAQ hairline and rows run on one 65px pitch.
+- S10 checklist (GE-10, amends §5 'animated checklist'): real unticked checkboxes, the whole row is the target, the focus ring is on the drawn box. Animation only on tap. No persistence. ChecklistTicks is deleted.
+- S10 full bag (GE-M6) is CSS :has() only; no JS.
+- S10 FAQ next actions (GE-13) reuse CTA.viewSchedule (with data-schedule-program="mladja") and CONTACT.mapsCta → VENUE.mapsUrl. They live in a local map until content/faq.ts gets a link field. The answer box uses overflow: clip with a 6px clip margin so the link's focus ring isn't cut.
+- Bundle: first-load module JS 156.2 KB gz, against 156.4 KB for the same tree built with the pre-change versions of these files (both MINOR_PHOTOS=false builds in a clone). Motion code now loads lazily: gallery-flip, leap-motion (~1.5KB gz), and armHang inside the lightbox chunk.
+- New or reused UI strings: „J F M A M J J A S O N D“ — month initials under the S10 year lamps (aria-hidden); „1“ „2“ „3“ — frame numbers under the narrow (phone) leap band (aria-hidden); „ · “ — separator in the lightbox print foot, e.g. „KR-15 · Treninzi“ (aria-hidden); „↗“ (aria-hidden) + reused „(otvara se u novom prozoru)“ (SCHEDULE_UI.newTab) on the FAQ maps link; Reused existing copy as FAQ next actions: „Pogledajte raspored“ (CTA.viewSchedule), „Otvorite u mapama“ (CONTACT.mapsCta)
+
+### Contact (S11) and booking sheet — design v2
+
+- D-S11-15 · Desktop 5/7 swap: the CTA panel stands in the right 7 columns straight under the right-aligned title (title → panel → button in one column); phones/e-mail/Instagram and the venue take the left 5 columns. The title's mark sits over the panel's sash, so the finale leap drops onto the button.
+- D-S11-16 · The S11 title is right-aligned from 640px (the shared rule starts at 1024) so the take-off mark is above the sash on tablets as well; phones stay left-aligned.
+- D-S11-17 · The S11 title mark is 2em wide on the display step (was max(1.1em,4rem)): it is the take-off frame, sized so its solid frame reads at about the x-height of „trening“.
+- D-S11-18 · CTA panel: the 10–16px gradient frame is replaced by a leotard sash, a diagonal band with parallel 28° edges across the slab's top-right corner (≥640), and by a 10px gradient mat along the bottom edge (<640). No text on either.
+- D-S11-19 · The static doskok composition is the last three frames of a back-salto dismount (ghost tilts +30°/+16°/+6°) plus the upright landed frame. Every frame is placed relative to the button (x in % of its width, y in leap widths above its top edge). Landing at 26% on phones and 55% from 640; the trust column is ≤52% (62% from 1024) so no text meets the trail or the sash.
+- D-S11-20 · Flight direction: the right-facing club silhouette always takes off from a mark that is right of or above the landing, so it travels backwards. It therefore flies a back salto (backward rotation), never a mirrored figure. The flier is the landed frame itself, moved by transform, so the end state is exactly the static composition.
+- D-S11-21 · Doskok trigger: the button ≥85% in view for 120ms (re-arms if it leaves). The only hidden pre-state is the landed figure (it is still on the title mark); the ghost trail stays visible and flashes as it is passed, so the slab never rests empty (e.g. after the header „Kontakt“ jump that leaves the button at the fold at 1440×900).
+- D-S11-22 · No live „Sledeći trening“ scoreboard in S11 (the C-01 suggestion): C-18 was not accepted, the C-04 sash occupies the upper right (§3: no text on the gradient), and S4-DR-04 puts that scoreboard in S4.
+- D-S11-23 · The two numbers share one „Pozovite“ row as two tel: links (28/700 and 22/650, ≥48px each), side by side with a hairline pseudo-element once the column is ≥380px wide. The visible label is aria-hidden; each link carries an sr-only „Pozovite “ prefix.
+- D-S11-24 · Call and e-mail rows lose the trailing →; only Instagram keeps ↗ (it leaves the site). With hover, the leading disc fills lav-200 with a navy icon.
+- D-BK-20 · Booking head: navy-950 darkroom band (data-theme=dark on the head), white silhouette (44px under 480px so „Zakažite probni trening“ stays on one line at 390; 52px from 480), 3px leotard hairline under it. The booking sheet is counted as the trial-training CTA's own surface under §3 pinned gradient use #2 (accepted C-10).
+- D-BK-21 · Phones: the head is the sheet's handle (grabber, touch-action:none). A pull past 30% of the sheet height or a flick over 0.5px/ms closes it from where the finger let go; otherwise it springs back 280ms ease-stick. Upward pulls rubber-band at ×0.2. Instant under reduced motion.
+- D-BK-22 · ≥768 the dialog is anchored at max(24px,10svh) from the top and grows downward (no re-centring jumps); the backdrop is .82 there, .66 on phones.
+- D-BK-8 (rev 2) · Invalid fields: 2px royal border (1px + inset), white fill, 4px 16% royal halo, and a filled „!“ disc inside the control's right end (hidden on selects under 200px so the narrow Godište box keeps „Izaberite“ whole). The error line is navy text only.
+- D-BK-23 · After a hand-off, the status is a „landed“ card (silhouette + BOOKING.after, royal outline on white) and both send buttons step down to outlined until the next edit. The card takes focus (preventScroll) when the page becomes visible again.
+- D-BK-24 · On each send attempt, up to three invalid fields do one beam-wobble (push −5px, settle with --ease-wobble), 40ms apart; CSS only, never while typing, off under reduced motion.
+
 ## TODO for the club (dosije §7) — nothing here is shown in the UI
 
 1. Is the trial training free? → `FREE_TRIAL`
@@ -590,3 +795,5 @@ Mechanical labels only (buttons, aria labels, states, validation). No facts. All
 12. Facebook page and Google Business profile → `SHOW_FACEBOOK`
 13. Domain (.rs / .org.rs) → `SITE_URL`
 14. New uneven bars 2026 (Instagram only) → `SHOW_EQUIPMENT_2026`
+15. May camp photo 16 (camp lunch) also appear in the S8 postcard stack? (§5 S8 lists 10 and 11 only.)
+16. Approve a small-size logo lockup (script + silhouette without the micro-text) for the header at ≤56px; the header renders the full logo until then.

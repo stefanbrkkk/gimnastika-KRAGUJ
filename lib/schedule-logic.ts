@@ -67,13 +67,43 @@ export function nextTraining(slots: readonly Slot[], now: BelgradeNow): NextTrai
 }
 
 /**
+ * The day part of the chip forms: "danas" / "sutra" / "u ponedeljak" (the scoreboard
+ * shows it beside the start time). `accusatives` = DAYS[].accusative in ISO order.
+ */
+export function formatNextDay(next: NextTraining, accusatives: readonly string[]): string {
+  if (next.offset === 0) return "danas";
+  if (next.offset === 1) return "sutra";
+  return `u ${accusatives[next.iso - 1] ?? ""}`;
+}
+
+/**
  * "danas u 18:00" / "sutra u 18:00" / "u ponedeljak u 18:00".
  * `accusatives` = DAYS[].accusative in ISO order (ponedeljak … nedelju).
  */
 export function formatNextTraining(next: NextTraining, accusatives: readonly string[]): string {
-  if (next.offset === 0) return `danas u ${next.start}`;
-  if (next.offset === 1) return `sutra u ${next.start}`;
-  return `u ${accusatives[next.iso - 1] ?? ""} u ${next.start}`;
+  return `${formatNextDay(next, accusatives)} u ${next.start}`;
+}
+
+/**
+ * The „Sledeći trening“ scoreboard: the earliest next training among several groups,
+ * each by nextTraining()'s rules (a group whose next start has no fixed time is skipped,
+ * never guessed). Ties keep the given (program) order. null = no group has a fixed next start.
+ */
+export function earliestNext(
+  slotLists: readonly (readonly Slot[])[],
+  now: BelgradeNow,
+): { index: number; next: NextTraining } | null {
+  let best: { index: number; next: NextTraining } | null = null;
+  let bestAt = Number.POSITIVE_INFINITY;
+  slotLists.forEach((slots, index) => {
+    const next = nextTraining(slots, now);
+    const at = next ? next.offset * 1440 + clockToMinutes(next.start) : bestAt;
+    if (next && at < bestAt) {
+      best = { index, next };
+      bestAt = at;
+    }
+  });
+  return best;
 }
 
 /** One row of the "Po danu" view. */

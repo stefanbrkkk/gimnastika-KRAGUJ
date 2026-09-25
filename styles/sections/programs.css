@@ -1,9 +1,26 @@
 /* programs section styles — owned by the programs section (S3 „Programi“).
-   A contact sheet of program "frames": mobile/tablet = native scroll-snap row,
-   desktop = 2 (1024–1279) / 3 (≥1280) column sheet with photo 04 as a frame.
-   Theme: a navy-900 "darkroom" section (AD-02); the program cards are white prints that
-   carry the light tokens themselves (data-theme="light"), KR-04 keeps the dark frame.
-   Motion: only transform, opacity, stroke-dashoffset. Every :hover is gated by (hover: hover). */
+   A contact sheet of program "frames" on a navy-900 darkroom whose top edge is cut on the floor
+   diagonal (shared .edge-cut). Phones/tablets: a native scroll-snap row that opens on KR-04 with
+   a progress rail under it; desktop: a 2 (1024–1279) / 3 (≥1280) column sheet.
+   The program cards are white prints carrying the light tokens (data-theme="light"); each plate
+   is a small apparatus print: the drawing stands on a mat line over a Marey measuring grid.
+   Motion vocabulary (components/sections/programs/programs-motion.ts): draw over a latent print,
+   the apparatus performs (wobble · swing · spring · tumble · jump), take-off/landing filter.
+   Only transform, opacity, clip-path, stroke-dashoffset animate. Every :hover is gated. */
+
+/* --------------------------------------------------------------------------
+   Seam (MI-07): the cut's mat line draws bottom-left → top-right on desktop. The pre-state is
+   set by programs-motion right before the draw, only while the line is still below the fold.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: no-preference) {
+  html.js-motion .programs[data-seam="wait"] > .edge-line {
+    clip-path: inset(0 100% 0 0);
+  }
+  html.js-motion .programs[data-seam="draw"] > .edge-line {
+    clip-path: inset(-4px);
+    transition: clip-path var(--dur-slow) var(--ease-flight);
+  }
+}
 
 /* --------------------------------------------------------------------------
    Head: heading (right on desktop) + chips/status (left on desktop)
@@ -12,16 +29,17 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 
 .programs .pg-head .section-heading {
   margin-bottom: 0;
 }
 
-/* Chips — hidden without JS (every card is visible anyway). */
+/* Chips, rail, hint and + buttons need JS; every card is visible and complete without it. */
 html:not(.js) .programs .pg-filters,
-html:not(.js) .programs .pg-pager,
+html:not(.js) .programs .pg-rail,
+html:not(.js) .programs .pg-hint,
 html:not(.js) .programs .pc-open {
   display: none;
 }
@@ -32,10 +50,20 @@ html:not(.js) .programs .pc-open {
   gap: 8px;
 }
 
+/* Phones: an even 2×2 block instead of a ragged 3 + 1 wrap (QP-08). */
+@media (max-width: 639.98px) {
+  .programs .pg-chips {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .pg-chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px; /* icon-to-label gap (✓), as every icon + label on the page */
+  justify-content: center;
+  gap: 8px; /* icon-to-label gap (✓), as every icon + label on the page; label → count too */
+  min-width: 0;
   min-height: 48px;
   padding: 0 18px;
   border-radius: var(--radius-full);
@@ -45,6 +73,7 @@ html:not(.js) .programs .pc-open {
   font-weight: 620;
   font-stretch: 104%;
   line-height: 1.2;
+  white-space: nowrap;
   box-shadow: inset 0 0 0 2px var(--hairline);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -54,6 +83,12 @@ html:not(.js) .programs .pc-open {
   transition:
     translate var(--dur-slow-squash) var(--ease-rebound),
     scale var(--dur-slow-squash) var(--ease-rebound);
+}
+
+@media (max-width: 639.98px) {
+  .pg-chip {
+    padding-inline: 10px;
+  }
 }
 
 @media (hover: hover) {
@@ -67,6 +102,7 @@ html:not(.js) .programs .pc-open {
 }
 
 .pg-chip__check {
+  flex: none;
   width: 16px;
   height: 16px;
   margin-left: -4px;
@@ -78,16 +114,51 @@ html:not(.js) .programs .pc-open {
   display: none;
 }
 
-/* Pressed: filled with the section's CTA pair + check mark (shape, not color alone):
-   lav-200 + navy text on this dark section, navy + white on a light one. */
+/* Frame count on the pressed chip, like the exposure count on a film box (the S9 precedent). */
+.pg-chip__count {
+  display: none;
+  flex: none;
+  min-width: 20px;
+  height: 20px;
+  margin-right: -6px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: var(--color-navy-900);
+  color: var(--color-white);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+
+/* Pressed: filled with the section's CTA pair + check mark + count (shape, not colour alone):
+   lav-200 + navy text on this dark section. */
 .pg-chip[aria-pressed="true"] {
   background: var(--cta-bg);
   color: var(--cta-fg);
   box-shadow: inset 0 0 0 2px var(--cta-bg);
 }
 
-.pg-chip[aria-pressed="true"] .pg-chip__check {
+.pg-chip[aria-pressed="true"] .pg-chip__check,
+.pg-chip[aria-pressed="true"] .pg-chip__count {
   display: block;
+}
+
+/* Phones: a half-width chip has no room for ✓ + label + count on one line (320px), so the count
+   sits on the chip's corner as a white tab. */
+@media (max-width: 639.98px) {
+  .pg-chip {
+    position: relative;
+  }
+  .pg-chip__count {
+    position: absolute;
+    top: -7px;
+    right: -3px;
+    margin: 0;
+    background: var(--color-white);
+    color: var(--color-navy-900);
+    box-shadow: 0 0 0 2px var(--color-navy-900);
+  }
 }
 
 /* Forced colors: the pressed chip uses the system highlight (styles/ui.css sets it, but the
@@ -97,30 +168,22 @@ html:not(.js) .programs .pc-open {
     background: Highlight;
     color: HighlightText;
   }
+  .pg-chip__count {
+    border: 1px solid currentColor;
+  }
 }
 
 /* Keyboard focus: the global outline ring (app/globals.css) sits outside the chip's own
    inset border, 3px away, in lav-200 on this dark section; nothing here overrides it. */
 
-/* Filters block: chips, the status line (aria-live) and the pager (<1024). Phones: chips /
-   status / pager, each on its own row. ≥640 the pager joins the chips row when it fits and
-   the status goes under both. The pager always precedes the row it drives. */
 .programs .pg-filters {
   position: relative;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 16px;
-}
-
-.pg-chips {
-  flex: 0 1 auto;
-  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .pg-status {
-  order: 1;
-  flex: 1 0 100%;
   color: var(--muted);
 }
 
@@ -129,14 +192,33 @@ html:not(.js) .programs .pc-open {
   position: absolute;
 }
 
+/* Phones: the pressed chip's count says it on screen; the live region stays for screen readers
+   (the S9 precedent), the aerobic hint moves under the row (.pg-hint). */
+@media (max-width: 639.98px) {
+  .programs .pg-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+.pg-hint {
+  margin-top: 4px;
+  color: var(--muted);
+  text-wrap: balance;
+}
+
 @media (min-width: 640px) {
-  .pg-status {
-    order: 2;
+  .pg-hint {
+    display: none;
   }
 }
 
 @media (min-width: 1024px) {
-  /* Chips left, heading right, centered on the chips row; the status line sits under the
+  /* Chips left, heading right, centred on the chips row; the status line sits under the
      chips in its own row, so it never moves the heading or the chips. */
   .programs .pg-head {
     display: grid;
@@ -145,7 +227,8 @@ html:not(.js) .programs .pc-open {
       "chips heading"
       "status .";
     align-items: center;
-    gap: 0 48px;
+    /* 1024: the four chips (≈500px with the pressed count) stay on one line beside the title. */
+    gap: 0 clamp(24px, 4.5vw - 16px, 48px);
     margin-bottom: 56px;
   }
   .programs .pg-head .section-heading {
@@ -171,9 +254,8 @@ html:not(.js) .programs .pc-open {
 .pg-strip {
   position: relative; /* Flip: leaving cards go absolute inside */
   display: flex;
-  /* Every frame has the row's height (BRK-07), phones included: the CTAs sit at the same
-     place on every card (.pc-actions margin-top:auto), so they never jump between swipes and
-     the row ends on one line. A short card's extra height is whitespace above its CTAs. */
+  /* Every frame has the row's height (BRK-07): the CTAs sit at the same place on every card and
+     the extra height of a shorter card becomes more apparatus print (QP-07), not white. */
   align-items: stretch;
   gap: 12px;
   overflow-x: auto;
@@ -183,8 +265,11 @@ html:not(.js) .programs .pc-open {
   /* bleed to the viewport edge; room for the card shadows */
   margin-inline: -20px;
   padding: 6px 20px 28px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-steel-300) transparent;
+  scrollbar-width: none;
+}
+
+.pg-strip::-webkit-scrollbar {
+  display: none; /* the rail below is the scroll indicator */
 }
 
 @media (min-width: 640px) {
@@ -214,6 +299,12 @@ html:not(.js) .programs .pc-open {
   display: none; /* [data-out]: a leaving card; Flip's inline display keeps it rendered while it fades */
 }
 
+/* KR-04 opens the row at every width (QP-09/ID-05): the athlete before the fine print. DOM order
+   stays cards first for screen readers. A placeholder (MINOR_PHOTOS=false) never opens it. */
+.pg-photo:not([data-placeholder]) {
+  order: -1;
+}
+
 @media (min-width: 1024px) {
   .pg-strip {
     display: grid;
@@ -228,21 +319,27 @@ html:not(.js) .programs .pc-open {
   .pg-strip > * {
     min-width: 0;
   }
+  /* No orphan card after a filter (QP-20): two columns drop the photo for an even card count. */
+  .pg-strip:is([data-count="2"], [data-count="4"], [data-count="6"]) > .pg-photo {
+    display: none;
+  }
 }
 
 @media (min-width: 1280px) {
   .pg-strip {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  /* 3 columns: the photo opens the sheet visually (DOM order stays cards first),
-     so row 1 = photo + the two short beginner cards, row 2 = the three others. */
-  .pg-photo {
-    order: -1;
+  .pg-strip:is([data-count="2"], [data-count="4"]) > .pg-photo {
+    display: block;
+  }
+  /* Three columns: a multiple of three fills its rows without the photo. */
+  .pg-strip:is([data-count="3"], [data-count="6"]) > .pg-photo {
+    display: none;
   }
 }
 
 /* --------------------------------------------------------------------------
-   Program card = a contact-sheet frame: white mount, colored plate, body
+   Program card = a contact-sheet frame: white mount, apparatus plate, body
    -------------------------------------------------------------------------- */
 .program-card {
   position: relative;
@@ -280,36 +377,282 @@ html.js .program-card {
   }
 }
 
-.pc-plate {
+/* The plate: an apparatus print. Faint Marey measuring grid every 48px, anchored on the
+   drawing's left edge and on the mat line; the drawing, the bib and every apparatus stand on
+   the mat line (y = 42 of the 48-unit drawing). */
+.pc-plate,
+.ps-plate {
+  --icon: 84px;
+  --pad-x: 12px;
+  --pad-b: 10px;
+  --mat: calc(var(--pad-b) + var(--icon) / 8);
+  --grid: color-mix(in oklab, var(--pc-ink) 10%, transparent);
   position: relative;
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
-  height: 108px;
-  padding: 14px 14px 10px 12px;
+  padding: 0 var(--pad-x) var(--pad-b);
   border-radius: var(--radius-md);
-  background: var(--pc);
+  background-color: var(--pc);
+  background-image:
+    linear-gradient(to right, var(--grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+  background-size: 48px 48px;
+  background-position:
+    var(--pad-x) 0,
+    0 calc(100% - var(--mat) + 1px);
   color: var(--pc-ink);
   overflow: hidden;
 }
 
-.pc-icon,
-.ps-icon {
+/* The mat line (1px, ink at 35%). */
+.pc-plate::before,
+.ps-plate::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--mat) - 0.5px);
+  height: 1px;
+  background: color-mix(in oklab, var(--pc-ink) 35%, transparent);
+  pointer-events: none;
+}
+
+.pc-plate {
+  --icon: 84px;
+  flex: none;
+  min-height: calc(var(--icon) + 32px);
+}
+
+@media (min-width: 640px) {
+  .pc-plate {
+    --icon: 96px;
+    --pad-x: 14px;
+    min-height: calc(var(--icon) + 28px);
+  }
+}
+
+/* Below 1024 the plate takes the row's spare height (up to 196px), so a shorter card gets a
+   taller apparatus print instead of a white band above its CTAs (QP-07). */
+@media (max-width: 1023.98px) {
+  .program-card .pc-plate {
+    flex: 1000 0 auto;
+    max-height: 196px;
+  }
+}
+
+/* Competitor bib (QP-06): white number cloth pinned at two corners, standing on the mat line. */
+.pc-bib {
+  position: absolute;
+  right: var(--pad-x);
+  bottom: var(--mat);
+  padding: 5px 10px 3px;
+  border-radius: 4px;
+  background: var(--color-white);
+  box-shadow: inset 0 0 0 1px rgba(17, 45, 95, 0.2);
+  color: var(--color-navy-900);
+  font-size: 26px;
+  font-weight: 800;
+  font-stretch: 125%;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.pc-bib::before,
+.pc-bib::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  width: 3px;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: rgba(17, 45, 95, 0.32);
+}
+
+.pc-bib::before {
+  left: 3px;
+}
+
+.pc-bib::after {
+  right: 3px;
+}
+
+/* Quiz recommendation (QP-10): a lav-200 stamp in the plate's free top-left corner. */
+/* Compact (22px), so it clears the tallest drawing under it (the high rail) by ≥9px. */
+.pc-stamp {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 9px 1px;
+  border-radius: var(--radius-full);
+  background: var(--color-lav-200);
+  box-shadow: inset 0 0 0 1.5px var(--color-navy-900);
+  color: var(--color-navy-900);
+  font-size: var(--text-label);
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+  transform-origin: 30% 60%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html.js-motion .program-card[data-stamp="wait"] .pc-stamp {
+    opacity: 0;
+  }
+  html.js-motion .program-card[data-stamp="in"] .pc-stamp {
+    animation: pc-stamp-in 350ms var(--ease-rebound) both;
+  }
+}
+
+/* The coaches' „Licenca GSS“ stamp vocabulary: pressed on from above, slightly turned. */
+@keyframes pc-stamp-in {
+  from {
+    opacity: 0;
+    scale: 1.25;
+    rotate: -8deg;
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+    rotate: 0deg;
+  }
+}
+
+/* + (JS only): opens the detail sheet. 48×48 target, a 40px ink-outlined disc (not a FAB). */
+.pc-open {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--pc-ink);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pc-open::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1.5px var(--pc-ink);
+  transition: scale var(--dur-slow-squash) var(--ease-rebound);
+}
+
+.pc-open:active {
+  transition-duration: var(--dur-tap);
+}
+
+.pc-open svg {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* White + violet ring, readable on every plate colour (navy included). */
+.pc-open:focus-visible {
+  box-shadow:
+    0 0 0 3px var(--color-white),
+    0 0 0 5px var(--color-violet-600);
+}
+
+@media (hover: hover) {
+  html.js .program-card:hover .pc-open::before {
+    scale: 1.08;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Apparatus drawings (ProgramIcon): stroke system, latent print, draw, perform
+   -------------------------------------------------------------------------- */
+.pi {
+  /* In user units (px = 1/48 of the drawing): ≈2.8 CSS px at 84px; every size keeps that
+     weight. Lengths, not bare numbers, so calc() works in every engine. */
+  --sw: 1.6px;
   position: relative;
   display: block;
-  width: 76px;
-  height: 76px;
+  flex: none;
   overflow: visible;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.75; /* ≈2.75px at 76px; the sheet's 88px icon uses 1.5 → same weight */
+  stroke-width: var(--sw);
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-/* Draw once on enter (.6s). Hidden pre-state ONLY under html.js-motion AND while motion is
-   allowed: a live switch to reduced motion shows the drawn icons at once. */
-.pc-icon [data-draw] {
+.pi .pi-thin {
+  stroke-width: calc(var(--sw) * 0.62);
+}
+
+.pi .pi-post {
+  stroke-width: calc(var(--sw) * 0.82);
+}
+
+.pi .pi-rail {
+  stroke-width: calc(var(--sw) * 1.4);
+}
+
+.pi .pi-head {
+  fill: currentColor;
+  stroke: none;
+}
+
+.pc-icon {
+  width: var(--icon);
+  height: var(--icon);
+  /* Press (MI-04): the apparatus takes the weight — compresses onto its floor (y = 42/48). */
+  transform-origin: 50% 87.5%;
+  transition: scale var(--dur-slow-squash) var(--ease-rebound);
+}
+
+@media (min-width: 640px) {
+  .pc-icon {
+    --sw: 1.4px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html.js .program-card:active:not(:has(.pc-actions:active)) .pc-icon {
+    scale: 1.03 0.9;
+    transition: scale var(--dur-tap) var(--ease-takeoff);
+  }
+}
+
+/* Latent print (QP-14): the same drawing at 18%, shown only while motion is on, so a plate
+   waiting for its draw already shows a faint apparatus. During a perform it stays put as the
+   rest-pose ghost frame under the moving parts. */
+.pi-latent {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html.js-motion .pi-latent {
+    display: inline;
+    opacity: 0.18;
+  }
+}
+
+/* Draw once on enter (.6s): pathLength=1 dashes; hidden offset 1.05 so round caps leave no
+   dot. The pre-state exists only under html.js-motion while motion is allowed. */
+.pi [data-draw] {
   stroke-dasharray: 1 3;
   stroke-dashoffset: 0;
 }
@@ -318,63 +661,206 @@ html.js .program-card {
   html.js-motion .program-card:not([data-drawn]) .pc-icon [data-draw] {
     stroke-dashoffset: 1.05;
   }
-
   html.js-motion .program-card .pc-icon [data-draw] {
     transition: stroke-dashoffset var(--dur-reveal) var(--ease-stick) var(--draw-delay, 0s);
   }
-}
-
-/* + button (JS only): opens the detail sheet. 48×48 target. */
-.pc-open {
-  position: relative;
-  align-self: flex-start;
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  margin: -6px -6px 0 0;
-  border-radius: var(--radius-full);
-  background: var(--color-white);
-  color: var(--color-navy-900);
-  box-shadow: 0 0 0 1px rgba(17, 45, 95, 0.12), 0 2px 6px -2px rgba(17, 45, 95, 0.25);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition:
-    rotate var(--dur-base) var(--ease-rebound),
-    translate var(--dur-slow-squash) var(--ease-rebound),
-    scale var(--dur-slow-squash) var(--ease-rebound);
-}
-
-.pc-open:active {
-  transition-duration: var(--dur-tap);
-}
-
-.pc-open svg {
-  width: 22px;
-  height: 22px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-}
-
-.pc-open:focus-visible {
-  box-shadow:
-    0 0 0 3px var(--color-white),
-    0 0 0 5px var(--color-violet-600);
-}
-
-@media (hover: hover) {
-  html.js .program-card:hover .pc-open {
-    rotate: 90deg;
+  /* The aerobic figure's head is a solid dot: it appears as the line completes. */
+  html.js-motion .program-card:not([data-drawn]) .pc-icon [data-head] {
+    opacity: 0;
+  }
+  html.js-motion .program-card .pc-icon [data-head] {
+    transition: opacity var(--dur-fast) linear calc(var(--draw-delay, 0s) + 420ms);
   }
 }
 
+/* Parts move as one piece around their own box (feet or centre). */
+.pi-part {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+
+.pi [data-part="beam"] {
+  transform-origin: 50% 50%;
+}
+
+/* Motion trails exist only while performing: invisible at rest (the dash sits off the path). */
+.pi-fx path {
+  stroke-width: calc(var(--sw) * 0.8);
+  stroke-dasharray: 0.3 1.6;
+  stroke-dashoffset: 0.36;
+}
+
+.pi[data-icon="parter"] .pi-fx path {
+  stroke-dasharray: 1 3;
+  stroke-dashoffset: 1.05;
+}
+
+/* Perform (MD-06): set by programs-motion (data-perform, --perform-delay). */
+@media (prefers-reduced-motion: no-preference) {
+  html.js-motion .program-card[data-perform] .pi {
+    --d: var(--perform-delay, 0s);
+  }
+
+  /* Beam: the gymnast lands on one end — the beam dips, then balances out and settles. */
+  html.js-motion [data-perform] [data-part="beam"] {
+    animation: pi-beam calc(var(--dur-wobble) + 100ms) linear var(--d) both;
+  }
+
+  /* Bars: both rails flex under a giant swing, the high one first, while the swing's orbit
+     laps the high rail once. */
+  html.js-motion [data-perform] [data-part="high"] {
+    animation: pi-bars calc(var(--dur-swing) + 120ms) linear var(--d) both;
+  }
+  html.js-motion [data-perform] [data-part="low"] {
+    --bars-tilt: -0.8deg;
+    animation: pi-bars calc(var(--dur-swing) + 120ms) linear calc(var(--d) + 80ms) both;
+  }
+  html.js-motion [data-perform] .pi[data-icon="razboj"] .pi-fx path {
+    animation: pi-trail 600ms var(--ease-flight) var(--d) both;
+  }
+
+  /* Vault: the board compresses and springs, the hands press the table, the flight goes over. */
+  html.js-motion [data-perform] [data-part="board"] {
+    animation: pi-board calc(var(--dur-spring) + 80ms) linear var(--d) both;
+  }
+  html.js-motion [data-perform] [data-part="table"] {
+    animation: pi-table var(--dur-spring) linear calc(var(--d) + 220ms) both;
+  }
+  html.js-motion [data-perform] .pi[data-icon="preskok"] .pi-fx path {
+    animation: pi-trail 560ms var(--ease-flight) calc(var(--d) + 90ms) both;
+  }
+
+  /* Floor: a tumbling pass — three hops along the diagonal, each drawn and gone. */
+  html.js-motion [data-perform] .pi[data-icon="parter"] .pi-fx path {
+    animation: pi-hop 360ms linear calc(var(--d) + var(--k) * 110ms) both;
+  }
+
+  /* Aerobic: crouch, jump, stick the landing. */
+  html.js-motion [data-perform] [data-part="fig"] {
+    animation: pi-jump 620ms linear var(--d) both;
+  }
+}
+
+@keyframes pi-beam {
+  0% {
+    transform: rotate(0deg);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
+  }
+  12% {
+    transform: rotate(-4deg);
+    animation-timing-function: var(--ease-wobble);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes pi-bars {
+  0% {
+    transform: rotate(0deg);
+    animation-timing-function: cubic-bezier(0.3, 0.6, 0.4, 1);
+  }
+  13% {
+    transform: rotate(var(--bars-tilt, 1.5deg));
+    animation-timing-function: var(--ease-swing);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes pi-trail {
+  from {
+    stroke-dashoffset: 0.36;
+  }
+  to {
+    stroke-dashoffset: -1.02;
+  }
+}
+
+@keyframes pi-board {
+  0% {
+    transform: scaleY(1);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.8, 0.4);
+  }
+  16% {
+    transform: scaleY(0.62);
+    animation-timing-function: var(--ease-spring);
+  }
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes pi-table {
+  0% {
+    transform: scaleY(1);
+    animation-timing-function: cubic-bezier(0.3, 0.6, 0.4, 1);
+  }
+  20% {
+    transform: scaleY(0.9);
+    animation-timing-function: var(--ease-spring);
+  }
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes pi-hop {
+  0% {
+    stroke-dashoffset: 1.05;
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  40% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+@keyframes pi-jump {
+  0% {
+    transform: none;
+    animation-timing-function: cubic-bezier(0.3, 0, 0.6, 1);
+  }
+  16% {
+    transform: scale(1.05, 0.92);
+    animation-timing-function: cubic-bezier(0.25, 0.6, 0.45, 1);
+  }
+  50% {
+    transform: translateY(-4.5px) scale(0.97, 1.04);
+    animation-timing-function: cubic-bezier(0.55, 0, 0.8, 0.45);
+  }
+  78% {
+    transform: scale(1.06, 0.9);
+    animation-timing-function: var(--ease-land);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Card body
+   -------------------------------------------------------------------------- */
 .pc-body {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
-  padding: 18px 14px 14px;
+  flex: 1 0 auto;
+  padding: 18px 14px 12px;
+}
+
+@media (min-width: 1024px) {
+  .pc-body {
+    flex: 1 1 auto;
+  }
 }
 
 /* .pc-title keeps the global h3 width axis (104% mobile, 118% desktop): measured at
@@ -400,26 +886,75 @@ html.js .program-card {
 
 .pc-sched {
   margin-top: 18px;
-  padding-top: 14px;
+  padding-top: 16px;
   border-top: 1px solid var(--hairline);
 }
 
+/* One filled action per print + a quiet tertiary link under it (QP-12). */
 .pc-actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  align-items: stretch;
+  gap: 4px;
   margin-top: auto;
   padding-top: 20px;
 }
 
-/* Two stacked pills in a narrow card: slightly tighter side padding; a label never wraps
-   from 320px up (see the 320–339px frame width), and would wrap balanced if it ever had to. */
+/* A label never wraps from 320px up (see the 320–339px frame width), and would wrap balanced
+   if it ever had to. */
 .pc-actions .btn,
 .ps-actions .btn {
   position: relative;
   z-index: 1;
   padding-inline: 16px;
   text-wrap: balance;
+}
+
+.pc-more {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm); /* the focus outline follows it */
+  color: var(--color-royal-600);
+  font-size: var(--text-button);
+  font-weight: 650;
+  font-stretch: 104%;
+  line-height: 1.2;
+  text-decoration-line: none;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.22em;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pc-more svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: translate var(--dur-base) var(--ease-stick);
+}
+
+.pc-more:focus-visible {
+  text-decoration-line: underline;
+}
+
+@media (hover: hover) {
+  .pc-more:hover {
+    text-decoration-line: underline;
+  }
+  .pc-more:hover svg {
+    translate: 3px 0;
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -472,9 +1007,9 @@ html.js .program-card {
   color: var(--muted);
 }
 
-/* Week row (sheet): the S4 „Po grupi“ 7-dot row — seven dots on one mat line, training days
-   filled with the program color (navy ring) and a bold day label. Visual only (aria-hidden);
-   no boxes, so it never reads as a day picker. */
+/* Week row: the S4 „Po grupi“ 7-dot row — seven dots on one mat line, training days filled
+   with the program color (navy ring) and a bold day label. Visual only (aria-hidden); no
+   boxes, so it never reads as a day picker. In the card it is one row for the whole program. */
 .pg-week {
   position: relative;
   display: grid;
@@ -483,6 +1018,10 @@ html.js .program-card {
   margin: 0 0 14px;
   padding: 0;
   list-style: none;
+}
+
+.pc-sched .pg-week {
+  margin: 0 -4px;
 }
 
 .pg-week::before {
@@ -541,96 +1080,259 @@ html.js .program-card {
 }
 
 /* --------------------------------------------------------------------------
-   Photo 04 — the sixth frame of the sheet
+   Photo 04 — the cover frame of the sheet, on the same white print stock as the cards
+   (QP-13). The drawn image is never wider than native/2 = 533 CSS px: a square photo cover-
+   cropped into a box draws at the box's longer side, so the box is capped at 533px tall.
    -------------------------------------------------------------------------- */
 .pg-photo {
-  align-self: center;
-}
-
-.pg-photo .frame {
-  margin-inline: auto;
-}
-
-@media (min-width: 1024px) {
-  .pg-photo {
-    align-self: start;
-    padding-top: 0;
-  }
-}
-
-/* ≥1280 (3 columns): the KR-04 print ends on its row's baseline like the cards next to it.
-   The frame stretches with the row, but the photo box is capped at 533px (native 1066/2): a
-   column is ≤412px wide, so the square photo is cover-cropped into a box ≤ 412×533 and drawn
-   at ≤533 CSS px — never upscaled (Picture's maxCssWidth rule for a taller box). The frame is
-   capped with it, so a taller filtered row leaves a short notch, never an empty mount. */
-@media (min-width: 1280px) {
-  .pg-photo {
-    --pg-photo-cap: 533px; /* photo 04: native 1066px / 2 */
-    --pg-frame-chrome: 34px; /* .frame padding-top 6px + .frame-foot 28px (measured) */
-    align-self: stretch;
-    display: flex;
-    flex-direction: column;
-  }
-  .pg-photo .frame {
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    max-height: calc(var(--pg-photo-cap) + var(--pg-frame-chrome));
-  }
-  .pg-photo .photo {
-    flex: 1 1 auto;
-    min-height: 0;
-    max-height: var(--pg-photo-cap);
-    /* Beats Picture's inline aspect-ratio: 1 (kept below 1280): the box takes the row height. */
-    aspect-ratio: auto !important;
-  }
-  .pg-photo .photo picture {
-    display: block;
-    width: 100%;
-    height: 100%;
-  }
-  .pg-photo .photo img {
-    object-position: 50% 40%;
-  }
-}
-
-/* --------------------------------------------------------------------------
-   Pager (mobile/tablet, JS only). Buttons use the shared .icon-btn recipe
-   (app/globals.css: 48px, 2px hairline ring, 22px glyph, gated hover, disabled).
-   -------------------------------------------------------------------------- */
-.pg-pager {
+  --pg-photo-cap: 533px; /* photo 04: native 1066px / 2 */
+  --pg-frame-chrome: 34px; /* .frame padding-top 6px + .frame-foot (measured) */
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-  order: 1;
-  margin-left: auto;
+  flex-direction: column;
+  align-self: stretch;
 }
 
-.pg-pager[hidden] {
-  display: none;
+.programs .pg-photo .frame {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  width: 100%;
+  max-height: calc(var(--pg-photo-cap) + var(--pg-frame-chrome));
+  margin-inline: 0;
+  padding: 6px 6px 0;
+  border-radius: var(--radius-lg);
+  background: var(--color-white);
+  box-shadow: 0 0 0 1px var(--color-line);
+}
+
+.programs .pg-photo .photo {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: var(--pg-photo-cap);
+  border-radius: var(--radius-md);
+  /* Beats Picture's inline aspect-ratio: 1: the box takes the row's height. */
+  aspect-ratio: auto !important;
+}
+
+.programs .pg-photo .photo picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.programs .pg-photo .photo img {
+  object-position: 50% 38%;
+}
+
+.programs .pg-photo .frame-label {
+  color: var(--color-slate-600);
+}
+
+/* Phones/tablets: a narrow cover frame, so card 1 peeks beside it and teaches the swipe. */
+@media (max-width: 1023.98px) {
+  .pg-strip > .pg-photo {
+    flex-basis: min(248px, 64vw);
+  }
+}
+
+/* The print covers the trail where the row is short; where it is taller than the print may be
+   drawn, the slot ends on the landing leap (ghost tokens ice → lavender → violet). */
+.pg-photo {
+  position: relative;
+}
+
+.programs .pg-photo .frame {
+  position: relative;
+  z-index: 1;
+}
+
+.pg-photo__trail {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 0;
+  width: calc(100% - 8px);
+  height: auto;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.pg-photo__mat {
+  stroke: var(--color-steel-300);
+  stroke-opacity: 0.6;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.pg-photo__ghost:nth-of-type(1) {
+  color: var(--ghost-1);
+  opacity: var(--ghost-1-o);
+}
+
+.pg-photo__ghost:nth-of-type(2) {
+  color: var(--ghost-2);
+  opacity: var(--ghost-2-o);
+}
+
+.pg-photo__ghost:nth-of-type(3) {
+  color: var(--accent);
 }
 
 @media (min-width: 1024px) {
-  .pg-pager {
+  .pg-photo__trail {
     display: none;
   }
 }
 
-.pg-pager__count {
-  min-width: 4.25em;
-  text-align: center;
-  color: var(--muted);
+/* --------------------------------------------------------------------------
+   Progress rail (<1024, JS only): prev · a dot per program on a mat line · next. The active
+   dot takes its program colour and the club silhouette hops onto it (MI-05). Buttons use the
+   shared .icon-btn recipe (48px, 2px hairline ring, gated hover, disabled).
+   -------------------------------------------------------------------------- */
+.pg-rail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: -8px;
 }
 
-/* Chevron: an action glyph, 2 CSS px (.ui-icon keeps the stroke unscaled). */
-.pg-pager__btn svg {
+.pg-rail[hidden] {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .pg-rail {
+    display: none;
+  }
+}
+
+.pg-rail__btn svg {
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.pg-rail__track {
+  position: relative;
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-width: 0;
+  max-width: 360px;
+  margin-inline: auto;
+}
+
+/* The mat line, from the first dot to the last. */
+.pg-rail__track::before {
+  content: "";
+  position: absolute;
+  top: 32px;
+  left: calc(50% / var(--n));
+  right: calc(50% / var(--n));
+  height: 1px;
+  background: color-mix(in oklab, var(--color-steel-300) 55%, transparent);
+}
+
+.pg-rail__dots {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pg-rail__dot {
+  position: relative;
+}
+
+/* 14px dot shown at .57 (8px) when idle, full size + program colour when active. */
+.pg-rail__dot::before {
+  content: "";
+  position: absolute;
+  top: 25px;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  border-radius: var(--radius-full);
+  background: var(--color-navy-900);
+  box-shadow: inset 0 0 0 2.6px var(--color-steel-300);
+  scale: 0.57;
+  transition: scale var(--dur-base) var(--ease-rebound);
+}
+
+.pg-rail__dot[data-on]::before {
+  background: var(--dot);
+  box-shadow:
+    inset 0 0 0 1.5px var(--color-navy-950),
+    0 0 0 2px var(--color-ice-50);
+  scale: 1;
+}
+
+/* The flier is one dot cell wide and moves by whole cells (translate % = its own width), so it
+   never reaches past the track (no page overflow). */
+.pg-rail__flier {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(100% / var(--n));
+  transform: translateX(calc(var(--i) * 100%));
+  transition: transform var(--dur-base) var(--ease-flight);
+  pointer-events: none;
+}
+
+.pg-rail__leap {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  width: 30px;
+  height: 20px;
+  margin-left: -13px;
+  overflow: visible;
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html.js-motion .pg-rail[data-hop="0"] .pg-rail__leap {
+    animation: pg-hop-a var(--dur-base) linear;
+  }
+  html.js-motion .pg-rail[data-hop="1"] .pg-rail__leap {
+    animation: pg-hop-b var(--dur-base) linear;
+  }
+}
+
+/* Two identical hops keyed by the index parity: a one-card step switches the name, which
+   restarts the hop. */
+@keyframes pg-hop-a {
+  0% {
+    translate: 0 0;
+    animation-timing-function: cubic-bezier(0.25, 0.6, 0.45, 1);
+  }
+  50% {
+    translate: 0 -10px;
+    animation-timing-function: cubic-bezier(0.55, 0, 0.75, 0.4);
+  }
+  100% {
+    translate: 0 0;
+  }
+}
+
+@keyframes pg-hop-b {
+  0% {
+    translate: 0 0;
+    animation-timing-function: cubic-bezier(0.25, 0.6, 0.45, 1);
+  }
+  50% {
+    translate: 0 -10px;
+    animation-timing-function: cubic-bezier(0.55, 0, 0.75, 0.4);
+  }
+  100% {
+    translate: 0 0;
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -717,33 +1419,43 @@ html.js .program-card {
   }
 }
 
+/* The scene (QP-21): a large apparatus print with the club silhouette posed over it. */
 .ps-plate {
-  position: relative;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  height: 128px;
-  padding: 16px 16px 14px 20px;
+  --icon: 132px;
+  --pad-x: 20px;
+  --pad-b: 12px;
+  height: 176px;
   border-radius: calc(var(--radius-xl) - 6px);
-  background: var(--pc);
-  color: var(--pc-ink);
-  overflow: hidden;
 }
 
 .ps-icon {
-  width: 88px;
-  height: 88px;
-  stroke-width: 1.5;
+  --sw: 1.06px; /* ≈2.9 CSS px at 132px */
+  width: var(--icon);
+  height: var(--icon);
+}
+
+.pi-fig {
+  fill: currentColor;
+  stroke: none;
+  opacity: 0.9;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+
+.pi-fig-x,
+.pi-fig-y {
+  transform-box: view-box;
 }
 
 .ps-close {
-  position: relative;
-  align-self: flex-start;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
   display: grid;
   place-items: center;
   width: 48px;
   height: 48px;
-  margin: -4px -4px 0 0;
   border-radius: var(--radius-full);
   background: var(--color-white);
   color: var(--color-navy-900);
@@ -764,6 +1476,80 @@ html.js .program-card {
   box-shadow:
     0 0 0 3px var(--color-white),
     0 0 0 5px var(--color-violet-600);
+}
+
+/* The mount (MI-08): the drawing traces itself as the window opens, the silhouette hops in
+   from the left onto its pose and sticks it (compress and hold). ≤1.5s; only with motion
+   (data-scene is set by the sheet's motion branch). */
+@media (prefers-reduced-motion: no-preference) {
+  html.js-motion .program-sheet[data-scene] .ps-icon [data-draw] {
+    animation: pi-draw 500ms var(--ease-stick) 300ms both;
+  }
+  html.js-motion .program-sheet[data-scene] .ps-icon [data-head] {
+    animation: pi-fade var(--dur-fast) linear 720ms both;
+  }
+  html.js-motion .program-sheet[data-scene] .pi-fig-x {
+    animation: ps-fig-x 500ms var(--ease-flight) 650ms both;
+  }
+  html.js-motion .program-sheet[data-scene] .pi-fig-y {
+    animation: ps-fig-y 500ms linear 650ms both;
+  }
+  html.js-motion .program-sheet[data-scene] .pi-fig {
+    animation: ps-fig-stick 350ms var(--ease-land) 1150ms;
+  }
+}
+
+@keyframes pi-draw {
+  from {
+    stroke-dashoffset: 1.05;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes pi-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Units are the drawing's (48 = 132px): −14.5 ≈ −40px, 8.7 ≈ 24px, −10 ≈ −28px. */
+@keyframes ps-fig-x {
+  0% {
+    transform: translateX(-14.5px);
+    opacity: 0;
+  }
+  24% {
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes ps-fig-y {
+  0% {
+    transform: translateY(8.7px);
+    animation-timing-function: cubic-bezier(0.25, 0.6, 0.45, 1);
+  }
+  50% {
+    transform: translateY(-10px);
+    animation-timing-function: cubic-bezier(0.55, 0, 0.75, 0.4);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes ps-fig-stick {
+  0% {
+    transform: scale(1.05, 0.9);
+  }
+  100% {
+    transform: none;
+  }
 }
 
 .ps-body {
@@ -844,15 +1630,22 @@ html.js .program-card {
   }
 }
 
-/* Short viewports (landscape phones, 400% zoom): a compact plate leaves room to read. */
+/* Short viewports (landscape phones, 400% zoom): a compact plate leaves room to read; the
+   scene keeps only the drawing. */
 @media (max-height: 480px) {
   .ps-plate {
+    --icon: 40px;
+    --pad-b: 8px;
     height: 72px;
+    background-image: none;
+  }
+  .ps-plate::before,
+  .ps-plate .pc-bib,
+  .ps-icon .pi-fig-x {
+    display: none;
   }
   .ps-icon {
-    width: 40px;
-    height: 40px;
-    stroke-width: 2.5; /* ≈2.1px at 40px, so the small drawing does not go hairline-thin */
+    --sw: 2.5px; /* ≈2.1 CSS px at 40px, so the small drawing does not go hairline-thin */
   }
 }
 
@@ -865,20 +1658,25 @@ html.js .program-card {
 }
 
 /* --------------------------------------------------------------------------
-   Reduced motion: static icons, no hover lift, no rotating +
+   Reduced motion: static drawings, no hover lift, no disc scale, no hop
    -------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   .program-card,
-  .pc-open,
+  .pc-open::before,
+  .pc-icon,
+  .pc-more svg,
   .pg-chip,
-  .pg-pager__btn {
+  .pg-rail__btn,
+  .pg-rail__dot::before,
+  .pg-rail__flier {
     transition: none;
   }
   @media (hover: hover) {
     html.js .program-card:hover,
-    html.js .program-card:hover .pc-open {
+    html.js .program-card:hover .pc-open::before,
+    .pc-more:hover svg {
       translate: none;
-      rotate: none;
+      scale: none;
     }
   }
 }

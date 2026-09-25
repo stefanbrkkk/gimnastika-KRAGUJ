@@ -1,7 +1,9 @@
 /* gallery section styles — owned by the gallery section (S9 „Galerija“).
-   A contact sheet: CSS-columns masonry of framed prints (KR-xx), chips that
-   filter it, and a fullscreen lightbox (native <dialog>, scroll-snap track).
-   Motion: only transform and opacity (Flip, crossfades). */
+   A darkroom (navy-950, data-theme="darker", floor-diagonal top edge): a contact
+   sheet of white paper prints (KR-xx) in justified strips — equal photo height per
+   strip, flush ends — chips that filter it, and a fullscreen lightbox (native
+   <dialog>, scroll-snap track). Motion: transform, opacity (Flip, the hung-print
+   swing, crossfades). */
 
 /* --------------------------------------------------------------------------
    Head: heading (right on desktop) + chips (left on desktop). The filter status
@@ -45,6 +47,7 @@ html:not(.js) .gallery .gl-filters {
   gap: 8px;
 }
 
+/* Dark recipe (the section is a darkroom): steel hairline, pressed = lavender + navy + ✓. */
 .gl-chip {
   display: inline-flex;
   align-items: center;
@@ -60,7 +63,7 @@ html:not(.js) .gallery .gl-filters {
   font-weight: 620;
   font-stretch: 104%;
   line-height: 1.2;
-  box-shadow: inset 0 0 0 2px var(--hairline);
+  box-shadow: inset 0 0 0 2px rgba(141, 169, 198, 0.4);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -74,7 +77,7 @@ html:not(.js) .gallery .gl-filters {
 /* Hover only where it exists: Android keeps :hover on a tapped chip. */
 @media (hover: hover) {
   .gl-chip:hover {
-    box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--fg) 45%, transparent);
+    box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--fg) 60%, transparent);
   }
 }
 
@@ -83,7 +86,7 @@ html:not(.js) .gallery .gl-filters {
 }
 
 /* Keyboard focus: the global outline ring (app/globals.css) sits 3px outside the chip's own
-   inset border — violet on this ice section; nothing here overrides it. */
+   inset border — lavender in this darkroom; nothing here overrides it. */
 
 .gl-chip__check {
   display: none;
@@ -102,20 +105,19 @@ html:not(.js) .gallery .gl-filters {
   min-width: 1.6em;
   padding: 2px 6px;
   border-radius: var(--radius-full);
-  background: var(--color-white);
-  box-shadow: inset 0 0 0 1px var(--hairline);
+  background: rgba(141, 169, 198, 0.16);
   font-size: 13px;
   font-weight: 650;
   line-height: 1.2;
   text-align: center;
-  color: var(--muted);
+  color: var(--color-ice-50);
 }
 
-/* Pressed: filled navy + check mark (shape, not color alone). */
+/* Pressed: lavender pill + navy text + check mark (shape, not color alone). */
 .gl-chip[aria-pressed="true"] {
-  background: var(--color-navy-900);
-  color: var(--color-white);
-  box-shadow: inset 0 0 0 2px var(--color-navy-900);
+  background: var(--color-lav-200);
+  color: var(--color-navy-900);
+  box-shadow: inset 0 0 0 2px var(--color-lav-200);
 }
 
 .gl-chip[aria-pressed="true"] .gl-chip__check {
@@ -123,42 +125,125 @@ html:not(.js) .gallery .gl-filters {
 }
 
 .gl-chip[aria-pressed="true"] .gl-chip__count {
-  background: var(--color-navy-800);
-  box-shadow: none;
+  background: var(--color-navy-900);
   color: var(--color-ice-50);
 }
 
 /* --------------------------------------------------------------------------
-   The sheet: CSS-columns masonry (2 / 3 columns), prints keep their aspect.
+   The sheet: justified contact-sheet strips (a Muybridge plate, not a masonry).
+   Each print is a flex item whose share of the strip is its aspect ratio (--ar):
+     flex: <ar> 1 calc(<ar> × <row> + 12px)
+   The +12px is the frame's 6 + 6 side padding, so every photo in a strip ends up
+   exactly the same height, and the strip ends flush with the container. <row> is
+   a fraction of the sheet width (container units), so the strips are the same at
+   every width of a layout; the order in model.ts SHEET_ORDER makes them:
+     phones (<560)     04 | 01·15 | 05·12 | 08·03 | 10·11 | 14·16 (the lead print spans the strip)
+     560–1023          04·01 | 15·05·12 | 08·03·10 | 11·14·16
+     ≥1024             04·01·15 | 05·12·08·03 | 10·11·14·16 (a three-frame feature strip)
+   Filtered views (data-filter) use one even row height. The ::after spacer (basis
+   --x, huge grow) only lands in a last strip that is short by more than --x: that
+   strip keeps the row height and ends ragged; a nearly full one is justified.
+   Every print stays ≤ native/2 CSS px (verified per width and filter; the widest
+   case is the lead print at 559px: 507 of 533).
+   Vertical spacing is the items' margin, so a wrapped spacer adds no gap.
    -------------------------------------------------------------------------- */
 .gl-grid {
+  /* --W: the sheet width — container units, with a viewport fallback for old engines. */
+  --W: calc(min(100vw, 1416px) - 40px);
+  --g: 12px;
+  --r: calc(var(--W) * 0.3);
+  --r1: calc(var(--W) * 0.7);
+  --r2: var(--r);
+  --r3: var(--r);
+  --rf: var(--r);
+  --rf1: var(--r1);
+  --x: calc(var(--W) * 0.7);
   position: relative; /* Flip: leaving prints go absolute inside while they fade */
-  margin: 0;
+  container-type: inline-size;
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--g);
+  row-gap: 0;
+  margin: 0 0 calc(-1 * var(--g));
   padding: 0;
   list-style: none;
-  columns: 2;
-  column-gap: 12px;
+}
+
+@media (min-width: 560px) {
+  .gl-grid {
+    --r: calc(var(--W) * 0.225);
+    --r1: calc(var(--W) * 0.36);
+    --r2: var(--r1);
+    --rf: calc(var(--W) * 0.25);
+    --rf1: var(--rf);
+    --x: calc(var(--W) * 0.3);
+  }
 }
 
 @media (min-width: 640px) {
   .gl-grid {
-    columns: 3;
-    column-gap: 16px;
+    --W: calc(min(100vw, 1416px) - 64px);
+    --g: 16px;
   }
 }
 
 @media (min-width: 1024px) {
   .gl-grid {
-    column-gap: 24px;
+    --W: calc(min(100vw, 1416px) - 96px);
+    --g: 24px;
+    --r: calc(var(--W) * 0.165);
+    --r1: calc(var(--W) * 0.255);
+    --r3: var(--r1);
+    --rf: var(--r1);
   }
 }
 
+@supports (width: 1cqi) {
+  .gl-grid {
+    --W: 100cqi;
+  }
+}
+
+.gl-grid::after {
+  content: "";
+  flex: 999 1 var(--x);
+  height: 0;
+}
+
 .gl-item {
+  --row: var(--r);
+  /* Each print is a size container: its foot drops the category note when it is narrow. */
+  container: gl-print / inline-size;
   position: relative;
   z-index: 1; /* moving prints glide over the leaving ones (z-index 0) during a filter Flip */
-  display: block;
-  break-inside: avoid;
-  margin-bottom: 12px;
+  flex: var(--ar, 1) 1 calc(var(--ar, 1) * var(--row) + 12px);
+  min-width: 0;
+  margin-bottom: var(--g);
+}
+
+.gl-item:nth-child(1) {
+  --row: var(--r1);
+}
+.gl-item:nth-child(2) {
+  --row: var(--r2);
+}
+.gl-item:nth-child(3) {
+  --row: var(--r3);
+}
+.gl-grid[data-filter] .gl-item {
+  --row: var(--rf);
+}
+.gl-grid[data-filter] .gl-item:nth-child(1) {
+  --row: var(--rf1);
+}
+
+/* Phones: the lead print always spans its strip on its own (whatever its aspect — with
+   MINOR_PHOTOS=false the lead is the portrait KR-05, which would otherwise share a strip at a
+   different row height). */
+@media (max-width: 559px) {
+  .gl-item:nth-child(1) {
+    flex-basis: 100%;
+  }
 }
 
 .gl-item[data-leaving] {
@@ -172,26 +257,50 @@ html:not(.js) .gallery .gl-filters {
   display: none;
 }
 
+/* Marey's measuring rule under every strip (≥640): a 1px steel line 6px under the frames with
+   a tick at each frame gap, like the mat ticks under the hero's ghost frames. Each print draws
+   its share of the line (reaching half a gap to either side) and a tick at both ends; the
+   ticks of neighbours coincide, so the colour is opaque (no double-alpha dots). */
 @media (min-width: 640px) {
-  .gl-item {
-    margin-bottom: 16px;
+  .gl-item::after {
+    --rule: color-mix(in oklab, var(--color-steel-300) 42%, var(--color-navy-950));
+    content: "";
+    position: absolute;
+    top: calc(100% + 6px);
+    left: calc(var(--g) / -2);
+    right: calc(var(--g) / -2);
+    height: 6px;
+    background:
+      linear-gradient(var(--rule), var(--rule)) left top / 100% 1px no-repeat,
+      linear-gradient(var(--rule), var(--rule)) left top / 1px 100% no-repeat,
+      linear-gradient(var(--rule), var(--rule)) right top / 1px 100% no-repeat;
+    pointer-events: none;
   }
 }
 
-@media (min-width: 1024px) {
-  .gl-item {
-    margin-bottom: 24px;
-  }
+/* The white paper mount (data-theme="light" tokens) on the darkroom sheet: a hairline of
+   steel light around the paper and the navy-tinted lift. */
+.gl-mount {
+  position: relative;
+  background: transparent;
 }
 
-/* A print. The frame keeps its native/2 cap (inline max-width from <Picture>). */
+.gallery .gl-mount .frame {
+  background: var(--color-white);
+  box-shadow:
+    0 0 0 1px rgba(141, 169, 198, 0.18),
+    var(--shadow-3);
+}
+
+/* A print. The frame keeps its native/2 cap (inline max-width from <Picture>); the strip
+   maths gives it exactly that width or less. */
 .gl-print.frame {
   width: 100%;
   margin: 0;
 }
 
 .gl-print .frame-foot {
-  padding-right: 34px; /* room for the zoom mark */
+  padding-right: 28px; /* room for the zoom mark */
 }
 
 /* MINOR_PHOTOS=false placeholders: keep the note centred in narrow prints. */
@@ -203,13 +312,17 @@ html:not(.js) .gallery .gl-filters {
   text-align: center;
 }
 
-/* Narrow two-column prints: the category note would crowd the frame number. */
-@media (max-width: 479px) {
+/* Narrow prints (a portrait in a strip): the category note would crowd the frame number and
+   the zoom mark. Phones drop it on every print, so a strip never mixes feet. */
+@container gl-print (max-width: 200px) {
   .gl-print .frame-caption {
     display: none;
   }
-  .gl-print .frame-foot {
-    padding-right: 30px;
+}
+
+@media (max-width: 479px) {
+  .gl-print .frame-caption {
+    display: none;
   }
 }
 
@@ -240,23 +353,28 @@ html:not(.js) .gallery .gl-filters {
   }
 }
 
-/* Always-visible "open larger" mark in the frame foot (not a hover-only cue). */
+/* The quiet "open larger" mark in the frame foot: edge text on a contact sheet, not UI
+   (visible without hover; brightens on hover/focus). */
 .gl-zoom {
   position: absolute;
   right: 6px;
   bottom: 3px;
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   color: var(--muted);
+  opacity: 0.55;
   pointer-events: none;
+  transition:
+    opacity var(--dur-fast) linear,
+    color var(--dur-fast) linear;
 }
 
 /* A pictogram (.ui-icon: stroke in CSS px). */
 .gl-zoom svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.75;
@@ -266,11 +384,47 @@ html:not(.js) .gallery .gl-filters {
 
 .gl-open:focus-visible .gl-zoom {
   color: var(--accent);
+  opacity: 1;
 }
 
 @media (hover: hover) {
   .gl-open:hover .gl-zoom {
     color: var(--accent);
+    opacity: 1;
+  }
+}
+
+/* Hung prints (S9's primary motion; armHang in the lazy lightbox chunk sets data-hang on the
+   prints in view): each print swings in from a peg 8px above its frame — ±3° pendulum on the
+   uneven-bars swing ease — drops 10px and fades in; the strip's rule stays level. Stagger
+   50ms (≤ .30s). The hidden start exists only while the animation runs (fill: backwards). */
+@media (prefers-reduced-motion: no-preference) {
+  html.js-motion .gl-item[data-hang] {
+    animation: gl-fade 160ms linear calc(var(--k, 0) * 50ms) backwards;
+  }
+  html.js-motion .gl-item[data-hang] > * {
+    transform-origin: 50% -8px;
+    animation:
+      gl-swing var(--dur-swing) var(--ease-swing) calc(var(--k, 0) * 50ms) backwards,
+      gl-drop 400ms var(--ease-stick) calc(var(--k, 0) * 50ms) backwards;
+  }
+}
+
+@keyframes gl-swing {
+  from {
+    rotate: var(--sw, -3deg);
+  }
+}
+
+@keyframes gl-drop {
+  from {
+    translate: 0 -10px;
+  }
+}
+
+@keyframes gl-fade {
+  from {
+    opacity: 0;
   }
 }
 
@@ -288,6 +442,8 @@ html:not(.js) .gallery .gl-filters {
 
 /* --------------------------------------------------------------------------
    Lightbox (native <dialog>, top layer; data-theme="darker")
+   A print on the darkroom table: the photo, its foot (▸ KR-xx · category, n / N,
+   the caption) and, under the stage, Marey's measuring rule.
    -------------------------------------------------------------------------- */
 html[data-lightbox-open] {
   overflow: hidden;
@@ -312,8 +468,11 @@ html[data-lightbox-open] body {
   color: var(--fg);
   overflow: hidden;
   overscroll-behavior: contain;
+  /* Stage: top bar, bottom bar (prev · rule · next on phones) and the print foot's reserve
+     (frame row + three caption lines on phones, two on desktop). */
   --lb-top: 72px;
   --lb-bottom: 92px;
+  --lb-foot: 112px;
 }
 
 .lightbox::backdrop {
@@ -322,14 +481,16 @@ html[data-lightbox-open] body {
 
 @media (min-width: 1024px) {
   .lightbox {
-    --lb-bottom: 40px;
+    --lb-bottom: 64px;
+    --lb-foot: 92px;
   }
 }
 
+/* Opaque: the page never shows through (an OLED phone would read a 98% veil as burn-in). */
 .lb-scrim {
   position: absolute;
   inset: 0;
-  background: rgba(10, 26, 56, 0.985);
+  background: var(--color-navy-950);
 }
 
 .lb-track {
@@ -369,10 +530,19 @@ html[data-lightbox-open] body {
   }
 }
 
-/* Never wider than native/2 CSS px (--cap), never taller than the stage; native aspect (never cropped). */
+/* The print: never wider than native/2 CSS px (--cap), never taller than the stage minus its
+   foot; native aspect (never cropped). The foot has the photo's width. */
+.lb-print {
+  width: min(100%, var(--cap), calc((100svh - var(--lb-top) - var(--lb-bottom) - var(--lb-foot)) * var(--r)));
+}
+
+.lb-hop {
+  width: 100%;
+}
+
 .lb-media {
   position: relative;
-  width: min(100%, var(--cap), calc((100svh - var(--lb-top) - var(--lb-bottom)) * var(--r)));
+  width: 100%;
   aspect-ratio: var(--ar);
   background-color: var(--color-navy-900);
   background-position: center;
@@ -391,7 +561,54 @@ html[data-lightbox-open] body {
   -webkit-user-drag: none;
 }
 
-/* Top bar: counter · frame label · close */
+/* Print foot: frame label + category left, counter right; the caption under it. */
+.lb-foot {
+  padding-top: 10px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.lb-foot__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0;
+}
+
+.lb-foot__frame {
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-steel-300);
+}
+
+.lb-foot__frame::before {
+  content: "▸ ";
+  font-size: 9px;
+}
+
+.lb-foot__count {
+  flex: none;
+  font-size: 15px;
+  line-height: 1.2;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: var(--fg);
+}
+
+.lb-foot__cap {
+  max-width: 56ch;
+  margin: 8px 0 0;
+  font-size: var(--text-small);
+  line-height: 1.45;
+  color: var(--color-steel-300);
+  text-wrap: pretty;
+}
+
+/* Top bar: close only (the counter lives in the foot; screen readers hear it here). */
 .lb-top {
   position: absolute;
   top: 0;
@@ -400,7 +617,7 @@ html[data-lightbox-open] body {
   z-index: 2;
   display: flex;
   align-items: center;
-  gap: 14px;
+  justify-content: flex-end;
   min-height: var(--lb-top);
   padding: max(12px, env(safe-area-inset-top)) 12px 12px 20px;
   pointer-events: none;
@@ -408,32 +625,6 @@ html[data-lightbox-open] body {
 
 .lb-top > * {
   pointer-events: auto;
-}
-
-.lb-count {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  color: var(--fg);
-}
-
-.lb-frame {
-  font-size: 11px;
-  line-height: 14px;
-  letter-spacing: 0.12em;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
-}
-
-.lb-frame::before {
-  content: "▸ ";
-  font-size: 9px;
-}
-
-.lb-close {
-  margin-left: auto;
 }
 
 .lb-btn {
@@ -508,7 +699,8 @@ html[data-lightbox-open] body {
   pointer-events: none;
 }
 
-.lb-nav[hidden] {
+.lb-nav[hidden],
+.lb-rule[hidden] {
   display: none;
 }
 
@@ -516,10 +708,83 @@ html[data-lightbox-open] body {
   pointer-events: auto;
 }
 
+/* Marey's measuring rule: a 1.5px floor line with one tick per frame; the lavender marker
+   stands on the current frame. Phones: between the arrows; desktop: under the stage. */
+.lb-rule {
+  --lb-rule-w: calc(100% - 2 * (16px + 48px + 24px));
+  position: absolute;
+  left: 50%;
+  bottom: calc(20px + env(safe-area-inset-bottom) + 24px);
+  z-index: 2;
+  width: min(var(--lb-rule-w), 420px);
+  height: 1.5px;
+  translate: -50% 0;
+  background: color-mix(in oklab, var(--color-steel-300) 60%, transparent);
+  pointer-events: none;
+}
+
+.lb-rule__ticks {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+.lb-rule__ticks i {
+  width: 1.5px;
+  height: 10px;
+  background: color-mix(in oklab, var(--color-steel-300) 55%, transparent);
+}
+
+.lb-rule__car {
+  position: absolute;
+  inset: 0;
+  transition: transform var(--dur-base) var(--ease-flight);
+}
+
+.lb-rule__mark {
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 2px;
+  height: 18px;
+  border-radius: 1px;
+  background: var(--color-lav-200);
+  translate: 0 0;
+}
+
 @media (min-width: 1024px) {
   .lb-nav {
     top: 0;
     padding: 0 28px;
+  }
+  .lb-rule {
+    bottom: 32px;
+    width: min(40vw, 480px);
+  }
+}
+
+/* Short landscape screens (phones on their side): arrows at the edges, the rule at the
+   bottom, the caption folded away so the photo keeps the height. */
+@media (max-height: 560px) and (orientation: landscape) {
+  .lightbox {
+    --lb-top: 64px;
+    --lb-bottom: 44px;
+    --lb-foot: 34px;
+  }
+  .lb-slide {
+    padding-inline: 88px;
+  }
+  .lb-foot__cap {
+    display: none;
+  }
+  .lb-nav {
+    top: 0;
+    padding: 0 16px;
+  }
+  .lb-rule {
+    bottom: 20px;
+    width: min(40vw, 360px);
   }
 }
 
@@ -537,5 +802,8 @@ html[data-lightbox-open] body {
     transition: none;
     translate: none;
     scale: none;
+  }
+  .lb-rule__car {
+    transition: none;
   }
 }

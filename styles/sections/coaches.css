@@ -1,11 +1,24 @@
 /* coaches section styles — owned by the coaches section (S6 „Trenerice“, light theme).
-   Two coach cards (portrait print + „Licenca GSS“ stamp + roles with „izvor ↗“ on the
-   licence lines), then photo 05 as the „Na takmičenju“ print carrying the white brush
-   annotation. Mobile/tablet: cards stacked, the print under them (3:2). Desktop: the
-   cards stack in cols 1–7 and the print fills cols 8–12 at exactly their height.
-   The cards switch to a side-by-side inner layout with a container query, so the same
-   card works stacked (phones) and wide (tablet, desktop column). Motion: clip-path,
-   transform, opacity, stroke-dashoffset only (coaches-motion.ts). */
+   Two coach cards (portrait print or the KR-07 Marey plate + an inked „Licenca GSS“ stamp +
+   roles with „izvor ↗“ on the licence lines), then photo 05 as the „Na takmičenju“ print
+   carrying the white brush annotation. Phones: compact athlete cards (portrait beside the
+   name, roles below). Tablet: cards stacked, the print under them, right-aligned. Desktop:
+   the cards stack in cols 1–7 and the print fills cols 8–12 at exactly their height. The
+   card switches layouts with a container query, so the same card works on a phone and in
+   the desktop column. Motion: clip-path, transform, opacity, stroke-dashoffset only
+   (coaches-motion.ts). */
+
+/* S5 ends on its dark band, so this is a dark → light edge: full §3 section spacing
+   (the shared light/light rule would halve it). */
+#o-nama + #treneri {
+  padding-top: 72px;
+}
+
+@media (min-width: 1024px) {
+  #o-nama + #treneri {
+    padding-top: 144px;
+  }
+}
 
 /* --------------------------------------------------------------------------
    Cards
@@ -24,13 +37,18 @@
   min-width: 0;
 }
 
+/* Compact (phones): portrait beside the name, roles across the card. */
 .coach__inner {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  row-gap: 30px;
+  grid-template-columns: min(132px, 42%) minmax(0, 1fr);
+  grid-template-areas:
+    "media name"
+    "roles roles";
+  column-gap: 22px;
+  row-gap: 18px;
   align-content: start; /* equal-height cards: extra height stays below, rows never stretch */
   height: 100%;
-  padding: 20px 20px 22px;
+  padding: 20px 20px 10px;
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow:
@@ -40,26 +58,29 @@
 
 .coach__media {
   position: relative;
-  width: min(60%, 232px);
+  grid-area: media;
+  width: 100%;
 }
 
 .coach__portrait .frame {
   width: 100%;
 }
 
-/* Silhouette stand-in (no portrait yet): the same navy placeholder as MINOR_PHOTOS. */
-.coach__pending .coach__pending-leap {
-  width: 66%;
-  max-width: none;
-  opacity: 0.5;
+.coach__body {
+  display: contents;
 }
 
 .coach__name {
-  margin: 0 0 14px;
+  grid-area: name;
+  align-self: end;
+  margin: 0 0 30px; /* clear of the stamp's lower edge, level with the print */
+  font-size: clamp(1.25rem, 1.05rem + 0.9vw, 1.5rem);
+  overflow-wrap: break-word;
 }
 
 .coach__roles {
   display: grid;
+  grid-area: roles;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -67,12 +88,14 @@
 }
 
 .coach__role {
-  display: grid;
-  justify-items: start;
   padding: 10px 0 11px;
   border-bottom: 1px solid var(--hairline);
   font-size: var(--text-small);
   line-height: 1.45;
+}
+
+.coach__role:last-child {
+  border-bottom: 0;
 }
 
 /* No lone „(GSS)“ on a last line. */
@@ -80,12 +103,14 @@
   text-wrap: pretty;
 }
 
-/* „izvor ↗“ under the licence line. The link box — and so its focus ring — hugs the
-   text; ::before keeps the 48 px target (as the timeline links in about.css). */
+/* „izvor ↗“ — a quiet footnote under the licence line. The link box — and so its focus
+   ring — hugs the text; ::before keeps the 48 px target (as the timeline links in about.css). */
 .coach__source {
   position: relative;
+  display: flex;
+  width: fit-content;
   min-height: 0;
-  margin: 4px 0 0 -4px;
+  margin: 2px 0 0 -4px;
 }
 
 .coach__source::before {
@@ -99,22 +124,73 @@
 }
 
 /* --------------------------------------------------------------------------
-   „Licenca GSS“ stamp — centred near the print's lower-right corner.
+   KR-07 — the Marey plate (no portrait yet): four exposures of the leap on the mat line.
+   The plate carries data-theme="dark", so --ghost-1/2/3 are the dark-section steps.
+   -------------------------------------------------------------------------- */
+.coach__plate {
+  position: relative;
+}
+
+.coach__plate-art {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.coach__plate-mat,
+.coach__plate-tick {
+  stroke: var(--color-steel-300);
+  stroke-opacity: 0.6;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.coach__plate-tick {
+  stroke-opacity: 0.45;
+  stroke-width: 1;
+}
+
+.coach__plate-ghost--1 {
+  color: var(--ghost-1);
+  opacity: var(--ghost-1-o);
+}
+
+.coach__plate-ghost--2 {
+  color: var(--ghost-2);
+  opacity: var(--ghost-2-o);
+}
+
+.coach__plate-ghost--3 {
+  color: var(--ghost-3);
+  opacity: var(--ghost-3-o);
+}
+
+.coach__plate-solid {
+  color: var(--color-lav-200);
+  opacity: 0.92;
+}
+
+/* --------------------------------------------------------------------------
+   „Licenca GSS“ stamp — an inked impression near the print's lower-right corner.
+   No z-index: the stamp must not form a stacking context, so its ink layer can multiply
+   into the print underneath (it still paints above the frame: later in the DOM).
    -------------------------------------------------------------------------- */
 .licence-stamp {
   position: absolute;
-  right: -30px;
-  bottom: -12px;
-  z-index: 2;
+  right: -18px;
+  bottom: -10px;
   display: block;
-  width: 86px;
-  height: 86px;
-  border-radius: 50%;
+  width: 64px;
+  height: 64px;
   color: var(--accent);
-  box-shadow: var(--shadow-2);
 }
 
-.licence-stamp__svg {
+.licence-stamp__layer {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
@@ -122,7 +198,15 @@
 }
 
 .licence-stamp__disc {
-  fill: var(--surface);
+  fill: color-mix(in oklab, var(--surface) 55%, transparent);
+}
+
+.licence-stamp__print {
+  opacity: 0.92;
+}
+
+:is([data-theme="light"], [data-theme="ice"]) .licence-stamp__ink {
+  mix-blend-mode: multiply;
 }
 
 .licence-stamp__ring {
@@ -137,9 +221,9 @@
 }
 
 .licence-stamp__arc {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.22em;
   font-stretch: 112%;
 }
 
@@ -150,29 +234,39 @@
   font-stretch: 118%;
 }
 
-.licence-stamp__dots {
-  fill: currentColor;
+.licence-stamp__splash {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  opacity: 0;
 }
 
-/* Wide card (tablet, desktop column): portrait left, name + roles right.
-   (After the stamp rules so the stamp sizes here win.) */
+/* Wide card (tablet, desktop column): portrait left, name + roles right. */
 @container coach (min-width: 520px) {
   .coach__inner {
     grid-template-columns: 168px minmax(0, 1fr);
+    grid-template-areas: "media body";
     column-gap: 44px;
     align-items: start;
     padding: 24px;
   }
-  .coach__media {
-    width: 100%;
-  }
   .coach__body {
+    display: block;
+    grid-area: body;
     padding-top: 6px;
+  }
+  .coach__name {
+    margin: 0 0 14px;
+    font-size: var(--text-h3);
+  }
+  .coach__role:last-child {
+    border-bottom: 1px solid var(--hairline);
   }
   .licence-stamp {
     width: 76px;
     height: 76px;
     right: -26px;
+    bottom: -12px;
   }
 }
 
@@ -188,6 +282,27 @@
   }
 }
 
+/* Desktop: the source sits inline after the role text („… (GSS) · izvor ↗“), one row less
+   per licence. The separator belongs to the link (never underlined), and the role's last word
+   travels with it (.coach__role-tail), so neither the dot nor the link is ever stranded. */
+@media (min-width: 1024px) {
+  .coach__role-tail {
+    white-space: nowrap;
+  }
+  /* inline-block: the focus ring is one clean box, clear of „(GSS)“. */
+  .coach__source {
+    display: inline-block;
+    margin: 0 0 0 5px;
+    padding-inline-start: 3px;
+  }
+  .coach__source > span[aria-hidden]::before {
+    content: "·";
+    display: inline-block;
+    margin-right: 7px;
+    color: var(--muted);
+  }
+}
+
 /* --------------------------------------------------------------------------
    Photo 05 — „Na takmičenju“ print (≤600 CSS px: 1200 px native / 2).
    The frame is built in Coaches.tsx so .coaches-team__shot is exactly the photo box.
@@ -199,6 +314,13 @@
 .coaches-team {
   width: 100%;
   max-width: 612px; /* 600 px photo + frame padding */
+}
+
+/* Tablet: the print answers the left heading from the right — the floor diagonal. */
+@media (min-width: 640px) and (max-width: 1023.98px) {
+  .coaches-team {
+    margin-left: auto;
+  }
 }
 
 .coaches-team__shot {
@@ -234,12 +356,12 @@
 }
 
 .brush__strand--thin {
-  opacity: 0.5;
+  opacity: 0.55;
 }
 
 .brush__shadow {
   stroke: var(--color-navy-900);
-  opacity: 0.2;
+  opacity: 0.28;
 }
 
 /* --------------------------------------------------------------------------

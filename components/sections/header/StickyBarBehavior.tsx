@@ -1,17 +1,22 @@
 "use client";
 
 import { useEffect } from "react";
-import { SHORT_VIEWPORT_MAX, isKeyboardOpen, isTextEntry, stickyBarVisible, type StickyBarInputs } from "./chrome";
+import { SHORT_VIEWPORT_MAX, headerCtaHidden, isKeyboardOpen, isTextEntry, stickyBarVisible, type StickyBarInputs } from "./chrome";
 import { clearFocusFromBar } from "./focus-guard";
 
 const MOBILE = "(max-width: 1023.98px)";
 const SHORT = `(max-height: ${SHORT_VIEWPORT_MAX}px)`;
 
 /**
- * Sticky bar visibility (renders nothing). Two IntersectionObservers (hero CTAs,
- * contact block), visualViewport for the on-screen keyboard, focusin/out for
- * form fields, and — on short viewports — the header's data-hidden (the bar
- * yields while the header is shown). No scroll handler.
+ * Sticky bar visibility (renders nothing). IntersectionObservers on the hero
+ * CTAs, the S11 contact block and the S10 action row, visualViewport for the
+ * on-screen keyboard, focusin/out for form fields, and — on short viewports —
+ * the header's data-hidden (the bar yields while the header is shown). No
+ * scroll handler.
+ *
+ * The same observers drive the header's data-cta: its „Zakažite probni trening“
+ * pill steps aside while the hero CTAs or the S11 finale are on screen
+ * (headerCtaHidden; the CSS in header.css plays the take-off and landing).
  */
 export function StickyBarBehavior() {
   useEffect(() => {
@@ -31,7 +36,14 @@ export function StickyBarBehavior() {
       shortViewport: short.matches,
       headerShown: header?.dataset.hidden !== "true",
     };
+    let heroCtasInView = false;
+    const renderCta = () => {
+      if (!header) return;
+      const cta = headerCtaHidden({ heroCtasInView, contactVisible: s.contactVisible }) ? "hidden" : "shown";
+      if (header.dataset.cta !== cta) header.dataset.cta = cta;
+    };
     const render = () => {
+      renderCta();
       const visible = stickyBarVisible(s) ? "true" : "false";
       if (bar.dataset.visible === visible) return;
       bar.dataset.visible = visible;
@@ -55,6 +67,13 @@ export function StickyBarBehavior() {
     );
     if (hero) heroIO.observe(hero);
     else s.heroCtasPassed = true;
+    // …and whether any of them is on screen right now (the header CTA steps aside).
+    const heroViewIO = new IntersectionObserver(([e]) => {
+      if (!e) return;
+      heroCtasInView = e.isIntersecting;
+      render();
+    });
+    if (hero) heroViewIO.observe(hero);
 
     // The S11 contact block (heading, CTA panel, contact rows). Zero rootMargin: the bar
     // steps aside as soon as any of it reaches the viewport — i.e. passes under the bar —
@@ -67,6 +86,19 @@ export function StickyBarBehavior() {
       render();
     });
     if (contact) contactIO.observe(contact);
+
+    // The S10 action row (trial CTA + call): with half of it on screen, its own two
+    // buttons are right there, so the bar steps aside instead of stacking a third.
+    const enrollActions = document.querySelector(".en-actions");
+    const actionsIO = new IntersectionObserver(
+      ([e]) => {
+        if (!e) return;
+        s.enrollActionsVisible = e.isIntersecting && e.intersectionRatio >= 0.5;
+        render();
+      },
+      { threshold: [0, 0.5] },
+    );
+    if (enrollActions) actionsIO.observe(enrollActions);
 
     const onViewport = () => {
       if (!vv) return;
@@ -107,7 +139,9 @@ export function StickyBarBehavior() {
 
     return () => {
       heroIO.disconnect();
+      heroViewIO.disconnect();
       contactIO.disconnect();
+      actionsIO.disconnect();
       headerMO.disconnect();
       mobile.removeEventListener("change", onMobile);
       short.removeEventListener("change", onMobile);

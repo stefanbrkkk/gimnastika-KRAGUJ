@@ -4,8 +4,10 @@
    Three rows: head · fields (the only part that scrolls) · action footer, so the
    send actions are always in view (safe-area padding under them on phones).
    ≤480px tall the whole sheet scrolls as one instead (BRK-05, D-BK-14 amendment).
-   Theme: light (data-theme="light" on the dialog) — navy CTA, chalk surface.
+   Theme: light (data-theme="light" on the dialog) — navy CTA, chalk surface — under a
+   darkroom head band (data-theme="dark" on the head: the S11 slab carried into the sheet).
    Motion: enter --dur-base ease-stick, exit --dur-fast ease-takeoff; none under reduced motion.
+   Phones: the head is a grabber — pull it down to close (BookingDialog).
    ========================================================================== */
 
 /* Body scroll lock while the sheet is open (set/cleared by BookingDialog). */
@@ -49,22 +51,57 @@ html[data-booking-open] body {
   background: rgba(10, 26, 56, 0.66);
 }
 
-/* --- Head --------------------------------------------------------------- */
+/* --- Head: darkroom band, white silhouette, leotard hairline ---------------- */
 .booking__head {
+  position: relative;
   flex: none;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 16px 14px var(--pad-x);
-  box-shadow: 0 1px 0 0 var(--hairline);
+  padding: 20px 16px 17px var(--pad-x);
+  background: var(--color-navy-950);
+  color: var(--color-ice-50);
+  touch-action: none; /* the head is the sheet's handle (pull down to close) */
+  user-select: none;
+}
+
+/* Grabber: a bottom sheet's handle (phones only; the desktop dialog has none). */
+.booking__head::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 36px;
+  height: 4px;
+  margin-left: -18px;
+  border-radius: 2px;
+  background: rgba(238, 243, 250, 0.32);
+}
+
+/* The leotard gradient as a 3px hairline under the band (no text on it; §3 pinned use #2:
+   the sheet is the trial-training CTA's own surface). */
+.booking__head::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 3px;
+  background: var(--grad-leotard);
+  pointer-events: none;
 }
 
 .booking__leap {
   flex: none;
-  width: 46px;
+  width: 44px;
   height: auto;
-  color: var(--accent);
+  color: var(--color-white);
   overflow: visible;
+}
+
+/* From 480: the full 52px silhouette (below, 44px keeps the title on one line at 390). */
+@media (min-width: 480px) {
+  .booking__leap {
+    width: 52px;
+  }
 }
 
 .booking__title {
@@ -84,6 +121,10 @@ html[data-booking-open] body {
   .booking__title {
     font-stretch: 118%;
   }
+}
+
+.booking__title {
+  color: var(--color-ice-50);
 }
 
 .booking__close {
@@ -106,7 +147,8 @@ html[data-booking-open] body {
 
 @media (hover: hover) {
   .booking__close:hover {
-    background: var(--color-ice-50);
+    background: rgba(238, 243, 250, 0.08);
+    box-shadow: inset 0 0 0 1.5px rgba(238, 243, 250, 0.5);
   }
 }
 
@@ -184,6 +226,11 @@ html[data-booking-open] body {
   resize: vertical;
 }
 
+/* Text inputs sit in a wrapper that also holds the „stop“ disc when invalid. */
+.booking-control {
+  position: relative;
+}
+
 /* Select: the native <select> lies transparently over the visible value box,
    so long labels wrap instead of being cut off. Text stops 40px from the right
    edge, the chevron sits 12px in (both selects, so stacked chevrons align):
@@ -246,59 +293,86 @@ html[data-booking-open] body {
   }
 }
 
-/* Invalid (D-BK-8 rev, no red): the whole box changes tone — a 2px accent border
-   (1px border + 1px inset ring, so nothing shifts) on an ice-50 fill — plus a filled
-   „stop“ disc and a navy text line. Colour is never the only signal. */
+/* Invalid (D-BK-8 rev 2, C-08; still no red): a 2px accent border (1px border + 1px inset
+   ring, so nothing shifts), a white fill and a soft 4px accent halo set it apart from the
+   slate-bordered normal fields; a filled „stop“ disc sits inside the control's right end
+   and the error text is navy underneath. Colour is never the only signal. */
 .booking-field__control[aria-invalid="true"],
 .booking-select[data-invalid] {
-  border-color: var(--accent);
-  background: var(--color-ice-50);
-  box-shadow: inset 0 0 0 1px var(--accent);
+  border-color: var(--color-royal-600);
+  background: var(--color-white);
+  box-shadow:
+    inset 0 0 0 1px var(--color-royal-600),
+    0 0 0 4px color-mix(in oklab, var(--color-royal-600) 16%, transparent);
+}
+
+.booking-field__control[aria-invalid="true"] {
+  padding-right: 46px;
+}
+
+/* Selects keep their 40px chevron lane; the disc takes a lane of its own beside it only
+   where the box is wide enough (the 134–150px Godište box on phones keeps „Izaberite“
+   whole and shows the border, halo and error text instead). */
+.booking-select {
+  container-type: inline-size;
+}
+
+@container (min-width: 200px) {
+  .booking-select[data-invalid] .booking-select__value {
+    margin-right: 26px;
+  }
+}
+
+@container (max-width: 199.98px) {
+  .booking-select .booking-stop {
+    display: none;
+  }
+}
+
+/* The „stop“ disc: filled accent with a white „!“ (solid = stop; the outline glyphs in
+   the sheet — lock, phone, + — are information and actions). */
+.booking-stop {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  translate: 0 -50%;
+  color: var(--color-royal-600);
+  pointer-events: none;
+}
+
+.booking-select .booking-stop {
+  right: 40px;
+}
+
+.booking-stop__mark {
+  stroke: var(--color-white);
+}
+
+.booking-stop__dot {
+  fill: var(--color-white);
+}
+
+@media (forced-colors: active) {
+  .booking-stop {
+    color: CanvasText;
+  }
+  .booking-stop__mark {
+    stroke: Canvas;
+  }
+  .booking-stop__dot {
+    fill: Canvas;
+  }
 }
 
 /* Navy 15/650 (not the accent of the „Dodajte napomenu“ text button), so an error
    reads as a stop, not as a link or a hint. */
 .booking-field__error {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
   margin: 2px 0 0;
   font-size: var(--text-small);
   line-height: 1.35;
   font-weight: 650;
   color: var(--fg);
-}
-
-.booking-field__error span {
   text-wrap: balance; /* even lines („Izaberite / godište deteta.“), no lone last word */
-}
-
-/* A FILLED accent disc with a white „!“: solid = stop; the outline glyphs elsewhere
-   in the sheet (lock, phone, +) are information and actions. */
-.booking-field__error svg {
-  flex: none;
-  margin-top: 1px;
-  color: var(--accent);
-}
-
-.booking-field__error-mark {
-  stroke: var(--color-white);
-}
-
-.booking-field__error-dot {
-  fill: var(--color-white);
-}
-
-@media (forced-colors: active) {
-  .booking-field__error svg {
-    color: CanvasText;
-  }
-  .booking-field__error-mark {
-    stroke: Canvas;
-  }
-  .booking-field__error-dot {
-    fill: Canvas;
-  }
 }
 
 /* ≥360: the child's name and birth year share a row (the year box is short). */
@@ -405,6 +479,26 @@ html[data-booking-open] body {
   box-shadow: inset 0 0 0 1px var(--hairline);
 }
 
+/* The „landed“ card (C-05): the message is on its way — the silhouette stands in the
+   first column and the card is outlined in royal on white, the funnel's stuck landing. */
+.booking__status[data-landed] {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1.5px var(--color-royal-600);
+}
+
+.booking__status-leap {
+  width: 40px;
+  height: auto;
+  overflow: visible;
+  color: var(--color-navy-900);
+  transform-origin: 50% 100%;
+}
+
 .booking__sends {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -482,19 +576,29 @@ html[data-booking-open] body {
   }
 }
 
-/* --- Desktop: centered dialog ------------------------------------------- */
+/* --- Desktop: dialog anchored at the top (C-06) --------------------------
+   A vertically centred modal re-centres on every height change (errors, the note, the
+   status card) and jumps under the cursor. Anchored, it grows downward; the fields scroll. */
 @media (min-width: 768px) {
   .booking {
     --pad-x: 36px;
-    inset: 0;
-    margin: auto;
+    --top: max(24px, 10svh);
+    inset: var(--top) 0 auto;
+    margin: 0 auto;
     width: min(640px, calc(100% - 64px));
     height: fit-content;
-    max-height: min(880px, calc(100svh - 48px));
+    max-height: min(880px, calc(100svh - var(--top) - 24px));
     border-radius: var(--radius-xl);
   }
+  .booking::backdrop {
+    background: rgba(10, 26, 56, 0.82);
+  }
   .booking__head {
-    padding: 20px 28px 16px var(--pad-x);
+    padding: 20px 28px 19px var(--pad-x);
+    touch-action: auto;
+  }
+  .booking__head::before {
+    content: none;
   }
   .booking__body {
     padding-block: 24px 20px;
@@ -523,6 +627,23 @@ html[data-booking-open] body {
     animation: booking-fade-in var(--dur-fast) linear both;
   }
 
+  /* M-02: the card stamps in (clip from the top, only the clip animates; its height is
+     set in the same frame), the silhouette drops in and sticks the landing. ≤600 ms. */
+  .booking__status[data-landed] {
+    animation: booking-stamp var(--dur-base) var(--ease-stick) both;
+  }
+  .booking__status[data-landed] .booking__status-leap {
+    animation:
+      booking-leap-drop 360ms var(--ease-flight) both,
+      booking-leap-stick var(--dur-land) var(--ease-land) 360ms both;
+  }
+
+  /* M-03: one „balance check“ per send attempt — the invalid control is pushed off its
+     line and catches itself with the beam wobble (--ease-wobble), 40 ms apart. */
+  .booking-field[data-wobble] :is(.booking-control, .booking-select) {
+    animation: booking-wobble var(--dur-wobble) linear calc(var(--i, 0) * 40ms) both;
+  }
+
   @media (min-width: 768px) {
     .booking[open] {
       animation-name: booking-dialog-in;
@@ -539,6 +660,51 @@ html[data-booking-open] body {
   .booking-field__control,
   .booking-select {
     transition: none;
+  }
+}
+
+@keyframes booking-stamp {
+  from {
+    clip-path: inset(0 0 100% 0 round var(--radius-md));
+  }
+  to {
+    clip-path: inset(0 0 0 0 round var(--radius-md));
+  }
+}
+@keyframes booking-leap-drop {
+  from {
+    translate: 0 -28px;
+    rotate: -10deg;
+    opacity: 0;
+  }
+  70% {
+    opacity: 1;
+  }
+  to {
+    translate: 0 0;
+    rotate: 0deg;
+    opacity: 1;
+  }
+}
+@keyframes booking-leap-stick {
+  from {
+    scale: 1.06 0.86;
+  }
+  to {
+    scale: 1 1;
+  }
+}
+@keyframes booking-wobble {
+  0% {
+    translate: 0 0;
+    animation-timing-function: var(--ease-takeoff);
+  }
+  10% {
+    translate: -5px 0;
+    animation-timing-function: var(--ease-wobble);
+  }
+  100% {
+    translate: 0 0;
   }
 }
 

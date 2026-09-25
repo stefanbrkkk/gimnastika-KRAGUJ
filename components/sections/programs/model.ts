@@ -27,7 +27,31 @@ export const PROGRAMS_UI = {
   scheduleLabel: "Raspored",
   prev: "Prethodni program",
   next: "Sledeći program",
+  /** Stamp on the card the quiz recommended (QP-10): „Preporuka · 9 god.“ */
+  recommended: "Preporuka",
+  /** Age unit on that stamp — the quiz strip's „9 god.“. */
+  ageUnit: "god.",
 } as const;
+
+/**
+ * Competitor-bib numeral on the program plate (QP-06): a typographic rendering of the
+ * card's own age line or title („3–8 godina“ → „3–8“, „od 8 godina“ → „8+“, „… C program“
+ * → „C“, „… A i B program“ → „A·B“). Decorative (aria-hidden), never a new fact; aerobic
+ * gymnastics has no age claim, so it has no bib.
+ */
+export const PROGRAM_BIB: Readonly<Record<ProgramId, string | null>> = {
+  mladja: "3–8",
+  starija: "8+",
+  "c-program": "C",
+  "ab-program": "A·B",
+  aerobik: null,
+  trampolina: null,
+};
+
+/** Days on which any group of the program trains (the card's single week row, QP-07). */
+export function programDays(program: Program): ReadonlySet<DayCode> {
+  return new Set(program.groups.flatMap(({ id }) => groupById(id).blocks.flatMap((b) => b.days)));
+}
 
 /** Program color as CSS custom properties: --pc (swatch) and --pc-ink (line/ink on it). */
 export const programStyle = (program: Program): CSSProperties =>
@@ -136,8 +160,17 @@ export function usableChips(visible: readonly ProgramId[]): ProgramChip[] {
  */
 export function filterStatus(chip: ProgramChip, visible: readonly ProgramId[]): string {
   if (chip.ids === null) return "";
+  const text = `Prikazano: ${matchingIds(chip, visible).length} od ${visible.length} programa.`;
+  const hint = filterHint(chip, visible);
+  return hint ? `${text} ${hint}` : text;
+}
+
+/**
+ * The aerobic hint alone („Pitajte trenericu i za aerobnu gimnastiku.“) when the chip hides
+ * aerobic gymnastics, else "". Phones show it under the row, where the status line (sr-only
+ * there) would have said it.
+ */
+export function filterHint(chip: ProgramChip, visible: readonly ProgramId[]): string {
   const shown = matchingIds(chip, visible);
-  const text = `Prikazano: ${shown.length} od ${visible.length} programa.`;
-  const aerobicHidden = visible.includes("aerobik") && !shown.includes("aerobik");
-  return aerobicHidden ? `${text} ${QUIZ.aerobicHint}` : text;
+  return visible.includes("aerobik") && !shown.includes("aerobik") ? QUIZ.aerobicHint : "";
 }

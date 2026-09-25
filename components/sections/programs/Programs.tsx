@@ -1,21 +1,31 @@
-import { Picture } from "@/components/ui/Picture";
+import { isPhotoPlaceholder, Picture } from "@/components/ui/Picture";
 import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { PROGRAMS_COPY, visiblePrograms } from "@/content/programs";
 import { FLAGS } from "@/content/site";
 import { typesetSr } from "@/lib/typeset";
-import { filterStatus, PROGRAMS_UI, usableChips } from "./model";
+import { filterHint, filterStatus, PROGRAMS_UI, usableChips } from "./model";
 import { ProgramCard } from "./ProgramCard";
 import { ProgramsBrowser, type BrowserChip } from "./ProgramsBrowser";
 
 /**
- * S3 „Programi“ (§5 S3, §4 Programs). A contact sheet of program frames:
- * mobile/tablet = a native scroll-snap row (next card peeks, pager with JS);
- * desktop ≥1024 = a 3-column sheet (2 columns at 1024–1279) where photo 04 is
- * the sixth frame. Cards are server-rendered and complete without JS.
- * Theme: a navy-900 "darkroom" section (final review AD-02, replaces „ice“ in
- * D-20): the cards are white light-theme prints on it, KR-04 keeps the dark frame.
+ * S3 „Programi“ (§5 S3, §4 Programs). A contact sheet of program frames on a navy-900
+ * "darkroom" (AD-02) whose top edge is cut on the floor diagonal (QP-11, shared edge="up").
+ * Mobile/tablet = a native scroll-snap row that opens on KR-04 — the club's girl in flight on
+ * the airtrack (QP-09/ID-05) — with a progress rail under it; desktop ≥1024 = a 2/3-column
+ * sheet. Cards are server-rendered and complete without JS.
+ * With MINOR_PHOTOS=false the photo is a placeholder, which must never open the row: it stays
+ * the last frame at every width (data-placeholder).
  */
+/** Trail under KR-04 (viewBox 248×64): takeoff → apex → landing on the mat line (y 62.5). */
+const TRAIL_W = 72;
+const TRAIL_H = 47; // #leap is 230×150
+const PHOTO_TRAIL = [
+  { x: 0, y: 11 },
+  { x: 88, y: 0 },
+  { x: 176, y: 15.5 },
+] as const;
+
 export function Programs() {
   const programs = visiblePrograms(FLAGS.SHOW_TRAMPOLINE);
   const ids = programs.map((p) => p.id);
@@ -25,28 +35,47 @@ export function Programs() {
     ids: c.ids === null ? ids : ids.filter((id) => c.ids!.includes(id)),
     // Typeset here (server) so the client island ships no typesetting code.
     status: typesetSr(filterStatus(c, ids)),
+    hint: typesetSr(filterHint(c, ids)),
   }));
+  const photoPlaceholder = isPhotoPlaceholder("04");
 
   return (
-    <Section id="programi" theme="dark" labelledBy="programi-title" className="programs">
+    <Section id="programi" theme="dark" labelledBy="programi-title" className="programs" edge="up">
       <div className="container-site">
         <ProgramsBrowser
           heading={<SectionHeading id="programi-title" title={PROGRAMS_COPY.heading} align="right" />}
           chips={chips}
+          dots={programs.map((p) => ({ id: p.id, color: p.color }))}
           filtersLabel={PROGRAMS_UI.filtersLabel}
           pager={{ prev: PROGRAMS_UI.prev, next: PROGRAMS_UI.next }}
+          stamp={{ unit: PROGRAMS_UI.ageUnit }}
           total={programs.length}
         >
           {programs.map((p) => (
             <ProgramCard key={p.id} program={p} />
           ))}
-          <div className="pg-photo" data-program-photo="">
+          <div
+            className="pg-photo"
+            data-program-photo=""
+            {...(photoPlaceholder ? { "data-placeholder": "" } : {})}
+          >
+            {/* The drawn (cover-cropped) image is ≤533 CSS px: the box is ≤533px tall on phones and
+                in the ≥1024 sheet, and a square cover draws at the box's longer side. */}
             <Picture
               id="04"
               frame
               aspect={1}
-              sizes="(min-width: 1280px) 480px, (min-width: 1024px) 440px, (min-width: 640px) 308px, calc(100vw - 84px)"
+              sizes="(min-width: 1280px) 533px, (min-width: 1024px) 460px, 533px"
             />
+            {/* Phones/tablets: the row is taller than the print may be drawn (≤533px), so the
+                slot ends on the leap that lands on its mat line — the flight in the photo,
+                continued as a chronophotograph toward the program cards. */}
+            <svg className="pg-photo__trail" viewBox="0 0 248 64" aria-hidden="true" focusable="false">
+              <line className="pg-photo__mat" x1="0" y1="62.5" x2="248" y2="62.5" />
+              {PHOTO_TRAIL.map((g, k) => (
+                <use key={k} href="#leap" className="pg-photo__ghost" x={g.x} y={g.y} width={TRAIL_W} height={TRAIL_H} />
+              ))}
+            </svg>
           </div>
         </ProgramsBrowser>
       </div>

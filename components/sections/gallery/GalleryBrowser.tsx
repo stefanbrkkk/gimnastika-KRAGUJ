@@ -1,18 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
-import { loadMotion } from "@/lib/load-motion";
-import { DUR, EASE, motionAllowed, whenNear } from "@/lib/motion-env";
+import { motionAllowed, whenNear } from "@/lib/motion-env";
 import { filterStatus, GALLERY_UI, type ChipKey, type GalleryChip, type LightboxPhoto } from "./model";
 
 /**
  * Gallery island (initial bundle — tiny, no gsap import here).
- * - Chips filter the server-rendered sheet (`hidden` on the items; Flip ≤280ms,
- *   lazily loaded: prints move, leavers fade out in place (linear fade, takeoff
- *   shrink), newcomers fade in; reduced motion: instant + 150ms crossfade).
+ * - Chips filter the server-rendered sheet (`hidden` on the items, and
+ *   data-filter on the grid so gallery.css re-flows the strips). The motion is a
+ *   lazy chunk (gallery-flip.ts: Flip glide, dismounting leavers, newcomers
+ *   swinging in from their pegs); reduced motion: instant + 150ms crossfade.
  *   aria-live status. No chips (public variant with one category) = no filter row.
  * - A tap on a print opens the lightbox, a lazily loaded chunk that is warmed
- *   (with Flip + Observer) when the section is ≤1 viewport away.
+ *   (with Flip + Observer) when the section is ≤1 viewport away. The same chunk
+ *   arms the first prints' swing-in (armHang), so the entrance adds no bytes here.
  * Without JS the chips are hidden (CSS) and each print links to its file.
  */
 
@@ -21,6 +22,8 @@ type LightboxComponent = LightboxModule["GalleryLightbox"];
 /** One import() call site = one chunk, shared by the near-prefetch and the first tap. */
 let lightboxModule: Promise<LightboxModule> | null = null;
 const loadLightbox = () => (lightboxModule ??= import("./GalleryLightbox"));
+let flipModule: Promise<typeof import("./gallery-flip")> | null = null;
+const loadFlipMotion = () => (flipModule ??= import("./gallery-flip"));
 
 const ITEM = "[data-gallery-grid] > li";
 
@@ -45,7 +48,7 @@ export function GalleryBrowser({ heading, chips, photos, children }: GalleryBrow
   const filterRun = useRef(0);
   const openSeq = useRef(0);
   /** The running filter Flip (a timeline), so a new filter can land it first. */
-  const flipRef = useRef<{ progress: (value: number) => unknown; kill: () => unknown } | null>(null);
+  const flipRef = useRef<import("./gallery-flip").FlipHandle | null>(null);
   const [active, setActive] = useState<ChipKey>("all");
   const [status, setStatus] = useState("");
   const [Lightbox, setLightbox] = useState<LightboxComponent | null>(null);
@@ -55,12 +58,23 @@ export function GalleryBrowser({ heading, chips, photos, children }: GalleryBrow
     const root = rootRef.current;
     if (!root) return;
     root.querySelectorAll("[data-gallery-open]").forEach((a) => a.setAttribute("aria-haspopup", "dialog"));
-    // Warm the lightbox chunk (+ Flip/Observer) when the sheet is ≤1 viewport away.
+    // Warm the lightbox chunk (+ Flip/Observer) when the sheet is ≤1 viewport away; it also
+    // arms the entrance swing of the first prints in view (S9's primary motion).
+    let stopHang: (() => void) | undefined;
+    let live = true;
     const stopNear = whenNear(root, () => {
-      void loadLightbox().then((m) => m.prepareLightbox(motionAllowed()));
+      if (motionAllowed()) void loadFlipMotion().catch(() => {});
+      void loadLightbox()
+        .then((m) => {
+          if (live) stopHang = m.armHang(root.querySelector<HTMLElement>("[data-gallery-grid]"));
+          return m.prepareLightbox(motionAllowed());
+        })
+        .catch(() => {}); // offline: the sheet stays static; a tap falls back to the link
     });
     return () => {
+      live = false;
       stopNear();
+      stopHang?.();
       flipRef.current?.kill();
     };
   }, []);
@@ -72,57 +86,38 @@ export function GalleryBrowser({ heading, chips, photos, children }: GalleryBrow
     setActive(chip.key);
     setStatus(filterStatus(chip.label, chip.count));
 
+    const grid = root.querySelector<HTMLElement>("[data-gallery-grid]");
     const items = Array.from(root.querySelectorAll<HTMLElement>(ITEM));
     const shows = (el: HTMLElement) => chip.key === "all" || el.dataset.category === chip.key;
+    // gallery.css sizes the strips per view: the full sheet has its feature strip, a filtered
+    // view is one even strip set.
+    const setView = () => {
+      if (!grid) return;
+      if (chip.key === "all") grid.removeAttribute("data-filter");
+      else grid.setAttribute("data-filter", chip.key);
+    };
     const apply = () => {
+      setView();
       for (const el of items) el.hidden = !shows(el);
     };
 
     if (motionAllowed()) {
-      const { gsap, loadFlip } = await loadMotion();
-      const Flip = await loadFlip();
-      if (run !== filterRun.current) return;
-      flipRef.current?.progress(1); // a filter still in flight lands first (its leavers get `hidden`)
-      const before = items.filter((el) => !el.hidden);
-      const state = Flip.getState(before);
-      // Leaving prints fade out where they stood. They are marked with data-leaving (display:none
-      // in CSS, which Flip's inline display can override) instead of `hidden`: Tailwind's
-      // [hidden]{display:none!important} would cut them on the first frame. `hidden` follows on complete.
-      const leaving = before.filter((el) => !shows(el));
-      for (const el of leaving) el.setAttribute("data-leaving", "");
-      for (const el of items) if (shows(el)) el.hidden = false;
-      const done = () => {
-        for (const el of leaving) {
-          el.hidden = true;
-          el.removeAttribute("data-leaving");
-        }
-        if (leaving.length) gsap.set(leaving, { clearProps: "all" }); // an empty target list would warn
-      };
-      flipRef.current = Flip.from(state, {
-        targets: [...items.filter(shows), ...leaving],
-        duration: DUR.base,
-        ease: EASE.stick,
-        absoluteOnLeave: true,
-        // One recipe for the S3/S4/S9 filters: the fade is linear, so a leaving print is already
-        // half gone while the others glide past it; only its shrink keeps the takeoff ease.
-        onEnter: (els) =>
-          gsap.fromTo(
-            els,
-            { opacity: 0, scale: 0.96 },
-            { opacity: 1, scale: 1, duration: DUR.base, ease: EASE.stick, clearProps: "opacity,transform" },
-          ),
-        onLeave: (els) =>
-          gsap
-            .timeline()
-            .to(els, { opacity: 0, duration: DUR.fast, ease: "none" }, 0)
-            .to(els, { scale: 0.96, duration: DUR.fast, ease: EASE.takeoff }, 0),
-        onComplete: done,
-        onInterrupt: done,
-      });
-    } else {
+      const m = await loadFlipMotion().catch(() => null);
+      if (m) {
+        const started = await m.flipFilter({
+          items,
+          shows,
+          setView,
+          isCurrent: () => run === filterRun.current,
+          previous: flipRef.current,
+        });
+        if (started) flipRef.current = started.flip;
+        return;
+      }
+    }
+    if (run === filterRun.current) {
       flipRef.current?.progress(1);
       apply();
-      const grid = root.querySelector<HTMLElement>("[data-gallery-grid]");
       if (grid && typeof grid.animate === "function") grid.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150, easing: "linear" });
     }
   };

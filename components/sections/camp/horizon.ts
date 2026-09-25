@@ -1,16 +1,21 @@
 /**
- * S8 „horizon“: the gymnastics beam that becomes a sea wave (§4 Camp).
- * One path, two shapes with the SAME command structure (M + n × C), so MorphSVG
- * interpolates point-for-point: the beam is the wave's curve flattened and
- * compressed between its two ends. Shared by the server markup (wave = static
- * final state) and the lazy desktop scrub (camp-beam.ts).
+ * S8 „horizon“: the balance beam that becomes the summer sea (§4 Camp, design review v2).
+ * One morphing path, two shapes with the SAME command structure (M + n × C), so MorphSVG
+ * interpolates point-for-point: the beam is the wave's curve flattened and compressed
+ * between its two ends. Around it: the beam's 10px bar and its splayed legs (visible only
+ * before the one-shot routine) and two echo swell lines behind the wave (the sea's depth).
+ * Shared by the server markup (wave + echoes = the static final state) and the lazy
+ * routine (camp-beam.ts). The SVG stretches (preserveAspectRatio="none"); every stroke is
+ * non-scaling, so weights stay true on any width.
  */
-export const HORIZON_VIEWBOX = { width: 1440, height: 64 } as const;
+export const HORIZON_VIEWBOX = { width: 1440, height: 80 } as const;
 
 const WAVE_Y = 34;
-const BEAM_Y = 22;
-const BEAM_X0 = 196;
-const BEAM_X1 = 1244;
+export const BEAM_Y = 22;
+export const BEAM_X0 = 196;
+export const BEAM_X1 = 1244;
+/** Bottom of the legs' feet (user units; below the viewBox — the SVG overflows visibly). */
+const FOOT_Y = 97;
 
 /** Half-waves: [length, amplitude] — an irregular, hand-set swell (not a sine). */
 const SWELL: readonly (readonly [number, number])[] = [
@@ -53,7 +58,7 @@ function build(mapX: (x: number) => number, y: (seg: Seg) => number, base: numbe
   return d;
 }
 
-/** Sea wave — the static final state (no JS, mobile, reduced motion). */
+/** Sea wave — the static final state (no JS, reduced motion, after the routine). */
 export const WAVE_D = build((x) => x, (s) => s.peak, WAVE_Y);
 
 /** Beam top — the same curve flattened onto one line between the beam's ends. */
@@ -63,7 +68,24 @@ export const BEAM_D = build(
   BEAM_Y,
 );
 
-/** A-frame legs + feet under the beam; visible only at the start of the desktop scrub. */
-export const LEGS_D = [BEAM_X0 + 132, BEAM_X1 - 132]
-  .map((x) => `M${x} ${BEAM_Y + 3}L${x - 16} 60M${x} ${BEAM_Y + 3}L${x + 16} 60M${x - 30} 60H${x + 30}`)
-  .join("");
+/** The beam's bar: a straight 10px non-scaling stroke (a rect would distort when stretched). */
+export const BAR_D = `M${BEAM_X0} ${BEAM_Y}H${BEAM_X1}`;
+
+/** Two splayed legs with long feet, under the bar near its ends. */
+export const LEG_XS = [BEAM_X0 + 150, BEAM_X1 - 150] as const;
+export const LEGS_D = LEG_XS.map(
+  (x) => `M${x} ${BEAM_Y + 5}L${x - 14} ${FOOT_Y}M${x} ${BEAM_Y + 5}L${x + 14} ${FOOT_Y}M${x - 30} ${FOOT_Y}H${x + 30}`,
+).join("");
+export const LEGS_FOOT_Y = FOOT_Y;
+
+/**
+ * Echo swells behind the wave (RC-13): the same curve shifted left and down, stretched by a
+ * few percent so each still reaches past the right edge.
+ */
+export const ECHO_DS = [
+  { dx: -36, dy: 9 },
+  { dx: -72, dy: 18 },
+].map(({ dx, dy }) => {
+  const k = (X_END + 12 - X_START - dx) / (X_END - X_START);
+  return build((x) => X_START + dx + (x - X_START) * k, (s) => s.peak + dy, WAVE_Y + dy);
+});

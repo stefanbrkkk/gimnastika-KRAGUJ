@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 
-export type ContactIconName = "phone" | "mail" | "instagram" | "facebook" | "pin" | "arrow" | "external";
+export type ContactIconName = "phone" | "mail" | "instagram" | "facebook" | "pin" | "external";
 
 /**
  * One stroke family (24px grid, round joins) for every contact glyph. Decorative only.
  * .ui-icon keeps strokes in CSS px (app/globals.css): pictograms 1.75, the action
- * glyphs → and ↗ 2 — the same weights as the page-chrome icons.
+ * glyph ↗ 2 — the same weights as the page-chrome icons.
  */
 const PATHS: Record<ContactIconName, ReactNode> = {
   phone: (
@@ -31,11 +31,10 @@ const PATHS: Record<ContactIconName, ReactNode> = {
       <circle cx="12" cy="10" r="2.3" />
     </>
   ),
-  arrow: <path d="M5 12h13m-5-5 5 5-5 5" />,
   external: <path d="M8 16 16.5 7.5M9.5 7h7.5v7.5" />,
 };
 
-const ACTION_GLYPHS: ReadonlySet<ContactIconName> = new Set(["arrow", "external"]);
+const ACTION_GLYPHS: ReadonlySet<ContactIconName> = new Set(["external"]);
 
 export function ContactIcon({ name }: { name: ContactIconName }) {
   return (

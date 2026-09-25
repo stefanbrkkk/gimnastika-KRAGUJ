@@ -1,5 +1,5 @@
 import { MENU_INDEX_ID } from "@/components/sections/header/chrome";
-import { ExternalIcon, FacebookIcon, InstagramIcon } from "@/components/sections/header/icons";
+import { ArrowIcon, ExternalIcon, FacebookIcon, InstagramIcon } from "@/components/sections/header/icons";
 import { HEADER_COPY } from "@/components/sections/header/header-copy";
 import { FooterMark } from "@/components/sections/header/LeapTrail";
 import { CONTACT, FOOTER } from "@/content/copy";
@@ -16,7 +16,7 @@ const typeset = (text: string) => typesetSr(text).replace(/ · /g, "\u00a0· ");
  * ghost frames. On mobile the bottom padding clears the sticky bottom bar.
  *
  * #meni — a compact page index mirroring the menu sheet (the six NAV links, the
- * trial CTA, the call). It is where the header's "Meni" leads without JS and
+ * trial CTA, the call — as quiet index links, so the doskok stays the finale). It is where the header's "Meni" leads without JS and
  * before hydration, and it gives parents a way on from the bottom of the page.
  */
 export function Footer() {
@@ -47,14 +47,20 @@ export function Footer() {
               ))}
             </ul>
           </nav>
-          <div className="site-footer__actions">
-            <a href="#kontakt" data-booking="" className="btn btn-primary">
-              {typeset(CTA.trial)}
-            </a>
-            <a href={telHref(PRIMARY_PHONE.e164)} className="btn btn-secondary">
-              {typeset(`${CTA.call} ${PRIMARY_PHONE.display}`)}
-            </a>
-          </div>
+          {/* Quiet index links, not a second pair of pills right after the S11 finale (ID-11). */}
+          <ul className="site-footer__actions">
+            <li>
+              <a href="#kontakt" data-booking="" className="site-footer__action">
+                <span>{typeset(CTA.trial)}</span>
+                <ArrowIcon className="site-footer__action-arrow" />
+              </a>
+            </li>
+            <li>
+              <a href={telHref(PRIMARY_PHONE.e164)} className="site-footer__action">
+                <span>{typeset(`${CTA.call} ${PRIMARY_PHONE.display}`)}</span>
+              </a>
+            </li>
+          </ul>
         </div>
 
         <div className="site-footer__foot">

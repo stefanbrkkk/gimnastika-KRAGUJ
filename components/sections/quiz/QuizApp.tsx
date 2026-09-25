@@ -10,6 +10,8 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode 
 import { prefersLessMotion } from "@/lib/motion-env";
 import { QuizBand, type QuizStep } from "./QuizBand";
 import { QuizActions, QuizGroups } from "./QuizGroups";
+import { announceRecommendation } from "./recommend";
+import type { QuizResultKind } from "@/lib/quiz";
 import type { QuizResultView, QuizViewModel } from "./types";
 
 const ARROWS: Record<string, "x" | "y"> = { ArrowLeft: "x", ArrowRight: "x", ArrowUp: "y", ArrowDown: "y" };
@@ -87,18 +89,18 @@ function Result({ view, copy }: { view: QuizResultView; copy: QuizViewModel["cop
         booking={view.booking}
         cta={copy.resultCta}
         finalNote={copy.finalNote}
-        aerobicHint={copy.aerobicHint}
-        aerobicColor={copy.aerobicColor}
+        hint={copy.hint}
       />
     </div>
   );
 }
 
-export function QuizApp({ vm }: { vm: QuizViewModel }) {
+export function QuizApp({ vm, art }: { vm: QuizViewModel; art: ReactNode }) {
   const { ages, table, views, copy } = vm;
   const uid = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const [moved, setMoved] = useState(false);
+  const [dir, setDir] = useState<"fwd" | "back">();
   const [step, setStep] = useState<QuizStep>(0);
   const [age, setAge] = useState<number | null>(null);
   const [exp, setExp] = useState<number | null>(null);
@@ -108,8 +110,8 @@ export function QuizApp({ vm }: { vm: QuizViewModel }) {
   const kind = typeof entry === "string" ? entry : entry && exp !== null ? entry[exp] : undefined;
   const view = step === 2 && kind ? views[kind] : null;
 
-  // Reduced motion or Save-Data → static band (CSS keys off data-lite). DOM attribute, not state:
-  // SSR and hydration render the same markup.
+  // Reduced motion or Save-Data → the band's states without transitions (CSS keys off data-lite).
+  // DOM attribute, not state: SSR and hydration render the same markup.
   useEffect(() => {
     rootRef.current?.toggleAttribute("data-lite", prefersLessMotion());
   }, []);
@@ -132,18 +134,29 @@ export function QuizApp({ vm }: { vm: QuizViewModel }) {
 
   const go = (next: QuizStep) => {
     setMoved(true);
+    setDir(next > step ? "fwd" : "back");
     setStep(next);
   };
+  // S3 stamps the recommended program cards (QP-10); leaving the result clears the stamps.
+  const announce = (kind?: QuizResultKind, a: number | null = null) =>
+    announceRecommendation({ ids: kind ? views[kind].programs : [], age: kind ? a : null });
   const chooseAge = (a: number) => {
+    const next = table[a - (ages[0] ?? 0)];
     setAge(a);
-    go(Array.isArray(table[a - (ages[0] ?? 0)]) ? 1 : 2);
+    go(Array.isArray(next) ? 1 : 2);
+    if (typeof next === "string") announce(next, a);
   };
   const chooseExp = (i: number) => {
     setExp(i);
     go(2);
+    if (Array.isArray(entry)) announce(entry[i], age);
   };
-  const back = () => go(step === 2 && asked ? 1 : 0);
+  const back = () => {
+    if (step === 2) announce();
+    go(step === 2 && asked ? 1 : 0);
+  };
   const restart = () => {
+    announce();
     setAge(null);
     setExp(null);
     go(0);
@@ -158,7 +171,7 @@ export function QuizApp({ vm }: { vm: QuizViewModel }) {
 
   return (
     <div ref={rootRef} className="quiz-card quiz-app" data-step={step} data-entered={moved ? "" : undefined}>
-      <QuizBand step={step} asked={asked} caption={caption} />
+      <QuizBand step={step} asked={asked} band={view?.band} dir={dir} caption={caption} art={art} />
       <div className="quiz-body">
         {step === 0 ? (
           <div className="quiz-step" key="s1">

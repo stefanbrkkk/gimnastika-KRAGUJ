@@ -47,8 +47,9 @@ export function Hero() {
         <div className="hero__art" data-hero-decor="" aria-hidden="true">
           <HeroArt variant={COMPACT} name="compact" />
           <HeroArt variant={WIDE} name="wide" />
-          {/* The mat line (the floor): viewport-left → container-right, 1.5px steel-300 @60%.
-              The second path is the floor giving under the landing (drawn only during the intro). */}
+          {/* The mat line (the floor): viewport-left → container-right (wall to wall from 1680px),
+              1.5px steel-300 @60%. The second path is the floor giving under the landing (drawn
+              only during the intro). */}
           <svg className="hero-mat" viewBox="0 0 100 4" preserveAspectRatio="none" focusable="false">
             <path d="M0 2H100" pathLength={1} data-hero-mat="" />
             <path className="hero-mat__flex" d="M0 2H0" data-hero-flex="" />

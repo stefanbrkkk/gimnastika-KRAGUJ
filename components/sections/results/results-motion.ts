@@ -1,53 +1,95 @@
 /**
- * S7 motion (§4 Results) — loaded lazily by ResultsMotion, never in the first-load JS.
+ * S7 motion (§4 Results, design review v2) — loaded lazily by ResultsMotion, never in the
+ * first-load JS.
  *
- * One sequence, never overlapping (§4 „Sequence these, never overlap“; ONE primary motion
- * per viewport):
- *   1. the title's SplitText line mask plays WITH the heading's own chrono landing: both
- *      start in ONE queuePrimaryMotion slot (this file sets data-landed on the mark), and
- *      the split is reverted only after the landing has finished: one composite landing;
- *   2. the LAST digit of each Doto numeral flips once: the static digit folds away and
- *      back (split-flap rotateX). It is never hidden in advance and no other number ever
- *      shows (D-S7-2); no count-up;
- *   3. the podium line draws (DrawSVG) and the medal marks settle on their steps;
- *   4. the white brush stroke over photo 01 draws (only rendered over the real photo).
- * Steps 2–4 each wait for their element to cross the viewport line, then for the heading
- * landing, the running step and any other section's primary motion (queuePrimaryMotion).
+ *   · Title: the SplitText line mask rises as the title enters (content first, no queue).
+ *     The chronophotograph mark then lands like every other title (HeadingLandings, an
+ *     accent); the split is reverted only when no landing is running.
+ *   · Primary steps, one at a time (§4 „Sequence these, never overlap“):
+ *     1. the scores POST on the judges' LED board: each numeral re-lights dot row by dot row,
+ *        top → bottom (the Doto cell is 7 rows), then the board gives one „hold“ blink.
+ *        Nothing is hidden in advance; a partly lit numeral is only ever the top rows of the
+ *        correct digits (SOURCE RULE, never another number, no count-up);
+ *     2. phones only (<1024): photo 01's shutter opens from a slit (scroll = the camera);
+ *     3. the medal ceremony: the podium outline draws, the blocks rise out of the panel, the
+ *        medals drop onto their steps bronze → silver → gold and stick the landing, then the
+ *        white brush underline sweeps under „Medalje“.
+ *   A step starts when its element crosses the −18% line and the running step has finished,
+ *   through queuePrimaryMotion (≤250 ms). A step that would wait more than 600 ms in the
+ *   sequence shows its static final state instead (RC-10).
  *
- * Hidden pre-states (title lines, podium, brush) are set by JS only for elements that are
- * still off-screen; anything visible when this arms keeps its static final state. Under
- * gsap.matchMedia(MQ.noReduce): a live switch to reduced motion reverts every inline state
- * and the split at once. Only transform, opacity and stroke-dashoffset/-dasharray animate.
+ * Hidden pre-states (title lines, photo slit, podium parts, brush) are set by JS only for
+ * elements still off-screen at arm time. Safety net (MD-02): a pre-hidden element that has
+ * been ≥50% in view for 300 ms without its trigger plays now (or, if it cannot start in time,
+ * shows statically). Under gsap.matchMedia(MQ.noReduce): a live switch to reduced motion
+ * reverts every inline state and the split at once. Only transform, opacity, clip-path and
+ * stroke-dashoffset/-dasharray change.
  */
 import type { SplitText as SplitTextInstance } from "gsap/SplitText";
 import { DUR, EASE, MQ, STAGGER, gsap, loadDrawSVG, loadSplitText, queuePrimaryMotion, registerMotion } from "@/lib/motion";
 
-/** The heading's chrono landing slot: styles/ui.css (the 600 ms hop) in HeadingLandings' 800 ms slot. */
-const HEADING_LANDING_MS = 800;
-/** HeadingLandings' observer line, so the title mask and the chrono landing start together. */
-const HEADING_LINE = "0px 0px -15% 0px";
-/** Steps 2–4 start once their element is this far into the viewport. */
+/** The title's lines rise once it is this far into the viewport. */
+const TITLE_LINE = "0px 0px -15% 0px";
+/** Primary steps start once their element is this far into the viewport. */
 const STEP_LINE = "0px 0px -18% 0px";
-/** The SplitText DOM is restored after the landing (re-inserting the mark earlier would cancel its hop). */
-const UNSPLIT_AFTER_MS = HEADING_LANDING_MS + 150;
-/** Medal marks settle like the §4 badge/squash (--dur-slow-squash, 350 ms, ease rebound). */
-const SETTLE = 0.35;
-/** Dry-brush bristles, same offset as the S6 brush. */
-const STRAND_STAGGER = STAGGER.words;
+/** RC-10: longer than this in the sequence → static final state instead of a lingering ghost. */
+const MAX_SEQUENCE_WAIT_MS = 600;
+/** MD-02 safety net: ≥50% in view for this long without playing → play now / show. */
+const SAFETY_MS = 300;
+/** The chrono mark's hop in styles/ui.css (520 ms flight + 260 ms stick) plus a margin. */
+const LANDING_MS = 850;
+
+/* --- Score posting (Doto geometry) --------------------------------------------------------
+   Doto digits sit on a 5 × 7 dot grid, row pitch 0.1em. In .stat__num (inline-block,
+   line-height .9) the 1.2em content area is centred, so the baseline is at 0.8em and the dot
+   rows are centred at 0.15em … 0.75em from the box top. k lit rows = clip below the midline
+   between row k and row k + 1. Side and top insets are negative so the LED bloom is kept. */
+const ROWS = 7;
+const BLOOM = "-0.4em";
+const litRows = (k: number): string => {
+  if (k >= ROWS) return `inset(${BLOOM} ${BLOOM} ${BLOOM} ${BLOOM})`;
+  const bottom = k <= 0 ? 1.3 : 0.9 - (0.2 + 0.1 * (k - 1));
+  return `inset(${BLOOM} ${BLOOM} ${bottom.toFixed(2)}em ${BLOOM})`;
+};
+/** One numeral's scan (one step per dot row), the stagger across the board, the hold blink. */
+const SCAN = 0.35;
+const SCAN_STAGGER = 0.08;
+const BLINK_DIM = 0.07;
+const BLINK_BACK = 0.09;
+
+/* --- Medal ceremony ------------------------------------------------------------------------ */
+const CEREMONY_ORDER = ["bronze", "silver", "gold"] as const;
+/** Medals follow the outline; 140 ms apart; each falls 240 ms, then sticks the landing. */
+const MEDALS_AT = DUR.reveal * 0.95;
+const MEDAL_GAP = 0.14;
+const MEDAL_FALL = 0.24;
+const MEDAL_DROP = -28;
 
 interface Step {
   el: Element;
-  /** Builds the step's animation right before it plays. */
+  /** JS pre-hid something (the safety net applies). */
+  hidden: boolean;
+  /** Seconds the sequence stays blocked once the step starts. */
+  block: number;
   build: () => gsap.core.Animation;
-  state: "idle" | "ready" | "done";
+  /** The static final state (skip, safety net). */
+  finish: () => void;
+  state: "idle" | "ready" | "running" | "done";
+  readyAt: number;
 }
-
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 const inView = (el: Element): boolean => {
   const r = el.getBoundingClientRect();
   return r.bottom > 0 && r.top < window.innerHeight;
 };
+
+/** Visible share of an element, relative to itself or (when taller) to the viewport. */
+const shareInView = (entry: IntersectionObserverEntry): number => {
+  const h = Math.min(entry.boundingClientRect.height, window.innerHeight);
+  return h > 0 ? entry.intersectionRect.height / h : 0;
+};
+
+const qsa = <T extends Element>(root: ParentNode, sel: string): T[] => Array.from(root.querySelectorAll<T>(sel));
 
 export async function armResults(root: HTMLElement): Promise<() => void> {
   registerMotion();
@@ -56,156 +98,213 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
   const title = root.querySelector<HTMLElement>(".section-heading__title");
   const mark = title?.querySelector<SVGElement>(".chrono-mark") ?? null;
   const scoreboard = root.querySelector<HTMLElement>("[data-scoreboard]");
-  const flaps = Array.from(root.querySelectorAll<HTMLElement>("[data-flip]"));
-  const podium = root.querySelector<SVGSVGElement>("[data-podium]");
+  const scores = qsa<HTMLElement>(root, "[data-score]");
+  const photo = root.querySelector<HTMLElement>("[data-results-photo]");
+  const band = root.querySelector<HTMLElement>("[data-medals-band]");
   const podiumLine = root.querySelector<SVGPathElement>("[data-podium-line]");
-  const marks = Array.from(root.querySelectorAll<SVGCircleElement>("[data-podium-mark]"));
-  const brush = root.querySelector<SVGSVGElement>("[data-brush]");
-  const strokes = Array.from(root.querySelectorAll<SVGPathElement>("[data-brush-stroke]"));
+  const blocks = qsa<SVGRectElement>(root, "[data-podium-block]");
+  const medals = qsa<SVGGElement>(root, "[data-podium-medal]");
+  const strokes = qsa<SVGPathElement>(root, "[data-medal-brush] [data-brush-stroke]");
 
   const mm = gsap.matchMedia();
   mm.add(MQ.noReduce, (context) => {
     let live = true;
     const observers: { disconnect(): void }[] = [];
+    const timers = new Set<ReturnType<typeof setTimeout>>();
+    const later = (fn: () => void, ms: number) => {
+      const t = setTimeout(() => {
+        timers.delete(t);
+        if (live) fn();
+      }, ms);
+      timers.add(t);
+      return t;
+    };
 
-    // --- Heading landing (HeadingLandings sets data-landed on the chrono mark) -----------
-    let headingEnd = 0;
-    if (mark && !mark.hasAttribute("data-landed")) {
+    // --- Title: line mask ---------------------------------------------------------------
+    // SplitText.revert() rewrites innerHTML, so the chrono mark (observed by HeadingLandings)
+    // is put back as the same node — never while its landing is playing (a moved node would
+    // cancel the hop). A masked mark never intersects, so it can only land once its line rose.
+    let split: SplitTextInstance | null = null;
+    let landedAt = mark?.hasAttribute("data-landed") ? 0 : -1;
+    if (mark && landedAt < 0) {
       const mo = new MutationObserver(() => {
-        if (!mark.hasAttribute("data-landed")) return;
-        headingEnd = Math.max(headingEnd, performance.now() + HEADING_LANDING_MS);
-        mo.disconnect();
+        if (landedAt < 0 && mark.hasAttribute("data-landed")) {
+          landedAt = performance.now();
+          mo.disconnect();
+        }
       });
       mo.observe(mark, { attributes: true, attributeFilter: ["data-landed"] });
       observers.push(mo);
     }
-    const headingWait = (): number => {
-      // On screen but not landed yet: it lands now (the same scroll brought the step in).
-      if (mark && !mark.hasAttribute("data-landed") && inView(mark)) return HEADING_LANDING_MS;
-      return Math.max(0, headingEnd - performance.now());
-    };
-
-    // --- 1 · Title line mask, together with the chrono landing -------------------------
-    // Mask and landing share ONE primary-motion slot: the mark lands (data-landed) as the
-    // lines rise. SplitText.revert() rewrites innerHTML, so the chrono mark (observed by
-    // HeadingLandings) is put back as the same node — only once its hop has finished.
-    let split: SplitTextInstance | null = null;
-    let unsplitTimer: ReturnType<typeof setTimeout> | undefined;
-    const restoreMark = () => {
-      const fresh = title?.querySelector(".chrono-mark");
-      if (mark && fresh && fresh !== mark) fresh.replaceWith(mark);
-    };
     const unsplit = () => {
       if (split?.isSplit) split.revert();
       split = null;
-      restoreMark();
+      const fresh = title?.querySelector(".chrono-mark");
+      if (mark && fresh && fresh !== mark) fresh.replaceWith(mark);
     };
+    const unsplitWhenStill = () => {
+      const busyFor = landedAt < 0 ? 0 : landedAt + LANDING_MS - performance.now();
+      if (busyFor > 0) later(unsplitWhenStill, busyFor + 20);
+      else unsplit();
+    };
+
     if (title && !inView(title)) {
       split = SplitText.create(title, { type: "lines", mask: "lines", autoSplit: false });
       gsap.set(split.lines, { yPercent: 105 });
+      let risen = false;
+      const rise = () => {
+        if (risen || !split) return;
+        risen = true;
+        const lines = split.lines;
+        context.add(() =>
+          gsap.to(lines, {
+            yPercent: 0,
+            duration: DUR.reveal,
+            ease: EASE.stick,
+            stagger: STAGGER.lines,
+            onComplete: unsplitWhenStill,
+          }),
+        );
+      };
       const titleIo = new IntersectionObserver(
         (entries) => {
-          if (!entries.some((e) => e.isIntersecting) || !split) return;
+          if (!entries.some((e) => e.isIntersecting)) return;
           titleIo.disconnect();
-          void queuePrimaryMotion(HEADING_LANDING_MS).then(() => {
-            if (!live || !split) return;
-            mark?.setAttribute("data-landed", "");
-            headingEnd = performance.now() + HEADING_LANDING_MS;
-            const lines = split.lines;
-            context.add(() => gsap.to(lines, { yPercent: 0, duration: DUR.reveal, ease: EASE.stick, stagger: STAGGER.lines }));
-            unsplitTimer = setTimeout(unsplit, UNSPLIT_AFTER_MS);
-          });
+          rise();
         },
-        { rootMargin: HEADING_LINE },
+        { rootMargin: TITLE_LINE },
       );
-      // The h2 itself: the masked line clips the chrono mark, and a fully clipped element
-      // never intersects (HeadingLandings sees the mark only once the lines rise; by then
-      // it is already landed here).
       titleIo.observe(title);
       observers.push(titleIo);
+      guard(title, () => !risen, rise);
     }
 
-    // --- 2–4 · Sequenced steps ----------------------------------------------------------
+    // --- Primary steps ------------------------------------------------------------------
     const steps: Step[] = [];
 
-    // 2 — the last digit of every numeral folds away and back once. Nothing is hidden in
-    // advance: until its turn, the scoreboard shows the static, correct numerals.
-    if (scoreboard && flaps.length && !inView(scoreboard)) {
+    // 1 — the scores post. Never pre-hidden: until its turn the board shows the static,
+    // correct numerals; at its turn each window refreshes and re-lights row by row.
+    if (scoreboard && scores.length && !inView(scoreboard)) {
+      const n = scores.length;
+      const blinkAt = (n - 1) * SCAN_STAGGER + SCAN + 0.07;
       steps.push({
         el: scoreboard,
+        hidden: false,
+        block: (n - 1) * SCAN_STAGGER + SCAN,
         state: "idle",
+        readyAt: 0,
         build: () => {
-          const tl = gsap.timeline({ onComplete: () => void gsap.set(flaps, { clearProps: "transform" }) });
-          tl.set(flaps, { transformPerspective: 360, transformOrigin: "50% 50%" }, 0);
-          flaps.forEach((flap, i) => {
-            const at = i * STAGGER.cards;
-            tl.to(flap, { rotationX: 90, duration: DUR.tap, ease: EASE.takeoff }, at)
-              .set(flap, { rotationX: -90 }, at + DUR.tap)
-              .to(flap, { rotationX: 0, duration: DUR.base, ease: EASE.rebound }, at + DUR.tap);
+          const tl = gsap.timeline({ onComplete: () => void gsap.set(scores, { clearProps: "clipPath,opacity" }) });
+          scores.forEach((score, i) => {
+            const at = i * SCAN_STAGGER;
+            for (let k = 0; k <= ROWS; k++) tl.set(score, { clipPath: litRows(k) }, at + (k * SCAN) / ROWS);
           });
+          // The score holds: one blink of the whole board (a single flash, far below 3/s).
+          tl.to(scores, { opacity: 0.55, duration: BLINK_DIM, ease: "none" }, blinkAt);
+          tl.to(scores, { opacity: 1, duration: BLINK_BACK, ease: "none" }, blinkAt + BLINK_DIM);
           return tl;
         },
+        finish: () => void gsap.set(scores, { clearProps: "clipPath,opacity" }),
       });
     }
 
-    // 3 — the podium line draws, then the medal marks settle on their steps.
-    if (podium && podiumLine && !inView(podium)) {
+    // 2 — phones: photo 01 opens like a shutter, then its KR-01 frame label appears.
+    const shutterBox = photo?.querySelector<HTMLElement>(".photo") ?? null;
+    const frameLabel = photo?.querySelector<HTMLElement>(".frame-label") ?? null;
+    if (photo && shutterBox && !inView(photo) && window.matchMedia("(max-width: 1023.98px)").matches) {
+      const targets = [shutterBox, frameLabel].filter((t): t is HTMLElement => t !== null);
+      gsap.set(shutterBox, { clipPath: "inset(48% 0% 48% 0%)" });
+      if (frameLabel) gsap.set(frameLabel, { opacity: 0 });
+      steps.push({
+        el: photo,
+        hidden: true,
+        block: DUR.reveal,
+        state: "idle",
+        readyAt: 0,
+        build: () => {
+          const tl = gsap.timeline({ onComplete: () => void gsap.set(targets, { clearProps: "clipPath,opacity" }) });
+          tl.to(shutterBox, { clipPath: "inset(0% 0% 0% 0%)", duration: DUR.reveal, ease: EASE.stick }, 0);
+          if (frameLabel) tl.to(frameLabel, { opacity: 1, duration: DUR.fast, ease: "none" }, DUR.reveal * 0.6);
+          return tl;
+        },
+        finish: () => void gsap.set(targets, { clearProps: "clipPath,opacity" }),
+      });
+    }
+
+    // 3 — the medal ceremony, closed by the brush underline under „Medalje“.
+    if (band && podiumLine && !inView(band)) {
+      const byKind = (kind: string) => medals.find((m) => m.dataset.podiumMedal === kind);
+      const ceremony = CEREMONY_ORDER.map(byKind).filter((m): m is SVGGElement => m !== undefined);
+      const parts: Element[] = [podiumLine, ...blocks, ...medals, ...strokes];
       gsap.set(podiumLine, { drawSVG: "0% 0%" });
-      gsap.set(marks, { scale: 0, transformOrigin: "50% 50%" });
+      gsap.set(blocks, { scaleY: 0, transformOrigin: "50% 100%" });
+      gsap.set(medals, { opacity: 0, y: MEDAL_DROP, transformOrigin: "50% 100%" });
+      if (strokes.length) gsap.set(strokes, { drawSVG: "0% 0%" });
+      const goldTouch = MEDALS_AT + (ceremony.length - 1) * MEDAL_GAP + MEDAL_FALL;
       steps.push({
-        el: podium,
+        el: band,
+        hidden: true,
+        block: goldTouch + DUR.land,
         state: "idle",
-        build: () =>
-          gsap
-            .timeline({ onComplete: () => void gsap.set([podiumLine, ...marks], { clearProps: "all" }) })
-            .to(podiumLine, { drawSVG: "0% 100%", duration: DUR.slow, ease: EASE.flight })
-            .to(marks, { scale: 1, duration: SETTLE, ease: EASE.rebound, stagger: STAGGER.cards }, "-=0.12"),
+        readyAt: 0,
+        build: () => {
+          const tl = gsap.timeline({ onComplete: () => void gsap.set(parts, { clearProps: "all" }) });
+          // The outline draws; at 60% the solid blocks rise out of the panel (2nd · 1st · 3rd).
+          tl.to(podiumLine, { drawSVG: "0% 100%", duration: DUR.reveal, ease: EASE.stick }, 0);
+          tl.to(blocks, { scaleY: 1, duration: DUR.reveal, ease: EASE.stick, stagger: STAGGER.cards }, DUR.reveal * 0.6);
+          // Medals in ceremony order: they fall with gravity, then stick the landing.
+          ceremony.forEach((medal, i) => {
+            const at = MEDALS_AT + i * MEDAL_GAP;
+            tl.to(medal, { opacity: 1, duration: DUR.tap, ease: "none" }, at);
+            tl.to(medal, { y: 0, duration: MEDAL_FALL, ease: "power2.in" }, at);
+            tl.fromTo(
+              medal,
+              { scaleX: 1.12, scaleY: 0.82 },
+              { scaleX: 1, scaleY: 1, duration: DUR.land, ease: EASE.land, immediateRender: false },
+              at + MEDAL_FALL,
+            );
+          });
+          // The coach's brush marks the wins, 150 ms after gold touches down.
+          if (strokes.length) {
+            tl.to(strokes, { drawSVG: "0% 100%", duration: DUR.reveal, ease: EASE.stick, stagger: STAGGER.words }, goldTouch + 0.15);
+          }
+          return tl;
+        },
+        finish: () => void gsap.set(parts, { clearProps: "all" }),
       });
     }
 
-    // 4 — the brush stroke over photo 01. The step fires on the stroke's own box (lower right
-    // of the photo), not the full-photo overlay, so on desktop the podium beside the photo's
-    // top always goes first (D-S7-5 order).
-    if (brush && strokes.length && !inView(brush)) {
-      gsap.set(strokes, { drawSVG: "0% 0%" });
-      steps.push({
-        el: strokes[0] ?? brush,
-        state: "idle",
-        build: () =>
-          gsap.to(strokes, {
-            drawSVG: "0% 100%",
-            duration: DUR.slow,
-            ease: EASE.flight,
-            stagger: STRAND_STAGGER,
-            onComplete: () => void gsap.set(strokes, { clearProps: "all" }),
-          }),
-      });
-    }
-
-    let busy = false;
-    const pump = async (): Promise<void> => {
-      if (busy || !live) return;
+    // --- Sequencer ------------------------------------------------------------------------
+    let running = false;
+    const pump = (): void => {
+      if (running || !live) return;
       const step = steps.find((s) => s.state === "ready");
       if (!step) return;
-      busy = true;
-      step.state = "done";
-      const wait = headingWait();
-      if (wait > 0) await sleep(wait);
-      if (!live) return;
-      let tl: gsap.core.Timeline | undefined;
-      context.add(() => {
-        tl = gsap.timeline({
-          paused: true,
-          onComplete: () => {
-            busy = false;
-            void pump();
-          },
-        });
-        tl.add(step.build());
+      if (performance.now() - step.readyAt > MAX_SEQUENCE_WAIT_MS) {
+        // Waited too long behind another step: show it, never a lingering ghost.
+        step.state = "done";
+        step.finish();
+        pump();
+        return;
+      }
+      running = true;
+      step.state = "running";
+      const block = step.block * 1000;
+      void queuePrimaryMotion(block).then(() => {
+        if (!live) return;
+        context.add(() => step.build());
+        later(() => {
+          step.state = "done";
+          running = false;
+          pump();
+        }, block);
       });
-      if (!tl) return;
-      await queuePrimaryMotion(tl.totalDuration() * 1000);
-      if (live) tl.play();
+    };
+    const makeReady = (step: Step) => {
+      if (step.state !== "idle") return;
+      step.state = "ready";
+      step.readyAt = performance.now();
+      pump();
     };
 
     const stepIo = new IntersectionObserver(
@@ -213,21 +312,51 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
         for (const entry of entries) {
           if (!entry.isIntersecting) continue;
           const step = steps.find((s) => s.el === entry.target);
-          if (step && step.state === "idle") step.state = "ready";
           stepIo.unobserve(entry.target);
+          if (step) makeReady(step);
         }
-        void pump();
       },
       { rootMargin: STEP_LINE },
     );
-    steps.forEach((s) => s.state === "idle" && stepIo.observe(s.el));
+    for (const step of steps) {
+      stepIo.observe(step.el);
+      if (step.hidden) guard(step.el, () => step.state === "idle", () => makeReady(step));
+    }
     observers.push(stepIo);
+
+    /** MD-02 safety net: ≥50% in view for 300 ms while still waiting for its trigger. */
+    function guard(el: Element, waiting: () => boolean, go: () => void) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const io = new IntersectionObserver(
+        (entries) => {
+          const entry = entries[entries.length - 1];
+          if (!entry) return;
+          if (!waiting()) {
+            io.disconnect();
+            return;
+          }
+          if (shareInView(entry) >= 0.5) {
+            timer ??= later(() => {
+              io.disconnect();
+              if (waiting()) go();
+            }, SAFETY_MS);
+          } else if (timer) {
+            clearTimeout(timer);
+            timers.delete(timer);
+            timer = undefined;
+          }
+        },
+        { threshold: [0, 0.25, 0.5, 0.75, 1] },
+      );
+      io.observe(el);
+      observers.push(io);
+    }
 
     return () => {
       live = false;
       observers.forEach((o) => o.disconnect());
-      clearTimeout(unsplitTimer);
-      // The context has already reverted the tweens (and the split, which it owns).
+      timers.forEach((t) => clearTimeout(t));
+      // The context has already reverted the tweens and the pre-states (and the split).
       unsplit();
     };
   });

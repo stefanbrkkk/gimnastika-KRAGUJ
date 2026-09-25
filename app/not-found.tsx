@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Logo } from "@/components/brand/Logo";
-import { BeamScene } from "@/components/notfound/BeamScene";
+import { BeamScene, ScorePlate } from "@/components/notfound/BeamScene";
 import { BeamTiltLoader } from "@/components/notfound/BeamTiltLoader";
 import { HERO, NOT_FOUND } from "@/content/copy";
 import { CLUB, PRIMARY_PHONE } from "@/content/site";
@@ -18,6 +18,7 @@ const TITLE = typesetSr(NOT_FOUND.title).replace("ova stranica", "ova\u00a0stran
 /**
  * Custom 404 „Ravnoteža na gredi“ (§4) → out/404.html. Renders inside the root
  * layout (lang, skip link → #sadrzaj, sprite) but none of the home sections.
+ * The beam scene stands on a page-wide gym floor; the judges' board posts 4.04.
  * Next adds <meta name="robots" content="noindex"> itself; the canonical is
  * dropped so a missing URL never claims to be the home page.
  */
@@ -36,9 +37,6 @@ export default function NotFound() {
         </Link>
         <div className="nf__body">
           <div className="nf__copy">
-            <p className="nf__code label-caps tabular">
-              <span aria-hidden="true">▸ </span>KR-404
-            </p>
             <h1 className="nf__title">{TITLE}</h1>
             <div className="nf__actions">
               <Link className="btn btn-primary" href="/">
@@ -51,8 +49,13 @@ export default function NotFound() {
           </div>
           <div className="nf__stage-wrap" data-nf-stage="">
             <div className="nf__stage">
+              <ScorePlate />
               <BeamScene />
             </div>
+            {/* The contact-sheet frame code, under the floor like the photos' frame labels. */}
+            <p className="nf__frame frame-label" aria-hidden="true">
+              KR-404
+            </p>
             <BeamTiltLoader label={NOT_FOUND.enableTilt} />
           </div>
         </div>

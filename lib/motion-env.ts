@@ -68,26 +68,61 @@ export function prefersLessMotion(): boolean {
 
 export const isDesktopFine = (): boolean => typeof window !== "undefined" && window.matchMedia(MQ.desktopFine).matches;
 
+let heroGate: Promise<void> | null = null;
+
+/**
+ * Resolves once the hero intro is over (html[data-intro] = done | skipped), so no
+ * section chunk competes with the hero's chunks or frames (§7 animation budget).
+ * Resolves at once when there is no intro to wait for (motion off, no hero, the
+ * hero off screen — e.g. a deep link) and at most 2.5 s after the first call.
+ */
+export function afterHeroIntro(): Promise<void> {
+  if (heroGate) return heroGate;
+  heroGate = new Promise<void>((resolve) => {
+    const html = document.documentElement;
+    const over = () => /^(done|skipped)$/.test(html.getAttribute("data-intro") ?? "");
+    const hero = document.getElementById("top")?.getBoundingClientRect();
+    if (over() || !motionAllowed() || !hero || hero.bottom <= 0 || hero.top >= window.innerHeight) {
+      resolve();
+      return;
+    }
+    const done = () => {
+      mo.disconnect();
+      window.clearTimeout(timer);
+      resolve();
+    };
+    const mo = new MutationObserver(() => over() && done());
+    const timer = window.setTimeout(done, 2500);
+    mo.observe(html, { attributes: true, attributeFilter: ["data-intro"] });
+  });
+  return heroGate;
+}
+
 /**
  * Calls `onNear` once when `el` is within `margin` of the viewport
- * (default: ≤1 viewport away). Returns a cleanup function.
+ * (default: ≤1 viewport away), never before the hero intro is over
+ * (afterHeroIntro). Returns a cleanup function.
  */
 export function whenNear(el: Element, onNear: () => void, margin = "100% 0px 100% 0px"): () => void {
   if (typeof IntersectionObserver === "undefined") {
     onNear();
     return () => {};
   }
+  let live = true;
   const io = new IntersectionObserver(
     (entries) => {
       if (entries.some((e) => e.isIntersecting)) {
         io.disconnect();
-        onNear();
+        void afterHeroIntro().then(() => live && onNear());
       }
     },
     { rootMargin: margin },
   );
   io.observe(el);
-  return () => io.disconnect();
+  return () => {
+    live = false;
+    io.disconnect();
+  };
 }
 
 /**

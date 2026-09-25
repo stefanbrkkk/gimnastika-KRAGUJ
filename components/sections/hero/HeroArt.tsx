@@ -1,17 +1,21 @@
 import { GHOST_COLOR, GHOST_OPACITY, LEAP_BOX } from "./constants";
-import { CHALK, RIG_CLIP, type PassVariant } from "./pass";
+import { RIG, type PassVariant } from "./pass";
 
 const { width: W, height: H } = LEAP_BOX;
 
 /**
  * The gymnast: the logo's silhouette as three clipped copies of #leap — torso,
- * back leg, front leg (pass.ts, "The rig"). `back`/`front` turn the legs about
- * their hip joints; without them the three parts are the logo, exactly.
+ * back leg, front leg — plus the two ball joints, discs of ink inscribed in
+ * the thighs (pass.ts, "The rig"). `back`/`front` turn the legs about those
+ * joints; without them the pieces are the logo, exactly.
  */
 function Gymnast({ rig, back, front }: { rig: string; back?: string; front?: string }) {
   return (
     <>
       <use href="#leap" width={W} height={H} clipPath={`url(#${rig}-torso)`} />
+      {RIG.joints.map(([cx, cy, r]) => (
+        <circle key={cx} cx={cx} cy={cy} r={r} fill="currentColor" />
+      ))}
       <use href="#leap" width={W} height={H} clipPath={`url(#${rig}-back)`} transform={back} data-hero-leg="back" />
       <use href="#leap" width={W} height={H} clipPath={`url(#${rig}-front)`} transform={front} data-hero-leg="front" />
     </>
@@ -24,10 +28,9 @@ function Gymnast({ rig, back, front }: { rig: string; back?: string; front?: str
  * ≥ 640 px, or ≥ 1024 px with a fine pointer). CSS shows one (hero.css).
  *
  * Static state = the FINAL composition, a chronophotograph of the floor pass:
- * six ghost frames (the running bounds, the takeoff, the legs opening to the
- * split on the rise and at the apex), each the gymnast at one shutter time
- * (pass.ts), a frame mark on the mat under each, the wordmark, and the
- * gymnast landed in the logo. The chalk puff is hidden at rest.
+ * six ghost frames, each the gymnast at one shutter time (pass.ts) — the
+ * chassé, the takeoff, the split opening, the apex — a frame mark on the mat
+ * under each, the wordmark, and the gymnast landed in the logo.
  *
  * Every silhouette carries an invisible 230 × 150 box (the landed one is the
  * easter egg's tap target).
@@ -35,8 +38,8 @@ function Gymnast({ rig, back, front }: { rig: string; back?: string; front?: str
 export function HeroArt({ variant, name }: { variant: PassVariant; name: "compact" | "wide" }) {
   const [lx, ly] = variant.logo;
   const [fx, fy] = variant.landed;
-  const [tx, ty] = variant.touchdown;
   const rig = `hero-rig-${name}`;
+  const tick = name === "wide" ? 9 : 18;
   return (
     <svg
       className={`hero-art hero-art--${name}`}
@@ -47,16 +50,13 @@ export function HeroArt({ variant, name }: { variant: PassVariant; name: "compac
     >
       <defs>
         <clipPath id={`${rig}-torso`}>
-          <path d={RIG_CLIP.torso} />
-          {RIG_CLIP.torsoDiscs.map(([cx, cy, r]) => (
-            <circle key={cx} cx={cx} cy={cy} r={r} />
-          ))}
+          <path d={RIG.torso} clipRule="evenodd" />
         </clipPath>
         <clipPath id={`${rig}-back`}>
-          <path d={RIG_CLIP.back} />
+          <path d={RIG.back} />
         </clipPath>
         <clipPath id={`${rig}-front`}>
-          <path d={RIG_CLIP.front} />
+          <path d={RIG.front} />
         </clipPath>
       </defs>
       <g className="hero-art__ticks">
@@ -66,7 +66,7 @@ export function HeroArt({ variant, name }: { variant: PassVariant; name: "compac
             x1={g.x}
             x2={g.x}
             y1={variant.height}
-            y2={variant.height - (name === "wide" ? 9 : 16)}
+            y2={variant.height - tick}
             data-hero-tick=""
             style={{ opacity: GHOST_OPACITY[i]! * 2.4 }}
           />
@@ -84,11 +84,6 @@ export function HeroArt({ variant, name }: { variant: PassVariant; name: "compac
       <g className="hero-art__leap" transform={`translate(${fx} ${fy})`} data-hero-leap="">
         <rect className="hero-art__hit" width={W} height={H} fill="none" data-hero-leap-hit="" />
         <Gymnast rig={rig} />
-      </g>
-      <g className="hero-art__chalk" data-hero-chalk="">
-        {CHALK.map(([, , size], i) => (
-          <circle key={i} cx={tx} cy={ty} r={variant.spec.chalkR * size} />
-        ))}
       </g>
     </svg>
   );

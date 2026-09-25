@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 /**
  * Page-chrome line icons, drawn for this site: 24×24 grid, round caps and joins,
  * currentColor. Always paired with a visible text label. .ui-icon keeps the stroke
- * in CSS px at any rendered size: pictograms 1.75, action glyphs (× ↗ and the
+ * in CSS px at any rendered size: pictograms 1.75, action glyphs (× → ↗ and the
  * menu bars that swap with ×) 2.
  */
 function Icon({ children, className, weight = 1.75 }: { children: ReactNode; className?: string; weight?: number }) {
@@ -84,6 +84,13 @@ export const FacebookIcon = ({ className }: IconProps) => (
   <Icon className={className}>
     <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
     <path d="M15.5 8h-1.7a2.3 2.3 0 0 0-2.3 2.3V20.5M9.5 13h5" />
+  </Icon>
+);
+
+/** Forward arrow (→): the footer's trial-training index link. */
+export const ArrowIcon = ({ className }: IconProps) => (
+  <Icon className={className} weight={2}>
+    <path d="M4.5 12h14M13 6.5l5.5 5.5-5.5 5.5" />
   </Icon>
 );
 

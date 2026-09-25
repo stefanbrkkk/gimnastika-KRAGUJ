@@ -2,6 +2,7 @@
  * Recommended group(s) with their schedule chips. Shared by the quiz island's result
  * card and the static no-JS guide (no hooks, no client-only code).
  */
+import type { CSSProperties, ReactNode } from "react";
 import type { QuizResultView } from "./types";
 
 /** A time range („08:30–10:30“): never broken at its dash; lines wrap around „ ili “ instead. */
@@ -25,9 +26,9 @@ export function QuizGroups({ view, focusFirst = false }: QuizGroupsProps) {
       ) : null}
       <ul className="quiz-groups" data-count={view.groups.length} data-sub={view.heading ? "" : undefined}>
         {view.groups.map((g, i) => (
-          <li key={g.id} className="quiz-group">
+          <li key={g.id} className="quiz-group" data-meta={g.meta ? "" : undefined} style={{ "--i": i } as CSSProperties}>
+            {g.plate}
             <Name className="quiz-group__name" {...focusProps(!view.heading && i === 0)}>
-              <span className="quiz-swatch" style={{ background: g.color }} aria-hidden="true" />
               {g.name}
             </Name>
             {g.meta ? <p className="quiz-group__meta">{g.meta}</p> : null}
@@ -66,24 +67,22 @@ export function QuizGroups({ view, focusFirst = false }: QuizGroupsProps) {
 
 interface QuizActionsProps {
   booking: string;
-  cta: string;
+  /** CTA label node (QuizCtaLabel; two levels on phones when it has a second part). */
+  cta: ReactNode;
   finalNote: string;
-  aerobicHint: string;
-  aerobicColor: string;
+  /** Aerobic hint node (QuizHint). */
+  hint: ReactNode;
 }
 
 /** CTA (prefills the booking sheet) + the small final line + the aerobic hint. */
-export function QuizActions({ booking, cta, finalNote, aerobicHint, aerobicColor }: QuizActionsProps) {
+export function QuizActions({ booking, cta, finalNote, hint }: QuizActionsProps) {
   return (
     <div className="quiz-result__act">
       <a href="#kontakt" data-booking={booking} className="btn btn-primary quiz-cta">
         {cta}
       </a>
       <p className="quiz-final">{finalNote}</p>
-      <p className="quiz-hint">
-        <span className="quiz-swatch" style={{ background: aerobicColor }} aria-hidden="true" />
-        <span className="quiz-hint__text">{aerobicHint}</span>
-      </p>
+      <p className="quiz-hint">{hint}</p>
     </div>
   );
 }

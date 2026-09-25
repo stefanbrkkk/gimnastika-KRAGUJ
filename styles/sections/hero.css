@@ -35,6 +35,39 @@
   pointer-events: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  /* The dot field: the art's right 45 % (compact: 360 of 800 units), centred on the landing. */
+  --dots-w: 0.82;
+  --dots-at: 68% 92%;
+}
+
+/* The club banner's halftone, behind the landing zone only: a static dot field
+   around the logo, big dots fading into small ones (two masked layers of
+   radial-gradient dots on one grid). It stays inside the art band, above the
+   mat — never behind the eyebrow, the H1, the subline or the CTAs. Its own
+   compositor layer, so the intro never repaints it. */
+.hero__art::before,
+.hero__art::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  height: 100%;
+  aspect-ratio: var(--dots-w);
+  background-position: 100% 100%;
+  background-size: 7px 7px;
+  pointer-events: none;
+  transform: translateZ(0);
+}
+
+.hero__art::before {
+  background-image: radial-gradient(circle, color-mix(in oklab, var(--color-royal-500) 34%, transparent) 0 1.4px, transparent 2px);
+  mask-image: radial-gradient(50% 58% at var(--dots-at), #000 0%, rgb(0 0 0 / 0.45) 45%, transparent 80%);
+}
+
+.hero__art::after {
+  background-image: radial-gradient(circle, color-mix(in oklab, var(--color-royal-500) 28%, transparent) 0 0.75px, transparent 1.25px);
+  mask-image: radial-gradient(72% 80% at var(--dots-at), transparent 36%, #000 56%, transparent 92%);
 }
 
 .hero-art {
@@ -45,7 +78,7 @@
 }
 
 .hero-art--compact {
-  aspect-ratio: 713 / 404;
+  aspect-ratio: 800 / 440;
 }
 
 /* Short portrait phones (360×640–700 with the browser toolbar shown): the high
@@ -89,17 +122,16 @@
   .hero-art--wide {
     display: block;
   }
+  /* the wide art: its right 34 % (560 of 1650 units), centred on the landing */
+  .hero__art {
+    --dots-w: 2.19;
+    --dots-at: 79% 88%;
+  }
 }
 
 .hero-art__wordmark,
 .hero-art__leap {
   color: var(--color-white);
-}
-
-/* Chalk lifting off the mat at the touchdown — only during the intro. */
-.hero-art__chalk circle {
-  fill: var(--color-chalk);
-  opacity: 0;
 }
 
 /* Tap target of the easter egg: the silhouette's whole box, not just its ink. */
@@ -126,6 +158,13 @@
   overflow: visible;
 }
 
+/* Wide rooms (≥ 1680): the floor spans the whole room, wall to wall. */
+@media (min-width: 1680px) {
+  .hero-mat {
+    width: 100vw;
+  }
+}
+
 .hero-mat path {
   fill: none;
   stroke: var(--color-steel-300);
@@ -145,24 +184,38 @@
   vector-effect: non-scaling-stroke;
 }
 
-/* Desktop scrub: the floor-exercise diagonal (created by the motion layer). */
+/* Desktop scrub: the floor-exercise diagonal and the second exposure (both
+   created by the motion layer). The route runs on below the hero into the next
+   section, to its title's mark: while it exists the hero lets it overflow its
+   bottom edge and sits above that section. */
+.hero--spine {
+  z-index: 1;
+  overflow: clip visible;
+}
+
 .hero-spine {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
   z-index: 0;
   width: 100%;
-  height: 100%;
   overflow: visible;
   pointer-events: none;
 }
 
-.hero-spine path {
+.hero-spine__line {
   fill: none;
   stroke: var(--color-steel-300);
-  stroke-opacity: 0.6;
-  stroke-width: 1.5;
+  stroke-opacity: 0.8;
+  stroke-width: 2;
+  stroke-linejoin: round;
   stroke-dasharray: 1 1;
   stroke-dashoffset: 1;
+}
+
+.hero-spine__x {
+  color: var(--color-white);
+  opacity: 0;
 }
 
 /* ---- Statement ---- */
@@ -194,9 +247,24 @@
   overflow-wrap: break-word;
 }
 
+/* Portrait phones: the H1 a step larger than the display-xl token where the
+   screen is tall enough — capped by the width („u Kragujevcu“ is 6.2em) and by
+   the height, so the primary CTA stays on the first screen (360×800: 726 px,
+   390×844: 720 px; 360×640 keeps 44 px and its CTA at 636 px). */
+@media (max-width: 639.98px) and (orientation: portrait) {
+  .hero__title {
+    font-size: max(2.75rem, min(17.8px + 8.5vw, 26.4px + 2.75svh, (100vw - 40px) / 6.3));
+  }
+}
+
 /* Landscape phones (844×390, 740×360, 915×412 …): the H1 is sized by the
-   viewport height so it takes two lines and the CTAs reach the first screen. */
+   viewport height so it takes two lines and the CTAs reach the first screen.
+   The art band starts a little lower, so the raised hands at the apex clear the
+   floating header and its shadow. */
 @media (orientation: landscape) and (max-height: 500px) and (max-width: 1023.98px) {
+  .hero__inner {
+    padding-top: 100px;
+  }
   .hero__title {
     font-size: clamp(2.75rem, 16svh, 5.5rem);
   }
@@ -255,10 +323,10 @@
   .hero__ctas .btn {
     flex: 0 1 auto;
   }
+  /* Three equal columns (an item may take two lines): never a 2 + 1 wrap. */
   .hero__trust {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px 28px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 24px;
   }
 }
 
@@ -326,7 +394,7 @@
     flex: 1 1 auto;
   }
   .hero__trust {
-    display: grid;
+    grid-template-columns: none;
     gap: 10px;
   }
 }

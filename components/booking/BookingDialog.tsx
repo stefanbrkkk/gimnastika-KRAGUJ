@@ -44,6 +44,13 @@ import type { BookingRequest } from "./types";
 const VIBER_CHECK_MS = 1500;
 /** Must match the exit animation in styles/sections/booking.css (--dur-fast, exits ≤200 ms). */
 const CLOSE_MS = 180;
+/** Bottom-sheet layout (booking.css): below 768 px the head can be pulled down to close. */
+const SHEET = "(max-width: 767.98px)";
+/** Pull-down: close past 30% of the sheet's height or on a flick faster than .5 px/ms. */
+const PULL_CLOSE_RATIO = 0.3;
+const PULL_CLOSE_SPEED = 0.5;
+/** Invalid fields that wobble on a send attempt (the first three, 40 ms apart). */
+const WOBBLE_MAX = 3;
 
 // Device → primary send action (lib/booking primaryChannel). Live: a tablet that
 // gets a mouse, or DevTools device emulation, re-renders the actions.
@@ -73,17 +80,23 @@ const withoutError = (errors: BookingErrors, field: keyof BookingValues): Bookin
   return next;
 };
 
-/** Error line: a FILLED accent disc with a white „!“ (a solid „stop“ mark) + navy text. */
+/** Error line under an invalid field: navy text; the „stop“ disc sits inside the control. */
 function ErrorLine({ id, text }: { id: string; text: string }) {
   return (
     <p id={id} className="booking-field__error">
-      <svg className="ui-icon" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
-        <circle cx="10" cy="10" r="9" fill="currentColor" />
-        <path className="booking-field__error-mark" d="M10 5.25v5.75" fill="none" strokeWidth="2" strokeLinecap="round" />
-        <circle className="booking-field__error-dot" cx="10" cy="14.4" r="1.2" />
-      </svg>
-      <span>{typesetSr(text)}</span>
+      {typesetSr(text)}
     </p>
+  );
+}
+
+/** A FILLED accent disc with a white „!“ (solid = stop), inside an invalid control's right end. */
+function StopMark() {
+  return (
+    <svg className="booking-stop ui-icon" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false">
+      <circle cx="10" cy="10" r="9.5" fill="currentColor" />
+      <path className="booking-stop__mark" d="M10 5.25v5.75" fill="none" strokeWidth="2" strokeLinecap="round" />
+      <circle className="booking-stop__dot" cx="10" cy="14.4" r="1.2" />
+    </svg>
   );
 }
 
@@ -145,6 +158,7 @@ function SelectBox({
       <span className="booking-select__value" aria-hidden="true">
         {selected ? typesetSr(selected.label) : null}
       </span>
+      {invalid ? <StopMark /> : null}
       <svg className="booking-select__chevron ui-icon" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false">
         <path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
@@ -165,8 +179,10 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
   const openerRef = useRef<HTMLElement | null>(null);
   const primaryRef = useRef<HTMLAnchorElement>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
+  const statusRef = useRef<HTMLParagraphElement>(null);
   const pressedOnBackdrop = useRef(false);
   const viberTimer = useRef(0);
+  const pull = useRef<{ id: number; y0: number; dy: number; moved: boolean; samples: { y: number; t: number }[] } | null>(null);
   const fields = useRef<Partial<Record<BookingField, Control | null>>>({});
 
   const [values, setValues] = useState<BookingValues>(EMPTY_BOOKING);
@@ -174,10 +190,15 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
   const [errors, setErrors] = useState<BookingErrors>({});
   const [noteOpen, setNoteOpen] = useState(false);
   const [status, setStatus] = useState("");
+  // Hand-offs so far: keys the „landed“ card, so its stamp plays once per hand-off.
+  const [handoffs, setHandoffs] = useState(0);
   const [year] = useState(() => belgradeYear());
   const [seenRequest, setSeenRequest] = useState(0);
   const primary = useSyncExternalStore(subscribeDevice, devicePrimary, serverPrimary);
   const touchFirst = primary === "sms";
+  // The message went to the parent's app: the sheet shows the „landed“ card, and both send
+  // actions step down to outlined, so the finished job no longer shouts „send“ (C-05).
+  const landed = status === BOOKING.after;
   const uid = useId();
 
   // A new open request (derived state, adjusted during render): clear the status and
@@ -218,6 +239,19 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
     [],
   );
 
+  // Back from the SMS / e-mail app: focus the „landed“ card (screen readers hear it again,
+  // the keyboard continues from there), without scrolling the page.
+  useEffect(() => {
+    if (!landed) return;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      document.removeEventListener("visibilitychange", onVisible);
+      if (dialogRef.current?.open) statusRef.current?.focus({ preventScroll: true });
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [landed, handoffs]);
+
   const requestClose = () => {
     const dialog = dialogRef.current;
     if (!dialog?.open || dialog.hasAttribute("data-closing")) return;
@@ -225,6 +259,10 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
       dialog.close();
       return;
     }
+    // After a pull on the head the enter animation is switched off inline; hand the sheet
+    // back to the stylesheet's exit animation, which leaves from where the finger let go.
+    dialog.style.removeProperty("animation");
+    dialog.style.removeProperty("transition");
     dialog.setAttribute("data-closing", "");
     window.setTimeout(() => {
       dialog.removeAttribute("data-closing");
@@ -234,6 +272,10 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
 
   const onClosed = () => {
     window.clearTimeout(viberTimer.current);
+    pull.current = null;
+    dialogRef.current?.style.removeProperty("transform");
+    dialogRef.current?.style.removeProperty("animation");
+    dialogRef.current?.style.removeProperty("transition");
     document.documentElement.removeAttribute("data-booking-open");
     const opener = openerRef.current;
     if (opener?.isConnected) opener.focus({ preventScroll: true });
@@ -272,6 +314,52 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
     pressedOnBackdrop.current = false;
   };
 
+  // Bottom sheet: pull the head down to close (C-09). Only the head, never the scrolling
+  // fields; the close button keeps its own tap. Upward pulls rubber-band at 20%.
+  const onHeadPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    const dialog = dialogRef.current;
+    if (event.button !== 0 || !dialog || dialog.hasAttribute("data-closing") || !window.matchMedia(SHEET).matches) return;
+    if (event.target instanceof Element && event.target.closest("button, a")) return;
+    pull.current = { id: event.pointerId, y0: event.clientY, dy: 0, moved: false, samples: [{ y: event.clientY, t: event.timeStamp }] };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const onHeadPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const p = pull.current;
+    const dialog = dialogRef.current;
+    if (!p || !dialog || event.pointerId !== p.id) return;
+    const raw = event.clientY - p.y0;
+    if (!p.moved && Math.abs(raw) < 4) return;
+    p.moved = true;
+    p.dy = raw > 0 ? raw : raw * 0.2;
+    p.samples.push({ y: event.clientY, t: event.timeStamp });
+    if (p.samples.length > 6) p.samples.shift();
+    dialog.style.animation = "none";
+    dialog.style.transition = "none";
+    dialog.style.transform = `translateY(${p.dy}px)`;
+  };
+  const onHeadPointerEnd = (event: PointerEvent<HTMLDivElement>) => {
+    const p = pull.current;
+    const dialog = dialogRef.current;
+    if (!p || event.pointerId !== p.id) return;
+    pull.current = null;
+    if (!dialog || !p.moved) return;
+    const first = p.samples[0];
+    const last = p.samples[p.samples.length - 1];
+    const speed = first && last && last.t > first.t ? (last.y - first.y) / (last.t - first.t) : 0;
+    const closing = event.type === "pointerup" && (p.dy > dialog.offsetHeight * PULL_CLOSE_RATIO || speed > PULL_CLOSE_SPEED);
+    if (closing) {
+      requestClose();
+      return;
+    }
+    // Spring back onto the landing spot (instant under reduced motion).
+    if (prefersLessMotion()) {
+      dialog.style.removeProperty("transform");
+      return;
+    }
+    dialog.style.transition = "transform var(--dur-base) var(--ease-stick)";
+    dialog.style.transform = "translateY(0)";
+  };
+
   // Editing a field clears its own error at once; the form is validated again only on send.
   const update = (field: keyof BookingValues) => (event: ChangeEvent<Control>) => {
     const { value } = event.target;
@@ -308,7 +396,23 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
     });
     const first = BOOKING_REQUIRED.find((f) => found[f]);
     if (first) fields.current[first]?.focus();
+    wobble(BOOKING_REQUIRED.filter((f) => found[f]));
     return false;
+  };
+
+  // M-03 „balance check“: each invalid field catches a wobble once per send attempt, like a
+  // wobble on the beam, then holds still with the error styling. CSS only runs it when
+  // motion is allowed (booking.css); the attribute is dropped on animationend.
+  const wobble = (invalid: readonly BookingField[]) => {
+    invalid.slice(0, WOBBLE_MAX).forEach((f, i) => {
+      const field = fields.current[f]?.closest<HTMLElement>(".booking-field");
+      if (!field) return;
+      field.removeAttribute("data-wobble");
+      void field.offsetWidth; // restart when the previous wobble is still running
+      field.style.setProperty("--i", String(i));
+      field.setAttribute("data-wobble", "");
+      field.addEventListener("animationend", () => field.removeAttribute("data-wobble"), { once: true });
+    });
   };
 
   const onSend = (channel: SendChannel) => (event: MouseEvent<HTMLAnchorElement>) => {
@@ -317,6 +421,7 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
       return;
     }
     setStatus(BOOKING.after); // the link itself opens the SMS / email app
+    setHandoffs((n) => n + 1);
   };
 
   const onViber = (event: MouseEvent<HTMLAnchorElement>) => {
@@ -331,6 +436,7 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
       /* clipboard unavailable — the message is still offered via SMS/email */
     }
     setStatus(BOOKING.after);
+    setHandoffs((n) => n + 1);
     window.clearTimeout(viberTimer.current);
     viberTimer.current = window.setTimeout(() => {
       if (document.visibilityState === "visible") setStatus(BOOKING.viberFailed);
@@ -383,7 +489,16 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
       onPointerDown={onPointerDown}
       onClick={onDialogClick}
     >
-      <div className="booking__head">
+      {/* Darkroom head band (the S11 slab carried into the sheet), with the grabber and the
+          leotard hairline; pulling it down closes the sheet on phones. */}
+      <div
+        className="booking__head"
+        data-theme="dark"
+        onPointerDown={onHeadPointerDown}
+        onPointerMove={onHeadPointerMove}
+        onPointerUp={onHeadPointerEnd}
+        onPointerCancel={onHeadPointerEnd}
+      >
         <svg className="booking__leap" viewBox="0 0 230 150" aria-hidden="true" focusable="false">
           <use href="#leap" width="230" height="150" />
         </svg>
@@ -401,37 +516,43 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
         <form className="booking__form" noValidate onSubmit={(event) => event.preventDefault()}>
           <div className="booking-field booking-field--parent">
             <label htmlFor={`${uid}-parent`}>{BOOKING.fields.parent}</label>
-            <input
-              ref={(el) => {
-                fields.current.parent = el;
-              }}
-              onKeyDown={onFieldEnter}
-              type="text"
-              autoComplete="name"
-              autoCapitalize="words"
-              required
-              maxLength={80}
-              {...textProps("parent")}
-              {...invalidProps("parent")}
-            />
+            <div className="booking-control">
+              <input
+                ref={(el) => {
+                  fields.current.parent = el;
+                }}
+                onKeyDown={onFieldEnter}
+                type="text"
+                autoComplete="name"
+                autoCapitalize="words"
+                required
+                maxLength={80}
+                {...textProps("parent")}
+                {...invalidProps("parent")}
+              />
+              {errors.parent ? <StopMark /> : null}
+            </div>
             {errorLine("parent")}
           </div>
 
           <div className="booking-field booking-field--phone">
             <label htmlFor={`${uid}-phone`}>{BOOKING.fields.phone}</label>
-            <input
-              ref={(el) => {
-                fields.current.phone = el;
-              }}
-              onKeyDown={onFieldEnter}
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              placeholder={BOOKING.fields.phoneHint}
-              maxLength={24}
-              {...textProps("phone")}
-              {...invalidProps("phone")}
-            />
+            <div className="booking-control">
+              <input
+                ref={(el) => {
+                  fields.current.phone = el;
+                }}
+                onKeyDown={onFieldEnter}
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder={BOOKING.fields.phoneHint}
+                maxLength={24}
+                {...textProps("phone")}
+                {...invalidProps("phone")}
+              />
+              {errors.phone ? <StopMark /> : null}
+            </div>
             {errorLine("phone")}
           </div>
 
@@ -499,15 +620,30 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
       </div>
 
       <div className="booking__foot">
-        <p className="booking__status" role="status" aria-live="polite">
-          {typesetSr(status)}
+        {/* The funnel's stuck landing (C-05, M-02): after a hand-off the status is a „landed“
+            card — the club's silhouette drops in and sticks. tabIndex -1: focused on return
+            from the messaging app. */}
+        <p
+          ref={statusRef}
+          className="booking__status"
+          role="status"
+          aria-live="polite"
+          tabIndex={-1}
+          data-landed={landed ? "" : undefined}
+        >
+          {landed ? (
+            <svg key={handoffs} className="booking__status-leap" viewBox="0 0 230 150" aria-hidden="true" focusable="false">
+              <use href="#leap" width="230" height="150" />
+            </svg>
+          ) : null}
+          {status ? <span>{typesetSr(status)}</span> : null}
         </p>
         <div className="booking__sends">
           {sendOrder(primary).map((channel, i) => (
             <a
               key={channel}
               ref={i === 0 ? primaryRef : undefined}
-              className={`btn ${i === 0 ? "btn-primary" : "btn-secondary"} booking__send`}
+              className={`btn ${i === 0 && !landed ? "btn-primary" : "btn-secondary"} booking__send`}
               href={hrefs[channel]}
               onClick={onSend(channel)}
             >

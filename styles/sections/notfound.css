@@ -1,10 +1,15 @@
-/* 404 „Ravnoteža na gredi“ — owned by the SEO/404 agent. Dark theme tokens (data-theme="dark"). */
+/* 404 „Ravnoteža na gredi“ — owned by the chrome-404 agent. Dark theme tokens (data-theme="dark").
+   The scene stands on a gym floor that runs across the whole page (C-16): no box around it,
+   A-frame beam like S8, the judges' board posting 4.04 (C-19), the frame code under the floor. */
 
 .nf {
   min-height: 100vh;
   min-height: 100svh;
   display: flex;
   outline: none;
+  /* the floor line is full-bleed (−100vw … +100vw): clip it at the page edges */
+  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 .nf__inner {
@@ -32,13 +37,8 @@
 .nf__body {
   display: grid;
   align-content: start;
-  gap: 40px;
+  gap: 48px;
   margin-top: clamp(32px, 7vh, 72px);
-}
-
-.nf__code {
-  color: var(--muted);
-  margin-bottom: 16px;
 }
 
 .nf__title {
@@ -93,12 +93,27 @@
   }
 }
 
-/* The stage: a contact-sheet frame around the scene. */
+/* The stage: no frame — the scene stands on the page's floor. */
+.nf__stage-wrap {
+  position: relative;
+}
+
 .nf__stage {
-  padding: 6px;
-  background: var(--color-navy-950);
-  box-shadow: 0 0 0 1px var(--hairline);
-  border-radius: 2px;
+  position: relative;
+  container-type: inline-size;
+}
+
+/* The gym floor: a steel mat line from edge to edge of the page, level with the beam's feet. */
+.nf__stage::after {
+  content: "";
+  position: absolute;
+  left: -100vw;
+  right: -100vw;
+  bottom: 0;
+  height: 1.5px;
+  background: var(--color-steel-300);
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 .nf-scene {
@@ -106,39 +121,160 @@
   width: 100%;
   height: auto;
   /* phones: a centre crop of the scene (x 110…610), so the gymnast reads larger */
-  aspect-ratio: 500 / 286;
+  aspect-ratio: 500 / 268;
 }
 
 @media (min-width: 640px) {
   .nf-scene {
-    aspect-ratio: 720 / 286;
+    aspect-ratio: 720 / 268;
   }
 }
 
-.nf-scene__floor {
-  stroke: var(--color-steel-300);
-  stroke-width: 1.5;
-  opacity: 0.6;
-}
-
-.nf-scene__beam line {
+.nf-scene__support {
+  fill: none;
   stroke: var(--color-steel-300);
   stroke-width: 6;
   stroke-linecap: round;
+  stroke-linejoin: round;
   opacity: 0.55;
 }
 
-.nf-scene__beam rect {
+.nf-scene__body {
   fill: var(--color-steel-300);
+}
+
+/* The padded top of the beam. */
+.nf-scene__pad {
+  fill: var(--color-iceblue-200);
 }
 
 .nf-scene__figure {
   color: var(--color-white);
 }
 
+.nf-ghost--1 {
+  color: var(--ghost-1);
+  opacity: var(--ghost-1-o);
+}
+
+.nf-ghost--2 {
+  color: var(--ghost-2);
+  opacity: var(--ghost-2-o);
+}
+
+.nf-ghost--3 {
+  color: var(--ghost-3);
+  opacity: var(--ghost-3-o);
+}
+
+/* The frame code under the floor, like a photo's frame label (bottom-left). */
+.nf__frame {
+  margin-top: 10px;
+  padding-inline: 2px;
+}
+
+/* The judges' board (C-19). Phones: above the scene, right-aligned (the raised hand fills the
+   scene's top-right corner there); from 640px it hangs in that corner. Doto ≥32px. */
+.nf-score {
+  display: flex;
+  align-items: baseline;
+  width: max-content;
+  margin: 0 0 12px auto;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background:
+    radial-gradient(circle at center, rgba(141, 169, 198, 0.1) 0.9px, transparent 1.3px) 0 0 / 7px 7px,
+    var(--color-navy-950);
+  box-shadow: 0 0 0 1px var(--hairline);
+  color: var(--color-lav-200);
+  font-size: 36px;
+  line-height: 1.1;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+@media (min-width: 640px) {
+  .nf-score {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 1;
+    margin: 0;
+    font-size: clamp(34px, 5.4cqi, 42px);
+  }
+}
+
+.nf-score__cell--post {
+  display: inline-grid;
+}
+
+.nf-score__before,
+.nf-score__after {
+  grid-area: 1 / 1;
+}
+
+/* Static (no JS, reduced motion, Save-Data): the posted 4.04. */
+.nf-score__before {
+  visibility: hidden;
+}
+
+/* With motion: a perfect 10.00 until she has caught her balance, then the board posts 4.04
+   row by row (LED rows: --ease-score, 7 steps), one changed digit after the other. The
+   failsafe posts it at 3.6s if the tilt chunk never sets data-posted. */
+@media (prefers-reduced-motion: no-preference) {
+  html.js-motion .nf-score:not([data-posted]) .nf-score__before {
+    visibility: visible;
+    animation: nf-score-hide 0s linear 3.6s forwards;
+  }
+
+  html.js-motion .nf-score:not([data-posted]) .nf-score__after {
+    visibility: hidden;
+    animation: nf-score-show 0s linear 3.6s forwards;
+  }
+
+  html.js-motion .nf-score[data-posted="true"] .nf-score__before {
+    visibility: visible;
+    animation: nf-score-out 210ms var(--ease-score) calc(var(--k, 0) * 45ms) both;
+  }
+
+  html.js-motion .nf-score[data-posted="true"] .nf-score__after {
+    animation: nf-score-in 210ms var(--ease-score) calc(var(--k, 0) * 45ms) both;
+  }
+}
+
+@keyframes nf-score-hide {
+  to {
+    visibility: hidden;
+  }
+}
+
+@keyframes nf-score-show {
+  to {
+    visibility: visible;
+  }
+}
+
+@keyframes nf-score-out {
+  from {
+    clip-path: inset(0);
+  }
+  to {
+    clip-path: inset(100% 0 0 0);
+  }
+}
+
+@keyframes nf-score-in {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+
 /* iOS only: shown after mount when DeviceOrientation needs a tap to be allowed. */
 .nf__tilt {
-  margin-top: 16px;
+  margin-top: 20px;
 }
 
 @media (min-width: 1024px) {
@@ -151,34 +287,41 @@
   }
 
   /* Centred in the viewport; the iOS button below is out of flow here, so
-     centring never moves anything when it appears (iPad). */
+     centring never moves anything when it appears (iPad). Copy and beam stand on the
+     same floor: both columns end on the grid's bottom edge, the copy 40px above the
+     floor line (the frame label under the floor is 24px: 10px gap + 14px line). */
   .nf__body {
     grid-template-columns: repeat(12, minmax(0, 1fr));
     column-gap: 24px;
-    align-items: start;
+    align-items: end;
     margin-block: auto;
     padding-block: 32px 48px;
   }
 
   .nf__copy {
     grid-column: 1 / span 5;
+    padding-bottom: 64px;
   }
 
   /* No stage on the error fallback: the copy takes the reading width it needs. */
+  .nf--error .nf__body {
+    align-items: start;
+  }
+
   .nf--error .nf__copy {
     grid-column: 1 / span 7;
+    padding-bottom: 0;
   }
 
   .nf__stage-wrap {
-    position: relative;
     grid-column: 6 / span 7;
-    margin-top: 8px;
   }
 
   .nf__tilt {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 16px);
     left: 0;
+    margin-top: 0;
   }
 }
 

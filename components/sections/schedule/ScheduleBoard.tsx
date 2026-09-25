@@ -1,19 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import type { gsap as GsapInstance } from "gsap";
-import type { Flip as FlipInstance } from "gsap/Flip";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import type { DayCode } from "@/content/schedule";
 import { SCHEDULE_FILTER_EVENT, SCHEDULE_PROGRAM_ATTR, type ScheduleFilterDetail } from "@/lib/events";
-import { loadMotion } from "@/lib/load-motion";
-import { DUR, EASE, prefersLessMotion, whenNear } from "@/lib/motion-env";
-import { occurrenceDates, withGcalDates } from "@/lib/schedule-logic";
+import { prefersLessMotion, whenNear } from "@/lib/motion-env";
+import { earliestNext, formatNextDay, formatNextTraining, type Slot } from "@/lib/schedule-logic";
 import { useBelgradeMinute } from "./clock";
 import { SCHEDULE_UI as T } from "./copy";
+import type { Enhancer } from "./schedule-enhance";
 
 type View = "group" | "day";
-type FlipPlugin = typeof FlipInstance;
-type Gsap = typeof GsapInstance;
 
 export interface ProgramOption {
   id: string;
@@ -30,9 +26,22 @@ export interface DayOption {
   iso: number;
 }
 
+/** A group as the „Sledeći trening“ scoreboard needs it (computed on the server). */
+export interface BoardGroup {
+  programId: string;
+  /** Display name (typeset on the server). */
+  name: string;
+  color: string;
+  slots: readonly Slot[];
+}
+
 interface ScheduleBoardProps {
+  /** Server-rendered section heading; from 1024px the view tabs sit in its row. */
+  heading: ReactNode;
   programs: readonly ProgramOption[];
   days: readonly DayOption[];
+  /** Groups in program order, for the scoreboard. */
+  groups: readonly BoardGroup[];
   /** Server-rendered "Po grupi" view (group cards). */
   byGroup: ReactNode;
   /** Server-rendered "Po danu" panels, one per day (data-day). */
@@ -43,6 +52,7 @@ interface ScheduleBoardProps {
 
 const ITEM = "[data-sched-item]";
 const LEAVING = "data-leaving";
+const LANDING = ".sched-card, .sched-score, .sched-location";
 const VIEWS: readonly { id: View; label: string }[] = [
   { id: "group", label: T.byGroup },
   { id: "day", label: T.byDay },
@@ -53,31 +63,16 @@ const matches = (el: HTMLElement, filter: string): boolean => filter === "all" |
 /**
  * Filter = `hidden` on every [data-sched-item] of another program (both views).
  * Items that are fading out (data-leaving, Flip) are left alone; the Flip finishes them.
+ * The card list learns how many cards it shows (a lone card takes the whole row).
  */
 function applyFilter(root: HTMLElement, filter: string): void {
   root.querySelectorAll<HTMLElement>(ITEM).forEach((el) => {
     if (!el.hasAttribute(LEAVING)) el.hidden = !matches(el, filter);
   });
+  const cards = root.querySelector<HTMLElement>(".sched-cards");
+  const count = String(Array.from(cards?.children ?? []).filter((el) => matches(el as HTMLElement, filter)).length);
+  if (cards && cards.dataset.count !== count) cards.dataset.count = count;
 }
-
-/** Leaving items end hidden, with no inline leftovers from the fade. */
-function settleLeaving(els: readonly HTMLElement[]): void {
-  els.forEach((el) => {
-    el.hidden = true;
-    el.removeAttribute(LEAVING);
-    el.removeAttribute("aria-hidden");
-    el.style.removeProperty("opacity");
-    el.style.removeProperty("transform");
-    el.style.removeProperty("translate");
-    el.style.removeProperty("rotate");
-    el.style.removeProperty("scale");
-  });
-}
-
-const onScreen = (el: Element): boolean => {
-  const r = el.getBoundingClientRect();
-  return r.bottom > 0 && r.top < window.innerHeight;
-};
 
 const shown = (el: HTMLElement): boolean => !el.hidden && !el.hasAttribute(LEAVING);
 
@@ -110,85 +105,53 @@ function roving<K>(e: KeyboardEvent, keys: readonly K[], current: K, pick: (k: K
 }
 
 /**
- * Schedule island: segmented control [Po grupi] · [Po danu] with a sliding pill,
- * program filter pills (Flip, lazily loaded: moves + enter fade + leave fade;
- * instant under reduced motion) with a polite status line, the day strip (today
- * selected after mount, Europe/Belgrade), the after-mount Google Calendar date
- * refresh, and the cross-section filter contract ([data-schedule-program] clicks
- * and SCHEDULE_FILTER_EVENT). All content is server-rendered; without JS the
- * controls are hidden and the "Po grupi" view is the complete schedule.
+ * Schedule island: segmented control [Po grupi] · [Po danu] and the day strip, both with
+ * a sliding pill; program filter pills with a polite status line; the „Sledeći trening“
+ * scoreboard (earliest fixed start of the shown groups, after mount, every minute); the
+ * day strip's after-mount today selection (Europe/Belgrade); and the cross-section filter
+ * contract ([data-schedule-program] clicks and SCHEDULE_FILTER_EVENT). All content is
+ * server-rendered; without JS the controls are hidden and the "Po grupi" view is the
+ * complete schedule. Motion, today's marks, the Google Calendar date refresh and the
+ * stuck-strip scroll correction live in a lazy chunk (schedule-enhance.ts) loaded when the
+ * section is near; without it every change is instant.
  */
-export function ScheduleBoard({ programs, days, byGroup, byDay, aside }: ScheduleBoardProps) {
+export function ScheduleBoard({ heading, programs, days, groups, byGroup, byDay, aside }: ScheduleBoardProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const rowRef = useRef<HTMLDivElement>(null);
-  const motion = useRef<{ Flip: FlipPlugin; gsap: Gsap } | null>(null);
-  const flipTl = useRef<ReturnType<FlipPlugin["from"]> | null>(null);
+  const enh = useRef<Enhancer | null>(null);
+  const [enhReady, setEnhReady] = useState(false);
   const [view, setView] = useState<View>("group");
   const [filter, setFilter] = useState("all");
   /** Days with no training of the filtered program (muted day tabs); none under „Sve“. */
   const [emptyDays, setEmptyDays] = useState<ReadonlySet<string>>(NO_DAYS);
   const [pickedDay, setPickedDay] = useState<DayCode | null>(null);
-  const [interacted, setInteracted] = useState(false);
+  /** Set by the first user view switch: from then on a newly shown panel eases in (CSS). */
+  const [switched, setSwitched] = useState(false);
   const [status, setStatus] = useState("");
   /** Filter and day changes are announced (view switches are announced by the tabs themselves). */
   const [announce, setAnnounce] = useState(0);
   const announcePending = useRef(false);
   /** Set by a user's day pick only (not the after-mount today selection, a view or a filter change). */
   const dayPicked = useRef(false);
+  /** Flip state of the visible day's rows, captured before a user's day pick commits. */
+  const dayFlip = useRef<unknown>(null);
 
   // Today (Europe/Belgrade) exists only after mount: SSR renders no selection.
   const now = useBelgradeMinute();
   const today = now ? (days.find((d) => d.iso === now.isoWeekday)?.code ?? null) : null;
   const selectedDay = pickedDay ?? today;
+  const accusatives = days.map((d) => d.accusative);
 
   const choose = useCallback((next: string) => {
     const root = rootRef.current;
     if (!root) return;
-    // Finish a running filter animation first (its onComplete settles the leaving items).
-    flipTl.current?.progress(1).kill();
-    flipTl.current = null;
-    const m = motion.current;
-    const panel = root.querySelector<HTMLElement>('.sched-panel:not([hidden])');
-    const animate = Boolean(m && panel && !prefersLessMotion() && onScreen(panel));
-    const targets = animate && panel ? Array.from(panel.querySelectorAll<HTMLElement>(ITEM)) : [];
-    const state = m && targets.length ? m.Flip.getState(targets) : null;
-    // Visible items of the animated panel that the new filter removes fade out first:
-    // `data-leaving` hides them for Flip's measurement (display: none, NOT the !important
-    // [hidden] rule), so Flip can bring them back absolutely positioned while they fade.
-    const leaving = state ? targets.filter((el) => !el.hidden && !matches(el, next)) : [];
-    leaving.forEach((el) => {
-      el.setAttribute(LEAVING, "");
-      el.setAttribute("aria-hidden", "true");
-    });
-    applyFilter(root, next);
+    const apply = () => applyFilter(root, next);
+    if (enh.current) enh.current.filter(next, apply);
+    else apply();
     setFilter(next);
     setEmptyDays(emptyDaysFor(root, next));
     announcePending.current = true;
     setAnnounce((n) => n + 1);
-    if (m && state) {
-      flipTl.current = m.Flip.from(state, {
-        duration: DUR.base,
-        ease: EASE.stick,
-        scale: true,
-        simple: true,
-        absoluteOnLeave: true,
-        onEnter: (els) =>
-          m.gsap.fromTo(
-            els,
-            { opacity: 0, scale: 0.96 },
-            { opacity: 1, scale: 1, duration: DUR.base, ease: EASE.stick, clearProps: "opacity,transform" },
-          ),
-        // Exit ≤200ms: the shrink uses the exit ease; the fade is linear so a leaving item is
-        // already half gone while the remaining ones glide past it (it sits under them, z -1).
-        onLeave: (els) =>
-          m.gsap
-            .timeline()
-            .to(els, { opacity: 0, duration: DUR.fast, ease: "none" }, 0)
-            .to(els, { scale: 0.96, duration: DUR.fast, ease: EASE.takeoff }, 0),
-        onComplete: () => settleLeaving(leaving),
-        onInterrupt: () => settleLeaving(leaving),
-      });
-    }
   }, []);
 
   // Keep the DOM in sync with the state (idempotent; covers re-rendered nodes), and keep
@@ -205,41 +168,14 @@ export function ScheduleBoard({ programs, days, byGroup, byDay, aside }: Schedul
     }
   }, [filter]);
 
-  // Swipeable pill row (phones): fade the edge that has more pills behind it.
-  useEffect(() => {
-    const row = rowRef.current;
-    if (!row) return;
-    const update = () => {
-      const max = row.scrollWidth - row.clientWidth;
-      row.toggleAttribute("data-more-start", max > 1 && row.scrollLeft > 4);
-      row.toggleAttribute("data-more-end", max > 1 && row.scrollLeft < max - 4);
-    };
-    update();
-    row.addEventListener("scroll", update, { passive: true });
-    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
-    ro?.observe(row);
-    return () => {
-      row.removeEventListener("scroll", update);
-      ro?.disconnect();
-    };
-  }, []);
-
-  // A day picked while the strip is stuck (the user scrolled into the previous day) keeps the
-  // scroll position, which can leave the new day's first rows — or the whole shorter panel —
-  // above the strip. Bring the panels' top back just under the strip. Measures .sched-days,
-  // not the day panel (that one is still translated by its sched-in entrance). The target
-  // uses the header-shown offset: the correction scrolls up, which brings the header back.
+  // After a user's day pick: shared rows hold still while the new ones land, or — when the
+  // strip is stuck — the panels come back under it (both in the lazy enhancer).
   useLayoutEffect(() => {
+    const flipState = dayFlip.current;
+    dayFlip.current = null;
     if (!dayPicked.current) return;
     dayPicked.current = false;
-    if (view !== "day") return;
-    const board = rootRef.current;
-    const strip = board?.querySelector<HTMLElement>(".sched-strip");
-    const daysBox = board?.querySelector<HTMLElement>(".sched-days");
-    if (!board || !strip || !daysBox) return;
-    const target = (parseFloat(getComputedStyle(board).getPropertyValue("--sched-header-offset")) || 0) + strip.offsetHeight + 12;
-    const top = daysBox.getBoundingClientRect().top;
-    if (top < target) window.scrollBy({ top: top - target, behavior: "instant" });
+    if (view === "day") enh.current?.playDay(flipState);
   }, [selectedDay, view]);
 
   // Polite status after a user-initiated filter/day change: what the visible panel now shows.
@@ -262,42 +198,37 @@ export function ScheduleBoard({ programs, days, byGroup, byDay, aside }: Schedul
       }
     }
     // Same text twice (e.g. two filters with equal counts) still has to be re-announced.
-    setStatus((prev) => (prev === text ? `${text}\u00A0` : text));
+    setStatus((prev) => (prev === text ? `${text} ` : text));
   }, [announce, view, selectedDay, filter, days]);
 
-  // Google Calendar links: the static href holds the build-date occurrence (no-JS fallback);
-  // after mount (and on every minute tick) point `dates` at the next real occurrence.
+  // The lazy enhancer (motion + today's marks) loads when the section is ≤1 viewport away.
+  // If it cannot load, every landing pre-state resolves at once.
   useEffect(() => {
     const root = rootRef.current;
-    if (!root || !now) return;
-    root.querySelectorAll<HTMLAnchorElement>("a[data-gcal]").forEach((a) => {
-      const [dayList = "", start = "", end = ""] = (a.dataset.gcal ?? "").split("|");
-      const href = a.getAttribute("href");
-      if (!dayList || !start || !end || !href) return;
-      const next = withGcalDates(href, occurrenceDates(dayList.split(",") as DayCode[], start, end, now, true));
-      if (next !== href) a.setAttribute("href", next);
-    });
-  }, [now]);
-
-  // Flip is loaded only when the section is ≤1 viewport away, never under reduced motion / Save-Data.
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root || prefersLessMotion()) return;
+    if (!root) return;
     let alive = true;
     const stop = whenNear(root, () => {
-      loadMotion()
-        .then(async (m) => {
-          const Flip = await m.loadFlip();
-          if (alive) motion.current = { Flip, gsap: m.gsap };
+      import("./schedule-enhance")
+        .then((m) => {
+          if (!alive) return;
+          enh.current = m.enhance(root);
+          setEnhReady(true);
         })
-        .catch(() => {});
+        .catch(() => root.querySelectorAll(LANDING).forEach((el) => el.setAttribute("data-landed", "")));
     });
     return () => {
       alive = false;
       stop();
-      flipTl.current?.progress(1).kill();
+      enh.current?.destroy();
+      enh.current = null;
     };
   }, []);
+
+  // Today's rows in „Po danu“ (finished / next / now line) and the Google Calendar dates
+  // follow the minute clock (and the filter).
+  useEffect(() => {
+    enh.current?.sync(now, filter);
+  }, [now, filter, enhReady]);
 
   // Contract: [data-schedule-program] links anywhere (the anchor itself scrolls to
   // #raspored) and window SCHEDULE_FILTER_EVENT → "Po grupi" filtered to that program.
@@ -324,19 +255,29 @@ export function ScheduleBoard({ programs, days, byGroup, byDay, aside }: Schedul
   }, [programs, choose]);
 
   const pickView = (v: View) => {
-    if (v !== view) flipTl.current?.progress(1).kill();
+    if (v !== view) {
+      enh.current?.view();
+      setSwitched(true);
+    }
     setView(v);
-    setInteracted(true);
   };
   const pickDay = (d: DayCode) => {
-    if (d !== selectedDay) dayPicked.current = true;
+    if (d !== selectedDay) {
+      dayPicked.current = true;
+      if (view === "day") dayFlip.current = enh.current?.captureDay() ?? null;
+    }
     setPickedDay(d);
-    setInteracted(true);
     announcePending.current = true;
     setAnnounce((n) => n + 1);
   };
   const dayCodes = days.map((d) => d.code);
   const focusDay: DayCode = selectedDay ?? dayCodes[0] ?? "po";
+  const dayIndex = selectedDay ? dayCodes.indexOf(selectedDay) : -1;
+
+  // „Sledeći trening“: the earliest fixed start among the groups the filter shows.
+  const shownGroups = groups.filter((g) => filter === "all" || g.programId === filter);
+  const best = now ? earliestNext(shownGroups.map((g) => g.slots), now) : null;
+  const bestGroup = best ? shownGroups[best.index] : undefined;
 
   const check = (
     <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" className="ui-icon sched-pill__check">
@@ -345,9 +286,16 @@ export function ScheduleBoard({ programs, days, byGroup, byDay, aside }: Schedul
   );
 
   return (
-    <div ref={rootRef} className="sched-board" data-view={view} data-interacted={interacted ? "" : undefined}>
-      <div className="sched-controls">
-        <div className="sched-views" role="tablist" aria-label={T.viewsLabel} data-active={view}>
+    <div ref={rootRef} className="sched-board" data-view={view} data-switched={switched ? "" : undefined}>
+      <div className="sched-head">
+        {heading}
+        <div
+          className="sched-views"
+          role="tablist"
+          aria-label={T.viewsLabel}
+          data-active={view}
+          style={{ ["--v" as string]: view === "day" ? 1 : 0 } as CSSProperties}
+        >
           <span className="sched-views__pill" aria-hidden="true" />
           {VIEWS.map((v) => (
             <button
@@ -365,11 +313,22 @@ export function ScheduleBoard({ programs, days, byGroup, byDay, aside }: Schedul
               {v.label}
             </button>
           ))}
+          {/* The labels again in white, clipped to the travelling pill: a label inverts exactly
+              where the pill is, never blank mid-travel. */}
+          <span className="sched-views__lit" aria-hidden="true">
+            {VIEWS.map((v) => (
+              <span key={v.id} data-on={v.id === view ? "" : undefined}>
+                {v.label}
+              </span>
+            ))}
+          </span>
         </div>
+      </div>
 
-        {/* Two line wrappers: display:contents (one swipeable row on phones, one line on wide
-            screens); real lines of 3 + rest on tablets, so the pills never leave a lone orphan. */}
-        <div ref={rowRef} className="sched-filters" role="group" aria-label={T.filterLabel}>
+      {/* Two line wrappers: display:contents (one swipeable row on phones, one line on wide
+          screens); real lines of 3 + rest on tablets, so the pills never leave a lone orphan. */}
+      <div ref={rowRef} className="sched-filters" role="group" aria-label={T.filterLabel}>
+        <div className="sched-filters__track">
           {[programs.slice(0, 2), programs.slice(2)].map((line, i) => (
             <span key={i} className="sched-filters__line">
               {i === 0 ? (
@@ -395,9 +354,41 @@ export function ScheduleBoard({ programs, days, byGroup, byDay, aside }: Schedul
             </span>
           ))}
         </div>
-        <p className="sr-only" role="status" aria-live="polite">
-          {status}
+      </div>
+      <p className="sr-only" role="status" aria-live="polite">
+        {status}
+      </p>
+
+      {/* The judges' scoreboard: time-dependent, so SSR renders the dark shell („––:––“).
+          Each numeral is its own cell so only the digits that change post again (CSS). */}
+      <div className="sched-score" data-state={now ? (best ? "ready" : "none") : "pending"}>
+        <p className="sched-score__label" aria-hidden="true">
+          {T.next}
         </p>
+        <p className="sched-score__when" aria-hidden="true">
+          {best ? formatNextDay(best.next, accusatives) : null}
+        </p>
+        <p className="sched-score__time font-dot" aria-hidden="true">
+          {/* Doto's colon is a pair of 5-dot clusters; the board draws two round LEDs instead. */}
+          {Array.from(best ? best.next.start : "––:––").map((c, i) => (
+            <span
+              key={`${i}${c}`}
+              className={c === ":" ? "sched-score__c sched-score__colon" : "sched-score__c"}
+              style={{ ["--c" as string]: i } as CSSProperties}
+            >
+              {c === ":" ? null : c}
+            </span>
+          ))}
+        </p>
+        <p className="sched-score__group" aria-hidden="true">
+          {bestGroup ? (
+            <>
+              <span className="sched-swatch" style={{ ["--swatch" as string]: bestGroup.color } as CSSProperties} />
+              {bestGroup.name}
+            </>
+          ) : null}
+        </p>
+        <p className="sr-only">{best && bestGroup ? `${T.next}: ${formatNextTraining(best.next, accusatives)}, ${bestGroup.name}` : null}</p>
       </div>
 
       <div role="tabpanel" id="sched-panel-group" aria-labelledby="sched-tab-group" className="sched-panel" hidden={view !== "group"}>
@@ -405,7 +396,14 @@ export function ScheduleBoard({ programs, days, byGroup, byDay, aside }: Schedul
       </div>
 
       <div role="tabpanel" id="sched-panel-day" aria-labelledby="sched-tab-day" className="sched-panel" hidden={view !== "day"}>
-        <div className="sched-strip" role="tablist" aria-label={T.dayStripLabel}>
+        <div
+          className="sched-strip"
+          role="tablist"
+          aria-label={T.dayStripLabel}
+          data-sel={dayIndex >= 0 ? "" : undefined}
+          style={{ ["--i" as string]: Math.max(0, dayIndex) } as CSSProperties}
+        >
+          <span className="sched-strip__pill" aria-hidden="true" />
           {days.map((d) => {
             const empty = emptyDays.has(d.code);
             return (
@@ -434,6 +432,15 @@ export function ScheduleBoard({ programs, days, byGroup, byDay, aside }: Schedul
               </button>
             );
           })}
+          {/* White labels in the selected style (a label under the pill is navy on navy, so only these show there). */}
+          <span className="sched-strip__lit" aria-hidden="true">
+            {days.map((d) => (
+              <span key={d.code} className="sched-strip__lit-day" data-on={d.code === selectedDay ? "" : undefined}>
+                <span className="sched-strip__short">{d.short}</span>
+                {today === d.code ? <span className="sched-strip__today">{T.today}</span> : null}
+              </span>
+            ))}
+          </span>
         </div>
         <div className="sched-days" data-selected={selectedDay ?? undefined}>
           {byDay}

@@ -8,7 +8,7 @@ import { CTA } from "@/content/site";
 import { loadMotion } from "@/lib/load-motion";
 import { DUR, EASE, motionAllowed } from "@/lib/motion-env";
 import { typesetSr } from "@/lib/typeset";
-import { programSchedule, programStyle, PROGRAMS_UI } from "./model";
+import { PROGRAM_BIB, programSchedule, programStyle, PROGRAMS_UI } from "./model";
 import { ProgramIcon } from "./ProgramIcon";
 import { ScheduleLines } from "./ScheduleLines";
 
@@ -23,6 +23,8 @@ import { ScheduleLines } from "./ScheduleLines";
  * there from the first frame. On close the window shrinks back onto the card (0.18s
  * takeoff, fully opaque); the card reappears in the frame the sheet closes, so the
  * two are never printed over each other. Reduced motion: 150ms crossfade.
+ * The plate is the apparatus scene (QP-21): a large drawing on the mat line and Marey grid with
+ * the club silhouette posed over it; with motion it performs the mount (MI-08, ≤1.5s).
  * The sheet is a light print even though it lives inside the dark S3 section
  * (data-theme="light" on the dialog; .ps-panel sets its own tokens).
  * Links inside (booking / schedule) close the sheet synchronously and let the
@@ -148,6 +150,9 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
         if (cancelled) return;
         gsap = m.gsap;
         show();
+        // The scene (MI-08): the apparatus draws on the plate as the window opens, then the club
+        // silhouette hops onto its pose over it and sticks the landing (programs.css).
+        dialog.setAttribute("data-scene", "");
         const from = onCard();
         card.style.setProperty("visibility", "hidden");
         gsap.fromTo(
@@ -218,6 +223,7 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
   }, [card]);
 
   const groups = programSchedule(program);
+  const bib = PROGRAM_BIB[program.id];
 
   return (
     <dialog
@@ -230,7 +236,12 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
       <div ref={panelRef} className="ps-panel">
         <div className="ps-inner">
           <div className="ps-plate">
-            <ProgramIcon icon={program.icon} label={program.iconLabel} className="ps-icon" />
+            <ProgramIcon icon={program.icon} label={program.iconLabel} className="ps-icon" figure />
+            {bib ? (
+              <span className="pc-bib" aria-hidden="true">
+                {bib}
+              </span>
+            ) : null}
             <button type="button" className="ps-close" data-sheet-close="" aria-label={BOOKING.close}>
               <svg className="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />

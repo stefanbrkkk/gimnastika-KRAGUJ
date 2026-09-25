@@ -5,6 +5,7 @@ import {
   SHORT_VIEWPORT_MAX,
   bandDelta,
   focusScrollDelta,
+  headerCtaHidden,
   initialHeaderState,
   isKeyboardOpen,
   isTextEntry,
@@ -15,6 +16,7 @@ import {
   toneOf,
   type HeaderScrollState,
 } from "@/components/sections/header/chrome";
+import { POINTER_TILT, SETTLE_KICK, createBalance, isSettled, pointerTarget, stepBalance } from "@/components/notfound/tilt";
 
 /** Feed a scroll path (list of scrollY values) through the header state machine. */
 const run = (path: number[], start = 0): HeaderScrollState =>
@@ -104,6 +106,11 @@ describe("sticky bottom bar visibility", () => {
     expect(stickyBarVisible({ ...base, headerShown: true })).toBe(true);
   });
 
+  it("steps aside while the S10 action row (its own call + trial CTA) is half in view", () => {
+    expect(stickyBarVisible({ ...base, enrollActionsVisible: true })).toBe(false);
+    expect(stickyBarVisible({ ...base, enrollActionsVisible: false })).toBe(true);
+  });
+
   it("detects the on-screen keyboard from the visual viewport", () => {
     expect(isKeyboardOpen(800, 800)).toBe(false);
     expect(isKeyboardOpen(800, 720)).toBe(false); // URL bar / small changes
@@ -171,6 +178,58 @@ describe("focus not obscured (WCAG 2.4.11)", () => {
     expect(focusScrollDelta({ top: -27, bottom: 326 }, short)).toBe(-27 - 86);
     // scrolling down never brings the header back: header edge ignored
     expect(focusScrollDelta({ top: 40, bottom: 330 }, short)).toBe(330 - 314);
+  });
+});
+
+describe("header CTA pill (one primary CTA per viewport)", () => {
+  it("steps aside over the hero CTAs and over the S11 finale", () => {
+    expect(headerCtaHidden({ heroCtasInView: true, contactVisible: false })).toBe(true);
+    expect(headerCtaHidden({ heroCtasInView: false, contactVisible: true })).toBe(true);
+  });
+
+  it("is in the bar everywhere else (also when the hero CTAs start below the fold)", () => {
+    expect(headerCtaHidden({ heroCtasInView: false, contactVisible: false })).toBe(false);
+  });
+});
+
+describe("404 balance: the load catch reads, then holds", () => {
+  const run = (v0: number, target = 0) => {
+    let s = createBalance(3, v0);
+    const peaks: number[] = [];
+    let prev = s.velocity;
+    let t = 0;
+    let still = Infinity;
+    while (t < 4) {
+      s = stepBalance(s, target, 1 / 60);
+      t += 1 / 60;
+      if (Math.sign(s.velocity) !== Math.sign(prev)) peaks.push(s.angle);
+      prev = s.velocity;
+      if (still === Infinity && t > 0.2 && Math.abs(s.angle - target) < 0.3 && Math.abs(s.velocity) < 1) still = t;
+      if (isSettled(s, target)) break;
+    }
+    return { peaks, still, settled: isSettled(s, target) };
+  };
+
+  it("leans about 14°, sways back and corrects: three visible swings", () => {
+    const { peaks } = run(SETTLE_KICK);
+    expect(Math.abs(peaks[0]!)).toBeGreaterThan(12);
+    expect(Math.abs(peaks[0]!)).toBeLessThan(16);
+    expect(peaks.filter((p) => Math.abs(p) >= 1)).toHaveLength(3);
+  });
+
+  it("is visibly still within 1.6 s and fully settled soon after", () => {
+    const { still, settled } = run(SETTLE_KICK);
+    expect(still).toBeLessThan(1.6);
+    expect(settled).toBe(true);
+  });
+
+  it("desktop pointer: leans toward the pointer, clamped", () => {
+    expect(pointerTarget(500, 0, 1000)).toBe(0);
+    expect(pointerTarget(600, 0, 1000)).toBeCloseTo(3, 6);
+    expect(pointerTarget(0, 0, 1000)).toBe(-POINTER_TILT);
+    expect(pointerTarget(5000, 0, 1000)).toBe(POINTER_TILT);
+    expect(pointerTarget(300, 0, 0)).toBe(0);
+    expect(pointerTarget(Number.NaN, 0, 1000)).toBe(0);
   });
 });
 

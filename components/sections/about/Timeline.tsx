@@ -1,6 +1,7 @@
-import { Fragment } from "react";
+import { Fragment, type CSSProperties } from "react";
 import { Picture, isPhotoVisible } from "@/components/ui/Picture";
 import { SourceLink } from "@/components/ui/SourceLink";
+import { LEAP_VIEWBOX } from "@/components/brand/sprite-paths.generated";
 import { FLAGS, SOURCES } from "@/content/site";
 import { TIMELINE, TIMELINE_PHOTO, type TimelineItem } from "@/content/timeline";
 import { typesetSr } from "@/lib/typeset";
@@ -18,6 +19,10 @@ const SOURCE_META: Partial<Record<string, { context: string }>> = {
   },
 };
 
+/** KR-17 crop: 2:1 on the cake and its lettering (the native 2000×1500 allows it at 300 CSS px). */
+const PHOTO_ASPECT = 2;
+const PHOTO_POSITION = "50% 55%";
+
 interface YearGroup {
   year: number;
   items: TimelineItem[];
@@ -33,6 +38,24 @@ function groupByYear(items: readonly TimelineItem[]): YearGroup[] {
     else groups.push({ year: item.year, items: [item] });
   }
   return groups;
+}
+
+/**
+ * Ghost exposure of each year: the leotard steps ice → lavender → violet from the oldest
+ * year to the newest (the shared --ghost-1/2/3 tokens), the last year is the solid landing.
+ */
+function ghostStyle(index: number, count: number): CSSProperties {
+  const step = count > 1 ? Math.min(3, 1 + Math.floor((index * 3) / (count - 1))) : 3;
+  return { ["--node-c" as string]: `var(--ghost-${step})`, ["--node-o" as string]: `var(--ghost-${step}-o)` };
+}
+
+/** The club's leaping gymnast (sprite #leap), sized by CSS. */
+function Leap({ className }: { className: string }) {
+  return (
+    <svg className={className} viewBox={`0 0 ${LEAP_VIEWBOX.width} ${LEAP_VIEWBOX.height}`} focusable="false">
+      <use href="#leap" width={LEAP_VIEWBOX.width} height={LEAP_VIEWBOX.height} />
+    </svg>
+  );
 }
 
 function Entry({ item }: { item: TimelineItem }) {
@@ -62,11 +85,14 @@ function Entry({ item }: { item: TimelineItem }) {
 }
 
 /**
- * „Hronologija“: an ordered list of years on a vertical line. The static markup
- * is the final state (full line, every node filled) — TimelineMotion only adds
- * the growing line (GSAP scaleY) when motion is allowed.
+ * „Hronologija“ as a Marey plate: an ordered list of years on a vertical rail, one exposure
+ * of the club's leaping gymnast per year. The static markup is the final state — full rail,
+ * every earlier year a ghost frame, the last year the solid landing. timeline-motion.ts then lets
+ * a flier ride the rail year by year (take-off, flight, stuck landing), exposing each ghost as
+ * it leaves. The 2007 → 2017 leg carries an axis break (ten years compressed; about.css).
  * Photo 17 (club birthday cake) sits between 2017 and 2022 with no date claim; from 1024 px
- * it hangs in the empty cols 1–4 as a margin print (about.css), its list position unchanged.
+ * it hangs in the empty cols 1–4 as a margin print with a leader to the rail (about.css),
+ * its list position unchanged.
  */
 export function Timeline({ labelledBy }: { labelledBy: string }) {
   const groups = groupByYear(TIMELINE);
@@ -75,12 +101,18 @@ export function Timeline({ labelledBy }: { labelledBy: string }) {
     <div className="timeline" data-timeline="">
       <span className="timeline__track" aria-hidden="true" />
       <span className="timeline__progress" aria-hidden="true" data-timeline-line="" />
+      {/* The flier (motion only): CSS keeps it hidden until the timeline motion arms. */}
+      <span className="timeline__flier" aria-hidden="true" data-timeline-flier="">
+        <span className="timeline__flier-body" data-timeline-flier-body="">
+          <Leap className="timeline__leap" />
+        </span>
+      </span>
       <ol className="timeline__list" aria-labelledby={labelledBy}>
-        {groups.map((group) => (
+        {groups.map((group, index) => (
           <Fragment key={group.year}>
-            <li className="timeline__item" data-timeline-item="">
+            <li className="timeline__item" data-timeline-item="" style={ghostStyle(index, groups.length)}>
               <span className="timeline__node" aria-hidden="true" data-timeline-node="">
-                <span className="timeline__dot" />
+                <Leap className="timeline__leap" />
               </span>
               <p className="timeline__year tabular">
                 <time dateTime={String(group.year)}>{group.year}</time>
@@ -109,9 +141,10 @@ export function Timeline({ labelledBy }: { labelledBy: string }) {
                   <Picture
                     id={TIMELINE_PHOTO.photoId}
                     frame
-                    aspect={4 / 3}
+                    aspect={PHOTO_ASPECT}
+                    position={PHOTO_POSITION}
                     caption={typesetSr(TIMELINE_PHOTO.caption)}
-                    sizes="(min-width: 640px) 288px, min(288px, calc(100vw - 112px))"
+                    sizes="(min-width: 1024px) 288px, (min-width: 640px) 348px, min(348px, calc(100vw - 96px))"
                   />
                 </div>
               </li>

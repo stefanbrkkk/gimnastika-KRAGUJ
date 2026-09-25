@@ -39,6 +39,10 @@ export interface LightboxPhoto {
   slug: string;
   frame: string;
   alt: string;
+  /** Category label for the print foot („▸ KR-15 · Treninzi“). */
+  category: string;
+  /** The alt text typeset for display: the lightbox shows it as the print's caption. */
+  caption: string;
   width: number;
   height: number;
   widths: readonly number[];
@@ -64,26 +68,29 @@ export const lightboxSizes = (p: Pick<LightboxPhoto, "width">): string => {
 };
 
 /**
- * Grid `sizes` for the CSS-columns masonry (2 columns <640, 3 columns ≥640,
- * container 1320px, margins 20/32/48, gutters 12/16/24, frame padding 6px).
+ * Grid `sizes` for the justified contact-sheet strips (gallery.css: rows of
+ * equal photo height, flush ends). The widest print per layout: phones — the
+ * lead print spans the row (100vw − 20·2 margins − 12 frame); tablets — the
+ * 4:3 print in the two-frame feature strip; ≥1024 — the 4:3 print in the
+ * three-frame feature strip (≈494px at the 1320px container).
  */
 export const GRID_SIZES =
-  "(min-width: 1440px) 412px, (min-width: 1024px) calc(33.3vw - 60px), (min-width: 640px) calc(33.3vw - 44px), calc(50vw - 38px)";
+  "(min-width: 1440px) 500px, (min-width: 1024px) calc(40vw - 72px), (min-width: 640px) calc(57vw - 60px), calc(100vw - 52px)";
 
 export const flipId = (id: PhotoId): string => `gl-${id}`;
 
 /**
  * Contact-sheet order (presentation only — the category mapping stays in
- * content/gallery.ts). CSS columns fill top to bottom in DOM order, so the
- * category-grouped order left one column ~430px short at 3 columns. This order
- * spreads the two portraits (05, 11) and the three squares across columns, so
- * the sheet ends almost level at 2 and 3 columns, and every filtered view stays
- * balanced too (Takmičenja 08·01·05, Treninzi 12·04·14·15·03, Kampovi 16·10·11).
- * It opens on photos no other section shows: the first row at ≥640px is
- * KR-16 · KR-12 · KR-15 (01, 03, 04, 05, 10 and 11 already appear in S3–S8).
- * Photos not listed (e.g. 02/09 with CAMP_GROUP_PHOTOS) follow in content order.
+ * content/gallery.ts). The sheet opens on the sport: KR-04 (the only photo of a
+ * gymnast in flight, the logo's own split leap) leads, then result → sport
+ * (01 · 15), and the camp lunch (16) closes the sheet as the „after“ shot.
+ * gallery.css turns this order into equal-height strips — ≥1024: 04·01·15 |
+ * 05·12·08·03 | 10·11·14·16; tablets: 04·01 | 15·05·12 | 08·03·10 | 11·14·16;
+ * phones: 04 | 01·15 | 05·12 | 08·03 | 10·11 | 14·16. The near-identical mural
+ * frames 12/14 are never side by side, filtered („Treninzi“ 04·15·12 | 03·14)
+ * or not. Photos not listed (02/09 with CAMP_GROUP_PHOTOS) follow in content order.
  */
-export const SHEET_ORDER: readonly PhotoId[] = ["16", "08", "01", "05", "12", "10", "04", "14", "15", "03", "11"];
+export const SHEET_ORDER: readonly PhotoId[] = ["04", "01", "15", "05", "12", "08", "03", "10", "11", "14", "16"];
 
 export function inSheetOrder<T extends { photoId: PhotoId }>(items: readonly T[]): T[] {
   const rank = (item: T, i: number) => {

@@ -13,19 +13,25 @@ import {
 } from "react";
 import type { Flip as FlipPlugin } from "gsap/Flip";
 import type { Observer as ObserverPlugin } from "gsap/Observer";
-import { DUR, EASE, gsap, loadFlip, loadObserver, motionAllowed, prefersLessMotion, registerMotion } from "@/lib/motion";
+import { DUR, EASE, gsap, loadFlip, loadObserver, motionAllowed, prefersLessMotion, queuePrimaryMotion, registerMotion } from "@/lib/motion";
 import { counterLabel, flipId, GALLERY_UI, lightboxSizes, nativeHalf, srcSet, type LightboxPhoto } from "./model";
 
 /**
- * Gallery lightbox — a LAZY chunk (imported only by GalleryBrowser on intent),
- * so gsap may be imported statically here.
+ * Gallery lightbox — a LAZY chunk (imported only by GalleryBrowser when the
+ * sheet is near, or on intent), so gsap may be imported statically here.
  *
  * - Native <dialog> + showModal(): inert page, Esc (animated via `cancel`), plus a
  *   strict Tab wrap; focus returns to the print of the photo being viewed.
- * - Open: Flip from the grid print to the full photo; close: Flip.fit back to the
- *   print (scrolled into view first). Reduced motion: 150ms crossfade, no Flip.
+ * - Open „odraz i doskok“: Flip from the grid print to the full photo while the
+ *   photo leaps on a shallow arc and sticks the landing (a tiny squash, --ease-land);
+ *   close: Flip.fit back to the print (scrolled into view first) on a half-height
+ *   arc, and the print on the sheet absorbs the landing. Reduced motion: 150ms
+ *   crossfade, no Flip, no arc.
+ * - Each photo has a print foot: „▸ KR-15 · Treninzi“, „9 / 11“ and the alt text as
+ *   a visible caption (aria-hidden: the image already carries it). Under the stage a
+ *   Marey measuring rule has one tick per frame; its marker hops to the current one.
  * - Native horizontal scroll-snap between photos (touch-action: pan-x), prev/next
- *   buttons, ←/→/Home/End, an „n / total“ status (aria-live).
+ *   buttons, ←/→/Home/End, an „n / total“ status (aria-live, screen readers).
  * - Swipe down to close: Observer (vertical axis only) + distance/velocity threshold.
  * - Photos render at most native/2 CSS px wide (CSS clamp + `sizes`); photo 08 and
  *   every other photo keep their native aspect (never cropped).
@@ -40,6 +46,56 @@ export async function prepareLightbox(withFlip: boolean): Promise<void> {
   const [f, o] = await Promise.all([withFlip ? loadFlip() : Promise.resolve(null), loadObserver()]);
   if (f) flip = f;
   observer = o;
+}
+
+/**
+ * S9's primary motion, armed by the gallery island once this chunk is warm: when
+ * the sheet enters the reading zone, the prints then in view (max 6) swing in
+ * from a peg above them like prints hung on a line — ±3° pendulum (--ease-swing,
+ * uneven bars), a 10px drop and a quick fade (CSS keyframes on [data-hang],
+ * gallery.css). Only when the sheet is still below the fold at arm time; prints
+ * further down are never hidden. Reduced motion / Save-Data: nothing.
+ */
+export function armHang(grid: HTMLElement | null): () => void {
+  if (!grid || !motionAllowed() || prefersLessMotion() || typeof IntersectionObserver === "undefined") return () => {};
+  if (grid.getBoundingClientRect().top < window.innerHeight) return () => {};
+  let live = true;
+  const io = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      io.disconnect();
+      const vh = window.innerHeight;
+      const batch = Array.from(grid.querySelectorAll<HTMLElement>(":scope > li:not([hidden])"))
+        .filter((li) => li.getBoundingClientRect().top < vh)
+        .slice(0, 6);
+      if (!batch.length) return;
+      void queuePrimaryMotion(DUR.swing * 1000 + (batch.length - 1) * 50).then(() => {
+        if (!live) return;
+        batch.forEach((li, k) => {
+          li.style.setProperty("--k", String(k));
+          li.style.setProperty("--sw", k % 2 ? "3deg" : "-3deg");
+          li.setAttribute("data-hang", "");
+          // Ends — or is cancelled (a filter hides the print mid-swing): never swing again on unhide.
+          const end = (e: AnimationEvent) => {
+            if (e.animationName !== "gl-swing") return;
+            li.removeEventListener("animationend", end);
+            li.removeEventListener("animationcancel", end);
+            li.removeAttribute("data-hang");
+            li.style.removeProperty("--k");
+            li.style.removeProperty("--sw");
+          };
+          li.addEventListener("animationend", end);
+          li.addEventListener("animationcancel", end);
+        });
+      });
+    },
+    { rootMargin: "0px 0px -30% 0px" },
+  );
+  io.observe(grid);
+  return () => {
+    live = false;
+    io.disconnect();
+  };
 }
 
 /** Swipe-down close thresholds: distance (px) or release velocity (px/s). */
@@ -85,6 +141,8 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
   const scrimRef = useRef<HTMLDivElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLDivElement>(null);
+  const ruleRef = useRef<HTMLDivElement>(null);
+  const markRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const mediaRefs = useRef<(HTMLDivElement | null)[]>([]);
   const indexRef = useRef(start);
@@ -96,7 +154,10 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
   // Slides whose large file may load: the current one and its neighbours (kept once seen).
   const [seen, setSeen] = useState<ReadonlySet<number>>(() => new Set([start - 1, start, start + 1]));
 
-  const chrome = () => [topRef.current, navRef.current].filter((el): el is HTMLDivElement => el !== null);
+  const chrome = () => [topRef.current, navRef.current, ruleRef.current].filter((el): el is HTMLDivElement => el !== null);
+  /** Print feet (frame · category, counter, caption): they appear once the photo has landed. */
+  const feet = () => Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(".lb-foot") ?? []);
+  const narrow = () => !window.matchMedia("(min-width: 640px)").matches;
   const printOf = (photo: LightboxPhoto | undefined) =>
     photo ? document.querySelector<HTMLElement>(`[data-gallery-grid] [data-flip-id="${flipId(photo.id)}"]`) : null;
 
@@ -117,11 +178,26 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
     closeRef.current?.focus({ preventScroll: true });
 
     const media = mediaRefs.current[start];
-    if (Flip && state && media) {
+    const hop = media?.parentElement;
+    if (Flip && state && media && hop) {
       ctx.add(() => {
         gsap.fromTo(scrimRef.current, { opacity: 0 }, { opacity: 1, duration: DUR.base, ease: "none" });
         gsap.fromTo(chrome(), { opacity: 0 }, { opacity: 1, duration: DUR.base, delay: DUR.fast, ease: "none" });
+        // The foot is printed once the photo has landed.
+        gsap.fromTo(feet(), { opacity: 0 }, { opacity: 1, duration: DUR.base, delay: DUR.reveal * 0.8, ease: "none" });
         Flip.from(state, { targets: media, duration: DUR.reveal, ease: EASE.stick, scale: true });
+        // „Odraz i doskok“: takeoff from the sheet, a shallow arc over the landing spot, then a stuck
+        // landing — compress and hold (--ease-land), feet on the floor (origin at the bottom edge).
+        const half = DUR.reveal / 2;
+        gsap
+          .timeline()
+          .to(hop, { y: narrow() ? -14 : -24, duration: half, ease: "power2.out" })
+          .to(hop, { y: 0, duration: half, ease: "power2.in" })
+          .fromTo(
+            hop,
+            { scaleX: 1.012, scaleY: 0.985, transformOrigin: "50% 100%" },
+            { scaleX: 1, scaleY: 1, duration: DUR.base, ease: EASE.land, clearProps: "transform" },
+          );
       });
     } else if (typeof dialog.animate === "function") {
       dialog.animate([{ opacity: 0 }, { opacity: 1 }], { duration: CROSSFADE_MS, easing: "linear" });
@@ -162,10 +238,34 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
     };
 
     if (Flip && media && thumb && thumb.offsetParent !== null) {
-      gsap.to(chrome(), { opacity: 0, duration: DUR.fast, ease: "none", overwrite: true });
+      gsap.to([...chrome(), ...feet()], { opacity: 0, duration: DUR.fast, ease: "none", overwrite: true });
       // An exit (≤200ms, §4): the veil is gone by the time the photo has visually landed.
       gsap.to(scrimRef.current, { opacity: 0, duration: DUR.fast, ease: "none", overwrite: true });
-      Flip.fit(media, thumb, { duration: DUR.base, ease: EASE.stick, scale: true, onComplete: done });
+      // The same leap back at half height; the print on the sheet absorbs the landing.
+      const hop = media.parentElement;
+      if (hop) {
+        gsap.killTweensOf(hop);
+        gsap
+          .timeline()
+          .to(hop, { y: narrow() ? -8 : -12, scaleX: 1, scaleY: 1, duration: DUR.base / 2, ease: "power2.out" })
+          .to(hop, { y: 0, duration: DUR.base / 2, ease: "power2.in" });
+      }
+      const mount = thumb.closest<HTMLElement>(".gl-mount");
+      Flip.fit(media, thumb, {
+        duration: DUR.base,
+        ease: EASE.stick,
+        scale: true,
+        onComplete: () => {
+          done();
+          if (mount) {
+            gsap.fromTo(
+              mount,
+              { scaleX: 1.015, scaleY: 0.97, transformOrigin: "50% 100%" },
+              { scaleX: 1, scaleY: 1, duration: DUR.base, ease: EASE.land, clearProps: "transform,transformOrigin" },
+            );
+          }
+        },
+      });
     } else if (typeof dialog.animate === "function") {
       const fade = dialog.animate([{ opacity: 1 }, { opacity: 0 }], { duration: CROSSFADE_MS, easing: "linear", fill: "forwards" });
       fade.finished.then(done, done);
@@ -203,7 +303,7 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
         const d = Math.max(0, dy);
         gsap.set(media, { y: d, scale: 1 - Math.min(d / 1800, 0.1) });
         gsap.set(scrimRef.current, { opacity: 1 - Math.min(d / 520, 0.75) });
-        gsap.set(chrome(), { opacity: d > 12 ? 0 : 1 });
+        gsap.set([...chrome(), ...feet()], { opacity: d > 12 ? 0 : 1 });
       },
       onDragEnd: (self) => {
         if (self.axis !== "y" || closing.current || !media) return;
@@ -214,7 +314,7 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
         const back = less ? 0 : DUR.base;
         gsap.to(media, { y: 0, scale: 1, duration: back, ease: EASE.stick });
         gsap.to(scrimRef.current, { opacity: 1, duration: back, ease: "none" });
-        gsap.to(chrome(), { opacity: 1, duration: less ? 0 : DUR.fast, ease: "none" });
+        gsap.to([...chrome(), ...feet()], { opacity: 1, duration: less ? 0 : DUR.fast, ease: "none" });
       },
     });
     return () => obs.kill();
@@ -227,6 +327,22 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
     },
     [],
   );
+
+  /* ------------------------------------------------------ Marey rule hop -- */
+  // The carriage slides to the current tick (CSS transition, ease flight); the marker hops over
+  // the rule on the way (0 → −5 → 0px), like a gymnast crossing the floor. Placed without motion
+  // on open; instant under reduced motion.
+  const shownIndex = useRef(start);
+  useEffect(() => {
+    if (index === shownIndex.current) return;
+    shownIndex.current = index;
+    const mark = markRef.current;
+    if (!mark || prefersLessMotion() || typeof mark.animate !== "function") return;
+    mark.animate([{ translate: "0 0" }, { translate: "0 -5px", easing: "cubic-bezier(.33,1,.68,1)" }, { translate: "0 0", easing: "cubic-bezier(.32,0,.67,0)" }], {
+      duration: DUR.base * 1000,
+      easing: "linear",
+    });
+  }, [index]);
 
   /* ---------------------------------------------------------- navigation -- */
   const onTrackScroll = () => {
@@ -281,7 +397,6 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
     if ((event.target as Element).classList.contains("lb-slide")) requestClose();
   };
 
-  const current = photos[index];
 
   return (
     <dialog
@@ -310,34 +425,50 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
             "--ar": `${p.width} / ${p.height}`,
             "--r": String(p.width / p.height),
             "--cap": `${nativeHalf(p)}px`,
-            ...(thumb ? { backgroundImage: `url("${thumb}")` } : {}),
           } as CSSProperties;
           return (
             <li key={p.id} className="lb-slide" aria-hidden={i === index ? undefined : true}>
-              <div
-                ref={(el) => {
-                  mediaRefs.current[i] = el;
-                }}
-                className="lb-media"
-                data-flip-id={flipId(p.id)}
-                style={style}
-              >
-                {seen.has(i) ? (
-                  <picture>
-                    <source type="image/avif" srcSet={srcSet(p, "avif")} sizes={lightboxSizes(p)} />
-                    <source type="image/webp" srcSet={srcSet(p, "webp")} sizes={lightboxSizes(p)} />
-                    <img
-                      src={`/img/${p.slug}-${p.widths.includes(960) ? 960 : p.widths[p.widths.length - 1]}.webp`}
-                      width={p.width}
-                      height={p.height}
-                      alt={p.alt}
-                      sizes={lightboxSizes(p)}
-                      decoding="async"
-                      draggable={false}
-                      data-native-width={p.width}
-                    />
-                  </picture>
-                ) : null}
+              <div className="lb-print" style={style}>
+                <div className="lb-hop">
+                  <div
+                    ref={(el) => {
+                      mediaRefs.current[i] = el;
+                    }}
+                    className="lb-media"
+                    data-flip-id={flipId(p.id)}
+                    style={thumb ? { backgroundImage: `url("${thumb}")` } : undefined}
+                  >
+                    {seen.has(i) ? (
+                      <picture>
+                        <source type="image/avif" srcSet={srcSet(p, "avif")} sizes={lightboxSizes(p)} />
+                        <source type="image/webp" srcSet={srcSet(p, "webp")} sizes={lightboxSizes(p)} />
+                        <img
+                          src={`/img/${p.slug}-${p.widths.includes(960) ? 960 : p.widths[p.widths.length - 1]}.webp`}
+                          width={p.width}
+                          height={p.height}
+                          alt={p.alt}
+                          sizes={lightboxSizes(p)}
+                          decoding="async"
+                          draggable={false}
+                          data-native-width={p.width}
+                        />
+                      </picture>
+                    ) : null}
+                  </div>
+                </div>
+                {/* The print foot (the img already carries the alt, so the visible caption is aria-hidden). */}
+                <div className="lb-foot" aria-hidden="true">
+                  <p className="lb-foot__row">
+                    <span className="lb-foot__frame">
+                      {p.frame}
+                      {p.category ? ` · ${p.category}` : ""}
+                    </span>
+                    <span className="lb-foot__count tabular">
+                      {i + 1} / {n}
+                    </span>
+                  </p>
+                  <p className="lb-foot__cap">{p.caption}</p>
+                </div>
               </div>
             </li>
           );
@@ -345,20 +476,27 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
       </ul>
 
       <div ref={topRef} className="lb-top">
-        <p className="lb-count" aria-live="polite" aria-atomic="true">
-          <span className="tabular" aria-hidden="true">
-            {index + 1} / {n}
-          </span>
-          <span className="sr-only">{counterLabel(index + 1, n)}</span>
+        {/* On screen the counter is in the print foot; screen readers hear it here. */}
+        <p className="sr-only" aria-live="polite" aria-atomic="true">
+          {counterLabel(index + 1, n)}
         </p>
-        <span className="lb-frame" aria-hidden="true">
-          {current?.frame}
-        </span>
         <button ref={closeRef} type="button" className="lb-btn lb-close" aria-label={GALLERY_UI.close} onClick={requestClose}>
           <svg className="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
           </svg>
         </button>
+      </div>
+
+      {/* Marey's measuring rule: one tick per frame; the marker stands on the current one. */}
+      <div ref={ruleRef} className="lb-rule" aria-hidden="true" hidden={n < 2}>
+        <span className="lb-rule__ticks">
+          {photos.map((p) => (
+            <i key={p.id} />
+          ))}
+        </span>
+        <span className="lb-rule__car" style={{ transform: `translateX(${n > 1 ? (index / (n - 1)) * 100 : 0}%)` }}>
+          <i ref={markRef} className="lb-rule__mark" />
+        </span>
       </div>
 
       <div ref={navRef} className="lb-nav" hidden={n < 2}>

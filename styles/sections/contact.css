@@ -1,13 +1,15 @@
 /* ==========================================================================
-   S11 Contact + final CTA „doskok“ (components/sections/contact/*). Dark theme.
-   The leotard gradient frames a solid navy slab: text never sits on the gradient.
+   S11 Contact + final CTA „doskok“ (components/sections/contact/*). Dark theme,
+   top edge cut on the floor diagonal (<Section edge="up">).
+   The CTA panel is a navy slab carrying the leotard gradient as a sash (≥640) or a
+   mat band (<640): text never sits on the gradient (§3 pinned use #2).
    ========================================================================== */
 
 /* Layout. [data-contact-block] (.contact__block) = heading + CTA panel + channels;
    the venue card sits outside it (the mobile sticky bar returns over the venue).
    <640 (and without subgrid support): one column — heading, panel, channels, venue.
    ≥640: the block is a subgrid of .contact__grid, so the venue card can sit beside
-   the channels (tablet) or under them next to the panel (desktop). */
+   the channels (tablet) or under them (desktop) while staying outside it. */
 .contact__block {
   display: flex;
   flex-direction: column;
@@ -24,10 +26,10 @@
 
 /* The finale title on the §3 display step — the page's closing crescendo, where the
    leap finally lands on the trial-training CTA. Only this title; every other section
-   title keeps the h2 step. The fallbacks are the pinned §3 values, in case the
-   theme variables are not emitted. The h2 width-axis rules (104% / 120% ≥1024) stay. */
+   title keeps the section step. The fallbacks are the pinned §3 values, in case the
+   theme variables are not emitted. */
 .contact__heading .section-heading__title {
-  max-width: 14ch;
+  max-width: 15ch;
   font-size: var(--text-display, clamp(2.25rem, 1rem + 5.4vw, 6rem));
   line-height: var(--text-display--line-height, 0.92);
   letter-spacing: var(--text-display--letter-spacing, -0.04em);
@@ -35,10 +37,20 @@
   text-wrap: balance;
 }
 
-/* The mark stays in proportion to the display title (1.1em: ≈103px at 1440, where
-   h2 marks are ≈75px) and never smaller than the other titles' phone marks (≈64px). */
+/* The mark is the doskok's TAKE-OFF frame (static: land={false}). On the display step the
+   shared 2.6–3em would be a 240px sticker; 2em keeps its solid frame at about the
+   x-height of „trening“, the size the flier leaves with. */
 .contact__heading .section-heading__mark {
-  width: max(1.1em, 4rem);
+  width: 2em;
+}
+
+/* From 640 the title stands right, over the panel's sash: the leap drops from the
+   title's mark straight onto the button below it (≥1024 the shared right alignment). */
+@media (min-width: 640px) {
+  .contact__heading {
+    align-items: flex-end;
+    text-align: right;
+  }
 }
 
 @supports (grid-template-columns: subgrid) {
@@ -84,45 +96,61 @@
     }
   }
 
-  /* Desktop 7/5: the panel spans both rows; channels, then the venue card, on the right. */
+  /* Desktop 5/7: the panel stands in the right 7 columns under the right-aligned title
+     (title → panel → button in one column); channels, then the venue, on the left. */
   @media (min-width: 1024px) {
     .contact__grid {
       grid-template-columns: repeat(12, minmax(0, 1fr));
       grid-template-rows: auto auto 1fr;
     }
     .cta-panel {
-      grid-column: 1 / span 7;
+      grid-column: 6 / -1;
       grid-row: 2 / 4;
     }
     .contact-channels {
-      grid-column: 8 / -1;
+      grid-column: 1 / span 5;
       grid-row: 2;
       margin-top: 0;
     }
     .contact-venue {
-      grid-column: 8 / -1;
+      grid-column: 1 / span 5;
     }
   }
 }
 
 /* --- CTA panel ------------------------------------------------------------ */
 .cta-panel {
-  padding: 10px;
-  border-radius: var(--radius-lg);
-  background: var(--grad-leotard);
+  position: relative;
 }
 
 .cta-panel__slab {
+  /* The doskok figure: its width drives the ghost trail and the room kept for it. */
+  --leap-w: clamp(76px, 22vw, 88px);
+  --trail-h: calc(var(--leap-w) * 1.72);
+
   position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 12px;
   height: 100%;
-  padding: 22px 20px 18px;
-  border-radius: 12px;
+  padding: 24px 20px 30px;
+  border-radius: var(--radius-lg);
   background: var(--color-navy-950);
   color: var(--color-ice-50);
+  box-shadow: inset 0 0 0 1px rgba(141, 169, 198, 0.14);
+}
+
+/* <640: the gradient as a 10px mat along the slab's bottom edge (no text on it). The
+   pseudo is the slab's own rounded box clipped to its last 10px, so the corners follow. */
+.cta-panel__slab::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--grad-leotard);
+  clip-path: inset(calc(100% - 10px) 0 0 0);
+  pointer-events: none;
 }
 
 .cta-panel__trust {
@@ -160,139 +188,202 @@
   color: var(--color-lav-200);
 }
 
-.cta-panel__foot {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+/* The trail's room: above the button on phones (the trust list is full width there). */
+.doskok {
+  position: relative;
+  margin-top: var(--trail-h);
 }
 
 .cta-panel__privacy {
-  max-width: 34ch;
-  margin: 0;
+  max-width: 44ch;
+  margin: 12px auto 0;
   font-size: var(--text-small);
   line-height: 1.45;
+  text-align: center;
+  text-wrap: balance;
   color: var(--color-steel-300);
 }
 
 @media (min-width: 640px) {
-  .cta-panel {
-    padding: 14px;
-  }
   .cta-panel__slab {
-    gap: 24px;
-    padding: 40px 36px 32px;
+    --leap-w: 100px;
+    --trail-h: calc(var(--leap-w) * 1.8);
+    padding: 36px 36px 32px;
+  }
+
+  /* The leotard sash: a diagonal band across the top-right corner, parallel edges at 28°
+     (the pitch of the 118deg gradient). Its box is the corner (--sash-w × 0.53·--sash-w),
+     the gradient runs along the band; the corner above it stays navy. */
+  .cta-panel__slab::after {
+    --sash-w: 220px;
+    --sash-band: 76px;
+    inset: 0 0 auto auto;
+    width: var(--sash-w);
+    height: calc(var(--sash-w) * 0.5317);
+    border-radius: 0 var(--radius-lg) 0 0;
+    clip-path: polygon(
+      0 0,
+      var(--sash-band) 0,
+      100% calc((var(--sash-w) - var(--sash-band)) * 0.5317),
+      100% 100%
+    );
+  }
+
+  /* The trust list keeps to the left 52% (clear of the sash and the ghost trail) and
+     keeps the trail's room beside it. */
+  .cta-panel__trust {
+    max-width: 52%;
+    min-height: calc(var(--trail-h) - 28px);
   }
   .cta-panel__trust li {
     font-size: 1.25rem;
-    padding: 14px 0;
+    padding: 12px 0;
+  }
+  .doskok {
+    margin-top: 28px;
   }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
+  .cta-panel__slab {
+    --leap-w: 96px;
+    padding: 44px 44px 36px;
+  }
+  .cta-panel__slab::after {
+    --sash-w: 260px;
+    --sash-band: 88px;
+  }
+  /* The slab stretches to the left column's height: the trust list stays on top and
+     the landing (button + privacy) sits on the slab's floor, so the trail sits below the
+     trust rows and the column can widen (fewer two-line points in the 7/12 panel). */
+  .doskok {
+    margin-top: auto;
+    padding-top: 28px;
+  }
   .cta-panel__trust {
-    max-width: 40ch;
+    max-width: 62%;
   }
 }
 
-/* A wide slab (tablet, desktop ≥ ~1180): trust points top-left, landing bottom-right —
-   the floor diagonal across the slab. Measured on the slab itself, so the button
-   label never wraps in the narrower 7/12 column at 1024–1180 (it stacks there). */
-.cta-panel__slab {
-  container-type: inline-size;
+/* 1024–1279: the 7/12 panel is narrow; 18px keeps „Licencirane trenerice GSS“ on one line. */
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  .cta-panel__trust li {
+    font-size: 1.125rem;
+  }
 }
 
-@container (min-width: 520px) {
-  .cta-panel__foot {
-    flex-direction: row-reverse;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 32px;
-  }
-  .cta-panel__privacy {
-    max-width: 22ch;
-    padding-bottom: 4px;
-  }
-  .cta-panel__foot .doskok {
-    flex: 0 1 400px;
+@media (min-width: 1280px) {
+  .cta-panel__slab {
+    --leap-w: 128px;
   }
 }
 
 /* 320–359: a little more room, so „Zakažite probni trening“ stays on one line. */
 @media (max-width: 359.98px) {
-  .cta-panel {
-    padding: 8px;
-  }
   .cta-panel__slab {
-    padding: 20px 16px 16px;
+    padding: 20px 16px 28px;
   }
   .doskok__btn {
     padding-inline: 16px;
   }
 }
 
-@media (min-width: 1024px) {
-  .cta-panel {
-    padding: 16px;
-  }
-  .cta-panel__slab {
-    min-height: 420px;
-    padding: 44px 44px 40px;
-  }
-}
-
-/* --- „Doskok“: ghost frames of a short hop, landing on the button's top edge.
-   Static composition = final state (no JS, reduced motion). --------------- */
-.doskok {
-  --leap-w: 64px;
-  width: 100%;
-  max-width: 380px;
-}
-
-@media (min-width: 640px) {
-  .doskok {
-    --leap-w: 80px;
-    max-width: 400px;
-  }
-}
-
-@media (min-width: 1024px) {
-  .doskok {
-    --leap-w: 88px;
-  }
+/* --- „Doskok“: the last frames of a back-salto dismount (from the title's mark) and the
+   stuck landing on the button's top edge. Every frame is placed relative to the button
+   (x: % of its width, y: leap widths above its top edge) so the trail always ends on it.
+   Static composition = final state (no JS, reduced motion). ----------------------- */
+.doskok__body {
+  position: relative;
+  transform-origin: 50% 100%;
 }
 
 .doskok__arc {
-  position: relative;
-  height: calc(var(--leap-w) * 1.4);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
 .doskok__frame {
   position: absolute;
-  left: var(--x);
   width: var(--leap-w);
   height: auto;
   overflow: visible;
   pointer-events: none;
 }
 
-.doskok__ghost {
-  bottom: var(--y);
-  color: var(--color-steel-300);
-  opacity: var(--o);
-}
-
-.doskok__body {
-  position: relative;
-  transform-origin: 50% 100%;
+/* Landing spot and trail (phones: the landing a third in, the trail rising to the right). */
+.doskok {
+  --land-x: 26%;
 }
 
 .doskok__landed {
+  left: var(--land-x);
   bottom: calc(100% - 1px);
   color: var(--color-white);
 }
 
+.doskok__ghost {
+  left: calc(var(--land-x) + var(--gx) * var(--leap-w));
+  bottom: calc(100% + var(--gy) * var(--leap-w));
+  rotate: var(--gr);
+}
+
+/* Leotard steps, as every chronophotograph trail on the page (styles/ui.css). */
+.doskok__ghost--1 {
+  --gx: 1.28;
+  --gy: 1.06;
+  --gr: 30deg;
+  color: var(--ghost-1);
+  opacity: var(--ghost-1-o);
+}
+.doskok__ghost--2 {
+  --gx: 0.84;
+  --gy: 0.6;
+  --gr: 16deg;
+  color: var(--ghost-2);
+  opacity: var(--ghost-2-o);
+}
+.doskok__ghost--3 {
+  --gx: 0.4;
+  --gy: 0.24;
+  --gr: 6deg;
+  color: var(--ghost-3);
+  opacity: var(--ghost-3-o);
+}
+
+/* ≥640: the trail rises from the landing (just right of the trust column) toward the
+   sash's lower end, and stays clear of the sash and the slab's edge at every width. */
+@media (min-width: 640px) {
+  .doskok {
+    --land-x: 55%;
+  }
+  .doskok__ghost--1 {
+    --gx: 1.22;
+    --gy: 1.04;
+  }
+  .doskok__ghost--2 {
+    --gx: 0.8;
+    --gy: 0.6;
+  }
+  .doskok__ghost--3 {
+    --gx: 0.39;
+    --gy: 0.25;
+  }
+}
+
+/* The finale button: the page's one decisive action, a size above every other button. */
 .doskok__btn {
   width: 100%;
+  min-height: 56px;
+  font-size: 1.0625rem;
+}
+
+@media (min-width: 1024px) {
+  .doskok__btn {
+    min-height: 64px;
+    padding-inline: 40px;
+    font-size: 1.125rem;
+  }
 }
 
 /* --- Contact channels (phones, e-mail, Instagram) ------------------------ */
@@ -327,7 +418,10 @@
   border-radius: var(--radius-full);
   color: var(--accent);
   box-shadow: inset 0 0 0 1.5px var(--hairline);
-  transition: background-color var(--dur-fast) var(--ease-stick);
+  transition:
+    background-color 160ms var(--ease-stick),
+    color 160ms var(--ease-stick),
+    box-shadow 160ms var(--ease-stick);
 }
 
 .contact-row__text {
@@ -350,41 +444,106 @@
   overflow-wrap: anywhere; /* last resort; <wbr> marks the preferred breaks (before „@“, after „_“) */
 }
 
-.contact-row__value--phone {
-  font-size: var(--text-h3);
-  line-height: 1.1;
-  font-weight: 700;
-  letter-spacing: -0.005em;
-  font-stretch: 104%;
-  white-space: nowrap;
-}
-
 .contact-row__go {
   flex: none;
   display: grid;
   color: var(--muted);
   transition:
-    transform var(--dur-base) var(--ease-stick),
+    translate var(--dur-base) var(--ease-stick),
     color var(--dur-fast) var(--ease-stick);
 }
 
+/* „Pozovite“ once, both numbers as their own tel: links (the first one larger).
+   Phone numbers use proportional figures, like every other „060 028 7631“ on the page. */
+.contact-row--phones {
+  align-items: flex-start;
+  padding-block: 14px 8px;
+}
+
+.contact-row--phones .contact-row__icon {
+  margin-top: 2px;
+}
+
+.contact-row--phones .contact-row__text {
+  container-type: inline-size;
+}
+
+.contact-phones {
+  display: flex;
+  flex-direction: column;
+}
+
+.contact-phone {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 48px;
+  color: var(--fg);
+  font-size: 1.375rem;
+  line-height: 1.1;
+  font-weight: 650;
+  letter-spacing: -0.005em;
+  font-stretch: 104%;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.18em;
+  text-decoration-color: transparent;
+  transition: text-decoration-color var(--dur-fast) var(--ease-stick);
+}
+
+.contact-phone--primary {
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+/* Side by side once both fit, with a hairline between (desktop ≥ ~1280, tablets). */
+@container (min-width: 380px) {
+  .contact-phones {
+    flex-direction: row;
+    align-items: center;
+  }
+  /* The hairline sits between the links, outside both (focus rings hug the numbers). */
+  .contact-phone + .contact-phone {
+    position: relative;
+    margin-left: 41px;
+  }
+  .contact-phone + .contact-phone::before {
+    content: "";
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    left: -21px;
+    width: 1px;
+    background: var(--hairline);
+  }
+}
+
 /* Hover only where hover exists: after a tap on a phone, :hover would stick and one
-   number would look selected next to the other. */
+   number would look selected next to the other. The leading disc fills (the icon names
+   the action; no trailing arrow on call / e-mail rows). */
 @media (hover: hover) {
-  .contact-row:hover .contact-row__icon {
-    background: var(--color-navy-800);
+  .contact-row:hover .contact-row__icon,
+  .contact-row--phones:has(.contact-phone:hover) .contact-row__icon {
+    background: var(--color-lav-200);
+    color: var(--color-navy-900);
+    box-shadow: inset 0 0 0 1.5px var(--color-lav-200);
+  }
+
+  .contact-phone:hover {
+    text-decoration-color: currentColor;
   }
 
   .contact-row:hover .contact-row__go {
     color: var(--fg);
-    transform: translateX(3px);
+    translate: 2px -2px;
   }
 }
 
 /* Up to 389: the handle and e-mail at 16px, so „@gimnasticki_klub_kraguj“ stays on one
    line from 340 (at 320 the <wbr> breaks remain the fallback). */
 @media (max-width: 389.98px) {
-  .contact-row__value:not(.contact-row__value--phone) {
+  .contact-row__value {
     font-size: 1rem;
   }
 }
@@ -398,6 +557,9 @@
   .contact-row__icon {
     width: 44px;
     height: 44px;
+  }
+  .contact-phone--primary {
+    font-size: 1.625rem;
   }
 }
 
@@ -417,6 +579,14 @@
   font-size: var(--text-body);
   line-height: 1.35;
   font-weight: 650;
+}
+
+/* „u gradu poznata kao „ŠUP““ — the wayfinding word locals use. */
+.contact-venue__aka {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: 1.4;
+  color: var(--muted);
 }
 
 .contact-venue__street {
@@ -445,15 +615,18 @@
     padding-inline: 12px;
     gap: 6px;
   }
-  .contact-row__value:not(.contact-row__value--phone) {
+  .contact-row__value {
     font-size: 0.9375rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .contact-row__icon,
   .contact-row__go,
-  .contact-row:hover .contact-row__go {
+  .contact-phone {
     transition: none;
-    transform: none;
+  }
+  .contact-row:hover .contact-row__go {
+    translate: none;
   }
 }

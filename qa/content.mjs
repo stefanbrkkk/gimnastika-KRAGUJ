@@ -83,10 +83,13 @@ function privacyCorpus(raw) {
     .replace(/(?<=["'(\s=])\/[\w./-]+/g, " ");
 }
 
+/** React flight lazy references are `$L` + a hex id, e.g. `"$Lea"` — the id can spell a name. */
+const isFlightRef = (corpus, m) => corpus[m.index - 1] === "$" && /^L[0-9a-f]+$/.test(m[0]);
+
 function scanNames(corpus) {
   const hits = [];
   for (const re of [GIVEN_RE, SURNAME_RE]) {
-    for (const m of corpus.matchAll(re)) if (!isAllowedName(m[0])) hits.push({ token: m[0], context: snippet(corpus, m.index) });
+    for (const m of corpus.matchAll(re)) if (!isAllowedName(m[0]) && !isFlightRef(corpus, m)) hits.push({ token: m[0], context: snippet(corpus, m.index) });
   }
   return hits;
 }

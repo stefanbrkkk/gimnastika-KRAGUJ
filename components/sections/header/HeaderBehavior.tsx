@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { motionAllowed } from "@/lib/motion-env";
 import { initialHeaderState, nextHeaderState, pickInBand, toneOf, type BandCandidate } from "./chrome";
 import { installFocusGuard } from "./focus-guard";
 
@@ -27,10 +28,13 @@ const pageSections = (): HTMLElement[] =>
  * 1. data-hidden: hides on scroll-down after 120px, shows on scroll-up and
  *    whenever keyboard focus is inside it. The scroll handler only reads scrollY.
  * 2. data-theme: tone of the section under the header's centre line, via an
- *    IntersectionObserver whose root margin leaves a 1px band at that line.
+ *    IntersectionObserver whose root margin leaves a 1px band at that line. A
+ *    nested full-bleed band marked [data-header-band] wins over its section.
  * 3. aria-current on the nav links (scroll-spy, second 1px band at 30%).
  * 4. WCAG 2.4.11: keyboard focus that lands under the visible header or the
  *    sticky bottom bar is scrolled clear of it (focus-guard.ts).
+ * 5. Chrome motion (nav spy hop, footer take-off) is a lazy chunk, fetched on
+ *    idle and only when motion is allowed (chrome-motion.ts).
  */
 export function HeaderBehavior() {
   useEffect(() => {
@@ -85,7 +89,10 @@ export function HeaderBehavior() {
       themeIO = new IntersectionObserver(
         (entries) => {
           track(themeBand, entries);
-          const under = pickInBand([...themeBand.values()], bandY);
+          // A full-bleed band inside a section ([data-header-band], e.g. S5 „Hronologija“) wins over its parent.
+          const all = [...themeBand.values()];
+          const band = all.find((c) => c.item.hasAttribute("data-header-band") && c.top <= bandY && c.bottom > bandY);
+          const under = band?.item ?? pickInBand(all.filter((c) => !c.item.hasAttribute("data-header-band")), bandY);
           if (!under) return;
           // light | dark | darker: "darker" sections (navy-950) get a navy-900 bar so it still reads as a surface.
           const sectionTheme = under.getAttribute("data-theme");
@@ -95,6 +102,7 @@ export function HeaderBehavior() {
         { rootMargin: `-${bandY}px 0px -${below}px 0px` },
       );
       sections.forEach((s) => themeIO?.observe(s));
+      document.querySelectorAll<HTMLElement>("main [data-header-band][data-theme]").forEach((b) => themeIO?.observe(b));
     };
 
     const spyIO = new IntersectionObserver(
@@ -136,7 +144,31 @@ export function HeaderBehavior() {
     root.addEventListener("focusout", onFocusOut);
     render();
 
+    // 5 — decorative chrome motion, off the critical path
+    let live = true;
+    let stopMotion: (() => void) | undefined;
+    let cancelLoad = () => {};
+    if (motionAllowed()) {
+      const load = () =>
+        void import("./chrome-motion").then(
+          (m) => {
+            if (live) stopMotion = m.startChromeMotion();
+          },
+          () => {}, // a failed chunk leaves the static chrome
+        );
+      if (window.requestIdleCallback) {
+        const id = window.requestIdleCallback(load, { timeout: 2500 });
+        cancelLoad = () => window.cancelIdleCallback(id);
+      } else {
+        const id = window.setTimeout(load, 600);
+        cancelLoad = () => window.clearTimeout(id);
+      }
+    }
+
     return () => {
+      live = false;
+      cancelLoad();
+      stopMotion?.();
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
       root.removeEventListener("focusin", onFocusIn);

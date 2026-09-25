@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { MQ, motionAllowed, prefersLessMotion, whenNear } from "@/lib/motion-env";
+import { motionAllowed, prefersLessMotion, whenNear } from "@/lib/motion-env";
 import { belgradeNow } from "@/lib/time";
 import type { PostcardsController } from "./camp-postcards";
 
@@ -10,8 +10,8 @@ import type { PostcardsController } from "./camp-postcards";
  * 1. hides the camp note after mount once Europe/Belgrade is past its data-until (CAMP.noteUntil, D-19);
  * 2. loads the postcard stack (gsap + Draggable/Inertia) when the section is ≤1 viewport
  *    away — or on the first prev/next click, whichever comes first;
- * 3. on desktop with a fine pointer and motion allowed, loads the beam → wave scrub
- *    (ScrollTrigger + MorphSVG) when near.
+ * 3. when motion is allowed (any device), loads the one-shot „last beam routine“
+ *    (MorphSVG, no ScrollTrigger) when the horizon is near.
  */
 export function CampIsland() {
   useEffect(() => {
@@ -46,10 +46,10 @@ export function CampIsland() {
       cleanups.push(() => layout.removeEventListener("click", onClick));
     }
 
-    // --- Beam → wave (desktop, fine pointer, motion allowed) --------------
+    // --- Beam → wave: the last beam routine (motion allowed, every device) ---
     const horizon = layout.querySelector<SVGSVGElement>("[data-horizon]");
     let disarmBeam: (() => void) | undefined;
-    if (horizon && motionAllowed() && window.matchMedia(MQ.desktopFine).matches) {
+    if (horizon && motionAllowed()) {
       cleanups.push(
         whenNear(horizon, () => {
           import("./camp-beam")

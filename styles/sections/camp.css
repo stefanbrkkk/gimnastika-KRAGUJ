@@ -2,7 +2,7 @@
    S8 Camp „Gimnastički kamp“ (components/sections/camp/*). Light theme.
    Postcards: a scroll-snap row without JS; a flickable stack once html.js is set
    (by the head script, before first paint → no layout shift on hydration).
-   Horizon: the beam that becomes a sea wave (static wave outside desktop scrub).
+   Horizon: the beam that becomes the summer sea (static: the wave + two echo swells).
    ========================================================================== */
 
 .camp {
@@ -11,6 +11,7 @@
 }
 
 .camp__layout {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   row-gap: 32px;
@@ -30,15 +31,16 @@
   text-wrap: balance;
 }
 
+/* The 2027 registration line, in the postcard world: an ice card with a postmark (RC-16). */
 .camp__note {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  gap: 14px;
   max-width: 46ch;
   margin-top: 24px;
-  padding: 14px 18px 14px 14px;
+  padding: 14px 18px 14px 12px;
   border-radius: var(--radius-md);
-  background: var(--surface);
+  background: var(--color-ice-50);
   box-shadow: 0 0 0 1px var(--hairline);
   font-size: var(--text-body);
   line-height: 1.5;
@@ -75,14 +77,27 @@
   pointer-events: none;
 }
 
-.camp__note-icon {
+/* A postmark: dashed steel ring, slightly askew, the sun inside. */
+.camp__postmark {
   flex: none;
-  width: 24px;
-  height: 24px;
-  margin-top: 1px;
+  align-self: flex-start;
+  width: 44px;
+  height: 44px;
+  rotate: -8deg;
+  overflow: visible;
+}
+
+.camp__postmark-ring {
+  fill: none;
+  stroke: var(--color-steel-300);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+
+.camp__note-icon {
   fill: none;
   stroke: var(--accent);
-  /* .ui-icon pictogram weight (CSS px, non-scaling). */
+  /* .ui-icon pictogram weight. */
   stroke-width: 1.75;
   stroke-linecap: round;
 }
@@ -155,9 +170,10 @@ html.js .postcard[data-slot="0"] {
   transform: translate(-7%, 1%) rotate(-2deg);
 }
 
+/* Tilted up and right so the back card shows faces, not only helmets (RC-14). */
 html.js .postcard[data-slot="1"] {
   z-index: 2;
-  transform: translate(20%, -3%) rotate(5deg);
+  transform: translate(22%, -8%) rotate(6deg);
 }
 
 html.js .postcard[data-slot="2"] {
@@ -165,10 +181,27 @@ html.js .postcard[data-slot="2"] {
   transform: translate(-24%, -2%) rotate(-6deg);
 }
 
-html.js .postcard[data-slot="0"] .frame {
+/* Every card has depth; the top card's deeper shadow crossfades (opacity only — a
+   box-shadow is never animated) as the pile restacks (RC-12). */
+html.js .postcard .frame {
   box-shadow:
     0 0 0 1px var(--hairline),
-    var(--shadow-3);
+    var(--shadow-2);
+}
+
+html.js .postcard .frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--shadow-3);
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease-stick);
+  pointer-events: none;
+}
+
+html.js .postcard[data-slot="0"] .frame::after {
+  opacity: 1;
 }
 
 /* One postcard (e.g. only the „Fotografija uskoro“ placeholder): no stack, no empty stage. */
@@ -185,7 +218,7 @@ html.js .postcards[data-armed] .postcard[data-slot="0"] {
   cursor: grab;
 }
 
-/* --- Horizon: beam → sea wave -------------------------------------------- */
+/* --- Horizon: beam → sea -------------------------------------------------- */
 .camp__horizon {
   grid-row: 3;
   position: relative;
@@ -193,8 +226,8 @@ html.js .postcards[data-armed] .postcard[data-slot="0"] {
   display: block;
   width: 100vw;
   max-width: none;
-  height: 40px;
-  margin-top: -44px;
+  height: 56px;
+  margin-top: -47px;
   margin-inline-start: calc(50% - 50vw);
   overflow: visible;
   pointer-events: none;
@@ -209,12 +242,73 @@ html.js .postcards[data-armed] .postcard[data-slot="0"] {
   vector-effect: non-scaling-stroke;
 }
 
+/* The sea's depth: two quieter swells behind the wave (RC-13). */
+.camp__horizon-echo {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.camp__horizon-echo--1 {
+  stroke: var(--color-royal-500);
+  stroke-width: 2;
+  stroke-opacity: 0.45;
+}
+
+.camp__horizon-echo--2 {
+  stroke: var(--color-steel-300);
+  stroke-width: 1.5;
+  stroke-opacity: 0.5;
+}
+
+/* The beam (before the routine only): a real bar on splayed legs. */
+.camp__horizon-bar {
+  fill: none;
+  stroke: var(--color-navy-800);
+  stroke-width: 10;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
 .camp__horizon-legs {
   fill: none;
   stroke: var(--color-steel-300);
   stroke-width: 2;
   stroke-linecap: round;
+  stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
+}
+
+/* The routine's flier + ghost frames (created by camp-beam.ts, plain px, never stretched):
+   behind the postcards, like the beam she lands on. */
+.camp__routine {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.camp__routine-solid {
+  color: var(--accent);
+}
+
+.camp__routine-ghost--1 {
+  color: var(--ghost-1);
+  opacity: var(--ghost-1-o);
+}
+
+.camp__routine-ghost--2 {
+  color: var(--ghost-2);
+  opacity: var(--ghost-2-o);
+}
+
+.camp__routine-ghost--3 {
+  color: var(--ghost-3);
+  opacity: var(--ghost-3-o);
 }
 
 /* --- Controls (JS only) ---------------------------------------------------- */
@@ -254,8 +348,8 @@ html:not(.js) .postcards__controls {
     aspect-ratio: 1.25 / 1;
   }
   .camp__horizon {
-    height: 56px;
-    margin-top: -60px;
+    height: 64px;
+    margin-top: -58px;
   }
 }
 
@@ -268,9 +362,28 @@ html:not(.js) .postcards__controls {
     column-gap: 24px;
     row-gap: 0;
   }
+  /* The text column runs the stack's height: the lead under the title, the note down on
+     the horizon, level with the base of the stack (RC-06). */
   .camp__text {
     grid-column: 1 / span 5;
-    grid-row: 1;
+    grid-row: 1 / span 2;
+    display: flex;
+    flex-direction: column;
+  }
+  /* A postcard headline: it carries the column's weight down to the note (RC-06). */
+  .camp__lead {
+    max-width: 13em;
+    font-size: clamp(1.875rem, 0.9rem + 1.5vw, 2.375rem);
+    line-height: 1.14;
+    font-weight: 620;
+    font-stretch: 112%;
+    letter-spacing: -0.018em;
+  }
+  /* Just above the horizon, level with the stack's base — with clear air over the beam for
+     the routine's leap. */
+  .camp__note {
+    margin-top: auto;
+    margin-bottom: 112px;
   }
   .postcards {
     /* No-JS row: both postcards fit side by side in the 7-column slot. */
@@ -292,7 +405,7 @@ html:not(.js) .postcards__controls {
   .camp__horizon {
     grid-column: 1 / -1;
     grid-row: 3;
-    height: 64px;
+    height: 80px;
     margin-top: -72px;
   }
 }

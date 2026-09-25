@@ -1,16 +1,23 @@
 /**
  * "Pitanja roditelja" (§5 S10). Also emitted as FAQPage JSON-LD.
  */
-import { FLAGS } from "./site";
+import { CONTACT } from "./copy";
+import { CTA, FLAGS, VENUE } from "./site";
 
 export interface FaqItem {
   q: string;
   a: string;
   flag?: "SHOW_FEES" | "FREE_TRIAL";
+  /** The obvious next action under the answer (existing copy only). Not part of the FAQPage JSON-LD. */
+  link?: { label: string; href: string; external?: boolean; program?: string };
 }
 
 export const FAQ: readonly FaqItem[] = [
-  { q: "Od koliko godina dete može da počne?", a: "Već od 3. godine, u mlađoj početnoj grupi (3–8 godina)." },
+  {
+    q: "Od koliko godina dete može da počne?",
+    a: "Već od 3. godine, u mlađoj početnoj grupi (3–8 godina).",
+    link: { label: CTA.viewSchedule, href: "#raspored", program: "mladja" },
+  },
   { q: "Kada može da se upiše?", a: "Tokom cele godine." },
   {
     q: "Kako izgleda prvi trening?",
@@ -23,6 +30,7 @@ export const FAQ: readonly FaqItem[] = [
   {
     q: "Gde se održavaju treninzi?",
     a: "U sali Trgovinsko-ugostiteljske škole „Toza Dragović“ (poznata kao „ŠUP“), Save Kovačevića 25, Kragujevac.",
+    link: { label: CONTACT.mapsCta, href: VENUE.mapsUrl, external: true },
   },
   {
     q: "Da li su trenerice licencirane?",

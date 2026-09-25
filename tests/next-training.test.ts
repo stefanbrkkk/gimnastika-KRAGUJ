@@ -6,7 +6,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DAYS, isFixed, SCHEDULE, type ScheduleGroup } from "@/content/schedule";
-import { formatNextTraining, groupSlots, nextTraining } from "@/lib/schedule-logic";
+import { earliestNext, formatNextDay, formatNextTraining, groupSlots, nextTraining } from "@/lib/schedule-logic";
 import { belgradeNow } from "@/lib/time";
 
 const ACC = DAYS.map((d) => d.accusative);
@@ -153,5 +153,44 @@ describe("DST edges (Europe/Belgrade)", () => {
     at("2026-12-04T23:30:00Z"); // Sat 5 Dec 00:30 CET
     expect(belgradeNow().isoWeekday).toBe(6);
     expect(chip("aerobik")).toBe("u ponedeljak u 20:00");
+  });
+});
+
+describe("„Sledeći trening“ scoreboard — earliest next start across the visible groups", () => {
+  /** Board order = the S3/S4 program order (Mlađa, Starija, C starije, C mlađe, A i B, Aerobna). */
+  const BOARD: readonly ScheduleGroup["id"][] = ["mladja", "starija", "c-starije", "c-mladje", "ab", "aerobik"];
+  function board(ids: readonly ScheduleGroup["id"][] = BOARD): string | null {
+    const best = earliestNext(ids.map((id) => groupSlots(group(id), isFixed)), belgradeNow());
+    return best ? `${ids[best.index]} · ${formatNextDay(best.next, ACC)} · ${best.next.start}` : null;
+  }
+
+  it("Monday 17:00 → Mlađa „danas“ 18:00 (A i B's 16:00 option is never named)", () => {
+    at("2026-09-28T17:00:00+02:00");
+    expect(board()).toBe("mladja · danas · 18:00");
+  });
+
+  it("Monday 20:30 → A i B „sutra“ 17:30 (earlier than C mlađe 19:30 and every Wednesday slot)", () => {
+    at("2026-09-28T20:30:00+02:00");
+    expect(board()).toBe("ab · sutra · 17:30");
+  });
+
+  it("Friday evening → Mlađa „u ponedeljak“ 18:00 (A i B's Monday is an „ili“ slot → skipped)", () => {
+    at("2026-09-25T21:00:00+02:00");
+    expect(board()).toBe("mladja · u ponedeljak · 18:00");
+  });
+
+  it("respects the filter: C program on Thursday night has no fixed next start → null", () => {
+    at("2026-10-01T21:00:00+02:00");
+    expect(board(["c-starije", "c-mladje"])).toBeNull();
+    at("2026-09-28T20:30:00+02:00");
+    expect(board(["c-starije", "c-mladje"])).toBe("c-mladje · sutra · 19:30");
+  });
+
+  it("formatNextDay gives the day part of every chip form", () => {
+    at("2026-09-28T09:00:00+02:00");
+    const n = nextTraining(groupSlots(group("mladja"), isFixed), belgradeNow())!;
+    expect(formatNextDay(n, ACC)).toBe("danas");
+    expect(formatNextDay({ ...n, offset: 1 }, ACC)).toBe("sutra");
+    expect(formatNextDay({ offset: 3, iso: 4, start: "19:30" }, ACC)).toBe("u četvrtak");
   });
 });

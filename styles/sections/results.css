@@ -5,86 +5,154 @@
    „Medalje“ header band, with no text on it.
    ========================================================================== */
 
+/* Verification is a quiet footnote in S7; the accent belongs to actions (RC-03). */
+.results .source-link {
+  color: var(--color-steel-300);
+  font-weight: 560;
+  text-decoration-color: rgba(141, 169, 198, 0.5);
+}
+
+.results .source-link:focus-visible {
+  color: var(--color-lav-200);
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 2px;
+}
+
+@media (hover: hover) {
+  .results .source-link:hover {
+    color: var(--color-lav-200);
+    text-decoration-color: currentColor;
+    text-decoration-thickness: 2px;
+  }
+}
+
 /* --- Scoreboard ------------------------------------------------------------ */
+/* Phones: a results board — one row per stat (window · label + izvor), like a ranking list
+   (RC-02). ≥640: units of window, label and izvor, 2×2 then a row of four. */
 .scoreboard {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 1px;
   margin: 0;
   padding: 0;
   list-style: none;
   background: var(--hairline);
-  /* Same corner as the sibling „Medalje“ panel; concentric with the 8px windows inset 12px. */
+  /* Same corner as the sibling „Medalje“ panel; concentric with the 8px windows. */
   border-radius: var(--radius-lg);
   box-shadow: 0 0 0 1px var(--hairline);
   overflow: hidden;
 }
 
 .stat {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  --win: 132px;
+  display: grid;
+  grid-template-columns: var(--win) minmax(0, 1fr);
+  /* The label + izvor block is centred beside the window. */
+  grid-template-areas:
+    "win ."
+    "win label"
+    "win source"
+    "win .";
+  grid-template-rows: 1fr auto auto 1fr;
+  column-gap: 14px;
   min-width: 0;
-  padding: 12px 12px 4px;
+  padding: 10px 12px;
   background: var(--color-navy-900);
 }
 
-/* The display window of each scoreboard unit. */
+/* The display window of each scoreboard unit: unlit dot matrix behind a recessed bezel. */
 .stat__value {
+  grid-area: win;
+  position: relative;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: flex-end;
-  gap: 0.35em;
+  min-height: 72px;
   margin: 0;
-  padding: 14px 12px 12px;
+  /* A little lower than centre: room for the „OKO“ field tag above the numeral. */
+  padding: 14px 10px 8px;
   border-radius: var(--radius-sm);
   background:
     radial-gradient(circle at center, rgba(141, 169, 198, 0.09) 0.9px, transparent 1.3px) 0 0 / 7px 7px,
     var(--color-navy-950);
-  box-shadow: inset 0 0 0 1px rgba(141, 169, 198, 0.16);
+  box-shadow:
+    inset 0 0 0 1px rgba(141, 169, 198, 0.16),
+    inset 0 6px 14px -6px rgba(0, 0, 0, 0.45);
 }
 
+/* „oko“: a scoreboard field tag in the window's corner, so the window stays pure LED and
+   every numeral shares one right edge (RC-11). */
 .stat__prefix {
-  font-size: 1rem;
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  font-family: var(--font-sans);
+  font-size: 13px;
   line-height: 1;
   font-weight: 600;
   font-stretch: 100%;
-  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-steel-300);
 }
 
+/* Lit, not printed: a faint LED bloom (static; nothing animates here). inline-block so the
+   score-posting scan (results-motion.ts) can clip it by dot rows. */
 .stat__num {
-  font-size: clamp(2.5rem, 1.35rem + 4.4vw, 5.25rem);
+  display: inline-block;
+  font-size: 2.5rem;
   line-height: 0.9;
   font-weight: 800;
   letter-spacing: 0.02em;
   color: var(--color-iceblue-200);
   white-space: nowrap;
-}
-
-.stat__flap {
-  display: inline-block;
-  backface-visibility: hidden;
+  text-shadow:
+    0 0 1px rgba(207, 230, 255, 0.8),
+    0 0 12px rgba(207, 230, 255, 0.28);
 }
 
 .stat__label {
+  grid-area: label;
   margin: 0;
   max-width: 26ch;
-  padding-inline: 2px;
   font-size: var(--text-small);
   line-height: 1.4;
-  font-weight: 520;
+  font-weight: 560;
   color: var(--fg);
 }
 
+/* „izvor“ sits right under the label; its 48px target overlaps the row's padding. */
 .stat__source {
-  margin-top: auto;
-  align-self: flex-start;
+  position: relative;
+  grid-area: source;
+  justify-self: start;
+  margin: -12px 0 -12px -4px;
 }
 
-/* Below 360 px (320 = WCAG reflow width) „oko 120“ and „2007“ must still fit their window. */
-@media (max-width: 359.98px) {
+/* The focus ring (§3: 3px gap + 2px ring) hugs the word, like on an inline link, instead of
+   framing the invisible 48px target across the label above it. */
+.stat__source:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.stat__source:focus-visible::after {
+  content: "";
+  position: absolute;
+  inset: 11px -1px;
+  border: 2px solid var(--focus);
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+/* Narrow phones: a slimmer window so the long labels keep to ≤3 lines at 360 (the numerals
+   stay ≥32px Doto and „2007“ still fits its window down to 320, the WCAG reflow width). */
+@media (max-width: 389.98px) {
+  .stat {
+    --win: 108px;
+    column-gap: 12px;
+  }
   .stat__value {
-    gap: 0.2em;
     padding-inline: 8px;
   }
   .stat__num {
@@ -92,9 +160,41 @@
   }
 }
 
-@media (min-width: 640px) {
+@media (max-width: 359.98px) {
   .stat {
-    padding: 16px 16px 6px;
+    --win: 100px;
+  }
+  .stat__num {
+    font-size: 2rem;
+  }
+}
+
+@media (min-width: 640px) {
+  .scoreboard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 16px 16px 8px;
+  }
+  .stat__value {
+    min-height: 0;
+    align-items: flex-end;
+    padding: 18px 14px 14px;
+  }
+  .stat__num {
+    font-size: clamp(2.5rem, 1.35rem + 4.4vw, 5.25rem);
+  }
+  .stat__label {
+    padding-inline: 2px;
+  }
+  /* A footnote 6px under the label (RC-03); the 48px target overlaps the label's box. */
+  .stat__source {
+    align-self: flex-start;
+    margin: -28px 0 0 -2px;
   }
 }
 
@@ -103,20 +203,30 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
   .stat {
-    padding: 20px 20px 8px;
+    padding: 20px 20px 12px;
     gap: 16px;
   }
   .stat__value {
     padding: 22px 18px 18px;
   }
+  /* A row of four: „2007“ keeps air inside its window from 1024 (58px) to 1440 (84px). */
+  .stat__num {
+    font-size: clamp(2.5rem, 6.25vw - 0.375rem, 5.25rem);
+  }
   .stat__prefix {
-    font-size: 1.125rem;
+    top: 10px;
+    left: 12px;
+  }
+  .stat__label {
+    max-width: 24ch;
+    font-size: 1.0625rem;
+    line-height: 1.38;
   }
 }
 
-/* Very narrow layouts (≤280px: page zoom 140–150%) or enlarged text: one tile per row, so
-   „2007“ / „oko 120“ never spill out of their display window. A named container on S7's
-   own .container-site (never on the shared class: unnamed @container rules elsewhere). */
+/* Very narrow layouts (≤280px: page zoom 140–150%) or enlarged text: the window stacks above
+   its label, so „2007“ never spills out. A named container on S7's own .container-site
+   (never on the shared class: unnamed @container rules elsewhere). */
 #uspesi > .container-site {
   container: scoreboard / inline-size;
 }
@@ -132,12 +242,21 @@
 }
 
 @container scoreboard (max-width: 15.5em) {
-  .scoreboard {
+  .stat {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "win"
+      "label"
+      "source";
+    grid-template-rows: auto;
+    row-gap: 12px;
+  }
+  .stat__source {
+    margin: -8px 0 0 -4px;
   }
 }
 
-/* --- Photo + lists ----------------------------------------------------------- */
+/* --- Photo + lists + trust row ------------------------------------------------ */
 .results__body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -145,42 +264,27 @@
   margin-top: 48px;
 }
 
-.results__photo-inner {
-  position: relative;
-}
-
 .results__figure {
   width: 100%;
 }
 
-/* White brush annotation over photo 01 — sits exactly on the photo box (frame padding 6px). */
-.results-brush {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  width: calc(100% - 12px);
-  height: auto;
-  aspect-ratio: 4 / 3;
-  overflow: visible;
-  pointer-events: none;
-  fill: none;
-  stroke: var(--color-white);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
 @media (min-width: 1024px) {
+  /* Photo left (cols 1–7) with the trust row right under it (RC-09); lists right (8–12). */
   .results__body {
     grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-template-rows: auto 1fr;
     column-gap: 24px;
+    row-gap: 0;
     align-items: start;
     margin-top: 72px;
   }
   .results__photo {
     grid-column: 1 / span 7;
+    grid-row: 1;
   }
   .results__lists {
     grid-column: 8 / -1;
+    grid-row: 1 / span 2;
   }
 }
 
@@ -192,44 +296,68 @@
   box-shadow: 0 0 0 1px var(--hairline);
 }
 
-/* Gradient header band: no text here, only the podium drawing. */
+/* Gradient header band: no text here, only the podium rising out of the panel. */
 .medals__band {
+  --band-h: 120px;
   display: flex;
   align-items: flex-end;
-  height: 96px;
-  padding-inline: 16px;
+  justify-content: center;
+  height: var(--band-h);
   background: var(--grad-leotard);
 }
 
+/* ≈60% of the band, never taller than the band (288 × 106 viewBox). */
 .podium {
   display: block;
-  height: 80px;
-  width: auto;
+  width: min(72%, calc((var(--band-h) - 10px) * 2.717));
+  height: auto;
+  margin-bottom: -1px;
   overflow: visible;
+}
+
+/* Same navy as the panel body: the blocks rise out of it as one silhouette. */
+.podium__block {
+  fill: var(--color-navy-900);
 }
 
 .podium__line {
   fill: none;
   stroke: var(--color-navy-950);
-  stroke-width: 3.2;
+  stroke-width: 2.5;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-/* Dotted ghost of the podium (Doto-like dots): covered by the solid line in the final state,
-   visible only while the draw waits for its turn in the sequence. */
+/* Dotted ghost of the podium (Doto-like dots): covered by the outline in the final state,
+   visible only while the ceremony waits for its turn. */
 .podium__ghost {
   fill: none;
   stroke: var(--color-navy-950);
-  stroke-width: 3;
+  stroke-width: 2.2;
   stroke-linecap: round;
   stroke-dasharray: 0 7;
   opacity: 0.32;
 }
 
-.podium__mark {
+/* Two ribbon strips meeting at the disc top (butt ends read as cut ribbon, not wire). */
+.podium__ribbon {
+  fill: none;
   stroke: var(--color-navy-950);
-  stroke-width: 2.6;
+  stroke-width: 3.4;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+}
+
+.podium__disc {
+  stroke: var(--color-navy-950);
+  stroke-width: 2;
+}
+
+.podium__disc-ring {
+  fill: none;
+  stroke: var(--color-navy-950);
+  stroke-width: 1.2;
+  opacity: 0.3;
 }
 
 .medals__body {
@@ -238,6 +366,28 @@
 
 .medals__title {
   margin: 0 0 4px;
+  /* Room for the brush underline. */
+  padding-bottom: 12px;
+}
+
+/* The word carries the white dry-brush underline (the S7 brush annotation, RC-01). */
+.medals__word {
+  position: relative;
+  display: inline-block;
+}
+
+.medals__brush {
+  position: absolute;
+  left: -6px;
+  bottom: -12px;
+  width: calc(100% + 16px);
+  height: auto;
+  overflow: visible;
+  pointer-events: none;
+  fill: none;
+  stroke: var(--color-white);
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .medal-fill--gold {
@@ -257,11 +407,10 @@
 
 @media (min-width: 1024px) {
   .medals__band {
-    height: 112px;
-    padding-inline: 24px;
+    --band-h: 144px;
   }
   .podium {
-    height: 94px;
+    width: min(64%, calc((var(--band-h) - 12px) * 2.717));
   }
   .medals__body {
     padding: 24px 24px 8px;
@@ -397,7 +546,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin: 48px 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
@@ -444,7 +593,9 @@
 
 @media (min-width: 1024px) {
   .trust-row {
-    justify-content: flex-end;
-    margin-top: 56px;
+    grid-column: 1 / span 7;
+    grid-row: 2;
+    justify-content: flex-start;
+    margin-top: 24px;
   }
 }

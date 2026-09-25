@@ -6,36 +6,53 @@
  * the initial animation chunk (≤45 KB gz). ScrollTrigger loads only after the
  * intro, on (min-width:1024px) and (pointer:fine).
  *
- * Intro = the FLOOR PASS (pass.ts), ≤ 1.9 s (PASS_END ≈ 1.66 s). One clock
- * drives one render(t), so the gymnast, the floor and the logo stay in step:
- *   0–.42     the mat line draws left → right (stroke-dashoffset)
- *   .02–.40   the gymnast runs in low along the mat: two running bounds
- *   .40–.50   the plant: push leg under the body, front leg kicks
- *   .50–1.16  the flight: the legs scissor open to the split, hang at the apex,
- *             gravity brings her down onto the front toe — the logo's pose
- *   …         each ghost frame fades in the instant she passes it (a shutter)
- *   ~.95–1.66 the wordmark wipes in behind her as she comes down
- *   1.16      touchdown: a squash about the toe and a rebound (to 1.46), a puff
- *             of chalk (≤ .38 s) and the floor giving 2.5 px under her (≤ .34 s)
- * Every frame is the same pure pose(t) that placed the server-rendered ghost
- * frames; only transform, opacity, clip-path and stroke-dashoffset change.
- * Desktop: pin +=80%, scrub .5 — ghost frames fade one by one, the mat line
- * extends and drops into the floor-exercise diagonal toward the next section
- * (routed around the text, spine.ts). The pin is created only while the page
- * rests at the top (never under a scrolled viewport or a deep link).
+ * Intro = the FLOOR PASS (pass.ts), ≤ 1.9 s. One clock drives one render(t),
+ * so the gymnast, the floor and the logo stay in step:
+ *   0–.42      the mat line draws left → right (stroke-dashoffset)
+ *   from ~.02  she appears in the air — a chassé bound — and plants the push
+ *              foot (it never slides), the kick leg sweeps through, takeoff
+ *   … ~1.1     the flight: the legs open to the split, hang at the apex,
+ *              gravity brings her down onto the front toe — the logo's pose
+ *   …          each ghost frame develops the instant she passes it: an
+ *              exposure overshoot (+.15), then it settles (.4 s)
+ *   descent    the wordmark develops in her wake: a clip edge slanted like the
+ *              script trails her back toe, the whole „K“ first; from the
+ *              touchdown it runs on
+ *   touchdown  the stick: compress about the front toe (.94 / 1.03), then
+ *              EASE.land back and hold; the floor gives 2.5 px under her
+ * render(t) touches only transform, opacity, clip-path and stroke-dashoffset;
+ * restore() puts every attribute back as the server rendered it, and the
+ * last frame equals that composition.
+ * Desktop: pin +=80%, scrub .5 — scrub.ts, a separate chunk loaded with
+ * ScrollTrigger after the intro.
  */
 import { useEffect } from "react";
 import { EASE, MQ, gsap, loadScrollTrigger, queuePrimaryMotion, registerMotion } from "@/lib/motion";
-import { CHALK, COMPACT_PASS, HIP_BACK, HIP_FRONT, PASS, PASS_END, WIDE_PASS, legAttr, makePass, matrixAttr, type PassSpec, type Pt } from "./pass";
-import { spinePath, type SpineRect } from "./spine";
+import { GHOST_OPACITY } from "./constants";
+import {
+  COMPACT_PASS,
+  HIP_BACK,
+  HIP_FRONT,
+  PASS,
+  PASS_END,
+  WIDE_PASS,
+  WORDMARK_INK,
+  WORDMARK_LEAN,
+  legAttr,
+  makePass,
+  matrixAttr,
+  type PassSpec,
+  type Pt,
+} from "./pass";
 
 type ScrollTriggerStatic = Awaited<ReturnType<typeof loadScrollTrigger>>;
+type PinHero = typeof import("./scrub").pinHero;
 
-const SVG_NS = "http://www.w3.org/2000/svg";
 const q = <T extends Element>(root: ParentNode, sel: string) => root.querySelector<T>(sel);
 const qa = <T extends Element>(root: ParentNode, sel: string) => Array.from(root.querySelectorAll<T>(sel));
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const r3 = (v: number) => Math.round(v * 1000) / 1000;
+const easeOut = (s: number) => 1 - (1 - s) * (1 - s);
 
 /** The floor gives under the landing: depth (px), half-width and offset behind the toe (art units). */
 const FLEX = { depth: 2.5, half: 90, behind: 40, steps: 24 } as const;
@@ -76,6 +93,111 @@ function flexGeometry(art: SVGSVGElement, matSvg: SVGSVGElement, spec: PassSpec,
   return { d: `M${pts.join("L")}`, dash: `${r3(xa / 100)} ${r3((xb - xa) / 100)} 1` };
 }
 
+/** Records the inline style / transform of elements and writes them back exactly. */
+function snapshot(els: Element[]) {
+  const saved = els.map((el) => [el.getAttribute("style"), el.getAttribute("transform")] as const);
+  return () =>
+    els.forEach((el, i) => {
+      const [style, transform] = saved[i]!;
+      if (style === null) el.removeAttribute("style");
+      else el.setAttribute("style", style);
+      if (transform === null) el.removeAttribute("transform");
+      else el.setAttribute("transform", transform);
+    });
+}
+
+/** A writer that touches the DOM only when a value changes. */
+function writer() {
+  const last = new Map<Element, Map<string, string | null>>();
+  return (el: Element, key: string, value: string | null) => {
+    let m = last.get(el);
+    if (!m) last.set(el, (m = new Map()));
+    if (m.get(key) === value) return;
+    m.set(key, value);
+    if (key === "transform") {
+      if (value === null) el.removeAttribute(key);
+      else el.setAttribute(key, value);
+    } else (el as SVGElement).style.setProperty(key, value);
+  };
+}
+
+/** Wordmark clip for a developing edge (logo units at mid-height): a polygon slanted like the script. */
+function wordmarkClip(edge: number): string | null {
+  if (edge === Infinity) return null;
+  if (edge === -Infinity) return "inset(0 100% 0 0)";
+  const { x0, x1 } = WORDMARK_INK;
+  const pct = (x: number) => r3(((x - x0) / (x1 - x0)) * 100);
+  // the edge through (edge ± lean) at the ink box's top/bottom, run on 10 % beyond both
+  const lean = WORDMARK_LEAN * 1.2;
+  return `polygon(-10% -10%, ${pct(edge + lean)}% -10%, ${pct(edge - lean)}% 110%, -10% 110%)`;
+}
+
+/**
+ * The floor pass of one art variant as a pure function of time: render(t),
+ * and restore() (the server-rendered final composition).
+ */
+function floorPass(art: SVGSVGElement, decor: HTMLElement) {
+  const spec = art.getAttribute("data-hero-variant") === "wide" ? WIDE_PASS : COMPACT_PASS;
+  const pass = makePass(spec);
+  const mat = q<SVGPathElement>(decor, "[data-hero-mat]")!;
+  const matSvg = q<SVGSVGElement>(decor, ".hero-mat")!;
+  const flex = q<SVGPathElement>(decor, "[data-hero-flex]")!;
+  const leap = q<SVGGElement>(art, "[data-hero-leap]")!;
+  const legBack = q<SVGUseElement>(leap, '[data-hero-leg="back"]')!;
+  const legFront = q<SVGUseElement>(leap, '[data-hero-leg="front"]')!;
+  const wordmark = q<SVGUseElement>(art, "[data-hero-wordmark]")!;
+  const ghosts = qa<SVGGElement>(art, "[data-hero-ghost]");
+  const ticks = qa<SVGLineElement>(art, "[data-hero-tick]");
+  const restoreAttrs = snapshot([mat, flex, leap, legBack, legFront, wordmark, ...ghosts, ...ticks]);
+  const flexD = flex.getAttribute("d");
+  const restore = () => {
+    restoreAttrs();
+    if (flexD !== null) flex.setAttribute("d", flexD);
+  };
+  const put = writer();
+  const tickTo = ticks.map((_, i) => GHOST_OPACITY[i]! * 2.4);
+  // The floor's give is measured just before the touchdown (a resize or a turn
+  // of the phone during the intro never leaves it misplaced).
+  let flexGeo: ReturnType<typeof flexGeometry> | undefined;
+  const stick = gsap.parseEase(EASE.stick);
+
+  const render = (t: number) => {
+    // the floor, and its give under the landing
+    put(mat, "stroke-dashoffset", String(r3(1 - stick(clamp01((t - PASS.mat[0]) / (PASS.mat[1] - PASS.mat[0]))))));
+    if (flexGeo === undefined && t >= spec.land - 0.05) {
+      flexGeo = flexGeometry(art, matSvg, spec, pass.touchdown);
+      if (flexGeo) flex.setAttribute("d", flexGeo.d);
+    }
+    const give = flexGeo ? flexAt((t - spec.land) / PASS.flex) : 0;
+    const flexing = Math.abs(give) > 0.02;
+    put(mat, "stroke-dasharray", flexing ? flexGeo!.dash : null);
+    put(flex, "visibility", flexing ? "visible" : null);
+    put(flex, "transform", flexing ? `translate(0 2) scale(1 ${r3(give)})` : null);
+    // the gymnast
+    const p = pass.pose(t);
+    put(leap, "transform", matrixAttr(p.m));
+    put(legBack, "transform", legAttr(p.back, HIP_BACK));
+    put(legFront, "transform", legAttr(p.front, HIP_FRONT));
+    put(leap, "opacity", String(r3(clamp01((t - spec.enter) / PASS.fadeIn))));
+    // the shutter: each frame develops the instant she passes it — an exposure
+    // overshoot, then it settles to its resting value
+    spec.ghosts.forEach((at, i) => {
+      const since = t - at;
+      const rest = GHOST_OPACITY[i]!;
+      const peak = rest + PASS.develop;
+      let o = 0;
+      if (since >= PASS.developRise) o = rest + (peak - rest) * (1 - easeOut(clamp01((since - PASS.developRise) / PASS.developSettle)));
+      else if (since > 0) o = peak * easeOut(since / PASS.developRise);
+      put(ghosts[i]!, "opacity", String(r3(o)));
+      put(ticks[i]!, "opacity", String(r3(tickTo[i]! * clamp01(since / PASS.developRise))));
+    });
+    // the name develops in her wake
+    put(wordmark, "clip-path", wordmarkClip(pass.edge(t)));
+  };
+
+  return { render, restore, end: pass.end };
+}
+
 export default function HeroMotion() {
   useEffect(() => {
     const html = document.documentElement;
@@ -104,101 +226,19 @@ export default function HeroMotion() {
     // ---- Intro (no reduced motion; Save-Data never gets here: no js-motion) ----
     mm.add(MQ.noReduce, () => {
       const art = visibleArt();
-      const mat = q<SVGPathElement>(decor, "[data-hero-mat]");
-      const matSvg = q<SVGSVGElement>(decor, ".hero-mat");
-      const flex = q<SVGPathElement>(decor, "[data-hero-flex]");
       const rect = section.getBoundingClientRect();
       const inView = rect.bottom > 0 && rect.top < window.innerHeight;
-      if (!art || !mat || !matSvg || !flex || !inView || html.getAttribute("data-intro") === "done") {
+      if (!art || !q(decor, "[data-hero-mat]") || !inView || html.getAttribute("data-intro") === "done") {
         finish();
         return;
       }
-      const spec = art.getAttribute("data-hero-variant") === "wide" ? WIDE_PASS : COMPACT_PASS;
-      const pass = makePass(spec);
-      const leap = q<SVGGElement>(art, "[data-hero-leap]")!;
-      const legBack = q<SVGUseElement>(leap, '[data-hero-leg="back"]')!;
-      const legFront = q<SVGUseElement>(leap, '[data-hero-leg="front"]')!;
-      const wordmark = q<SVGUseElement>(art, "[data-hero-wordmark]")!;
-      const ghosts = qa<SVGGElement>(art, "[data-hero-ghost]");
-      const ticks = qa<SVGLineElement>(art, "[data-hero-tick]");
-      const chalk = qa<SVGCircleElement>(art, "[data-hero-chalk] circle");
-      // The resting values are the server-rendered ones (inline styles / attributes).
-      const ghostTo = ghosts.map((g) => Number(g.style.opacity) || 0);
-      const tickTo = ticks.map((t) => Number(t.style.opacity) || 0);
-      const leapRest = leap.getAttribute("transform") ?? "";
-      const flexGeo = flexGeometry(art, matSvg, spec, pass.touchdown);
-      if (flexGeo) flex.setAttribute("d", flexGeo.d);
-      // Chalk travels the same distance on screen in both variants.
-      const chalkScale = spec.chalkR / WIDE_PASS.chalkR;
-      const stick = gsap.parseEase(EASE.stick);
-
-      let last = -1;
-      const render = (t: number) => {
-        // the floor
-        mat.style.strokeDashoffset = String(r3(1 - stick(clamp01((t - PASS.mat[0]) / (PASS.mat[1] - PASS.mat[0])))));
-        const give = flexGeo ? flexAt((t - PASS.land) / PASS.flex) : 0;
-        if (Math.abs(give) > 0.02) {
-          mat.style.strokeDasharray = flexGeo!.dash;
-          flex.style.visibility = "visible";
-          flex.setAttribute("transform", `translate(0 2) scale(1 ${r3(give)})`);
-        } else if (last < 0 || flex.style.visibility === "visible") {
-          mat.style.strokeDasharray = "";
-          flex.style.visibility = "";
-        }
-        // the gymnast
-        const p = pass.pose(t);
-        leap.setAttribute("transform", matrixAttr(p.m));
-        legBack.setAttribute("transform", legAttr(p.back, HIP_BACK));
-        legFront.setAttribute("transform", legAttr(p.front, HIP_FRONT));
-        leap.style.opacity = String(r3(clamp01((t - PASS.enter) / PASS.fadeIn)));
-        // the shutter: each frame appears the instant she passes it
-        spec.ghosts.forEach((at, i) => {
-          const o = clamp01((t - at) / PASS.ghostFade);
-          ghosts[i]!.style.opacity = String(r3(o * ghostTo[i]!));
-          ticks[i]!.style.opacity = String(r3(o * tickTo[i]!));
-        });
-        // the wordmark, revealed behind her
-        wordmark.style.clipPath = `inset(0% ${r3((1 - pass.wipe(t)) * 100)}% 0% 0%)`;
-        // chalk off the mat at the touchdown
-        CHALK.forEach(([dir, dist, , delay], i) => {
-          const s = (t - PASS.land - delay) / (PASS.chalk - delay);
-          const c = chalk[i]!;
-          if (s <= 0 || s >= 1) {
-            c.style.opacity = "0";
-            return;
-          }
-          const d = dist * chalkScale * (1 - (1 - s) ** 3);
-          const a = (dir * Math.PI) / 180;
-          c.setAttribute("transform", `translate(${r3(Math.cos(a) * d)} ${r3(Math.sin(a) * d - 10 * chalkScale * s)})`);
-          c.style.opacity = String(r3(0.85 * (s < 0.12 ? s / 0.12 : 1 - (s - 0.12) / 0.88)));
-        });
-        last = t;
-      };
-
-      // Back to the server-rendered final composition.
-      const rest = () => {
-        mat.style.strokeDashoffset = "";
-        mat.style.strokeDasharray = "";
-        flex.style.visibility = "";
-        flex.removeAttribute("transform");
-        leap.setAttribute("transform", leapRest);
-        leap.style.opacity = "";
-        legBack.removeAttribute("transform");
-        legFront.removeAttribute("transform");
-        ghosts.forEach((g, i) => (g.style.opacity = String(ghostTo[i])));
-        ticks.forEach((l, i) => (l.style.opacity = String(tickTo[i])));
-        wordmark.style.clipPath = "";
-        chalk.forEach((c) => {
-          c.style.opacity = "";
-          c.removeAttribute("transform");
-        });
-      };
+      const plate = floorPass(art, decor);
 
       html.setAttribute("data-intro", "running");
       performance.mark("kraguj:intro-start");
 
       // t = 0 — set in the same frame as data-hero-ready, so nothing flashes.
-      render(0);
+      plate.render(0);
       decor.setAttribute("data-hero-ready", "");
 
       // The hero is the page's first primary motion: it only registers its
@@ -206,20 +246,21 @@ export default function HeroMotion() {
       void queuePrimaryMotion(PASS_END * 1000);
 
       const clock = { t: 0 };
-      gsap.to(clock, {
-        t: PASS_END,
-        duration: PASS_END,
+      const tween = gsap.to(clock, {
+        t: plate.end,
+        duration: plate.end,
         ease: "none",
-        onUpdate: () => render(clock.t),
+        onUpdate: () => plate.render(clock.t),
         onComplete: () => {
-          rest();
+          plate.restore();
           finish();
         },
       });
 
-      // Reverted mid-intro (reduced motion switched on): the final composition at once.
+      // Reverted mid-intro (reduced motion switched on, unmount): the final composition at once.
       return () => {
-        rest();
+        tween.kill();
+        plate.restore();
         if (!disposed && html.getAttribute("data-intro") === "running") finish();
       };
     });
@@ -243,17 +284,18 @@ export default function HeroMotion() {
         let live = true;
         let cleanup: (() => void) | undefined;
         let stopWaiting: (() => void) | undefined;
-        const arm = (ScrollTrigger: ScrollTriggerStatic) => {
+        const arm = (ScrollTrigger: ScrollTriggerStatic, pinHero: PinHero) => {
           if (!live || disposed || cleanup) return;
           ctx.add(() => {
             cleanup = pinHero(ScrollTrigger, section!, decor!, visibleArt());
           });
         };
-        loadScrollTrigger()
-          .then((ScrollTrigger) => {
+        Promise.all([loadScrollTrigger(), import("./scrub")])
+          .then(([ScrollTrigger, { pinHero }]) => {
             if (!live || disposed) return;
-            if (restingAtTop()) arm(ScrollTrigger);
-            else stopWaiting = whenBackAtTop(() => arm(ScrollTrigger));
+            const armWith = () => arm(ScrollTrigger, pinHero);
+            if (restingAtTop()) armWith();
+            else stopWaiting = whenBackAtTop(armWith);
           })
           // The scrub is an enhancement: a failed chunk leaves the static hero.
           .catch(() => {});
@@ -305,108 +347,4 @@ function whenBackAtTop(onTop: () => void): () => void {
   const stop = () => window.removeEventListener("scroll", onScroll);
   window.addEventListener("scroll", onScroll, { passive: true });
   return stop;
-}
-
-/** Text boxes of the hero statement, relative to the section, inflated by `pad`. */
-function textBoxes(section: HTMLElement, origin: DOMRect, pad: number): SpineRect[] {
-  const boxes: SpineRect[] = [];
-  const add = (r: DOMRect) => {
-    if (r.width > 0 && r.height > 0) {
-      boxes.push({
-        left: r.left - origin.left - pad,
-        top: r.top - origin.top - pad,
-        right: r.right - origin.left + pad,
-        bottom: r.bottom - origin.top + pad,
-      });
-    }
-  };
-  const range = document.createRange();
-  qa<HTMLElement>(section, ".hero__eyebrow, .hero__title, .hero__sub, .hero__trust li").forEach((el) => {
-    range.selectNodeContents(el);
-    Array.from(range.getClientRects()).forEach(add);
-  });
-  qa<HTMLElement>(section, ".hero__ctas .btn").forEach((el) => add(el.getBoundingClientRect()));
-  return boxes;
-}
-
-/**
- * Pins the hero for 80% of a viewport of scroll. Scrubbed: the ghost frames fade
- * one by one while the mat line extends into the right margin, drops down it
- * and turns into the floor-exercise diagonal that leaves through the hero's
- * bottom edge toward the next section — around the text, never through it.
- */
-function pinHero(
-  ScrollTrigger: ScrollTriggerStatic,
-  section: HTMLElement,
-  decor: HTMLElement,
-  art: SVGSVGElement | undefined,
-): () => void {
-  const matSvg = q<SVGSVGElement>(decor, ".hero-mat");
-  if (!art || !matSvg) return () => {};
-
-  const spine = document.createElementNS(SVG_NS, "svg");
-  spine.setAttribute("class", "hero-spine");
-  spine.setAttribute("aria-hidden", "true");
-  spine.setAttribute("focusable", "false");
-  const line = document.createElementNS(SVG_NS, "path");
-  line.setAttribute("pathLength", "1");
-  spine.appendChild(line);
-  section.prepend(spine);
-
-  // Route: mat end → right margin → down the margin → a 28° diagonal through
-  // the empty space under the aside, out through the hero's bottom edge toward
-  // the next section. It never crosses text (see spine.ts).
-  const layout = () => {
-    const s = section.getBoundingClientRect();
-    const m = matSvg.getBoundingClientRect();
-    const w = section.clientWidth;
-    const h = section.offsetHeight;
-    const matY = m.top + m.height / 2 - s.top;
-    const matEnd = m.right - s.left;
-    const inner = q<HTMLElement>(section, ".hero__inner");
-    const left = inner ? parseFloat(getComputedStyle(inner).paddingLeft) + inner.getBoundingClientRect().left - s.left : 48;
-    spine.setAttribute("viewBox", `0 0 ${w} ${h}`);
-    line.setAttribute(
-      "d",
-      spinePath({
-        matY,
-        matEnd,
-        // Hugs the content column: half the margin, at most 32px out.
-        turn: matEnd + Math.min(32, (w - matEnd) / 2),
-        bottom: h,
-        left,
-        obstacles: textBoxes(section, s, 16),
-      }),
-    );
-  };
-  layout();
-  ScrollTrigger.addEventListener("refreshInit", layout);
-
-  // Oldest frames decay first, like afterimages. The diagonal grows out of the
-  // mat's right end (under the logo) from the first wheel tick and reaches the
-  // hero's bottom edge exactly at the pin's end.
-  const ghosts = qa<SVGGElement>(art, "[data-hero-ghost]");
-  const ticks = qa<SVGLineElement>(art, "[data-hero-tick]");
-  const tl = gsap
-    .timeline({ defaults: { ease: "none" } })
-    .to(ghosts, { opacity: 0, duration: 0.2, stagger: 0.09 }, 0)
-    .to(ticks, { opacity: 0, duration: 0.2, stagger: 0.09 }, 0)
-    .fromTo(line, { strokeDashoffset: 1 }, { strokeDashoffset: 0, autoRound: false, duration: 1 }, 0);
-
-  ScrollTrigger.create({
-    trigger: section,
-    // A hero taller than the viewport pins when its bottom reaches the viewport bottom.
-    start: () => (section.offsetHeight > window.innerHeight + 1 ? "bottom bottom" : "top top"),
-    end: "+=80%",
-    pin: true,
-    scrub: 0.5,
-    animation: tl,
-    invalidateOnRefresh: true,
-  });
-  ScrollTrigger.refresh();
-
-  return () => {
-    ScrollTrigger.removeEventListener("refreshInit", layout);
-    spine.remove();
-  };
 }

@@ -55,9 +55,33 @@ export interface Balance {
   lags: number[];
 }
 
-export const SPRING = { stiffness: 90, damping: 9, lagTau: 0.07 } as const;
-/** Initial push (deg/s) for the one-shot "catch the balance" wobble on load. */
-export const SETTLE_KICK = -60;
+/**
+ * ζ ≈ 0.35: a real catch on the beam — one clear lean, a counter-sway, a small
+ * correction, still (design review C-17: the old ζ ≈ 0.47 and a −60 °/s push swayed
+ * ~3° and read as a still image).
+ */
+export const SPRING = { stiffness: 100, damping: 7, lagTau: 0.07 } as const;
+/**
+ * Initial push (deg/s) for the one-shot "catch the balance" wobble on load:
+ * ≈ 14° first lean, then ≈ 4° and ≈ 1° the other way; visibly still after ≈ 1.4 s.
+ */
+export const SETTLE_KICK = -250;
+/** When the load catch is over (ms after the push): the judges post the score (4.04). */
+export const SCORE_POST_MS = 900;
+
+/** Largest lean (deg) the desktop pointer can ask for — less than the phone's MAX_TILT. */
+export const POINTER_TILT = 12;
+
+/**
+ * Desktop (fine pointer) balance: the pointer's horizontal offset from the
+ * scene's centre, as a share of the scene width, tilts her toward it
+ * (±POINTER_TILT at ±40% of the width). Missing geometry → upright.
+ */
+export function pointerTarget(clientX: number, stageLeft: number, stageWidth: number): number {
+  if (!(stageWidth > 0) || !Number.isFinite(clientX)) return 0;
+  const t = ((clientX - (stageLeft + stageWidth / 2)) / stageWidth) * 30;
+  return Math.max(-POINTER_TILT, Math.min(POINTER_TILT, t));
+}
 
 export const createBalance = (ghosts: number, velocity = 0): Balance => ({ angle: 0, velocity, lags: Array.from({ length: ghosts }, () => 0) });
 

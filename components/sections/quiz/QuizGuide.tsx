@@ -7,13 +7,13 @@
  */
 import { Fragment } from "react";
 import { QUIZ } from "@/content/copy";
-import { programById } from "@/content/programs";
 import { CTA } from "@/content/site";
 import { QUIZ_RULES } from "@/lib/quiz";
 import { typesetSr } from "@/lib/typeset";
 import { QuizBand } from "./QuizBand";
+import { QuizBandArt } from "./QuizBandArt";
 import { QuizActions, QuizGroups } from "./QuizGroups";
-import { QUIZ_UI, resultView } from "./views";
+import { QUIZ_UI, aerobicHint, ctaLabel, resultView } from "./views";
 
 const agesLabel = ([from, to]: readonly [number, number]) =>
   typesetSr(`${from === to ? from : `${from}–${to}`} ${QUIZ_UI.ageUnit}`);
@@ -21,7 +21,7 @@ const agesLabel = ([from, to]: readonly [number, number]) =>
 export function QuizGuide() {
   return (
     <div className="quiz-card quiz-guide">
-      <QuizBand step={2} still />
+      <QuizBand step={2} still art={<QuizBandArt />} />
       <div className="quiz-body">
         <ol className="quiz-rules">
           {QUIZ_RULES.map((rule) => (
@@ -49,10 +49,9 @@ export function QuizGuide() {
         {/* The guide lists every rule, so its CTA names no single group („… za ovu grupu“ is the result card's). */}
         <QuizActions
           booking=""
-          cta={typesetSr(CTA.trial)}
+          cta={ctaLabel(CTA.trial, false)}
           finalNote={typesetSr(QUIZ.finalNote)}
-          aerobicHint={typesetSr(QUIZ.aerobicHint)}
-          aerobicColor={programById("aerobik").color}
+          hint={aerobicHint()}
         />
       </div>
     </div>
