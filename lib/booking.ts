@@ -38,7 +38,7 @@ export const EMPTY_BOOKING: BookingValues = {
   note: "",
 };
 
-export const BOOKING_INTRO = "Dobar dan, želim da prijavim dete na probni trening.";
+export const BOOKING_INTRO = BOOKING.message.intro;
 
 /**
  * "Undecided" option of the Grupa select (value ""), and how it reads in the message.

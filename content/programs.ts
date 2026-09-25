@@ -95,7 +95,7 @@ export const PROGRAMS: readonly Program[] = [
     id: "aerobik",
     n: 5,
     title: "Aerobna gimnastika",
-    short: "Aerobik",
+    short: "Aerobna gimnastika",
     age: null,
     color: "#c9b8ff",
     colorIsDark: false,

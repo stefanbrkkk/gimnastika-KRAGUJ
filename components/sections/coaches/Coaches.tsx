@@ -31,7 +31,7 @@ function PortraitPending() {
         </svg>
       </div>
       <figcaption className="frame-foot">
-        <span className="frame-label">{COACHES_COPY.portraitPending}</span>
+        <span className="frame-label">{COACHES_COPY.portraitFrame}</span>
       </figcaption>
     </figure>
   );
@@ -66,8 +66,8 @@ function CoachCard({ coach, index }: { coach: Coach; index: number }) {
           </h3>
           <ul className="coach__roles" role="list">
             {coach.roles.map((role) => (
-              <li key={role} className="coach__role">
-                {role}
+              <li key={role.text} className="coach__role">
+                {role.text}
               </li>
             ))}
           </ul>

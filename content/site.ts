@@ -107,6 +107,10 @@ export const SOURCES = {
   registered2026Zsg: "https://www.gssrb.rs/wp-content/uploads/2026/06/ZSG-Registrovane-takmicarke-I-rok-2026-azurirano-22.06.2026-1.pdf",
   registered2026Aer: "https://www.gssrb.rs/wp-content/uploads/2026/06/AER-Registrovane-takmicarke-I-rok-2026-azurirano-22.6.2026.-.pdf",
   gssClub: "https://www.gssrb.rs/kragujevac/",
+  /** GSS list of registered coaches (ŽSG), September 2026 — both coaches' licences. */
+  coachLicences: "https://www.gssrb.rs/wp-content/uploads/2026/09/ЖСГ-Ажирирани-списак-регистрованих-тренера-септембар-2026.pdf",
+  /** GSS list of licensed judges 2026 — Slađana Kovačević. */
+  judgeLicences: "https://www.gssrb.rs/wp-content/uploads/2026/09/Licencirane-sutkinje-2026.pdf",
 } as const;
 
 export const SEO = {

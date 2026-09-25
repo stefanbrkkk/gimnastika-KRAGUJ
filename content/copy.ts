@@ -3,7 +3,7 @@
  * Quotes are always „…“. Coaches use feminine forms (trenerica, sutkinja, predsednica, članica).
  * Edit copy here — components only render it.
  */
-import { CAMP_NOTE_UNTIL, PRIMARY_PHONE } from "./site";
+import { CAMP_NOTE_UNTIL, PRIMARY_PHONE, SOURCES } from "./site";
 
 export const SKIP_LINK = "Preskoči na sadržaj";
 
@@ -61,10 +61,16 @@ export const ABOUT = {
   timelineLabel: "Hronologija",
 } as const;
 
+export interface CoachRole {
+  text: string;
+  /** ✅ source for licence claims (GSS lists, docs/dosije.md §3). */
+  sourceUrl?: string;
+}
+
 export interface Coach {
   name: string;
   /** Role lines, rendered in order. */
-  roles: readonly string[];
+  roles: readonly CoachRole[];
   /** null → silhouette placeholder in a contact-sheet frame. */
   photoId: "06" | null;
   /** Stays empty — no invented bios. */
@@ -75,23 +81,27 @@ export const COACHES_COPY = {
   heading: "Trenerice",
   badge: "Licenca GSS",
   groupPhotoCaption: "Na takmičenju",
-  portraitPending: "Portret uskoro",
+  /** Frame label of the silhouette placeholder: the empty slot of the excluded photo 07 (no promise in the UI). */
+  portraitFrame: "KR-07",
 } as const;
 
 export const COACHES: readonly Coach[] = [
   {
     name: "Slađana Kovačević",
     roles: [
-      "Predsednica kluba",
-      "Licencirana trenerica sportske gimnastike (GSS)",
-      "Licencirana sutkinja za žensku sportsku gimnastiku (GSS)",
+      { text: "Predsednica kluba" },
+      { text: "Licencirana trenerica sportske gimnastike (GSS)", sourceUrl: SOURCES.coachLicences },
+      { text: "Licencirana sutkinja za žensku sportsku gimnastiku (GSS)", sourceUrl: SOURCES.judgeLicences },
     ],
     // TODO(klub): request a portrait in club kit (photo 07 excluded — beauty-studio rights).
     photoId: null,
   },
   {
     name: "Ivana Kovačević",
-    roles: ["Licencirana trenerica sportske gimnastike (GSS)", "Članica upravnog odbora kluba"],
+    roles: [
+      { text: "Licencirana trenerica sportske gimnastike (GSS)", sourceUrl: SOURCES.coachLicences },
+      { text: "Članica upravnog odbora kluba" },
+    ],
     photoId: "06",
   },
 ];
@@ -148,6 +158,16 @@ export const BOOKING = {
     viber: "Viber",
   },
   emailSubject: "Probni trening",
+  /** Parts of the §5 message: "Dobar dan, … Roditelj: …, tel: …; dete: …, godište …; grupa: …; napomena: …" */
+  message: {
+    intro: "Dobar dan, želim da prijavim dete na probni trening.",
+    parent: "Roditelj",
+    phone: "tel",
+    child: "dete",
+    birthYear: "godište",
+    group: "grupa",
+    note: "napomena",
+  },
   after: `Poruka je spremna — pošaljite je u aplikaciji. Ako vam se ne javimo, pozovite ${PRIMARY_PHONE.display}.`,
   viberFailed: `Viber se nije otvorio — pozovite ${PRIMARY_PHONE.display} ili pošaljite SMS.`,
   close: "Zatvorite",
@@ -175,7 +195,7 @@ export const FOOTER = {
 export const NOT_FOUND = {
   title: "Ups — ova stranica je izgubila ravnotežu.",
   cta: "Nazad na početnu",
-  enableTilt: "Uključite nagib telefona",
+  enableTilt: "Uključite senzor pokreta",
 } as const;
 
 export const PHOTO_PLACEHOLDER = "Fotografija uskoro";

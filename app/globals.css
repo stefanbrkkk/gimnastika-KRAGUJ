@@ -124,6 +124,23 @@
    Section themes. Light: chalk bg, navy text, navy CTA. Dark: navy bg,
    ice text, lavender CTA with navy text. Focus: violet on light, lavender on dark.
    ========================================================================== */
+:root {
+  /* Motion tokens mirrored from lib/motion-env.ts (DUR / OFFSET). */
+  --dur-tap: 100ms;
+  --dur-fast: 180ms;
+  --dur-base: 280ms;
+  --dur-reveal: 600ms;
+  --dur-slow: 900ms;
+  --dur-slow-squash: 350ms;
+  --offset-reveal: 16px;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --offset-reveal: 24px;
+  }
+}
+
 :root,
 [data-theme="light"] {
   --bg: var(--color-chalk);
@@ -230,7 +247,7 @@
       font-stretch: 120%;
     }
     h3 {
-      font-stretch: 112%;
+      font-stretch: 118%;
     }
   }
 
@@ -342,16 +359,26 @@
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
     transition:
-      transform 0.35s var(--ease-rebound),
-      box-shadow 0.1s linear,
-      background-color 0.18s var(--ease-stick),
-      color 0.18s var(--ease-stick);
+      translate var(--dur-slow-squash) var(--ease-rebound),
+      scale var(--dur-slow-squash) var(--ease-rebound),
+      box-shadow var(--dur-tap) linear,
+      background-color var(--dur-fast) var(--ease-stick),
+      color var(--dur-fast) var(--ease-stick);
   }
 
+  /* Press: translateY(2px) + lip → 0, with the "doskok" squash (§3/§4). Individual
+     transform properties so the squash composes with any GSAP transform. */
   .btn:active {
-    transform: translateY(2px) scale(1.03, 0.94);
+    translate: 0 2px;
+    scale: 1.03 0.94;
     box-shadow: none;
-    transition-duration: 0.1s;
+    transition-duration: var(--dur-tap);
+  }
+
+  /* Same squash on :active for every other button (§4 "Same squash on :active for all buttons"). */
+  :where(button, [role="button"], summary):not(:disabled):active {
+    translate: 0 1px;
+    scale: 1.03 0.94;
   }
 
   .btn-primary {
@@ -424,10 +451,19 @@
 
 @media (prefers-reduced-motion: reduce) {
   .btn,
-  .btn:active {
+  .btn:active,
+  :where(button, [role="button"], summary):active {
     transition: none;
-    transform: none;
+    translate: none;
+    scale: none;
   }
+}
+
+/* Keyboard focus that component box-shadows can never hide: an outline drawn exactly where
+   the spec's ring sits (3px gap + 2px ring, §3). Unlayered on purpose. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
 }
 
 /* ==========================================================================

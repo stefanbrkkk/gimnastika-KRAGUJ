@@ -68,3 +68,17 @@ export function whenNear(el: Element, onNear: () => void, margin = "100% 0px 100
   io.observe(el);
   return () => io.disconnect();
 }
+
+/**
+ * "ONE primary motion per viewport" across sections: sections run their primary
+ * motion through this queue, so a motion that starts while another section's
+ * primary motion is still playing waits for it (at most `maxWaitMs`).
+ *   await queuePrimaryMotion(900); // then start the timeline (≈900 ms long)
+ */
+let primaryBusyUntil = 0;
+export function queuePrimaryMotion(durationMs: number, maxWaitMs = 700): Promise<void> {
+  const now = typeof performance === "undefined" ? 0 : performance.now();
+  const wait = Math.max(0, Math.min(primaryBusyUntil - now, maxWaitMs));
+  primaryBusyUntil = now + wait + durationMs;
+  return wait > 0 ? new Promise((resolve) => setTimeout(resolve, wait)) : Promise.resolve();
+}

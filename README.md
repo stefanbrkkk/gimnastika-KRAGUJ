@@ -55,6 +55,12 @@ npm run svg      # optimizuje logo (svgo) i pravi putanje za SVG sprite
 Nova fotografija se dodaje u `content/photos.ts`: `slug`, `file`, `frame`, `alt` bez imena,
 `hasMinors`. Zatim pokrenite `npm run images`. Skripta čita isključivo fajlove navedene u registru.
 
+## Fontovi
+
+Mona Sans i Doto su u `fonts/` kao podskupovi (samo znakovi koje sajt koristi). Ako tekst dobije
+novi znak (npr. ö, ü), dodajte ga u `scripts/fonts.sh` i pokrenite je (potreban je Python
+`fonttools`; uputstvo je u zaglavlju skripte).
+
 ## Prekidači (`content/site.ts`)
 
 Svaki prekidač ima podrazumevanu vrednost u `content/site.ts`. Za jednokratni build može se
@@ -66,7 +72,7 @@ zadati i kroz promenljivu okruženja: `NEXT_PUBLIC_<IME>=true|false npm run buil
 | `SHOW_SHIFT_NOTE` | `false` | Dodaje „ · po školskoj smeni“ terminima „08:30–10:30 ili 16:00–18:00“. |
 | `SHOW_TRAMPOLINE` | `false` | Program „Trampolina“ (pominje se samo u Instagram biu). Traži i opis u `content/programs.ts`. |
 | `SHOW_FEES` | `false` | FAQ o članarini (traži i odgovor u `content/faq.ts`). |
-| `SHOW_VIBER` | `false` | Viber dugme umesto SMS-a u donjoj traci i u formi. |
+| `SHOW_VIBER` | `false` | U donjoj traci Viber zamenjuje SMS; u formi za probni trening Viber se dodaje pored SMS-a i emaila. |
 | `SHOW_FACEBOOK` | `false` | Link ka Facebook stranici (i u JSON-LD `sameAs`). |
 | `SHOW_EQUIPMENT_2026` | `false` | Stavka „novi dvovisinski razboj uz podršku Grada“ u hronologiji. |
 | `MINOR_PHOTOS` | `true` | Fotografije na kojima su deca. Kad je `false`, svaka takva fotografija se prikazuje kao tamnoplavi okvir sa siluetom i natpisom „Fotografija uskoro“, a fajl se ne kopira u `out/`. |
@@ -74,6 +80,8 @@ zadati i kroz promenljivu okruženja: `NEXT_PUBLIC_<IME>=true|false npm run buil
 | `INDEXABLE` | `false` | Samo `<meta name="robots">`, `robots.txt` i `sitemap.xml`. `false` → `noindex, nofollow, noimageindex`; `robots.txt` dozvoljava HTML (da bi pretraživač video `noindex`), ali zabranjuje `/img/`; bez linije `Sitemap`; prazan `sitemap.xml`. `true` → `index, follow`; `robots.txt` sa `Sitemap`; `sitemap.xml` sadrži `SITE_URL/`. |
 | `CAMP_NOTE_UNTIL` | `2027-06-30` | Posle ovog datuma se ne prikazuje rečenica o prijavama za kamp 2027. |
 | `SITE_URL` (env) | `https://gimnastikakraguj.rs` | Kanonska adresa (domen još nije kupljen). |
+| `CREDIT_NAME` | `Stefan Brkljačić` | Ime u footeru („Izrada sajta: …“). |
+| `CREDIT_URL` | `""` | Opcioni link iza imena u footeru; prazno = bez linka. |
 
 > **Pravilo saglasnosti — obavezno.** Javni URL (uključujući `*.pages.dev`) je dozvoljen samo
 > sa `MINOR_PHOTOS=false` **ili** pošto klub potvrdi da ima saglasnost roditelja za objavu
@@ -85,7 +93,7 @@ zadati i kroz promenljivu okruženja: `NEXT_PUBLIC_<IME>=true|false npm run buil
 Ovaj build **nije** objavljen. Kad klub potvrdi prekidače:
 
 1. Cloudflare dashboard → Workers & Pages → Create → Pages → poveži Git repozitorijum.
-2. Build command: `npm run build` · Build output directory: `out` · Environment: `NODE_VERSION=22`.
+2. Build command: `npm run build` · Build output directory: `out` · Environment: `NODE_VERSION=22.18.0` (ili noviji; postbuild pokreće `.ts` skriptu preko Node-ovog type strippinga, koji postoji od 22.18).
 3. Po potrebi dodajte `NEXT_PUBLIC_SITE_URL` (pravi domen) i prekidače kao env promenljive.
 4. Za privatni pregled pre objave: Zero Trust → Access → Applications → zaštitite
    `<projekat>.pages.dev` (i preview URL-ove) pravilom „emails: …“. Tako pregled nije javan.

@@ -32,7 +32,10 @@ async function htmlFiles(dir) {
 // Waits for the browser's real first-contentful-paint entry (the frame is presented),
 // then loads the scripts in the next task. Fallbacks: rAF → setTimeout where paint
 // timing is unsupported, and a 1.5 s timer (background tabs, no contentful paint).
-const LOADER = `(function(){var d=document,l=JSON.parse(d.getElementById("kraguj-deferred-scripts").textContent),done=0;function go(){if(done)return;done=1;for(var i=0;i<l.length;i++){var s=d.createElement("script");s.src=l[i].src;if(l[i].id)s.id=l[i].id;s.async=true;d.body.appendChild(s)}}function soon(){setTimeout(go,0)}try{if(performance.getEntriesByName("first-contentful-paint").length)soon();else new PerformanceObserver(function(e,o){if(e.getEntriesByName("first-contentful-paint").length){o.disconnect();soon()}}).observe({type:"paint",buffered:true})}catch(x){requestAnimationFrame(soon)}setTimeout(go,1500)})();`;
+// Robustness: if a script fails to load, or the page has not hydrated 12 s after the
+// scripts were requested (components/ui/HeadingLandings.tsx sets html[data-hydrated]),
+// html.js/js-motion are removed so the no-JS fallbacks show instead of dead controls.
+const LOADER = `(function(){var d=document,h=d.documentElement,l=JSON.parse(d.getElementById("kraguj-deferred-scripts").textContent),done=0;function nojs(){if(!h.dataset.hydrated){h.classList.remove("js","js-motion")}}function go(){if(done)return;done=1;for(var i=0;i<l.length;i++){var s=d.createElement("script");s.src=l[i].src;if(l[i].id)s.id=l[i].id;s.async=true;s.onerror=nojs;d.body.appendChild(s)}setTimeout(nojs,12000)}function soon(){setTimeout(go,0)}try{if(performance.getEntriesByName("first-contentful-paint").length)soon();else new PerformanceObserver(function(e,o){if(e.getEntriesByName("first-contentful-paint").length){o.disconnect();soon()}}).observe({type:"paint",buffered:true})}catch(x){requestAnimationFrame(soon)}setTimeout(go,1500)})();`;
 
 let changed = 0;
 for (const file of await htmlFiles(OUT)) {
