@@ -1,11 +1,12 @@
 /**
- * Hero art geometry (server-side, pure math, no gsap).
+ * Parabola geometry of the share image (components/seo/art.ts — the OG still:
+ * the silhouette's leap from the mat into the logo). The hero itself is drawn
+ * by pass.ts (the floor pass); this module is kept for the OG image only.
  *
- * The art is drawn in LOGO UNITS (the logo is 490 × 213 at scale 1), so the
- * flying silhouette, the ghost frames and the landed silhouette are the same
- * <use href="#leap"> at the same size. Each variant is one parabola (a
- * quadratic Bézier, written as the equivalent cubic) from a takeoff on the
- * mat line to the silhouette's exact position inside the logo.
+ * Pure math, no gsap. The art is drawn in LOGO UNITS (the logo is 490 × 213 at
+ * scale 1). Each variant is one parabola (a quadratic Bézier, written as the
+ * equivalent cubic) from a takeoff on the mat line to the silhouette's exact
+ * position inside the logo.
  *
  * Ghost frames must sit exactly where the motion layer's
  * gsap.set(el, { motionPath: { path, align: path, alignOrigin: [.5, .6], end: p } })
@@ -135,32 +136,3 @@ export function buildVariant(spec: VariantSpec): ArtVariant {
     landed: [lx + LEAP_IN_LOGO.x, ly + LEAP_IN_LOGO.y],
   };
 }
-
-/**
- * Phones and portrait tablets (portrait touch ≥ 1024 px included): a high leap
- * from the left edge, landing in a logo that fills the right two-thirds.
- * Container 320 px → 1 unit ≈ .45 px.
- */
-export const COMPACT_SPEC: VariantSpec = {
-  width: 713,
-  mat: 404,
-  logo: [223, 404 - 196],
-  takeoffX: 0,
-  apexY: 95,
-};
-
-/**
- * Landscape ≥ 640 px and desktop (≥ 1024 px with a fine pointer): a long, low
- * travelling leap (the logo's own grand jeté) across the band above the
- * headline. Container 1320 px → 1 unit = .8 px.
- */
-export const WIDE_SPEC: VariantSpec = {
-  width: 1650,
-  mat: 256,
-  logo: [1650 - 490, 256 - 196],
-  takeoffX: 80,
-  apexY: 92,
-};
-
-export const COMPACT = buildVariant(COMPACT_SPEC);
-export const WIDE = buildVariant(WIDE_SPEC);

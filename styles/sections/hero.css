@@ -91,14 +91,15 @@
   }
 }
 
-.hero-art__path {
-  fill: none;
-  stroke: none;
-}
-
 .hero-art__wordmark,
 .hero-art__leap {
   color: var(--color-white);
+}
+
+/* Chalk lifting off the mat at the touchdown — only during the intro. */
+.hero-art__chalk circle {
+  fill: var(--color-chalk);
+  opacity: 0;
 }
 
 /* Tap target of the easter egg: the silhouette's whole box, not just its ink. */
@@ -132,6 +133,16 @@
   stroke-width: 1.5;
   stroke-dasharray: 1 1;
   stroke-dashoffset: 0;
+}
+
+/* The floor giving under the landing (the motion layer shows it for ≤ .34 s,
+   while the straight mat under it is dashed out). The mat's viewBox stretches
+   x only, so the stroke is kept at 1.5 screen px. */
+.hero-mat .hero-mat__flex {
+  visibility: hidden;
+  stroke-dasharray: none;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 
 /* Desktop scrub: the floor-exercise diagonal (created by the motion layer). */

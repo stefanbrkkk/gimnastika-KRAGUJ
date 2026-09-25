@@ -1,22 +1,42 @@
 import { GHOST_COLOR, GHOST_OPACITY, LEAP_BOX } from "./constants";
-import type { ArtVariant } from "./geometry";
+import { CHALK, RIG_CLIP, type PassVariant } from "./pass";
 
 const { width: W, height: H } = LEAP_BOX;
 
 /**
- * One art variant, in logo units: compact (the high leap — phones, portrait
- * tablets, portrait touch ≥ 1024 px) or wide (the long, low leap — landscape
- * ≥ 640 px, or ≥ 1024 px with a fine pointer). CSS shows one (hero.css).
- * Static state = the FINAL composition: 6 ghost frames along the parabola,
- * the wordmark fully revealed and the white silhouette landed in the logo.
- * Everything is a <use> of the #leap / #wordmark sprite symbols.
- *
- * Every silhouette carries an invisible 230 × 150 box so its bbox (what
- * MotionPathPlugin aligns with alignOrigin [.5, .6]) is exactly the symbol box.
+ * The gymnast: the logo's silhouette as three clipped copies of #leap — torso,
+ * back leg, front leg (pass.ts, "The rig"). `back`/`front` turn the legs about
+ * their hip joints; without them the three parts are the logo, exactly.
  */
-export function HeroArt({ variant, name }: { variant: ArtVariant; name: "compact" | "wide" }) {
+function Gymnast({ rig, back, front }: { rig: string; back?: string; front?: string }) {
+  return (
+    <>
+      <use href="#leap" width={W} height={H} clipPath={`url(#${rig}-torso)`} />
+      <use href="#leap" width={W} height={H} clipPath={`url(#${rig}-back)`} transform={back} data-hero-leg="back" />
+      <use href="#leap" width={W} height={H} clipPath={`url(#${rig}-front)`} transform={front} data-hero-leg="front" />
+    </>
+  );
+}
+
+/**
+ * One art variant, in logo units: compact (the high pass — phones, portrait
+ * tablets, portrait touch ≥ 1024 px) or wide (the long pass — landscape
+ * ≥ 640 px, or ≥ 1024 px with a fine pointer). CSS shows one (hero.css).
+ *
+ * Static state = the FINAL composition, a chronophotograph of the floor pass:
+ * six ghost frames (the running bounds, the takeoff, the legs opening to the
+ * split on the rise and at the apex), each the gymnast at one shutter time
+ * (pass.ts), a frame mark on the mat under each, the wordmark, and the
+ * gymnast landed in the logo. The chalk puff is hidden at rest.
+ *
+ * Every silhouette carries an invisible 230 × 150 box (the landed one is the
+ * easter egg's tap target).
+ */
+export function HeroArt({ variant, name }: { variant: PassVariant; name: "compact" | "wide" }) {
   const [lx, ly] = variant.logo;
   const [fx, fy] = variant.landed;
+  const [tx, ty] = variant.touchdown;
+  const rig = `hero-rig-${name}`;
   return (
     <svg
       className={`hero-art hero-art--${name}`}
@@ -25,13 +45,26 @@ export function HeroArt({ variant, name }: { variant: ArtVariant; name: "compact
       aria-hidden="true"
       focusable="false"
     >
-      <path className="hero-art__path" d={variant.d} data-hero-path="" />
+      <defs>
+        <clipPath id={`${rig}-torso`}>
+          <path d={RIG_CLIP.torso} />
+          {RIG_CLIP.torsoDiscs.map(([cx, cy, r]) => (
+            <circle key={cx} cx={cx} cy={cy} r={r} />
+          ))}
+        </clipPath>
+        <clipPath id={`${rig}-back`}>
+          <path d={RIG_CLIP.back} />
+        </clipPath>
+        <clipPath id={`${rig}-front`}>
+          <path d={RIG_CLIP.front} />
+        </clipPath>
+      </defs>
       <g className="hero-art__ticks">
-        {variant.ghostPoints.map(([x], i) => (
+        {variant.ghosts.map((g, i) => (
           <line
             key={i}
-            x1={x}
-            x2={x}
+            x1={g.x}
+            x2={g.x}
             y1={variant.height}
             y2={variant.height - (name === "wide" ? 9 : 16)}
             data-hero-tick=""
@@ -40,22 +73,22 @@ export function HeroArt({ variant, name }: { variant: ArtVariant; name: "compact
         ))}
       </g>
       <g className="hero-art__ghosts">
-        {variant.ghosts.map(([x, y], i) => (
-          <g
-            key={i}
-            transform={`translate(${x} ${y})`}
-            data-hero-ghost=""
-            style={{ color: GHOST_COLOR[i], opacity: GHOST_OPACITY[i] }}
-          >
+        {variant.ghosts.map((g, i) => (
+          <g key={i} transform={g.transform} data-hero-ghost="" style={{ color: GHOST_COLOR[i], opacity: GHOST_OPACITY[i] }}>
             <rect width={W} height={H} fill="none" />
-            <use href="#leap" width={W} height={H} />
+            <Gymnast rig={rig} back={g.back} front={g.front} />
           </g>
         ))}
       </g>
       <use className="hero-art__wordmark" href="#wordmark" x={lx} y={ly} width={490} height={213} data-hero-wordmark="" />
       <g className="hero-art__leap" transform={`translate(${fx} ${fy})`} data-hero-leap="">
         <rect className="hero-art__hit" width={W} height={H} fill="none" data-hero-leap-hit="" />
-        <use href="#leap" width={W} height={H} />
+        <Gymnast rig={rig} />
+      </g>
+      <g className="hero-art__chalk" data-hero-chalk="">
+        {CHALK.map(([, , size], i) => (
+          <circle key={i} cx={tx} cy={ty} r={variant.spec.chalkR * size} />
+        ))}
       </g>
     </svg>
   );
