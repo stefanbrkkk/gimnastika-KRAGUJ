@@ -99,8 +99,8 @@ export function afterHeroIntro(): Promise<void> {
 }
 
 /**
- * Calls `onNear` once when `el` is within `margin` of the viewport
- * (default: ≤1 viewport away), never before the hero intro is over
+ * Calls `onNear` once when `el` (or its page section) is within `margin` of the
+ * viewport (default: ≤1 viewport away), never before the hero intro is over
  * (afterHeroIntro). Returns a cleanup function.
  */
 export function whenNear(el: Element, onNear: () => void, margin = "100% 0px 100% 0px"): () => void {
@@ -119,6 +119,11 @@ export function whenNear(el: Element, onNear: () => void, margin = "100% 0px 100
     { rootMargin: margin },
   );
   io.observe(el);
+  // Sections from S3 on use content-visibility: auto (D-38): their inner elements get no
+  // layout until the section is close, so they would report late. The section box itself is
+  // always laid out, so observing it too keeps the full look-ahead.
+  const section = el.closest("main > section");
+  if (section && section !== el) io.observe(section);
   return () => {
     live = false;
     io.disconnect();

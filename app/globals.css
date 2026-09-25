@@ -225,6 +225,15 @@
     background: var(--color-navy-900);
   }
 
+  /* D-38: until the first contentful paint of a plain first visit (html.cv, set and removed by
+     the head script in app/layout.tsx), sections from S3 on skip layout, so the first paint
+     lays out only S1 + S2 and their fonts/photos are not fetched before it (LCP 2.10 → 1.80 s).
+     Never with a #hash, a restored scroll position or without JS: anchors land on real layout. */
+  html.cv main > section:not(#top):not(#kviz) {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 1200px;
+  }
+
   @media (prefers-reduced-motion: no-preference) {
     html {
       scroll-behavior: smooth;

@@ -100,6 +100,16 @@ anything undecided was decided here and can be reverted by the club.
   for the label it leaves). The clipped-away copies were real text for contrast checkers (axe 1.11:1, Lighthouse a11y 97).
 - **D-37 · The header tone follows nested full-bleed bands** marked `[data-header-band]` (S5 „Hronologija“ is dark
   inside a light section), preferred over their parent section.
+- **D-38 · Until the first paint, sections from S3 on use `content-visibility: auto`** (html.cv, app/globals.css + the
+  head script in app/layout.tsx). On a plain first visit (no #hash, navigation type „navigate“, JS on) the head script
+  sets html.cv, and it removes it in the frame after the first contentful paint (1.5 s fallback). The first paint lays out
+  only S1 + S2, and the below-the-fold fonts and photos (Doto, KR-04) are no longer requested before it. Lighthouse mobile
+  LCP 2.10 → 1.80 s, TBT 46 ms (median of 3; the extra step was one simulated RTT from those requests plus the layout of the whole
+  page). Measured alternatives: removing KR-04 or Doto, or inlining the grain, gave nothing on its own; all three together
+  gave 1.96–2.03 s. A permanent `content-visibility` was tried and rejected: deep links landed 276 px off (placeholder
+  heights above the target), and the no-JS readability checks failed. Hence the first-paint-only window, which never
+  affects anchors, restored scroll positions or no-JS. `whenNear()` also observes the enclosing section, which is harmless
+  and keeps the look-ahead if the window is ever widened.
 
 ## Images & privacy
 
