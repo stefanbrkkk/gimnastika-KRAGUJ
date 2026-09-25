@@ -218,6 +218,100 @@ async function booking(browser, url, report, consoleLog) {
   await context.close();
 }
 
+/** COPY-01 guard: no link/button in the accessibility tree without a name (after a full scroll). */
+async function accessibleNames(browser, url, report) {
+  for (const sizeId of ["390x844", "1440x900"]) {
+    const context = await browser.newContext(contextOptions(sizeById(sizeId)));
+    const page = await context.newPage();
+    await page.goto(`${url}/`, { waitUntil: "load" });
+    await waitForIntro(page);
+    for (let y = 0; y < 40000; y += 700) {
+      await page.evaluate((yy) => window.scrollTo(0, yy), y);
+      await page.waitForTimeout(40);
+    }
+    await page.waitForTimeout(800);
+    const cdp = await context.newCDPSession(page);
+    const { nodes } = await cdp.send("Accessibility.getFullAXTree");
+    const empty = nodes.filter(
+      (n) => !n.ignored && ["link", "button"].includes(n.role?.value) && !String(n.name?.value ?? "").trim(),
+    );
+    report.check(`a11y.names.${sizeId}`, empty.length === 0, `${empty.length} link(s)/button(s) without an accessible name`, empty.slice(0, 5).map((n) => n.backendDOMNodeId));
+    await context.close();
+  }
+}
+
+/** Desktop deep links never jump: no pin under a scrolled viewport, target lands under the header. */
+async function heroDeepLink(browser, url, report) {
+  const context = await browser.newContext(contextOptions(sizeById("1440x900")));
+  const page = await context.newPage();
+  await page.addInitScript(() => {
+    window.__cls = 0;
+    new PerformanceObserver((l) => {
+      for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value;
+    }).observe({ type: "layout-shift", buffered: true });
+  });
+  for (const hash of ["#raspored", "#uspesi"]) {
+    await page.goto(`${url}/${hash}`, { waitUntil: "load" });
+    await page.waitForTimeout(3500);
+    const r = await page.evaluate((h) => ({
+      top: Math.round(document.querySelector(h).getBoundingClientRect().top),
+      pin: !!document.querySelector(".pin-spacer"),
+      cls: window.__cls,
+    }), hash);
+    report.check(`hero.deepLink${hash}`, Math.abs(r.top - 88) <= 8 && !r.pin && r.cls < 0.05, `${hash}: top ${r.top}px (want 88±8), pin-spacer ${r.pin}, CLS ${r.cls.toFixed(3)}`, r);
+  }
+  await context.close();
+}
+
+/** Landscape phone: the menu sheet shows its call link without scrolling. */
+async function landscapeMenu(browser, url, report) {
+  const context = await browser.newContext({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  const page = await context.newPage();
+  await page.goto(`${url}/`, { waitUntil: "load" });
+  await waitForIntro(page);
+  await page.waitForTimeout(600);
+  const btn = page.locator(".site-header .menu-btn").first();
+  if (!(await btn.count()) || !(await btn.isVisible())) {
+    report.skip("menu.landscape", "no visible menu button at 844×390");
+    await context.close();
+    return;
+  }
+  await btn.click();
+  await page.waitForTimeout(600);
+  const r = await page.evaluate(() => {
+    const d = document.querySelector("dialog[open]");
+    const tel = d?.querySelector('a[href^="tel:"]');
+    const b = tel?.getBoundingClientRect();
+    return { open: !!d, telBottom: b ? Math.round(b.bottom) : null, vh: window.innerHeight };
+  });
+  report.check("menu.landscape", r.open && r.telBottom !== null && r.telBottom <= r.vh, `844×390: sheet open ${r.open}, call link bottom ${r.telBottom} ≤ ${r.vh}`, r);
+  await context.close();
+}
+
+/** If the booking dialog chunk cannot load, the CTA still lands on the contact block. */
+async function bookingChunkFailure(browser, url, report) {
+  const context = await browser.newContext(contextOptions(sizeById("390x844")));
+  const page = await context.newPage();
+  await page.route(/\/_next\/static\/chunks\/.*\.js$/, async (route) => {
+    const res = await route.fetch();
+    const body = await res.text();
+    if (body.includes("booking__body")) return route.abort();
+    return route.fulfill({ response: res, body });
+  });
+  await page.goto(`${url}/`, { waitUntil: "load" });
+  await waitForIntro(page);
+  await page.waitForTimeout(1500);
+  await page.locator("#top [data-hero-ctas] a[data-booking]").first().click();
+  await page.waitForTimeout(4000);
+  const r = await page.evaluate(() => ({
+    main: !!document.querySelector("main#sadrzaj"),
+    dialog: !!document.querySelector("dialog[open]"),
+    top: Math.round(document.getElementById("kontakt").getBoundingClientRect().top),
+  }));
+  report.check("booking.chunkFailure", r.main && (r.dialog || (r.top >= -10 && r.top <= 220)), `dialog chunk blocked: page intact ${r.main}, dialog ${r.dialog}, #kontakt top ${r.top}px`, r);
+  await context.close();
+}
+
 await runScript("behavior", { target: BASE_URL }, async (report) => {
   requireOut();
   const server = await ensureServed(BASE_URL, OUT);
@@ -228,6 +322,10 @@ await runScript("behavior", { target: BASE_URL }, async (report) => {
     await stickyBar(browser, server.url, report, consoleLog);
     await header(browser, server.url, report, consoleLog);
     await booking(browser, server.url, report, consoleLog);
+    await accessibleNames(browser, server.url, report);
+    await heroDeepLink(browser, server.url, report);
+    await landscapeMenu(browser, server.url, report);
+    await bookingChunkFailure(browser, server.url, report);
   } finally {
     await browser.close();
     await server.stop();

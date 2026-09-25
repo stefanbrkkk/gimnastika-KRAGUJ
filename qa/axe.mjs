@@ -49,6 +49,27 @@ await runScript("axe", { target: BASE_URL }, async (report) => {
         const id = `${path === "/" ? "home" : "404"}.${sizeId}`;
         record(report, id, await new AxeBuilder({ page }).withTags(TAGS).analyze());
 
+        if (path === "/") {
+          // Gallery lightbox open (AUD-07: its scroller must be keyboard-focusable).
+          const print = page.locator("[data-gallery-open]").first();
+          if (await print.count()) {
+            await print.scrollIntoViewIfNeeded();
+            await print.click();
+            const lb = await page
+              .waitForSelector("dialog[open]", { timeout: 4000 })
+              .then(() => true)
+              .catch(() => false);
+            if (lb) {
+              await page.waitForTimeout(800);
+              record(report, `lightbox.${sizeId}`, await new AxeBuilder({ page }).include("dialog[open]").withTags(TAGS).analyze());
+              await page.keyboard.press("Escape");
+              await page.waitForTimeout(600);
+            } else report.skip(`axe.lightbox.${sizeId}`, "lightbox did not open");
+            await scrollToTop(page);
+            await settle(page, { extra: 400 });
+          }
+        }
+
         if (path === "/" && sizeId === "390x844") {
           const cta = page.locator("#top [data-hero-ctas] a[data-booking]").first();
           if (await cta.count()) {
