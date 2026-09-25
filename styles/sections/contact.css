@@ -318,6 +318,27 @@
   }
 }
 
+/* CV3-03 · 1024–1279: the left column (stacked numbers + the venue card) is taller than the
+   hugged slab, so the slab stretches to the venue card's floor — the two dark cards share
+   one base line, as they do from 1280. The extra height opens above the trail (the doskok
+   sits at the slab's foot), as more room for the flight, never as dead navy under the
+   button. The doskok measures at play time, so its route follows. */
+@supports (grid-template-columns: subgrid) {
+  @media (min-width: 1024px) and (max-width: 1279.98px) {
+    .cta-panel {
+      align-self: stretch;
+    }
+    .cta-panel__slab {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      height: 100%;
+    }
+    .cta-panel__slab .doskok {
+      align-self: end;
+    }
+  }
+}
+
 @media (min-width: 1280px) {
   .cta-panel__slab {
     --leap-w: 128px;

@@ -14,14 +14,16 @@
  *    reads as a scratch); they live in the detail sheet, beside the posed silhouette.
  *    Phones: the card that snaps fully into view performs again (≥4s apart), so only one card
  *    per viewport moves. Hover devices: on pointer enter / keyboard focus.
- *  - Mount (QP2-05): a plate tall enough for the scene (≥160px: the posed silhouette is shown by
- *    CSS) plays the detail sheet's mount instead of that first perform — the drawing traces
+ *  - Mount (QP2-05, QP3-02): every plate is a scene (the posed silhouette scales with it), so
+ *    the first draw plays the detail sheet's mount instead of a perform — the drawing traces
  *    itself, then the silhouette hops onto her pose and sticks it. Once per card.
  *  - Seam (MI-07): on desktop the floor-diagonal mat line of the section's cut draws from
  *    bottom-left to top-right (clip-path wipe, 0.9s flight) as the cut crosses 80% of the view.
  *  - Filter (MI-06): leaving cards take off (up, smaller, gone in 0.18s); staying cards glide
  *    (Flip 0.28s stick); arriving cards drop in and stick the landing (a 3% compression held
- *    on EASE.land, origin at their feet).
+ *    on EASE.land, origin at their feet). The final layout is the Flip's end state (QP3-01):
+ *    leavers are out of flow from the first frame and the stayers' heights (so their plates)
+ *    tween with the glide, so nothing changes size after the landing.
  *  - Stamp (QP-10): the quiz recommendation stamp presses on when its plate is in view.
  * Pre-states are CSS scoped under html.js-motion or set by JS right before a motion; a live
  * switch to reduced motion drops html.js-motion, which resolves all of them to the final state.
@@ -61,11 +63,8 @@ export function armPrograms(root: HTMLElement, strip: HTMLElement): () => void {
   const lastPerform = new WeakMap<HTMLElement, number>();
   let disposed = false;
 
-  /** The plate shows the posed silhouette (CSS container query: plate ≥160px tall). */
-  const isScene = (card: HTMLElement) => {
-    const fig = card.querySelector(".pc-icon .pi-fig-x");
-    return !!fig && getComputedStyle(fig).display !== "none";
-  };
+  /** The plate is a scene: the posed silhouette is part of its drawing (every card, QP3-02). */
+  const isScene = (card: HTMLElement) => !!card.querySelector(".pc-icon .pi-fig-x");
 
   const perform = (card: HTMLElement, delay = 0) => {
     if (disposed || !motionAllowed() || !card.hasAttribute("data-drawn") || card.matches("[data-perform], [data-mount]")) return;
@@ -248,10 +247,16 @@ export async function flipFilter({ items, apply, commit, done }: FlipFilterOptio
   commit();
   lift(items, true);
   const drop = window.matchMedia("(min-width: 1024px)").matches ? OFFSET.desktop : OFFSET.mobile;
+  // The end state is measured here, with the leavers already display:none (data-out): the final
+  // layout, row heights included (QP3-01). absoluteOnLeave takes the leavers out of flow for
+  // their take-off, and Flip pins every other frame at its old size meanwhile; scale:false
+  // tweens that width/height to the final one inside the glide (same DUR.base, EASE.stick), so
+  // a card's plate — the flex item that takes the row's spare height — grows or shrinks with the
+  // flight and the content is never stretched. Nothing is left to snap when Flip clears it.
   Flip.from(state, {
     duration: DUR.base,
     ease: EASE.stick,
-    scale: true,
+    scale: false,
     absoluteOnLeave: true,
     // Arrive: drop in from below the landing spot, then stick it — a 3% compression at the feet
     // that holds and releases without a bounce (EASE.land).

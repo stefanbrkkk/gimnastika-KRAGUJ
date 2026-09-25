@@ -9,8 +9,13 @@
  * others glide past it. Newcomers are hung on the line: a pendulum swing from a
  * peg above the print (±3°, alternating, uneven-bars swing ease), a short drop
  * onto the line and a quick fade in (stagger .06, ≤5 prints).
+ * The glide and the swing hold the page's primary-motion slot (GE3-02): a filter
+ * that shortens the sheet can pull S10 into view, and its leap waits its turn.
  */
-import { DUR, EASE, gsap, loadFlip, registerMotion, STAGGER } from "@/lib/motion";
+import { DUR, EASE, gsap, loadFlip, queuePrimaryMotion, registerMotion, STAGGER } from "@/lib/motion";
+
+/** The newcomers' pendulum (s); with the stagger it is the longest part of a filter motion. */
+const SWING = 0.6;
 
 export interface FlipHandle {
   progress: (value: number) => unknown;
@@ -57,6 +62,7 @@ export async function flipFilter({ items, shows, setView, isCurrent, previous }:
   // [hidden]{display:none!important} would cut them on the first frame. `hidden` follows on complete.
   const leaving = before.filter((el) => !shows(el));
   const staying = before.filter(shows);
+  const entering = items.filter((el) => el.hidden && shows(el)).length;
   for (const el of leaving) el.setAttribute("data-leaving", "");
   setView();
   for (const el of items) if (shows(el)) el.hidden = false;
@@ -70,6 +76,10 @@ export async function flipFilter({ items, shows, setView, isCurrent, previous }:
     grid?.removeAttribute("data-flipping");
   };
   const drop = window.matchMedia("(min-width: 640px)").matches ? 10 : 8;
+  // One primary motion per viewport: the glide (and the newcomers' swing, when there are any)
+  // holds the slot without waiting on it — this motion answers a tap and starts at once.
+  const busy = Math.max(DUR.base, entering ? SWING + (entering - 1) * STAGGER.cards : 0);
+  void queuePrimaryMotion(Math.round(busy * 1000), 0);
   const flip = Flip.from(state, {
     targets: [...items.filter(shows), ...leaving],
     duration: DUR.base,
@@ -92,7 +102,7 @@ export async function flipFilter({ items, shows, setView, isCurrent, previous }:
         .fromTo(
           prints,
           { rotation: (i: number) => (i % 2 ? 3 : -3), transformOrigin: "50% -8px" },
-          { rotation: 0, duration: 0.6, ease: EASE.swing, stagger: STAGGER.cards },
+          { rotation: 0, duration: SWING, ease: EASE.swing, stagger: STAGGER.cards },
           0,
         )
         .fromTo(prints, { y: -drop }, { y: 0, duration: 0.4, ease: EASE.stick, stagger: STAGGER.cards }, 0)

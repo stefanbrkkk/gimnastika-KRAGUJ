@@ -72,6 +72,32 @@ export function pickInBand<T>(candidates: readonly BandCandidate<T>[], bandY: nu
   return pool[pool.length - 1]?.item ?? null;
 }
 
+/**
+ * pickInBand with nested full-bleed bands ([data-header-band], D-37): a band that
+ * contains the line wins over its section; otherwise the section that owns it.
+ */
+export function pickUnder<T>(candidates: readonly BandCandidate<T>[], bandY: number, isBand: (item: T) => boolean): T | null {
+  const band = candidates.find((c) => isBand(c.item) && c.top <= bandY && c.bottom > bandY);
+  return band?.item ?? pickInBand(candidates.filter((c) => !isBand(c.item)), bandY);
+}
+
+export interface HeaderCapInputs {
+  scrollY: number;
+  /** data-theme of the section (or header band) under the middle of the gap above the bar. */
+  theme: string | null | undefined;
+  /** A diagonal section edge (.edge-line) crosses that line: two colours share the gap. */
+  onEdge: boolean;
+}
+
+/**
+ * The page-coloured cap over the gap above the floating bar (SC3-05): content that
+ * scrolls behind the header shows there sliced by the bar (the S4 scoreboard's white
+ * text after a day tap), so while the page is scrolled the gap is painted in the
+ * colour of the section under it. Off at the very top (the hero's own first paint) and
+ * while a diagonal edge crosses the gap (one colour would be wrong on one side of it).
+ */
+export const headerCapOn = (s: HeaderCapInputs): boolean => s.scrollY > 0 && !s.onEdge && !!s.theme;
+
 /** Viewports at most this tall (landscape phones, 400% zoom) never show header and bar together. */
 export const SHORT_VIEWPORT_MAX = 480;
 

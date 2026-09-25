@@ -7,7 +7,8 @@
  * button. The dismount is a centripetal Catmull-Rom spline through those points (it never
  * loops or cusps); hop and spline are sampled into one polyline so a position can be
  * looked up by arc length. The timing is ballistic: a decelerating rise to the apex, then
- * an accelerating fall into the landing.
+ * an accelerating fall into the landing — except that the salto's tuck gets the time its
+ * turn needs (saltoClock, CV3-02).
  */
 export interface Pt {
   x: number;
@@ -172,6 +173,95 @@ export function timeAt(timing: FlightTiming, s: number): number {
   if (s < apex) return rise * decelInv(s / apex);
   if (s < length) return rise + fall * accelInv((s - apex) / (length - apex));
   return rise + fall;
+}
+
+/** Arc-length speed (px/s) of the ballistic clock at time t (right-hand value at the apex). */
+function speedAt(timing: FlightTiming, t: number): number {
+  const { rise, fall, apex, length } = timing;
+  if (t < rise) return rise > 0 ? (apex / rise) * (CARRY + 2 * (1 - CARRY) * (1 - t / rise)) : 0;
+  const u = Math.min(Math.max((t - rise) / (fall || 1), 0), 1);
+  return ((length - apex) / (fall || 1)) * (CARRY + 2 * (1 - CARRY) * u);
+}
+
+/** Cubic Hermite from (t0, s0, v0) to (t1, s1, v1). */
+function hermite(t0: number, t1: number, s0: number, s1: number, v0: number, v1: number) {
+  const h = t1 - t0;
+  return (t: number) => {
+    const u = (t - t0) / h;
+    const u2 = u * u;
+    const u3 = u2 * u;
+    return (2 * u3 - 3 * u2 + 1) * s0 + (u3 - 2 * u2 + u) * h * v0 + (-2 * u3 + 3 * u2) * s1 + (u3 - u2) * h * v1;
+  };
+}
+
+/**
+ * The flight's clock with the salto's tuck timed by its turn, not by its arc length (CV3-02).
+ *
+ * On the ballistic clock the tuck (drop point → ghost 1) only gets the time its arc length
+ * earns: where that arc is short next to the drop (phones ≈ 390: 77 px after a 73 px fall)
+ * the 290° turn had ~160 ms, a whip. This clock gives the tuck at least `minTuck` s and
+ * takes that time from what comes before it: the hop and the upright drop beside the title
+ * play quicker by one factor (their ballistic shape kept — a harder spring, a shorter
+ * fall), while the landing and everything from ghost 1 on keep their time, so the total
+ * stays. Only below `minPace` (never quicker than that) does ghost 1 move later, the
+ * open-out after it running correspondingly quicker. Through the tuck the arc position is
+ * a cubic Hermite from the drop's speed to ghost 1's: C1 (no speed jump at either end) and
+ * monotone (never backwards) — the salto slows through the inverted part and opens out
+ * into the fall onto the button. With enough tuck time already it is the ballistic clock.
+ */
+export interface SaltoClock {
+  /** Seconds from take-off to the apex / the drop point / ghost 1 / touchdown. */
+  apex: number;
+  drop: number;
+  g1: number;
+  land: number;
+  /** Arc length reached at time t. */
+  progress(t: number): number;
+  /** A ballistic-clock time at or after ghost 1, on this clock (ghosts 2 and 3). */
+  map(tBase: number): number;
+}
+
+export function saltoClock(timing: FlightTiming, sDrop: number, sG1: number, minTuck: number, minPace = 0.55): SaltoClock {
+  const { rise, fall } = timing;
+  const land = rise + fall;
+  const baseDrop = timeAt(timing, sDrop);
+  const baseG1 = timeAt(timing, sG1);
+  if (baseG1 - baseDrop >= minTuck || !(sG1 > sDrop && baseDrop > 0 && fall > 0)) {
+    return { apex: rise, drop: baseDrop, g1: baseG1, land, progress: (t) => progressAt(timing, t), map: (t) => t };
+  }
+
+  // The hop and the drop, played `pace` × their ballistic time.
+  const pace = Math.max(minPace, (baseG1 - minTuck) / baseDrop);
+  const drop = baseDrop * pace;
+  // Ghost 1 moves only when the drop cannot give the time; it always leaves the open-out room.
+  const g1 = Math.min(Math.max(baseG1, drop + minTuck), baseG1 + (land - baseG1) * 0.5);
+  const squeeze = (land - baseG1) / (land - g1); // ≥ 1: the open-out's speed factor
+  const unmap = (t: number) => baseG1 + (t - g1) * squeeze;
+
+  // The tuck: from the (quickened) drop's speed to ghost 1's; a Fritsch–Carlson guard keeps
+  // both end speeds in the monotone region (a no-op on every measured layout).
+  const sec = (sG1 - sDrop) / (g1 - drop);
+  let v0 = speedAt(timing, baseDrop) / pace;
+  let v1 = speedAt(timing, baseG1) * squeeze;
+  const r = Math.hypot(v0 / sec, v1 / sec);
+  if (r > 3) {
+    v0 = (v0 * 3) / r;
+    v1 = (v1 * 3) / r;
+  }
+  const tuck = hermite(drop, g1, sDrop, sG1, v0, v1);
+
+  return {
+    apex: rise * pace,
+    drop,
+    g1,
+    land,
+    progress(t: number): number {
+      if (t <= drop) return progressAt(timing, t / pace);
+      if (t <= g1) return tuck(t);
+      return progressAt(timing, unmap(t));
+    },
+    map: (t) => (t <= baseG1 ? t : g1 + (t - baseG1) / squeeze),
+  };
 }
 
 /** Piecewise-linear value at time t through (time, value) keys sorted by time. */

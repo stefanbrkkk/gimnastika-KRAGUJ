@@ -6,7 +6,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DAYS, isFixed, SCHEDULE, type ScheduleGroup } from "@/content/schedule";
-import { earliestNext, formatNextDay, formatNextTraining, groupSlots, nextTraining } from "@/lib/schedule-logic";
+import { earliestNext, formatNextDay, formatNextTraining, groupSlots, nextTraining, type Slot } from "@/lib/schedule-logic";
 import { belgradeNow } from "@/lib/time";
 
 const ACC = DAYS.map((d) => d.accusative);
@@ -219,6 +219,39 @@ describe("„Sledeći trening“ scoreboard — earliest next training across th
     expect(board(AB)).toBe("ab · sutra · 08:30 ili 16:00");
     at("2026-09-25T14:40:00+02:00"); // Fri 14:40
     expect(board(AB)).toBe("ab · danas · 08:30* ili 16:00");
+  });
+
+  /** Every group that shares the board's slot, in board order (SC3-03). */
+  function tied(ids: readonly ScheduleGroup["id"][] = BOARD): string {
+    const best = earliestNext(ids.map((id) => groupSlots(group(id), isFixed)), belgradeNow());
+    return best ? best.tied.map((i) => ids[i]).join(" + ") : "";
+  }
+
+  it("a slot shared by several groups names all of them (ties in board order; `index` is the first)", () => {
+    at("2026-09-25T14:40:00+02:00"); // Fri: C starije, C mlađe and A i B all train 08:30 ili 16:00
+    expect(tied()).toBe("c-starije + c-mladje + ab");
+    expect(tied(C)).toBe("c-starije + c-mladje");
+    expect(tied(AB)).toBe("ab");
+    at("2026-09-25T21:00:00+02:00"); // Fri night → Monday's „ili“ slot: C mlađe does not train on Monday
+    expect(tied()).toBe("c-starije + ab");
+    at("2026-09-28T17:00:00+02:00"); // Mon 17:00 → Mlađa 18:00 alone
+    expect(tied()).toBe("mladja");
+    at("2026-09-28T20:30:00+02:00"); // Mon 20:30 → A i B Tue 17:30 alone (C mlađe starts at 19:30)
+    expect(tied()).toBe("ab");
+    at("2026-09-29T20:00:00+02:00"); // Tue 20:00 → Wednesday's „ili“ slot: C starije + A i B
+    expect(tied()).toBe("c-starije + ab");
+  });
+
+  it("a fixed start at the same minute as an „ili“ slot's later option is not a tie", () => {
+    const fixed16: Slot[] = [{ iso: 1, start: "16:00", startMin: 960, fixed: true, block: 0 }];
+    const ili: Slot[] = [
+      { iso: 1, start: "08:30", startMin: 510, fixed: false, block: 0 },
+      { iso: 1, start: "16:00", startMin: 960, fixed: false, block: 0 },
+    ];
+    at("2026-09-28T12:00:00+02:00"); // Mon noon: both are next at 16:00, but they are different slots
+    const best = earliestNext([ili, fixed16], belgradeNow());
+    expect(best?.index).toBe(0);
+    expect(best?.tied).toEqual([0]);
   });
 
   it("every filter has a next training at every quarter hour of the week (the board is never empty)", () => {

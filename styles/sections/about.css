@@ -334,6 +334,14 @@ html.js-motion .about__ghost + .about__ghost {
   opacity: 0;
 }
 
+/* A year the flier has not reached yet has no frame cut either: the thin unlit rail runs
+   through it (even once the year has lit on its own crossing). The backing returns under the
+   flier as its feet touch the year (data-here, timeline-motion.ts) and stays once it has
+   left (AC3-05). */
+.timeline[data-armed] .timeline__item:not([data-left]):not([data-here]) .timeline__node {
+  background: transparent;
+}
+
 .timeline[data-armed] .timeline__year {
   transition: opacity var(--dur-base) var(--ease-stick);
 }

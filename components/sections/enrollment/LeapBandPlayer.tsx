@@ -8,8 +8,9 @@ import { motionAllowed, whenNear } from "@/lib/motion-env";
  * gsap here). Only when the leap is still below the fold at hydration, it marks
  * the band data-leap="armed" (CSS pre-state under html.js-motion: the decorative
  * frames wait) and, one viewport before it, loads the lazy chunk
- * (leap-motion.ts), which watches for the band, takes the primary-motion slot
- * (≤250ms wait) and flies the leap. A failed chunk or an
+ * (leap-motion.ts), which watches for the band (in view for 350ms: a layout jump
+ * is not an arrival), takes the primary-motion slot (≤250ms wait) and flies the
+ * leap. A failed chunk or an
  * unmount always lands on the final state (data-leap="done").
  * Reduced motion / Save-Data / no JS: the static chronophotograph, untouched.
  */

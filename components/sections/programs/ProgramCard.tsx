@@ -9,9 +9,11 @@ import { ScheduleLines } from "./ScheduleLines";
  * One program "frame" of the contact sheet. The plate is an apparatus print (QP-06): the
  * drawing stands on a mat line over a faint Marey measuring grid, with the program's
  * competitor bib („3–8“, „8+“, „C“, „A·B“) and an ink-outlined + that opens the detail sheet.
- * The plate takes the row's spare height, so every CTA sits at the same place (QP2-04); from
- * 160px it is the detail sheet's scene — the drawing scaled up, the club silhouette posed over
- * it (QP2-05).
+ * The plate takes the row's spare height, so every CTA sits at the same place (QP2-04). It is
+ * always the detail sheet's scene — the drawing with the club silhouette posed over it — and the
+ * whole scene scales with the plate (QP3-02): .pc-scene is sized by the plate (container units)
+ * and is itself a size container, so the line weight follows the drawing's real size.
+ * The quiz stamp straddles the plate's lower edge, below the mat line, where no scene reaches.
  * Body: title, age, description, the week row + days/times, then ONE filled action and a quiet
  * tertiary link (QP-12). Server-rendered and complete without JS; the island
  * (ProgramsBrowser) adds the detail sheet, filtering and the quiz recommendation stamp.
@@ -29,18 +31,15 @@ export function ProgramCard({ program }: { program: Program }) {
       aria-labelledby={titleId}
       style={programStyle(program)}
     >
-      <div className="pc-plate">
-        <ProgramIcon icon={program.icon} label={program.iconLabel} className="pc-icon" scene="card" />
+      <div className="pc-plate" data-apparatus={program.icon}>
+        <span className="pc-scene">
+          <ProgramIcon icon={program.icon} label={program.iconLabel} className="pc-icon" scene="card" />
+        </span>
         {bib ? (
           <span className="pc-bib" aria-hidden="true">
             {bib}
           </span>
         ) : null}
-        {/* Quiz recommendation (QP-10): filled in and shown by the island on „kraguj:recommend“. */}
-        <p className="pc-stamp" data-stamp="" hidden>
-          {PROGRAMS_UI.recommended}
-          <span className="pc-stamp__age" />
-        </p>
         <button
           type="button"
           className="pc-open"
@@ -54,6 +53,12 @@ export function ProgramCard({ program }: { program: Program }) {
         </button>
       </div>
       <div className="pc-body">
+        {/* Quiz recommendation (QP-10): filled in and shown by the island on „kraguj:recommend“.
+            Pressed across the plate's lower edge (CSS), clear of the scene. */}
+        <p className="pc-stamp" data-stamp="" hidden>
+          {PROGRAMS_UI.recommended}
+          <span className="pc-stamp__age" />
+        </p>
         <h3 id={titleId} className="pc-title text-h3">
           {typesetSr(program.title)}
         </h3>

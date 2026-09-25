@@ -10,6 +10,9 @@
  * Content before decoration (AC2-04): a year lights on its OWN crossing of the trigger line,
  * never more than 250 ms after it, whether or not the flier has got there; a flier landing in
  * time lights it with the landing. Only the ghost exposure (data-left) follows the flier.
+ * A year's frame cut in the rail (its node backing) exists only once the flier has stood on it
+ * (data-left) or stands on it now (data-here): a year not reached yet — even one already lit —
+ * lets the thin unlit rail run through, never an empty cut (AC3-05).
  *
  * Trigger: IntersectionObserver — a year counts as reached when its node crosses 65 % of the
  * viewport (no scroll listener, no scrub, no rAF loop of its own; same on phones). A new year
@@ -127,6 +130,8 @@ export function armTimeline(root: HTMLElement): () => void {
       else litTimers.set(k, setTimeout(() => live && light(k), LIT_CAP_MS));
     };
     const leave = (k: number) => items[k]?.setAttribute("data-left", "");
+    /** The year the flier stands on (its frame cut shows under the flier). */
+    const stand = (k: number) => items.forEach((item, i) => item.toggleAttribute("data-here", i === k));
 
     // --- State ---------------------------------------------------------------------------
     // Years already above the trigger line (deep link, restored scroll) count as reached.
@@ -145,6 +150,7 @@ export function armTimeline(root: HTMLElement): () => void {
     /** Static placement for the current state (arm, resize, after each landing). */
     const snap = (withLine = true) => {
       gsap.set(flier, { x: 0, y: yOf(reached), autoAlpha: reached < 0 ? 0 : 1 });
+      stand(reached);
       gsap.set(body, { rotation: 0, scaleX: 1, scaleY: 1 });
       if (withLine) gsap.set(line, { scaleY: reached >= last ? 1 : stopOf(reached) });
     };
@@ -188,6 +194,7 @@ export function armTimeline(root: HTMLElement): () => void {
       flight = null;
       reached = target;
       if (!live) return;
+      stand(reached); // the frame cut appears under the flier's feet, never ahead of it
       if (wanted > reached && (nodeEls[wanted]?.getBoundingClientRect().bottom ?? 0) >= 0) {
         context.add(() => fly(wanted, false));
         return;
@@ -392,6 +399,7 @@ export function armTimeline(root: HTMLElement): () => void {
       items.forEach((item) => {
         item.removeAttribute("data-left");
         item.removeAttribute("data-lit");
+        item.removeAttribute("data-here");
       });
     };
   });

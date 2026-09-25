@@ -25,8 +25,8 @@ import { LEAP_ICON_BOX, LEAP_ICON_D } from "./leap-icon";
  * - `.pi-fx`: the gymnast's path (giant-swing orbit, vault flight, tumbling hops), only in the
  *   detail sheet, where it leads to the posed silhouette (QP2-11); invisible at rest.
  * - `.pi-fig-x > .pi-fig-y > .pi-fig`: the club's leap silhouette posed over the apparatus (for
- *   aerobik: the partner) — the scene. Sheet: always. Card (`scene="card"`): rendered, shown by
- *   CSS only when the plate is ≥160px tall (QP2-05).
+ *   aerobik: the partner) — the scene. Sheet and card (`scene="card"`): always; on a card the
+ *   whole scene scales with its plate (QP3-02).
  * Without motion (no JS, reduced motion, Save-Data) it is simply the finished drawing.
  */
 
@@ -139,7 +139,7 @@ interface ProgramIconProps {
   className?: string;
   /**
    * The apparatus scene: the club silhouette posed over the apparatus (aerobik: her partner).
-   * "card": the silhouette only (CSS shows it on plates ≥160px); "sheet": the silhouette and the
+   * "card": the silhouette only (on every plate, QP3-02); "sheet": the silhouette and the
    * gymnast's path (.pi-fx). Without it: the bare drawing (quiz plates).
    */
   scene?: "card" | "sheet";

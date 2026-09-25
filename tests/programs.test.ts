@@ -387,3 +387,83 @@ describe("programs: plate scene (QP2-05, QP2-11)", async () => {
     }
   });
 });
+
+describe("programs: every card plate is a scene that scales with it (QP3-02, QP3-03)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { isValidElement } = await import("react");
+  const { ProgramCard } = await import("@/components/sections/programs/ProgramCard");
+  const css = readFileSync("styles/sections/programs.css", "utf8");
+  const px = (s: string | undefined) => parseFloat(s ?? "NaN");
+
+  it("never hides the card silhouette behind a plate-height threshold", () => {
+    expect(css).not.toMatch(/\.pc-icon\s+\.pi-fig-x\s*\{[^}]*display:\s*none/);
+    expect(css).toMatch(/\.pc-scene\s*\{[^}]*width:\s*var\(--icon\);[^}]*container:\s*pc-scene\s*\/\s*size;/);
+  });
+
+  it("keeps the line 2.7–3.0 CSS px from the smallest (84px) to the largest (176px) drawing", () => {
+    const icon = css.match(/\.pc-plate\s*\{[^}]*--icon-min:\s*(\d+)px;[^}]*--icon:\s*clamp\(var\(--icon-min\),\s*min\(64cqh,\s*var\(--fit\)\),\s*(\d+)px\)/);
+    expect(icon, ".pc-plate --icon").not.toBeNull();
+    const [lo, hi] = [px(icon?.[1]), px(icon?.[2])];
+    expect([lo, hi]).toEqual([84, 176]);
+    const base = px(css.match(/\.pi\s*\{[^}]*--sw:\s*([\d.]+)px/)?.[1]);
+    const steps = [...css.matchAll(/@container pc-scene \(min-width: ([\d.]+)px\) \{\s*\.pc-icon \{\s*--sw: ([\d.]+)px;/g)].map(
+      (m) => [px(m[1]), px(m[2])] as const,
+    );
+    expect(steps.length).toBeGreaterThanOrEqual(6);
+    const bands = [[lo, base] as const, ...steps];
+    bands.forEach(([from, sw], k) => {
+      const to = Math.min(bands[k + 1]?.[0] ?? hi, hi);
+      expect(from, "steps ascend").toBeLessThan(to);
+      expect((sw * from) / 48, `${from}px`).toBeGreaterThanOrEqual(2.7);
+      expect((sw * to) / 48, `up to ${to}px`).toBeLessThanOrEqual(3.0 + 1e-9);
+    });
+  });
+
+  it("gives each apparatus its scene's width budget", () => {
+    const fit = (icon: string) => css.match(new RegExp(`\\[data-apparatus="${icon}"\\][^{]*\\{\\s*--fit:\\s*(\\d+)cqw`))?.[1];
+    expect(css).toMatch(/\.pc-plate\s*\{[^}]*--fit:\s*42cqw;/); // bars (the default)
+    expect(fit("preskok")).toBe("55");
+    expect(fit("parter")).toBe("60");
+    expect(css).toMatch(/\.pc-plate:is\(\[data-apparatus="parter"\], \[data-apparatus="greda"\]\)\s*\{\s*--fit:\s*60cqw;/);
+    expect(fit("aerobik")).toBe("58");
+  });
+
+  it("renders the scene in its own box, tags the plate with its apparatus and hangs the quiz stamp from the body", () => {
+    type Props = { className?: unknown; children?: unknown; [k: string]: unknown };
+    type Node = { cls: string[]; props: Props; kids: Node[] };
+    const tree = (node: unknown): Node[] => {
+      if (Array.isArray(node)) return node.flatMap(tree);
+      if (!isValidElement<Props>(node)) return [];
+      if (typeof node.type === "function") return tree((node.type as (p: Props) => unknown)(node.props));
+      const cls = typeof node.props.className === "string" ? node.props.className.split(" ") : [];
+      return [{ cls, props: node.props, kids: tree(node.props.children) }];
+    };
+    const find = (nodes: Node[], c: string): Node[] => nodes.flatMap((n) => (n.cls.includes(c) ? [n] : find(n.kids, c)));
+    for (const program of visiblePrograms(false)) {
+      const card = tree(ProgramCard({ program }));
+      const [plate] = find(card, "pc-plate");
+      expect(plate?.props["data-apparatus"], program.id).toBe(program.icon);
+      const [scene] = find(plate ? [plate] : [], "pc-scene");
+      expect(find(scene ? [scene] : [], "pi-fig-x").length, program.id).toBe(1);
+      expect(find(plate ? [plate] : [], "pc-stamp"), program.id).toHaveLength(0);
+      expect(find(find(card, "pc-body"), "pc-stamp"), program.id).toHaveLength(1);
+    }
+  });
+
+  it("reserves three description lines from 1024px, so same-shaped cards start their titles level", () => {
+    expect(css).toMatch(/@media \(min-width: 1024px\) \{\s*\.pc-desc \{\s*min-height: calc\(3 \* 1\.5em\);\s*min-height: 3lh;/);
+  });
+});
+
+describe("programs: the filter Flip ends on the final layout (QP3-01)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync("components/sections/programs/programs-motion.ts", "utf8");
+  const call = src.slice(src.indexOf("Flip.from(state, {"), src.indexOf("onEnter:", src.indexOf("Flip.from(state, {")));
+
+  it("takes leavers out of flow and tweens width/height (never scale), so no card snaps after the landing", () => {
+    expect(call).toMatch(/absoluteOnLeave:\s*true/);
+    expect(call).toMatch(/scale:\s*false/);
+    expect(call).toMatch(/duration:\s*DUR\.base/);
+    expect(call).toMatch(/ease:\s*EASE\.stick/);
+  });
+});

@@ -249,6 +249,16 @@
   }
 }
 
+/* 640–1023 (2×2 board): the caption uses the tile's full width with balanced lines, so the
+   two long labels set alike side by side — never a lone „(GSS, 2026)“ in one tile only
+   (RC3-05). */
+@media (min-width: 640px) and (max-width: 1023.98px) {
+  .stat__label {
+    max-width: none;
+    text-wrap: balance;
+  }
+}
+
 /* 1024–1279: narrower tiles — a 16px caption with balanced lines (never a lone
    „registrovane“ / „takmičarke“ on its own line). */
 @media (min-width: 1024px) and (max-width: 1279.98px) {

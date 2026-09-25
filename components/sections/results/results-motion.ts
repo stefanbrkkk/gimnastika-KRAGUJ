@@ -15,7 +15,11 @@
  *        medals drop onto their steps bronze → silver → gold and stick the landing, then the
  *        white brush underline sweeps under „Medalje“.
  *   A step starts when its element crosses the −18% line and the running step has finished,
- *   through queuePrimaryMotion (≤250 ms). Nothing ever pops (design review v2, RC2-01/MD2-06):
+ *   through queuePrimaryMotion (≤250 ms). The ceremony waits for more (RC3-01): the whole
+ *   „Medalje“ title must stand clear above the phone dock (plus 36 px of air), or from 1024 up
+ *   12% above the fold — the podium band sits right above that title, so the ceremony and its
+ *   closing brush always play where they are seen. Nothing ever pops (design review v2,
+ *   RC2-01/MD2-06):
  *     · an off-screen step never blocks a visible one — a running step whose element has left
  *       the viewport completes invisibly the moment another step is waiting, and a step whose
  *       element is off-screen when its turn comes is finished without animating;
@@ -25,7 +29,8 @@
  *
  * Hidden pre-states (title lines, photo slit, podium parts, brush) are set by JS only for
  * elements still off-screen at arm time. Safety net (MD-02): a pre-hidden element that has
- * been ≥50% in view for 300 ms without its trigger joins the sequence now. Under
+ * been ≥50% in view for 300 ms without its trigger joins the sequence now (the ceremony: its
+ * title wholly above its own line for 300 ms). Under
  * gsap.matchMedia(MQ.noReduce): a live switch to reduced motion reverts every inline state
  * and the split at once. Only transform, opacity, clip-path and
  * stroke-dashoffset/-dasharray change.
@@ -37,6 +42,15 @@ import { DUR, EASE, MQ, STAGGER, gsap, loadDrawSVG, loadSplitText, queuePrimaryM
 const TITLE_LINE = "0px 0px -15% 0px";
 /** Primary steps start once their element is this far into the viewport. */
 const STEP_LINE = "0px 0px -18% 0px";
+/**
+ * RC3-01: the medal ceremony starts only once the „Medalje“ title stands wholly above this line:
+ * phones and tablets (the dock is shown below 1024) — the dock's height plus this much air;
+ * from 1024 up — 12% above the fold. The podium band sits directly above the title.
+ */
+const CEREMONY_AIR = 36;
+const CEREMONY_LINE_WIDE = "0px 0px -12% 0px";
+/** The dock's cover (60 px capsule + 8 px gap) if it cannot be measured. */
+const DOCK_COVER_FALLBACK = 68;
 /** RC2-01: ≥50% in view for longer than this by its turn → the step plays compressed. */
 const MAX_SEQUENCE_WAIT_MS = 600;
 /** The compressed scan and shutter run this much faster (the shutter ≈ 240 ms). */
@@ -81,7 +95,13 @@ const SHORT_MEDAL_DROP = -16;
 const SHORT_BRUSH = 0.3;
 
 interface Step {
+  /** The element whose on-/off-screen state decides finish-unseen and release. */
   el: Element;
+  /**
+   * RC3-01: when set, the step becomes ready (and counts as „seen“) only while this element
+   * stands wholly above `line` — instead of `el` crossing STEP_LINE.
+   */
+  gate?: { el: Element; line: string };
   /** JS pre-hid something (the safety net applies). */
   hidden: boolean;
   /** Seconds the sequence stays blocked once the step starts (normal · compressed). */
@@ -107,6 +127,19 @@ const shareInView = (entry: IntersectionObserverEntry): number => {
   return h > 0 ? entry.intersectionRect.height / h : 0;
 };
 
+/** IntersectionObserver rootMargin for the ceremony gate (RC3-01), read once at arm time. */
+function ceremonyLine(): string {
+  const dock = document.querySelector<HTMLElement>("[data-sticky-bar]");
+  if (!dock || window.matchMedia("(min-width: 1024px)").matches) return CEREMONY_LINE_WIDE;
+  const cs = getComputedStyle(dock);
+  if (cs.display === "none") return CEREMONY_LINE_WIDE;
+  const cover = Math.round(dock.offsetHeight + (parseFloat(cs.bottom) || 0)) || DOCK_COVER_FALLBACK;
+  return `0px 0px -${cover + CEREMONY_AIR}px 0px`;
+}
+
+/** The whole element is inside the (margin-shrunk) root. */
+const wholly = (entry: IntersectionObserverEntry): boolean => entry.isIntersecting && entry.intersectionRatio >= 0.99;
+
 const qsa = <T extends Element>(root: ParentNode, sel: string): T[] => Array.from(root.querySelectorAll<T>(sel));
 
 export async function armResults(root: HTMLElement): Promise<() => void> {
@@ -123,6 +156,7 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
   const blocks = qsa<SVGRectElement>(root, "[data-podium-block]");
   const medals = qsa<SVGGElement>(root, "[data-podium-medal]");
   const strokes = qsa<SVGPathElement>(root, "[data-medal-brush] [data-brush-stroke]");
+  const medalsTitle = root.querySelector<HTMLElement>(".medals__title");
 
   const mm = gsap.matchMedia();
   mm.add(MQ.noReduce, (context) => {
@@ -286,6 +320,8 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
       };
       steps.push({
         el: band,
+        // RC3-01: the band stays the on-/off-screen element; the start waits for the title.
+        ...(medalsTitle ? { gate: { el: medalsTitle, line: ceremonyLine() } } : {}),
         hidden: true,
         block: goldTouch + DUR.land,
         fastBlock: shortGoldTouch + DUR.land,
@@ -346,7 +382,10 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
         clearTimeout(run.timer);
         timers.delete(run.timer);
       }
-      run.tl?.progress(1).kill();
+      // kill(), not progress(1): finish() clears the animated props to the final CSS state, and
+      // jumping the timeline to its end would first render every unstarted tween (GSAP unit
+      // conversion → a forced layout each; a 70 ms task at 4× CPU in qa/trace).
+      run.tl?.kill();
       run.step.finish();
       afterRelease = true;
       settle(run.step);
@@ -406,8 +445,8 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
       },
       { rootMargin: STEP_LINE },
     );
-    // How long each step has been ≥50% in view, and whether a running step has left the
-    // viewport (then it must not hold up the next one).
+    // How long each step has been ≥50% in view (a gated step: its gate, below), and whether a
+    // running step has left the viewport (then it must not hold up the next one).
     const seenIo = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -417,22 +456,52 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
             seenIo.unobserve(entry.target);
             continue;
           }
-          if (shareInView(entry) >= 0.5) step.seenAt ||= performance.now();
-          else step.seenAt = 0;
+          if (!step.gate) {
+            if (shareInView(entry) >= 0.5) step.seenAt ||= performance.now();
+            else step.seenAt = 0;
+          }
           if (!entry.isIntersecting && current?.step === step) pump();
         }
       },
       { threshold: [0, 0.5, 1] },
     );
     for (const step of steps) {
-      stepIo.observe(step.el);
       seenIo.observe(step.el);
-      if (step.hidden) guard(step.el, () => step.state === "idle", () => makeReady(step));
+      const waiting = () => step.state === "idle";
+      const go = () => makeReady(step);
+      if (step.gate) {
+        // RC3-01: ready (and „seen“) only while the gate stands wholly above its line.
+        const { el, line } = step.gate;
+        const gateIo = new IntersectionObserver(
+          (entries) => {
+            const entry = entries[entries.length - 1];
+            if (!entry) return;
+            if (step.state === "done") {
+              gateIo.disconnect();
+              return;
+            }
+            if (wholly(entry)) {
+              step.seenAt ||= performance.now();
+              makeReady(step);
+            } else step.seenAt = 0;
+          },
+          { rootMargin: line, threshold: [0, 1] },
+        );
+        gateIo.observe(el);
+        observers.push(gateIo);
+        if (step.hidden) guard(el, waiting, go, line);
+      } else {
+        stepIo.observe(step.el);
+        if (step.hidden) guard(step.el, waiting, go);
+      }
     }
     observers.push(stepIo, seenIo);
 
-    /** MD-02 safety net: ≥50% in view for 300 ms while still waiting for its trigger. */
-    function guard(el: Element, waiting: () => boolean, go: () => void) {
+    /**
+     * MD-02 safety net: ≥50% in view for 300 ms while still waiting for its trigger. With a
+     * `line` (the ceremony's gate, RC3-01): wholly above that line for 300 ms.
+     */
+    function guard(el: Element, waiting: () => boolean, go: () => void, line?: string) {
       let timer: ReturnType<typeof setTimeout> | undefined;
       const io = new IntersectionObserver(
         (entries) => {
@@ -442,7 +511,7 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
             io.disconnect();
             return;
           }
-          if (shareInView(entry) >= 0.5) {
+          if (line ? wholly(entry) : shareInView(entry) >= 0.5) {
             timer ??= later(() => {
               io.disconnect();
               if (waiting()) go();
@@ -453,7 +522,7 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
             timer = undefined;
           }
         },
-        { threshold: [0, 0.25, 0.5, 0.75, 1] },
+        line ? { rootMargin: line, threshold: [0, 1] } : { threshold: [0, 0.25, 0.5, 0.75, 1] },
       );
       io.observe(el);
       observers.push(io);

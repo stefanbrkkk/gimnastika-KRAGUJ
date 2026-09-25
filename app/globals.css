@@ -238,6 +238,12 @@
     html {
       scroll-behavior: smooth;
     }
+    /* A first load with a #hash lands on its target instantly: smooth-scrolling the whole page
+       past the hero is not something the visitor asked for (CV3-01/MD3-01). The head script in
+       app/layout.tsx removes html.hash-land two frames after load. */
+    html.hash-land {
+      scroll-behavior: auto;
+    }
   }
 
   body {

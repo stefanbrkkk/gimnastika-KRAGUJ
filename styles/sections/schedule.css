@@ -463,6 +463,10 @@ html:not(.js) .sched-next {
 .sched-score[data-started] .sched-score__alt {
   color: var(--color-iceblue-200);
 }
+/* An „ili“ line that has just gone keeps its text while it fades out (schedule-enhance.ts). */
+.sched-score__alt[data-ghost]::after {
+  content: attr(data-ghost);
+}
 .sched-score__group {
   grid-area: group;
   display: flex;
@@ -478,9 +482,21 @@ html:not(.js) .sched-next {
   color: var(--color-ice-50);
   text-wrap: balance;
 }
-.sched-score__group .sched-swatch {
-  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.35);
+.sched-score__swatches {
+  flex: none;
+  display: inline-flex;
   transform: translateY(-2px);
+}
+.sched-score__swatches .sched-swatch {
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.35);
+}
+/* Several groups in the board's slot: one bar each, overlapped 4px; a board-coloured edge
+   keeps each bar apart from the one under it (two C groups share a colour). */
+.sched-score__swatches .sched-swatch + .sched-swatch {
+  margin-left: -4px;
+  box-shadow:
+    inset 0 0 0 1.5px rgba(255, 255, 255, 0.35),
+    -1.5px 0 0 0 var(--color-navy-950);
 }
 /* 320–359px: the label takes its own line above day + numerals, and a long group name may
    take two lines — reserved, so nothing moves. */
@@ -519,7 +535,7 @@ html:not(.js) .sched-next {
     border-left: 1px solid rgba(141, 169, 198, 0.2);
     font-size: var(--text-body);
   }
-  .sched-score__group .sched-swatch {
+  .sched-score__swatches {
     transform: none;
   }
 }
@@ -1177,9 +1193,50 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
     0 0 0 1px var(--hairline),
     var(--shadow-2);
 }
-/* While rows glide (filter / day change) they stay inside the card. */
+/* While rows glide (filter / day change) they stay inside the card, and they are opaque:
+   a row gliding over the place of one that fades out (z-index -1) hides it (SC3-02). */
 .sched-day[data-flipping] {
   overflow: clip;
+}
+.sched-day[data-flipping] .sched-row {
+  background: var(--surface);
+}
+/* A card that gets shorter keeps its old height (min-height) while its drawn bottom edge
+   rises to the new one (--lift, schedule-enhance.ts rise()): the surface moves to two
+   pseudo-elements. ::before is the top cap (top corners and hairline, static); ::after is the
+   whole card lifted by --lift and clipped under the cap, so its bottom edge (corners,
+   hairline, shadow) is exactly the card's edge at the new height when the min-height goes.
+   The card itself stops clipping: nothing inside reaches below the rising edge. */
+.sched-day[data-hold] {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+  background: none;
+  box-shadow: none;
+}
+.sched-day[data-hold]::before,
+.sched-day[data-hold]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px var(--hairline),
+    var(--shadow-2);
+  pointer-events: none;
+}
+.sched-day[data-hold]::before {
+  bottom: auto;
+  height: calc(2 * var(--radius-lg));
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+  box-shadow: 0 0 0 1px var(--hairline);
+}
+.sched-day[data-hold]::after {
+  transform: translateY(calc(-1 * var(--lift, 0px)));
+  clip-path: inset(calc(var(--lift, 0px) + var(--radius-lg)) -48px -48px);
 }
 @media (min-width: 1024px) {
   .sched-day {
@@ -1196,6 +1253,12 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   text-transform: uppercase;
   color: var(--muted);
   font-stretch: 100%;
+}
+/* The previous day's title while it fades out over the new one (a day change): no height,
+   so its text sits exactly on the new title's. */
+.sched-day__ghost {
+  height: 0;
+  padding: 0;
 }
 .sched-rows {
   position: relative;
@@ -1304,7 +1367,8 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   border-top: 1px solid var(--hairline);
   color: var(--muted);
 }
-.sched-day:not(:has(.sched-row:not([hidden]))) .sched-day__filtered {
+/* Rows that are fading out (data-leaving) are already gone: the line is part of the new layout. */
+.sched-day:not(:has(.sched-row:not([hidden], [data-leaving]))) .sched-day__filtered {
   display: block;
 }
 /* The mark beside the sentence where both fit; on phones the sentence goes under the mark. */

@@ -6,15 +6,19 @@
  *
  * Gymnastics vocabulary (lib/motion-env.ts):
  *  - filter („dismount → glide → stick“): leaving items dismount in place — pinned at their
- *    old box, they drop 8px and fade (120 ms, takeoff) and never travel; the remaining ones
- *    hold 60 ms then glide into place (Flip, stick); new ones land from 0.1s (y −10 → 0,
- *    scale .97 → 1, land), when the leaving items are all but gone. The card list and a day card keep
- *    their height until 0.36s (min-height), then the location card below (stacked layouts)
- *    lands in its new place; a day card clips its rows, so nothing paints outside it.
+ *    old box, they drop 8px and fade (120 ms cards, 90 ms rows; linear) and never travel;
+ *    the remaining ones hold 60 ms then glide into place (Flip, stick); new ones land from
+ *    0.1s (y −10 → 0, scale .97 → 1, land), when the leaving items are gone. Rows are opaque
+ *    while they move, so a glide never prints over a fading row. The card list keeps its
+ *    height until 0.36s (min-height), then the location card below (stacked layouts) lands in
+ *    its new place. A day card that gets shorter keeps its height too, but its drawn bottom
+ *    edge rises to the new one from 0.1 to 0.34s (land) and whatever is below it on screen
+ *    rides up with it; the layout follows in one frame when it already matches (rise()).
  *  - day change: rows shared by both days glide (Flip keyed by data-flip-id), rows the new
- *    day does not have fade out where they stood (a clone, 120 ms), new rows land; the card
- *    keeps its height meanwhile. The strip pill travels fast-out and sticks its landing
- *    (squash); the white labels it passes show under it on the way.
+ *    day does not have fade out where they stood (a clone, 90 ms), new rows land with the
+ *    new day title (the old one fades as a clone); a shorter card's edge rises as above,
+ *    also into the weekend. The strip pill travels fast-out and sticks its landing (squash);
+ *    the white labels it passes show under it on the way.
  *  - landings on first view: a card's training days land on the mat line one by one
  *    (MI-1), the scoreboard posts its numerals row by row (MI-4), the location pictogram
  *    draws the floor diagonal and drops its pin (MI-6). CSS does the motion (schedule.css);
@@ -51,6 +55,11 @@ export interface Enhancer {
   playDay(state: unknown): void;
   /** A view switch: finish a running filter motion; the tab pill sticks its landing. */
   view(): void;
+  /**
+   * The scoreboard's „ili“ line changed (`el` already shows the new text; `prev` = the old):
+   * a new line waits for the numerals to post, an emptied one fades its old text out.
+   */
+  alt(el: HTMLElement | null, prev: string): void;
   /** Today's rows in „Po danu“ (finished / next / „now“ line) and the Google Calendar dates. */
   sync(now: BelgradeNow | null, filter: string): void;
   destroy(): void;
@@ -84,10 +93,13 @@ interface DayCapture {
   flip: FlipState | null;
   rows: Pin[];
   height: number;
+  title: Element | null;
 }
 
 const matches = (el: HTMLElement, filter: string): boolean => filter === "all" || el.dataset.program === filter;
 const rendered = (el: Element): boolean => el.getClientRects().length > 0;
+/** Layout height with its fraction (offsetHeight rounds: a held box would grow by up to .5px). */
+const heightOf = (el: Element): number => el.getBoundingClientRect().height;
 const onScreen = (el: Element): boolean => {
   const r = el.getBoundingClientRect();
   return r.bottom > 0 && r.top < window.innerHeight;
@@ -183,7 +195,7 @@ export function enhance(root: HTMLElement): Enhancer {
    * location card below (stacked layouts) lands in its new place instead of popping up.
    */
   const holdHeights = (boxes: readonly HTMLElement[], before: readonly number[]): (() => void) => {
-    const now = boxes.map((b) => b.offsetHeight);
+    const now = boxes.map(heightOf);
     const held = boxes.filter((b, i) => now[i]! < before[i]!);
     held.forEach((b) => (b.style.minHeight = `${before[boxes.indexOf(b)]}px`));
     return () => {
@@ -197,6 +209,49 @@ export function enhance(root: HTMLElement): Enhancer {
           easing: "cubic-bezier(0.22, 1.12, 0.36, 1)",
         });
       }
+    };
+  };
+
+  /**
+   * A day card that got shorter (SC3-01): it keeps its old height (min-height) while its drawn
+   * bottom edge rises to the new one — the surface is handed to two pseudo-elements
+   * (schedule.css [data-hold]) and --lift raises the body — from `at` to `end` on the land
+   * ease. Whatever the collapse will move and the screen shows (the location card; ≥1280 a
+   * stuck scoreboard; the next section's top) rides up with the edge (`translate`, so a
+   * transform of its own is kept). The release clears it all in one frame, when the layout
+   * already matches the drawing. Measured after Flip's reads: two layouts, no motion yet.
+   */
+  const rise = (card: HTMLElement, h0: number, tl: Timeline, at: number, end: number): (() => void) => {
+    const lift = h0 - heightOf(card);
+    const next = root.closest("section")?.nextElementSibling;
+    const others = [root.querySelector<HTMLElement>(".sched-score"), aside, next instanceof HTMLElement ? next : null].filter(
+      (el): el is HTMLElement => !!el,
+    );
+    if (lift < 1 || !m) return () => {};
+    const tops = others.map((el) => el.getBoundingClientRect().top);
+    card.style.minHeight = `${h0}px`;
+    const riders = others.flatMap((el, i) => {
+      const r = el.getBoundingClientRect();
+      const d = r.top - tops[i]!;
+      // It moves, and it is on screen before or after the collapse.
+      return d > 0.5 && r.top - d < window.innerHeight && r.bottom > 0 ? [{ el, d }] : [];
+    });
+    card.setAttribute("data-hold", "");
+    const p = { v: 0 };
+    const draw = () => {
+      card.style.setProperty("--lift", `${(lift * p.v).toFixed(2)}px`);
+      riders.forEach(({ el, d }) => (el.style.translate = `0 ${(-d * p.v).toFixed(2)}px`));
+    };
+    draw();
+    tl.add(m.gsap.to(p, { v: 1, duration: end - at, ease: EASE.land, onUpdate: draw }), at);
+    let held = true;
+    return () => {
+      if (!held) return;
+      held = false;
+      card.style.removeProperty("min-height");
+      card.style.removeProperty("--lift");
+      card.removeAttribute("data-hold");
+      riders.forEach(({ el }) => el.style.removeProperty("translate"));
     };
   };
 
@@ -290,12 +345,15 @@ export function enhance(root: HTMLElement): Enhancer {
       const boxes = byGroup ? [scope] : Array.from(scope.querySelectorAll<HTMLElement>(".sched-day")).filter(rendered);
       const targets = boxes.flatMap((b) => Array.from(b.querySelectorAll<HTMLElement>(ITEM)));
       const state = Flip.getState(targets);
-      const h0 = boxes.map((b) => b.offsetHeight);
+      const h0 = boxes.map(heightOf);
       // Visible items the new filter removes, with their boxes (read in the same layout as Flip's).
       // `data-leaving` hides them for Flip's measurement (display: none, NOT the !important
       // [hidden] rule); they come back pinned at those boxes to dismount in place.
       const leaving = targets.filter((el) => !el.hidden && !matches(el, next));
       const pins = leaving.map(measure);
+      // „Po danu“: the day's „no training of this program“ line, shown by CSS once no row is left.
+      const notes = boxes.map((b) => b.querySelector<HTMLElement>(".sched-day__filtered")).filter((el): el is HTMLElement => !!el);
+      const noted = notes.filter(rendered);
       leaving.forEach((el) => {
         el.setAttribute(LEAVING, "");
         el.setAttribute("aria-hidden", "true");
@@ -329,22 +387,28 @@ export function enhance(root: HTMLElement): Enhancer {
         onInterrupt: done,
       });
       // After Flip has measured the new layout: hold the heights (the held height moves no
-      // item), then pin the leavers where they stood.
-      release = holdHeights(boxes, h0);
+      // item), then pin the leavers where they stood. One day card (the only case with a
+      // selected day) rises to its new height; the card list is released at 0.36s.
+      const day = !byGroup && boxes.length === 1 ? boxes[0] : undefined;
+      release = day ? rise(day, h0[0]!, flip, 0.1, 0.34) : holdHeights(boxes, h0);
       pins.forEach(pin);
       if (leaving.length) {
+        // Rows fade faster than cards: a row is transparent where no mover covers it.
+        const out = byGroup ? 0.12 : 0.09;
         flip.add(
           gsap
             .timeline()
-            .to(leaving, { opacity: 0, duration: 0.12, ease: "none" }, 0)
-            .to(leaving, { y: 8, duration: 0.12, ease: EASE.takeoff }, 0),
+            .to(leaving, { opacity: 0, duration: out, ease: "none" }, 0)
+            .to(leaving, { y: 8, duration: out, ease: EASE.takeoff }, 0),
           0,
         );
       }
       landAll();
       if (resized.length) flip.add(landIn(resized, 0), 0.1);
+      const shownNotes = notes.filter((el) => rendered(el) && !noted.includes(el));
+      if (shownNotes.length) flip.add(landIn(shownNotes, 0), 0.1);
       // Movers and leavers are done at 0.36s; the entering items land inside the new layout.
-      flip.call(() => release(), [], 0.36);
+      flip.call(() => release(), [], day ? 0.34 : 0.36);
       tl = flip;
     },
 
@@ -356,7 +420,12 @@ export function enhance(root: HTMLElement): Enhancer {
       const day = days.length === 1 ? days[0] : undefined;
       if (!day) return null;
       const rows = Array.from(day.querySelectorAll<HTMLElement>(ITEM)).filter((el) => !el.hidden);
-      const capture: DayCapture = { flip: rows.length ? m.Flip.getState(rows) : null, rows: rows.map(measure), height: day.offsetHeight };
+      const capture: DayCapture = {
+        flip: rows.length ? m.Flip.getState(rows) : null,
+        rows: rows.map(measure),
+        height: heightOf(day),
+        title: day.querySelector(".sched-day__title"),
+      };
       return capture;
     },
 
@@ -381,18 +450,41 @@ export function enhance(root: HTMLElement): Enhancer {
       squash(root.querySelector(".sched-strip__pill"), LAND_AT);
       const day = Array.from(root.querySelectorAll<HTMLElement>(".sched-days > .sched-day")).find(rendered);
       if (!day) return;
+      const capture = state as DayCapture | null;
       const mark = day.querySelector(".sched-day__empty .chrono-mark");
       if (mark) {
+        // Into the weekend: the leap replays while the shorter card's edge rises (SC3-01).
         leap(mark);
+        if (capture) {
+          const t = gsap.timeline();
+          t.call(rise(day, capture.height, t, 0.1, 0.34), [], 0.34);
+          tl = t;
+        }
         return;
       }
       const rows = Array.from(day.querySelectorAll<HTMLElement>(ITEM)).filter((el) => !el.hidden);
       if (!rows.length) return;
       const enter = (els: Element[]) =>
         gsap.fromTo(els, { opacity: 0, y: -8 }, { opacity: 1, y: 0, duration: 0.24, ease: EASE.stick, delay: 0.1, stagger: 0.03, clearProps: "opacity,transform" });
-      const capture = state as DayCapture | null;
+      // The day title cross-fades with the rows (SC3-02): the old title, cloned in place (a
+      // zero-height copy right before the new one), fades in 90 ms; the new one comes with
+      // the entering rows from 0.1s.
+      const title = day.querySelector<HTMLElement>(".sched-day__title");
+      const ghost = capture?.title && title && capture.title !== title ? (capture.title.cloneNode(true) as HTMLElement) : null;
+      const cross = (t: Timeline) => {
+        if (!ghost || !title) return;
+        ghost.removeAttribute("id");
+        ghost.setAttribute("aria-hidden", "true");
+        ghost.classList.add("sched-day__ghost");
+        title.before(ghost);
+        t.to(ghost, { opacity: 0, duration: 0.09, ease: "none" }, 0);
+        t.fromTo(title, { opacity: 0 }, { opacity: 1, duration: 0.24, ease: EASE.stick, clearProps: "opacity" }, 0.1);
+      };
       if (!capture?.flip) {
-        tl = enter(rows);
+        const t = gsap.timeline({ onComplete: () => ghost?.remove(), onInterrupt: () => ghost?.remove() });
+        t.add(enter(rows), 0);
+        cross(t);
+        tl = t;
         return;
       }
       // Rows the new day does not have fade out where they stood: a clone of each, pinned in
@@ -417,6 +509,7 @@ export function enhance(root: HTMLElement): Enhancer {
       const done = () => {
         clones.forEach((el) => el.remove());
         clones.length = 0;
+        ghost?.remove();
         release();
         day.removeAttribute("data-flipping");
       };
@@ -431,8 +524,9 @@ export function enhance(root: HTMLElement): Enhancer {
         onComplete: done,
         onInterrupt: done,
       });
-      release = holdHeights([day], [capture.height]);
-      if (clones.length) flip.add(gsap.to(clones, { opacity: 0, duration: 0.12, ease: "none" }), 0);
+      release = rise(day, capture.height, flip, 0.1, 0.34);
+      if (clones.length) flip.add(gsap.to(clones, { opacity: 0, duration: 0.09, ease: "none" }), 0);
+      cross(flip);
       flip.call(() => release(), [], 0.34);
       tl = flip;
     },
@@ -440,6 +534,30 @@ export function enhance(root: HTMLElement): Enhancer {
     view() {
       finish();
       if (motionAllowed()) squash(root.querySelector(".sched-views__pill"), LAND_AT);
+    },
+
+    alt(el, prev) {
+      if (!el || !motionAllowed() || !onScreen(el)) return;
+      el.getAnimations().forEach((a) => a.cancel());
+      el.removeAttribute("data-ghost");
+      if (el.textContent) {
+        // Held at 0 until the last numeral that posts again has lit its last dot row, then 120 ms.
+        let wait = 0;
+        el.parentElement?.querySelectorAll(".sched-score__c").forEach((c) =>
+          c.getAnimations().forEach((a) => {
+            const endTime = Number(a.effect?.getComputedTiming().endTime ?? 0);
+            wait = Math.max(wait, endTime - Number(a.currentTime ?? 0));
+          }),
+        );
+        el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 120, delay: wait, easing: "linear", fill: "backwards" });
+      } else if (prev) {
+        // The old „ili“ line fades out where it stood (schedule.css shows data-ghost as text).
+        el.setAttribute("data-ghost", prev);
+        el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 80, easing: "linear", fill: "forwards" }).onfinish = (e) => {
+          el.removeAttribute("data-ghost");
+          (e.target as Animation).cancel();
+        };
+      }
     },
 
     sync(now, filter) {
@@ -458,19 +576,24 @@ export function enhance(root: HTMLElement): Enhancer {
       // Marks change only where they differ (no needless style invalidation on a filter tap).
       // A row has started only when none of its options is still to come: an „ili“ row whose
       // 16:00 is ahead is upcoming (its finished 08:30 range still goes quiet). The royal rule
-      // marks the first upcoming row (the scoreboard's pick, „ili“ slots included); the „now“
-      // line sits above it only when started rows (live or finished) are above it.
+      // marks the first upcoming row (the scoreboard's pick, „ili“ slots included) and every
+      // row in that same slot (same starts: the groups the board names); the „now“ line sits
+      // above the first only when started rows (live or finished) are above it.
       const code = now ? DAY_BY_ISO[now.isoWeekday - 1] : undefined;
       let started = false;
       let found = false;
+      /** The first upcoming row's starts: rows with the same starts share its slot (and its rule). */
+      let slot = "";
       root.querySelectorAll<HTMLElement>(".sched-day").forEach((panel) => {
         const today = !!now && panel.dataset.day === code;
         panel.querySelectorAll<HTMLElement>(".sched-row").forEach((row) => {
           let last = Number.NEGATIVE_INFINITY;
           let over = today;
+          let starts = "";
           row.querySelectorAll<HTMLElement>(".sched-times__range").forEach((r) => {
             const past = today && Number(r.dataset.e) <= now!.minutes;
             last = Math.max(last, Number(r.dataset.s));
+            starts += `${r.dataset.s},`;
             mark(r, "data-past", past);
             over &&= past;
           });
@@ -482,7 +605,8 @@ export function enhance(root: HTMLElement): Enhancer {
             else if (!found) {
               found = next = true;
               line = started;
-            }
+              slot = starts;
+            } else next = starts === slot;
           }
           mark(row, "data-next", next);
           mark(row, "data-now", line);

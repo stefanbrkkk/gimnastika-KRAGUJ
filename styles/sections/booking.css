@@ -134,6 +134,16 @@ html[data-booking-open] body {
   color: var(--color-ice-50);
 }
 
+/* CV3-05: on phones the title is where focus lands when the sheet opens (tabindex −1, a
+   programmatic target — the dialog's aria-labelledby already announces it). It is not a
+   control, so it never draws a ring (WCAG 2.4.7 covers operable components): no box on the
+   heading when the sheet opens from the keyboard, no flash while it closes. The close
+   button, the fields and the send actions keep their rings. */
+.booking__title:focus {
+  outline: none;
+  box-shadow: none;
+}
+
 .booking__close {
   flex: none;
   display: grid;

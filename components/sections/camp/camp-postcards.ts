@@ -5,7 +5,9 @@
  * Loaded lazily by CampIsland — never part of the first-load bundle.
  *
  * Reduced motion / Save-Data: Draggable stays, without inertia; changes are instant.
- * Only transform (x, y, xPercent, yPercent, rotation, scale) and z-index change.
+ * Only transform (x, y, xPercent, yPercent, rotation, scale) and z-index change; a card's
+ * transform-origin switches (top: its base, back: its centre) are paid back in x/y, so they
+ * never move anything on screen.
  *
  * The new top card lands on the pile (MI-05): it settles in from just above and sticks the
  * landing with one small squash. At ≥1024 the exits are asymmetric (RC-08): a card leaving
@@ -26,14 +28,25 @@ interface Slot {
   xPercent: number;
   yPercent: number;
   rotation: number;
+  scale: number;
 }
 
 /** Must match `html.js .postcard[data-slot]` in styles/sections/camp.css (the pre-JS stack). */
 const SLOTS: readonly Slot[] = [
-  { xPercent: -7, yPercent: 1, rotation: -2 },
-  { xPercent: 22, yPercent: -8, rotation: 6 },
-  { xPercent: -24, yPercent: -2, rotation: -6 },
+  { xPercent: -7, yPercent: 1, rotation: -2, scale: 1 },
+  { xPercent: 22, yPercent: -8, rotation: 6, scale: 1 },
+  { xPercent: -24, yPercent: -2, rotation: -6, scale: 1 },
 ];
+/**
+ * Phones (<640): a LANDSCAPE card in the back slot sits tighter and a little smaller, so its
+ * right edge stays on screen (RC3-02); portrait cards and ≥640 keep slot 1. Must match the
+ * `html.js .postcard[data-slot="1"][data-orient="landscape"]` phone rule in camp.css.
+ */
+const PHONE_BACK_LANDSCAPE: Slot = { xPercent: 14, yPercent: -9, rotation: 5, scale: 0.88 };
+const PHONE = "(max-width: 639.98px)";
+/** Transform origins: the top card lands on its base; the back cards turn about their centre. */
+const ORIGIN_TOP = "50% 100%";
+const ORIGIN_BACK = "50% 50%";
 const slotAt = (i: number): Slot => SLOTS[Math.min(i, SLOTS.length - 1)] ?? SLOTS[0]!;
 
 /** Fraction of the stage width a flick must travel (or be thrown) to send the card back. */
@@ -66,6 +79,10 @@ export async function armPostcards(layout: HTMLElement, { inertia }: { inertia: 
   const animate = () => inertia && !reduce.matches;
   const order = cards.slice();
   const width = () => stage.getBoundingClientRect().width;
+  const phone = window.matchMedia(PHONE);
+  /** A card's resting place at stack position i (RC3-02: the phone back slot for landscape). */
+  const slotFor = (card: HTMLElement, i: number): Slot =>
+    i === 1 && phone.matches && card.dataset.orient === "landscape" ? PHONE_BACK_LANDSCAPE : slotAt(i);
   /** ≥1024 the stack stands beside the text column: left exits only tuck (RC-08). */
   const wide = window.matchMedia("(min-width: 1024px)");
   const textCol = layout.querySelector<HTMLElement>(".camp__text");
@@ -92,7 +109,7 @@ export async function armPostcards(layout: HTMLElement, { inertia }: { inertia: 
   const flickLeft = () => Math.min(width() * FLICK, leftLimit * 0.6);
 
   const ctx = gsap.context(() => {
-    order.forEach((card, i) => gsap.set(card, { ...slotAt(i), x: 0, y: 0, zIndex: n - i }));
+    order.forEach((card, i) => gsap.set(card, { ...slotFor(card, i), x: 0, y: 0, zIndex: n - i }));
   });
   stage.setAttribute("data-armed", "");
 
@@ -114,20 +131,52 @@ export async function armPostcards(layout: HTMLElement, { inertia }: { inertia: 
   };
 
   /**
+   * A card's transform origin: the top card lands and squashes from its bottom edge; a back
+   * card turns about its centre, exactly like the pre-JS stack in camp.css. Switching moves
+   * nothing on screen — the shift is measured and paid back in x/y, which the restack then
+   * settles to 0. (Before, a card that had once landed kept the bottom origin and sat about
+   * 10 px right of its back slot, past the screen edge; RC3-02.)
+   */
+  const reorigin = (card: HTMLElement, origin: string) => {
+    const a = card.getBoundingClientRect();
+    gsap.set(card, { transformOrigin: origin });
+    const b = card.getBoundingClientRect();
+    const dx = b.left - a.left;
+    const dy = b.top - a.top;
+    if (dx || dy) {
+      gsap.set(card, { x: (Number(gsap.getProperty(card, "x")) || 0) - dx, y: (Number(gsap.getProperty(card, "y")) || 0) - dy });
+    }
+  };
+
+  /** The card that was on top goes back about its centre; the new top card lands on its base. */
+  const handOver = (leaving: HTMLElement) => {
+    reorigin(leaving, ORIGIN_BACK);
+    const top = order[0];
+    if (top && top !== leaving) reorigin(top, ORIGIN_TOP);
+  };
+
+  /**
    * Every card to its slot; the card that changed layer gets its z-index first. The new top
    * card lands on the pile: it settles from just above, then one contact squash (EASE.land).
+   * Call `handOver` first, before any tween of the change is built.
    */
   const restack = (timeline: gsap.core.Timeline) => {
     const at = timeline.duration(); // one start time for every card (not ">" — that chains them)
-    order.forEach((card, i) => {
-      timeline.set(card, { zIndex: n - i }, at);
-      timeline.to(card, { ...slotAt(i), x: 0, duration: RESTACK, ease: EASE.stick }, at);
-    });
     const top = order[0];
     if (!top) return;
+    order.forEach((card, i) => {
+      timeline.set(card, { zIndex: n - i }, at);
+      // The top card's y and scale belong to its landing (below); the others settle to their slot.
+      const { scale, ...place } = slotFor(card, i);
+      timeline.to(card, { ...place, ...(card === top ? {} : { scale, y: 0 }), x: 0, duration: RESTACK, ease: EASE.stick }, at);
+    });
+    // It lands from 10 px above and 2% over where it is now (a smaller back-slot card grows as
+    // it comes forward; RC3-02), never with a jump in size.
+    const y0 = Number(gsap.getProperty(top, "y")) || 0;
+    const s0 = Number(gsap.getProperty(top, "scaleX")) || 1;
     timeline.fromTo(
       top,
-      { ...LAND_FROM, transformOrigin: "50% 100%" },
+      { y: y0 + LAND_FROM.y, scale: s0 * LAND_FROM.scale },
       { y: 0, scale: 1, duration: CONTACT_AT, ease: EASE.stick, immediateRender: false },
       at,
     );
@@ -139,7 +188,8 @@ export async function armPostcards(layout: HTMLElement, { inertia }: { inertia: 
     );
   };
 
-  const snapInstant = () => order.forEach((card, i) => gsap.set(card, { ...slotAt(i), x: 0, zIndex: n - i }));
+  const snapInstant = () =>
+    order.forEach((card, i) => gsap.set(card, { ...slotFor(card, i), x: 0, y: 0, transformOrigin: ORIGIN_BACK, zIndex: n - i }));
 
   /** Top card → back. `thrown`: it already left the stack under the pointer. */
   const next = (thrown: boolean) => {
@@ -152,6 +202,7 @@ export async function armPostcards(layout: HTMLElement, { inertia }: { inertia: 
       return;
     }
     ctx.add(() => {
+      handOver(top);
       tl = gsap.timeline({ onComplete: () => void (tl = null) });
       if (!thrown) {
         tl.to(top, { x: width() * OUT_RIGHT, rotation: slotAt(0).rotation + 10, duration: DUR.fast, ease: EASE.takeoff });
@@ -172,6 +223,8 @@ export async function armPostcards(layout: HTMLElement, { inertia }: { inertia: 
       return;
     }
     ctx.add(() => {
+      const leaving = order[1];
+      if (leaving) handOver(leaving);
       tl = gsap.timeline({ onComplete: () => void (tl = null) });
       const out = wide.matches ? Math.min(width() * OUT_LEFT_WIDE, leftRoom(back)) : width() * OUT_RIGHT;
       tl.to(back, { x: -out, rotation: slotAt(0).rotation - 10, duration: DUR.fast, ease: EASE.takeoff });

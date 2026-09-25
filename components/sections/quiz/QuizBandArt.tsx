@@ -5,6 +5,14 @@
  * attributes QuizBand sets (data-step / data-v / data-app / data-dir), so the quiz island
  * ships none of this geometry. Poses per variant and develop delays travel as inline custom
  * properties (geometry.ts); the motion itself is CSS (styles/sections/quiz.css).
+ *
+ * Paint order is the print's: the scene (apparatus, grid, mat) → exposures → flier. The ghosts
+ * are faint (18–28 %), so a steel rail under one would still cut through it like a fence; the
+ * print therefore lays a navy occluder over the apparatus first (QP3-05): a second copy of the
+ * seven exposures with the same classes and inline variables — every pose, develop delay and
+ * transition of the visible print drives it too — so a rail shows through a body only faintly.
+ * Over the strip's own navy it is invisible, so it touches nothing but the apparatus. (Not an
+ * SVG <mask>: Chromium keeps a mask's cached raster while CSS transitions move its content.)
  */
 import type { CSSProperties } from "react";
 import {
@@ -47,15 +55,33 @@ function Leap() {
   return <use href="#leap" x={USE_X} y={USE_Y} width={FIG_W} height={FIG_H} />;
 }
 
-export function QuizBandArt() {
+/** The seven exposures (the visible print, and again as the apparatus occluder). */
+function Exposures() {
+  return EXPOSURES.map((e, i) => {
+    const style: Vars = {
+      "--i": i,
+      "--t-flat": transformOf(e.pose.flat),
+      "--t-parter": transformOf(e.pose.parter),
+      "--t-greda": transformOf(e.pose.greda),
+      "--t-skip": transformOf(e.pose.skip),
+      "--d": `${e.delay}ms`,
+      "--ds": `${e.delaySkip}ms`,
+    };
+    return (
+      <g key={e.id} className={`qf qf--${e.id}`} data-key={e.key ? "" : undefined} style={style}>
+        <Leap />
+      </g>
+    );
+  });
+}
+
+/**
+ * `occlude` — lay the exposures over the apparatus (the island's strip). The no-JS guide's still
+ * print never shows an apparatus, so it leaves the occluder out.
+ */
+export function QuizBandArt({ occlude = false }: { occlude?: boolean }) {
   return (
     <svg className="quiz-band__svg" viewBox={`0 0 ${VB_W} ${VB_H}`} focusable="false" style={flierVars}>
-      <g className="qb-grid">
-        {GRID_X.map((x) => (
-          <line key={x} x1={x} x2={x} y1={8} y2={MAT_Y} data-major={MAJOR.has(x) ? "" : undefined} />
-        ))}
-      </g>
-
       {/* The apparatus of the recommended program, drawn in under frame 03 as she lands. */}
       <g className="qb-apps">
         {APPS.map((id) => {
@@ -75,6 +101,19 @@ export function QuizBandArt() {
           );
         })}
       </g>
+      {/* Where a developed exposure lies over the apparatus, the rail shows through it faintly. */}
+      {occlude ? (
+        <g className="qb-occlude">
+          <Exposures />
+        </g>
+      ) : null}
+
+      {/* Measuring grid over the scene's apparatus, under the exposures. */}
+      <g className="qb-grid">
+        {GRID_X.map((x) => (
+          <line key={x} x1={x} x2={x} y1={8} y2={MAT_Y} data-major={MAJOR.has(x) ? "" : undefined} />
+        ))}
+      </g>
 
       <line className="qb-mat" x1={16} x2={X1} y1={MAT_Y} y2={MAT_Y} />
       <line className="qb-mat qb-mat--span" x1={X1} x2={X3} y1={MAT_Y} y2={MAT_Y} />
@@ -86,22 +125,7 @@ export function QuizBandArt() {
       ))}
 
       <g className="qb-latent">
-        {EXPOSURES.map((e, i) => {
-          const style: Vars = {
-            "--i": i,
-            "--t-flat": transformOf(e.pose.flat),
-            "--t-parter": transformOf(e.pose.parter),
-            "--t-greda": transformOf(e.pose.greda),
-            "--t-skip": transformOf(e.pose.skip),
-            "--d": `${e.delay}ms`,
-            "--ds": `${e.delaySkip}ms`,
-          };
-          return (
-            <g key={e.id} className={`qf qf--${e.id}`} data-key={e.key ? "" : undefined} style={style}>
-              <Leap />
-            </g>
-          );
-        })}
+        <Exposures />
       </g>
 
       {/* The flier: X and base height (.qb-fly, transition), the parabola (.qb-hop), torso pitch

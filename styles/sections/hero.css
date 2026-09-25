@@ -26,6 +26,8 @@
   /* room for the floating header */
   padding-top: 80px;
   padding-bottom: 48px;
+  /* the H1's leading reads its available width in cqi (.hero__title) */
+  container-type: inline-size;
 }
 
 /* ---- Decorative layer (aria-hidden). Hidden only under html.js-motion until
@@ -211,6 +213,10 @@
   pointer-events: none;
 }
 
+.hero-spine__ink {
+  transition: opacity var(--dur-reveal) var(--ease-stick);
+}
+
 .hero-spine__line {
   fill: none;
   stroke: var(--color-steel-300);
@@ -219,12 +225,27 @@
   stroke-linejoin: round;
   stroke-dasharray: 1 1;
   stroke-dashoffset: 1;
-  transition: opacity var(--dur-reveal) var(--ease-stick);
+}
+
+/* The gutter leg — from the mat's end, folded down the right margin — is the
+   floor carried on, not a border: the mat's own weight (1.5 px steel-300 at
+   .6), a mitred fold instead of a card's rounded corner, and the mat's Marey
+   ticks every 96 px, pointing out of the page. Each draws as the line passes
+   (stroke-dashoffset). The diagonal and the band legs keep the spine's 2 px. */
+.hero-spine__floor,
+.hero-spine__tick {
+  fill: none;
+  stroke: var(--color-steel-300);
+  stroke-opacity: 0.6;
+  stroke-width: 1.5;
+  stroke-linejoin: miter;
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
 }
 
 /* After the hand-off the line has done its job: it fades out (opacity only, on
    a clock, not the scroll) and is back as soon as the scrub runs back up. */
-.hero-spine[data-handed] .hero-spine__line {
+.hero-spine[data-handed] .hero-spine__ink {
   opacity: 0;
 }
 
@@ -254,6 +275,14 @@
   white-space: normal;
 }
 
+/* The desktop „back to top“ (scrub.ts) moves focus to the H1, as the browser's
+   own #top jump would move its focus start: a reading position, not a
+   control, so no ring (the header logo that sent it there had one). */
+.hero__title[tabindex="-1"]:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 .hero__title {
   margin-top: 14px;
   color: var(--fg);
@@ -263,6 +292,21 @@
      running under the aside or out of the clipped hero. No effect at default
      spacing (every line fits at every width). */
   overflow-wrap: break-word;
+  /* Leading .88 (the display-xl token) for the four-line headline, 1 where it
+     sets in two or three lines. There „gimnastika“ shares its line („Sportska
+     gimnastika“ / „gimnastika za“), so its „g“ hangs over the „K“ of
+     „Kragujevcu“ or the „d“ of „decu“, and at .88 the two fused (landscape
+     phones, portrait phones from ~430 px, short desktop windows). At 1 the
+     tail clears the „K“ by ≥ 2.5 px and the „d“ by ≥ 2 px (pixel-measured,
+     44–88 px). The headline takes fewer than four lines exactly when „decu u
+     Kragujevcu“ fits one line (greedy breaking; balance keeps the count):
+     available width ≥ --h1-3, that phrase's measured width at each
+     font-stretch (a hair under it, so a boundary case errs open). The steep
+     clamp makes that a step: every four-line layout keeps .88 to the pixel
+     (the LCP headline is unchanged there, D-HERO-33). */
+  --h1-avail: 100cqi;
+  --h1-3: 8.76em;
+  line-height: calc(0.88em + clamp(0px, (var(--h1-avail) - var(--h1-3)) * 1000, 0.12em));
 }
 
 /* Portrait phones: the H1 a step larger than the display-xl token where the
@@ -363,14 +407,32 @@
 @media (min-width: 640px) {
   .hero__title {
     font-stretch: 112%;
+    --h1-3: 9.18em;
   }
   .hero__ctas .btn {
     flex: 0 1 auto;
   }
-  /* Three equal columns (an item may take two lines): never a 2 + 1 wrap. */
+  /* Three equal columns (an item may take two lines): never a 2 + 1 wrap.
+     A wrapped item is balanced („Član Gimnastičkog / saveza Srbije“), never a
+     one-word orphan under it. */
   .hero__trust {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px 24px;
+  }
+  .hero__trust li {
+    text-wrap: balance;
+  }
+}
+
+/* From 760 the three items fit one line each (659 px of text and ticks + 2 × 16
+   at 768, 704 px of content): each column is as wide as its item, spread across
+   the measure. Columns may still shrink below their item (a wider fallback
+   font, text zoom), where the item wraps, balanced, instead of overflowing. */
+@media (min-width: 760px) {
+  .hero__trust {
+    grid-template-columns: repeat(3, minmax(0, max-content));
+    justify-content: space-between;
+    column-gap: 16px;
   }
 }
 
@@ -400,7 +462,6 @@
     align-content: center;
     padding-top: 92px;
     padding-bottom: 20px;
-    container-type: inline-size;
     --hero-fit: calc((66.667cqi - 8px) / 6.75);
     --hero-fs: min(var(--hero-fit), max(5.5rem, min(var(--text-display-xl), calc((77svh - 164px) / 3.635))));
   }
@@ -423,6 +484,9 @@
     margin-top: 12px;
     font-size: var(--hero-fs);
     font-stretch: 118%;
+    /* cols 1–8 */
+    --h1-avail: calc(66.667cqi - 8px);
+    --h1-3: 9.53em;
   }
   .hero__aside {
     grid-column: 9 / 13;
@@ -439,7 +503,11 @@
   }
   .hero__trust {
     grid-template-columns: none;
+    justify-content: normal;
     gap: 10px;
+  }
+  .hero__trust li {
+    text-wrap: wrap;
   }
 }
 
@@ -451,6 +519,7 @@
   }
   .hero__title {
     font-stretch: 121%;
+    --h1-3: 9.71em;
   }
 }
 

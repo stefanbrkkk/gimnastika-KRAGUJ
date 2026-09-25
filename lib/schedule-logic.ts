@@ -121,23 +121,31 @@ function nextSession(slots: readonly Slot[], now: BelgradeNow): { at: number; ne
   return null;
 }
 
+/** Same training slot: the same day, the same first start and the same „ili“ options. */
+const sameSlot = (a: BoardNext, b: BoardNext): boolean =>
+  a.offset === b.offset && a.start === b.start && a.alt.join() === b.alt.join();
+
 /**
  * The „Sledeći trening“ scoreboard: the earliest next training among several groups. An
  * „ili“ slot is named with all its options („08:30 ili 16:00“), so nothing is guessed; it
- * counts while one of them is still ahead. Ties keep the given (program) order. null only
- * when no group has any slot.
+ * counts while one of them is still ahead. `index` is the first such group in the given
+ * (program) order; `tied` lists every group that trains in that very slot (`index` first),
+ * so the board can name them all. null only when no group has any slot.
  */
 export function earliestNext(
   slotLists: readonly (readonly Slot[])[],
   now: BelgradeNow,
-): { index: number; next: BoardNext } | null {
-  let best: { index: number; next: BoardNext } | null = null;
+): { index: number; next: BoardNext; tied: number[] } | null {
+  let best: { index: number; next: BoardNext; tied: number[] } | null = null;
   let bestAt = Number.POSITIVE_INFINITY;
   slotLists.forEach((slots, index) => {
     const found = nextSession(slots, now);
-    if (found && found.at < bestAt) {
-      best = { index, next: found.next };
+    if (!found) return;
+    if (found.at < bestAt) {
+      best = { index, next: found.next, tied: [index] };
       bestAt = found.at;
+    } else if (best && found.at === bestAt && sameSlot(found.next, best.next)) {
+      best.tied.push(index);
     }
   });
   return best;

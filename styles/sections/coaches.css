@@ -250,12 +250,31 @@
 
 /* KR-07: where the impression crosses the navy plate it shows in the plate's accent, so
    „GSS“ stays legible across the edge. The wrapper is static (only the layer inside is
-   pressed) and clipped to the plate's box inside the stamp: the frame's 6 px side padding
-   and its 28 px foot (globals.css .frame / .frame-foot). */
+   pressed) and masked to the plate's box inside the stamp: the frame's 6 px side padding
+   and its 28 px foot (globals.css .frame / .frame-foot). The mask is feathered, not cut:
+   the lavender fades into the paper's ink over 6 px across the plate's right and bottom
+   edges, as ink does, instead of changing colour on a straight seam (AC3-04). */
 .licence-stamp__over-plate {
+  /* The feather straddles the edge: --feather / 2 in from the plate edge to --feather / 2 out. */
+  --feather: 6px;
+  --plate-w: calc(100% - var(--stamp-r) - 6px + var(--feather) / 2);
+  --plate-h: calc(100% - var(--stamp-b) - 28px + var(--feather) / 2);
   position: absolute;
   inset: 0;
-  clip-path: inset(0 calc(var(--stamp-r) + 6px) calc(var(--stamp-b) + 28px) 0);
+  -webkit-mask-image:
+    linear-gradient(to right, #000 calc(100% - var(--feather)), transparent),
+    linear-gradient(to bottom, #000 calc(100% - var(--feather)), transparent);
+  mask-image:
+    linear-gradient(to right, #000 calc(100% - var(--feather)), transparent),
+    linear-gradient(to bottom, #000 calc(100% - var(--feather)), transparent);
+  -webkit-mask-size: var(--plate-w) var(--plate-h);
+  mask-size: var(--plate-w) var(--plate-h);
+  -webkit-mask-position: 0 0;
+  mask-position: 0 0;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
   pointer-events: none;
 }
 
@@ -326,6 +345,22 @@
     --stamp: 86px;
     --stamp-r: 30px;
     --stamp-b: 21px;
+  }
+}
+
+/* Tablet (and any wide card below 1024 px): a 176 px print. The 224 px one made the card
+   taller than its short text column and left a hole between the name and the roles (AC3-03);
+   now the headroom is close to the desktop proportion. The stamp stays at 76 px. */
+@media (max-width: 1023.98px) {
+  @container coach (min-width: 520px) {
+    .coach__inner {
+      grid-template-columns: 176px minmax(0, 1fr);
+    }
+    .licence-stamp {
+      --stamp: 76px;
+      --stamp-r: 26px;
+      --stamp-b: 16px;
+    }
   }
 }
 
@@ -404,14 +439,22 @@
   transform: translate(0px, 400px) scale(2); /* 3:2 print, object-position 50% 29% */
 }
 
+/* A brush, not a vector: round ends and joins on every strand (AC3-02). */
+.brush__strand,
+.brush__shadow {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .brush__strand {
   stroke: var(--color-white);
 }
 
-/* Only over the pale wall at the upper right (masked in BrushStroke.tsx). */
+/* Only over the pale wall at the upper right (masked in BrushStroke.tsx); just a breath of
+   navy, so it never draws a dark inner line along the arc (AC3-02). */
 .brush__shadow {
   stroke: var(--color-navy-900);
-  opacity: 0.18;
+  opacity: 0.1;
 }
 
 /* --------------------------------------------------------------------------

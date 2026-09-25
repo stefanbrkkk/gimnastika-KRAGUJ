@@ -432,15 +432,38 @@ html.js .program-card {
 
 /* Every frame of a row has the row's height and its CTAs sit at the same place; the spare
    height of a shorter card goes into its plate at every width (QP-07, QP2-04), never into a
-   white band above the CTAs. The plate is a size container: the apparatus grows with it
-   (84/96px → 132px at 64% of the plate's height) and from 160px it becomes the detail sheet's
-   scene, with the club silhouette posed over the apparatus (QP2-05). */
+   white band above the CTAs. The plate is a size container and every plate is the detail
+   sheet's scene: the apparatus with the club silhouette posed over it (QP3-02). The whole
+   scene scales with the plate — 64% of its height, within the width its pose needs (--fit),
+   84/96px → 176px (the sheet's scene size) — instead of switching at a threshold. */
 .pc-plate {
   --icon-min: 84px;
-  --icon: clamp(var(--icon-min), 64cqh, 132px); /* resolved by the plate's descendants */
+  /* Width budget of the scene (--fit, per apparatus) keeps the pose ≥8px clear of the bib and
+     the + at every width. Bars: she dismounts to the right of the high bar (to 81.5 of the 48
+     drawing units); the C plate is the row's shortest, so this rarely binds. */
+  --fit: 42cqw;
+  --icon: clamp(var(--icon-min), min(64cqh, var(--fit)), 176px); /* resolved by the plate's descendants */
   flex: 1000 0 auto;
   min-height: calc(var(--icon-min) + 32px);
   container-type: size;
+}
+
+/* Vault: her post-flight reaches 83.5 units, over the „A·B“ bib. From a 111px drawing she
+   flies ≥8px above it, and wider plates keep smaller drawings beside it. Only 320–360px
+   phones with an 89–110px drawing would bring her closer; there the A·B card always shares
+   its row with the taller C card, so its plate is ≥197px and its drawing ≥120px. */
+.pc-plate[data-apparatus="preskok"] {
+  --fit: 55cqw;
+}
+
+/* Floor and beam pose her above the apparatus; the aerobic partner stands 30 units to the
+   right (78 units in all, no bib). */
+.pc-plate:is([data-apparatus="parter"], [data-apparatus="greda"]) {
+  --fit: 60cqw;
+}
+
+.pc-plate[data-apparatus="aerobik"] {
+  --fit: 58cqw;
 }
 
 @media (min-width: 640px) {
@@ -451,16 +474,13 @@ html.js .program-card {
   }
 }
 
-/* The posed silhouette only where the plate has room for a scene: a plate ≥160px tall (the
-   container is its content box, 10px of bottom padding less). */
-.pc-icon .pi-fig-x {
-  display: none;
-}
-
-@container (min-height: 150px) {
-  .pc-icon .pi-fig-x {
-    display: inline;
-  }
+/* The scene's box: sized by the plate, and a size container itself, so the drawing's line
+   weight steps with the drawing's real size (below). Nothing inside it reads --icon. */
+.pc-scene {
+  flex: none;
+  width: var(--icon);
+  height: var(--icon);
+  container: pc-scene / size;
 }
 
 /* Competitor bib (QP-06): white number cloth pinned at two corners, standing on the mat line. */
@@ -502,12 +522,14 @@ html.js .program-card {
   right: 3px;
 }
 
-/* Quiz recommendation (QP-10): a lav-200 stamp in the plate's free top-left corner. */
-/* Compact (22px), so it clears the tallest drawing under it (the high rail) by ≥9px. */
+/* Quiz recommendation (QP-10): a lav-200 stamp pressed across the plate's lower edge, aligned
+   with the title (QP3-02). Every plate is a scene now, so its upper half belongs to the
+   gymnast; the band under the mat line (≥20px) never holds a drawing, so the stamp's upper
+   half stays ≥9px under the mat line and its lower half ≥7px above the title. */
 .pc-stamp {
   position: absolute;
-  top: 8px;
-  left: 8px;
+  top: -11px;
+  left: 14px;
   z-index: 1;
   display: inline-flex;
   align-items: center;
@@ -640,48 +662,64 @@ html.js .program-card {
   stroke: none;
 }
 
-/* The card drawing grows with its plate (84/96 → 132px): the user-unit stroke steps down with
-   it, so the line stays 2.6–3.0 CSS px (sw × icon / 48; icon = 64% of the container height). */
-@media (min-width: 640px) {
-  .pc-icon {
-    --sw: 1.4px;
-  }
-}
-
-@container (min-height: 140px) {
+/* The card drawing scales with its plate (84 → 176px): the user-unit stroke steps down with
+   it, so the line stays 2.7–3.0 CSS px (sw × size / 48). The steps query the scene's own box. */
+@container pc-scene (min-width: 90px) {
   .pc-icon {
     --sw: 1.45px;
   }
 }
 
-@container (min-height: 150px) {
+@container pc-scene (min-width: 99px) {
   .pc-icon {
-    --sw: 1.35px;
+    --sw: 1.32px;
   }
 }
 
-@container (min-height: 166px) {
+@container pc-scene (min-width: 109px) {
   .pc-icon {
     --sw: 1.2px;
   }
 }
 
-@container (min-height: 185px) {
+@container pc-scene (min-width: 120px) {
   .pc-icon {
-    --sw: 1.07px;
+    --sw: 1.09px;
   }
 }
 
-@container (min-height: 206px) {
+@container pc-scene (min-width: 132px) {
   .pc-icon {
-    --sw: 1.02px;
+    --sw: 1px;
+  }
+}
+
+@container pc-scene (min-width: 144px) {
+  .pc-icon {
+    --sw: 0.92px;
+  }
+}
+
+@container pc-scene (min-width: 156px) {
+  .pc-icon {
+    --sw: 0.84px;
+  }
+}
+
+@container pc-scene (min-width: 171px) {
+  .pc-icon {
+    --sw: 0.78px;
   }
 }
 
 .pc-icon {
   --fig-hop: -10px; /* mount hop, in drawing units (ps-fig-x) */
-  width: var(--icon);
-  height: var(--icon);
+  /* …and its apex (ps-fig-y): a card plate can be as short as 116px, where her pose is 10px
+     under its top edge; a −10 apex would lift her hands off the print (the plate clips), −3
+     keeps them ≥4px inside. */
+  --fig-rise: -3px;
+  width: 100%;
+  height: 100%;
   /* Press (MI-04): the apparatus takes the weight — compresses onto its floor (y = 42/48). */
   transform-origin: 50% 87.5%;
   transition: scale var(--dur-slow-squash) var(--ease-rebound);
@@ -958,6 +996,7 @@ html.js .program-card {
    Card body
    -------------------------------------------------------------------------- */
 .pc-body {
+  position: relative; /* the quiz stamp hangs from its top edge */
   display: flex;
   flex-direction: column;
   flex: none; /* the plate takes the row's spare height (QP2-04) */
@@ -983,6 +1022,16 @@ html.js .program-card {
   font-size: var(--text-small);
   line-height: var(--text-small--line-height);
   color: var(--muted);
+}
+
+/* Desktop rows (QP3-03): every description takes at least three lines, so two cards of the
+   same shape (Mlađa 2 lines, Starija 3) start their titles level; where titles still differ in
+   a row, they differ by a clear step (≥48px), never by a near-miss. */
+@media (min-width: 1024px) {
+  .pc-desc {
+    min-height: calc(3 * 1.5em);
+    min-height: 3lh;
+  }
 }
 
 .pc-sched {
@@ -1634,7 +1683,8 @@ html.js .program-card {
   }
 }
 
-/* Units are the drawing's (48 = 132px): −14.5 ≈ −40px, 8.7 ≈ 24px, −10 ≈ −28px. */
+/* Units are the drawing's (48 = 132px): −14.5 ≈ −40px, 8.7 ≈ 24px, −10 ≈ −28px (--fig-rise;
+   cards use −3). */
 /* --fig-dir: −1 on a mirrored figure (aerobik's partner hops in from the right); --fig-hop is
    shorter on a card, whose plate edge is closer to the pose (her back foot stays on the print). */
 @keyframes ps-fig-x {
@@ -1657,7 +1707,7 @@ html.js .program-card {
     animation-timing-function: cubic-bezier(0.25, 0.6, 0.45, 1);
   }
   50% {
-    transform: translateY(-10px);
+    transform: translateY(var(--fig-rise, -10px));
     animation-timing-function: cubic-bezier(0.55, 0, 0.75, 0.4);
   }
   100% {

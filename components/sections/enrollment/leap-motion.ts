@@ -2,52 +2,76 @@
  * S10 „Jedan skok, tri kadra“ — the leap timeline. A LAZY chunk (imported only
  * by LeapBandPlayer), so it may load gsap (the shared motion chunk).
  *
- * The solid silhouette takes off from frame 1, flies the dotted parabola on the
- * „hang“ ease (it floats at the apex), pitching from takeoff through a level
- * split to the landing, and exposes its own trajectory as it goes. It drops the
- * ghost frames as it passes (takeoff at once, apex at half time), then sticks
- * the landing on step 3: the solid frame compresses and holds on the front foot
- * (--ease-land). Each step numeral and mat tick lights with its frame. After
+ * The solid silhouette takes off from frame 1 and flies the dotted parabola as a
+ * real leap does, like the hero's floor pass and every title mark: the forward
+ * travel runs at a constant speed and the height is read off the parabola at
+ * that x, so the easing is on y alone — fast off the mat, floating over the
+ * apex, falling onto the landing (MD3-04; the whole path on one „hang“ ease had
+ * stalled the flier over the apex). It pitches from takeoff through a level split
+ * to the landing and exposes its own trajectory as it goes. It drops the ghost
+ * frames as it passes them (takeoff at once, the apex when it is over it), then
+ * sticks the landing on step 3: the solid frame compresses and holds on the front
+ * foot (--ease-land). Each step numeral and mat tick lights with its frame. After
  * touchdown the twelve month lamps light up like a scoreboard (LED steps).
  * transform / opacity only (the trajectory is exposed by a clip rect's scaleX);
  * one timeline; ≈1.46s.
  */
 import { loadMotion } from "@/lib/load-motion";
 import { queuePrimaryMotion } from "@/lib/motion-env";
-import { buildBand, FRAME_OPACITY, frameTransform, NARROW, pitchAt, pointAt, WIDE } from "./leap-band";
+import { buildBand, FRAME_OPACITY, frameTransform, NARROW, pitchAt, pointAt, tAtX, WIDE } from "./leap-band";
 
 const FLIGHT = 0.9;
 /** Length of the whole timeline: flight + landing + the twelve month lamps. */
 const LEAP_MS = 1460;
+/**
+ * The band must stay in view this long before the leap takes its turn (GE3-02): a filter
+ * that shortens the gallery sheet can drop the band into view in the middle of its own
+ * Flip, and a layout jump is not an arrival. The band is decoration; the step texts are
+ * visible throughout.
+ */
+const DWELL_MS = 350;
 
 /**
- * Watches the armed band (LeapBandPlayer). As soon as it is well inside the
- * viewport, the leap takes the page-wide primary-motion slot (≤250ms wait) and
- * plays — it no longer waits for the section title's mark to land: the mark is an
- * accent and may overlap, while the band would sit empty (design review v2, MD2-07).
- * A failsafe lands the final state if anything stalls. Returns the cleanup.
+ * Watches the armed band (LeapBandPlayer). Once it has stayed well inside the
+ * viewport for DWELL_MS, the leap takes the page-wide primary-motion slot (≤250ms
+ * wait) and plays — it does not wait for the section title's mark to land: the
+ * mark is an accent and may overlap, while the band would sit empty (design review
+ * v2, MD2-07). A failsafe lands the final state if anything stalls. Returns the cleanup.
  */
 export function armLeap(root: HTMLElement): () => void {
   let live = true;
   let failsafe = 0;
+  let dwell = 0;
   const finish = () => root.setAttribute("data-leap", "done");
 
   const bands = Array.from(root.querySelectorAll<SVGSVGElement>(".en-band"));
+  const inView = new Set<Element>();
+  const go = () => {
+    io.disconnect();
+    failsafe = window.setTimeout(finish, LEAP_MS + 3000); // never stuck hidden
+    void queuePrimaryMotion(LEAP_MS)
+      .then(() => {
+        // Unmounted, or the failsafe already landed the final state: never hide it again.
+        if (!live || root.getAttribute("data-leap") === "done") return;
+        return playLeap(
+          root,
+          bands.find((svg) => svg.getBoundingClientRect().width > 0),
+        );
+      })
+      .catch(finish);
+  };
   const io = new IntersectionObserver(
     (entries) => {
-      if (!entries.some((e) => e.isIntersecting)) return;
-      io.disconnect();
-      failsafe = window.setTimeout(finish, LEAP_MS + 3000); // never stuck hidden
-      void queuePrimaryMotion(LEAP_MS)
-        .then(() => {
-          // Unmounted, or the failsafe already landed the final state: never hide it again.
-          if (!live || root.getAttribute("data-leap") === "done") return;
-          return playLeap(
-            root,
-            bands.find((svg) => svg.getBoundingClientRect().width > 0),
-          );
-        })
-        .catch(finish);
+      for (const e of entries) {
+        if (e.isIntersecting) inView.add(e.target);
+        else inView.delete(e.target);
+      }
+      // Arrival = in view for DWELL_MS; leaving earlier starts the count again.
+      if (inView.size && !dwell) dwell = window.setTimeout(go, DWELL_MS);
+      else if (!inView.size && dwell) {
+        window.clearTimeout(dwell);
+        dwell = 0;
+      }
     },
     { rootMargin: "0px 0px -25% 0px", threshold: 0.5 },
   );
@@ -56,6 +80,7 @@ export function armLeap(root: HTMLElement): () => void {
   return () => {
     live = false;
     io.disconnect();
+    window.clearTimeout(dwell);
     window.clearTimeout(failsafe);
   };
 }
@@ -84,13 +109,20 @@ async function playLeap(root: HTMLElement, svg: SVGSVGElement | undefined): Prom
   const { s } = band.spec;
   const rx = band.p0.x - 6;
   const span = band.p2.x - band.p0.x + 12;
-  const proxy = { t: 0 };
+  // Constant forward speed: `u` is the share of the horizontal travel (a linear tween); the
+  // path parameter at that x gives the height and the pitch (ballistics — the easing is on y).
+  const x0 = band.p0.x;
+  const dx = band.p2.x - x0;
+  const proxy = { u: 0 };
   const place = () => {
-    const p = pointAt(band, proxy.t);
-    flier.setAttribute("transform", frameTransform(p, pitchAt(proxy.t), s));
+    const t = tAtX(band, x0 + dx * proxy.u);
+    const p = pointAt(band, t);
+    flier.setAttribute("transform", frameTransform(p, pitchAt(t), s));
     const k = Math.min(1, Math.max(0.001, (p.x - rx) / span));
     reveal.setAttribute("transform", `translate(${rx} 0) scale(${k} 1) translate(${-rx} 0)`);
   };
+  // The flier is over the apex frame when its x is (tied to x, not to half time).
+  const overApex = FLIGHT * ((band.frames[1].hip.x - x0) / dx);
 
   root.setAttribute("data-leap", "play");
   place();
@@ -111,11 +143,11 @@ async function playLeap(root: HTMLElement, svg: SVGSVGElement | undefined): Prom
       },
     });
     tl.set([flier, path], { opacity: 1 }, 0)
-      .to(proxy, { t: 1, duration: FLIGHT, ease: EASE.hang, onUpdate: place }, 0)
+      .to(proxy, { u: 1, duration: FLIGHT, ease: "none", onUpdate: place }, 0)
       // Takeoff: the ghost stays behind as the flier leaves it.
       .to(frame("takeoff"), { opacity: FRAME_OPACITY.takeoff, duration: DUR.fast, ease: "none" }, 0)
       // Apex: dropped as the flier hangs over it.
-      .to(frame("apex"), { opacity: FRAME_OPACITY.apex, duration: DUR.fast, ease: "none" }, FLIGHT / 2)
+      .to(frame("apex"), { opacity: FRAME_OPACITY.apex, duration: DUR.fast, ease: "none" }, overApex)
       // Touchdown: the solid frame replaces the flier and sticks — compress, then hold.
       .set(flier, { opacity: 0 }, FLIGHT)
       .set(frame("landing"), { opacity: 1 }, FLIGHT)
@@ -129,7 +161,7 @@ async function playLeap(root: HTMLElement, svg: SVGSVGElement | undefined): Prom
       .to(lamps, { opacity: 1, duration: DUR.fast, ease: EASE.score, stagger: 0.025 }, FLIGHT + 0.1)
       .to(lamps, { scale: 1, duration: DUR.fast, ease: EASE.stick, stagger: 0.025 }, FLIGHT + 0.1);
     light("takeoff", 0);
-    light("apex", FLIGHT / 2);
+    light("apex", overApex);
     light("landing", FLIGHT);
   });
 }

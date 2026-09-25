@@ -110,7 +110,7 @@ function CoachCard({ coach, index }: { coach: Coach; index: number }) {
                 aspect={PORTRAIT_ASPECT}
                 position="50% 30%"
                 className="coach__frame"
-                sizes="(min-width: 1024px) 200px, (min-width: 640px) 224px, 132px"
+                sizes="(min-width: 1024px) 200px, (min-width: 640px) 176px, 132px"
               />
             ) : (
               <PortraitPending />

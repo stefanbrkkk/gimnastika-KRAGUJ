@@ -4,11 +4,15 @@
  * no pin, no scrub, no ScrollTrigger:
  *   1. take-off: the club silhouette appears standing on the bar, crouches and pushes off
  *      (scaleY .9 → 1 from the feet, EASE.takeoff);
- *   2. one split leap along the beam, leaving three chronophotograph ghost frames (the shared
- *      --ghost tokens), then a stuck landing (compress and hold) and a balance wobble; the
- *      beam gives a little under her;
- *   3. the beam lets go: she drops through the beam line (clipped there) and fades with her
- *      ghosts while the bar fades and the legs fold — all within DUR.fast;
+ *   2. one split leap along the beam: X at constant speed and only Y eased — a parabola in
+ *      time, so she floats over the apex as a real leap does (the title marks' and S10's
+ *      flight model; MD3-04 — the whole path on „hang“ had stalled her there). She leaves
+ *      three chronophotograph ghost frames (the shared --ghost tokens), each appearing just
+ *      after she has passed its spot, never ahead of her (RC3-03); then a stuck landing
+ *      (compress and hold) and a balance wobble; the beam gives a little under her;
+ *   3. the beam lets go: she sinks through the beam line with gravity (clipped there, so her
+ *      feet go first) while she fades, her ghosts fade, the bar fades and the legs fold —
+ *      all within 240 ms (RC3-03);
  *   4. only then the line morphs (MorphSVG, one path) into the summer sea and the two echo
  *      swells ripple out from the middle. She is never on screen during the morph.
  * The flier is readable: 34px tall on phones, 40 on tablets, 48 from 1024 (MD2-08). Her lane
@@ -36,8 +40,11 @@ const FLY_AT = CROUCH_AT + DUR.tap;
 const FLIGHT = 0.6;
 const LAND_AT = FLY_AT + FLIGHT;
 const WOBBLE = DUR.wobble;
-const LET_GO = LAND_AT + 0.32;
-const MORPH_AT = LET_GO + DUR.fast;
+const LET_GO = LAND_AT + 0.26;
+/** RC3-03: she sinks (power1.in) over this span; her fade starts 40 ms in and ends with it. */
+const SINK = DUR.fast + 0.06;
+const FADE_DELAY = 0.04;
+const MORPH_AT = LET_GO + SINK;
 const MORPH = DUR.reveal;
 const ECHO_AT = MORPH_AT + 0.12;
 const ECHO = 0.48;
@@ -46,8 +53,10 @@ const TOTAL = ECHO_AT + ECHO_STAGGER + ECHO;
 /** She drops this far through the beam line as it lets go. */
 const DROP = 18;
 
-/** Ghost frames along the arc (path progress) — the chronophotograph trail. */
+/** Ghost frames along the arc (share of the flight's length) — the chronophotograph trail. */
 const GHOST_AT = [0.25, 0.5, 0.75] as const;
+/** A ghost fades in this long after she passed its spot (RC3-03: always behind her). */
+const GHOST_LAG = 0.03;
 
 /* Lane search. */
 /** Clear air between her silhouette and anything above (px) or beside her (px). */
@@ -59,6 +68,13 @@ const MIN_LIFT = 0.5;
 const MIN_SIZE = 24;
 
 type Pt = readonly [number, number];
+
+/**
+ * Height of the leap (share of its lift), 0 → 1 → 0, at a share u of the flight. X runs at
+ * constant speed, so u is both time and distance; Y alone is eased — the ballistic parabola
+ * of the title marks (MD3-04). Used for the lane search, the flight and the ghost frames.
+ */
+const arcAt = (u: number): number => 4 * u * (1 - u);
 
 const onScreen = (el: Element): boolean => {
   const r = el.getBoundingClientRect();
@@ -83,10 +99,12 @@ function obstacles(layout: HTMLElement, lb: DOMRect): Pt[][] {
     const parent = li.offsetParent;
     if (!parent) continue;
     const pb = parent.getBoundingClientRect();
-    const t = getComputedStyle(li).transform;
+    const cs = getComputedStyle(li);
+    const t = cs.transform;
     const m = new DOMMatrix(t && t !== "none" ? t : undefined);
-    const ox = li.offsetWidth / 2;
-    const oy = li.offsetHeight / 2;
+    // The top card turns about its base once it has landed (camp-postcards.ts), the others
+    // about their centre: map the corners about the card's real transform origin.
+    const [ox = li.offsetWidth / 2, oy = li.offsetHeight / 2] = cs.transformOrigin.split(" ").map(parseFloat);
     const map = (x: number, y: number): Pt => {
       const p = m.transformPoint(new DOMPoint(x - ox, y - oy));
       return [pb.left - lb.left + li.offsetLeft + ox + p.x, pb.top - lb.top + li.offsetTop + oy + p.y];
@@ -134,8 +152,9 @@ interface Lane {
 
 /**
  * The flight: the longest comfortable leap along the beam (up to 60% of it or 9 body
- * heights), as central as the obstacles allow, whose parabola keeps her whole silhouette
- * CLEAR px under everything above it. Smaller sizes are tried before giving up.
+ * heights), as central as the obstacles allow, whose arc (`arcAt`, the real flight) keeps
+ * her whole silhouette CLEAR px under everything above it. Smaller sizes are tried
+ * before giving up.
  */
 function findLane(polys: readonly Pt[][], bx0: number, bx1: number, beamTop: number): Lane | null {
   const mid = (bx0 + bx1) / 2;
@@ -151,7 +170,7 @@ function findLane(polys: readonly Pt[][], bx0: number, bx1: number, beamTop: num
           const t = k / 24;
           const x = x0 + t * d;
           const room = beamTop - size - CLEAR - lowestOver(polys, x - w / 2 - CLEAR_X, x + w / 2 + CLEAR_X);
-          const arc = 4 * t * (1 - t);
+          const arc = arcAt(t);
           lift = room < 0 ? -1 : arc > 0 ? Math.min(lift, room / arc) : lift;
         }
         if (lift < size * MIN_LIFT) continue;
@@ -253,22 +272,22 @@ export async function armBeam(svg: SVGSVGElement): Promise<() => void> {
         overlay.appendChild(clipped);
         layout.appendChild(overlay);
 
-        const apexY = beamTop - 2 * lift;
-        const path = `M${x0},${beamTop} Q${(x0 + x1) / 2},${apexY} ${x1},${beamTop}`;
-
         // 1 · Take-off: she stands on the bar, crouched, and pushes off from her feet.
         gsap.set(flier, { x: x0, y: beamTop, rotation: -6, scaleY: 0.9, opacity: 0, transformOrigin: "50% 100%" });
         tl.to(flier, { opacity: 1, duration: APPEAR, ease: "none" }, 0);
         tl.to(flier, { scaleY: 1, duration: DUR.tap, ease: EASE.takeoff }, CROUCH_AT);
 
-        // 2 · Flight: X steady, Y a parabola (eased on „hang“: a hold at the apex), torso
-        // pitch through the air; each ghost frame appears as she passes it.
+        // 2 · Flight (MD3-04): X at constant speed, Y up and back down on the arc (its ease
+        // returns to 0, so the tween ends on the beam); torso pitch through the air. X is
+        // linear, so she passes a ghost's spot at FLIGHT × its share; the ghost fades in just
+        // after that, on her exact path — never ahead of her (RC3-03).
         ghosts.forEach((g, i) => {
           const t = GHOST_AT[i] ?? 0.5;
-          gsap.set(g, { x: x0 + t * (x1 - x0), y: beamTop - 4 * lift * t * (1 - t), opacity: 0 });
-          tl.to(g, { opacity: 1, duration: DUR.fast, ease: "none" }, FLY_AT + FLIGHT * t);
+          gsap.set(g, { x: x0 + t * (x1 - x0), y: beamTop - lift * arcAt(t), opacity: 0 });
+          tl.to(g, { opacity: 1, duration: DUR.fast, ease: "none" }, FLY_AT + FLIGHT * t + GHOST_LAG);
         });
-        tl.to(flier, { motionPath: { path }, duration: FLIGHT, ease: EASE.hang }, FLY_AT);
+        tl.to(flier, { x: x1, duration: FLIGHT, ease: "none" }, FLY_AT);
+        tl.to(flier, { y: beamTop - lift, duration: FLIGHT, ease: arcAt }, FLY_AT);
         tl.to(flier, { rotation: 4, duration: FLIGHT * 0.5, ease: "none" }, FLY_AT);
         tl.to(flier, { rotation: 0, duration: FLIGHT * 0.5, ease: "none" }, FLY_AT + FLIGHT * 0.5);
 
@@ -282,8 +301,10 @@ export async function armBeam(svg: SVGSVGElement): Promise<() => void> {
         tl.fromTo(flier, { rotation: -6 }, { rotation: 0, duration: WOBBLE, ease: EASE.wobble, immediateRender: false }, LAND_AT + 0.04);
         tl.fromTo(beam, { y: 3 / sy }, { y: 0, duration: DUR.base, ease: EASE.land, immediateRender: false }, LAND_AT);
 
-        // 3 · The beam lets go: she drops through the line and fades with her trail.
-        tl.to(flier, { y: beamTop + DROP, opacity: 0, duration: DUR.fast, ease: EASE.takeoff }, LET_GO);
+        // 3 · The beam lets go: she sinks through the line with gravity — the clip at the bar
+        // top takes her feet first — and fades on the way, gone as the morph starts (RC3-03).
+        tl.to(flier, { y: beamTop + DROP, duration: SINK, ease: "power1.in" }, LET_GO);
+        tl.to(flier, { opacity: 0, duration: SINK - FADE_DELAY, ease: "none" }, LET_GO + FADE_DELAY);
         tl.to(ghosts, { opacity: 0, duration: DUR.fast, ease: "none" }, LET_GO);
       }
 

@@ -31,7 +31,7 @@ import {
   type Pose,
   type Pt,
 } from "@/components/sections/hero/pass";
-import { SPINE_SLOPE, measure, nextLeg, roundRoute, routeClear, spinePath, spineRoute, type SpineRect } from "@/components/sections/hero/spine";
+import { SPINE_SLOPE, gutterLeg, legTicks, measure, nextLeg, roundRoute, routeClear, spinePath, spineRoute, type SpineRect } from "@/components/sections/hero/spine";
 import { OG_SPEC } from "@/components/seo/art";
 
 /**
@@ -490,6 +490,36 @@ describe.each(Object.entries(SPINE_FIXTURES))("hero floor diagonal — %s", (_si
     // it reaches the title's baseline beside the mark and ends under the mark's first frame
     expect(Math.abs(next.end[1] - mb)).toBeLessThan(1);
   });
+
+  it("draws the gutter leg as the floor folded down the margin: sharp at the fold, ticked, handing over where the diagonal rounds off", () => {
+    const title = f.title.map(rect);
+    const next = nextLeg({ bottom: f.h, mark: rect(f.mark), endX: ml + 222.7 * kMark, lines: title, others: f.cards.map(rect) });
+    const raw = spineRoute({ ...base, next });
+    const rounded = roundRoute(raw, 14);
+    const leg = gutterLeg(raw, 14);
+    // mat end → the fold (a mitred corner: the route's own corner point, not an arc) → down the margin
+    expect(leg.fold).toEqual([turnX, f.matY]);
+    expect(leg.pts).toHaveLength(3);
+    expect(leg.pts[0]).toEqual([f.matEnd, f.matY]);
+    expect(leg.pts[1]).toEqual(leg.fold);
+    const [ex, ey] = leg.pts[2]!;
+    expect(ex).toBeCloseTo(turnX, 6);
+    // it ends where the drop starts to round into the diagonal, and the rest of the rounded route starts exactly there
+    expect(ey).toBeCloseTo(raw[2]![1] - 14, 6);
+    expect(rounded[leg.split]![0]).toBeCloseTo(ex, 6);
+    expect(rounded[leg.split]![1]).toBeCloseTo(ey, 6);
+    // the rounded route before the split never leaves the leg's two segments by more than the fold's arc
+    rounded.slice(0, leg.split + 1).forEach(([x, y]) => {
+      expect(x).toBeLessThanOrEqual(turnX + 1e-6);
+      expect(y).toBeGreaterThanOrEqual(f.matY - 1e-6);
+      expect(Math.min(Math.abs(y - f.matY), Math.abs(x - turnX))).toBeLessThanOrEqual(14);
+    });
+    // Marey ticks every 96 px below the fold, none on the rounding into the diagonal
+    const ys = legTicks(leg);
+    ys.forEach((y, i) => expect(y).toBeCloseTo(f.matY + 96 * (i + 1), 6));
+    ys.forEach((y) => expect(y).toBeLessThanOrEqual(ey - 12));
+    expect(ys.length).toBe(Math.floor((ey - 12 - f.matY) / 96));
+  });
 });
 
 describe("hero floor diagonal — the lane beside a title whose first line is the widest", () => {
@@ -552,6 +582,24 @@ describe("hero floor diagonal — edge cases", () => {
       obstacles: [{ left: 60, top: 320, right: 1395, bottom: 890 }],
     });
     expect(d).toBe("M1380 300H1410V901");
+  });
+
+  it("has no fold when the diagonal starts right at the mat: the leg is the mat's short run to the corner", () => {
+    const raw = spineRoute({ matY: 300, matEnd: 1380, turn: 1410, bottom: 900, left: 60, obstacles: [] });
+    const leg = gutterLeg(raw, 14);
+    expect(leg.fold).toBeNull();
+    expect(leg.pts).toHaveLength(2);
+    expect(leg.pts[1]![1]).toBe(300);
+    expect(roundRoute(raw, 14)[leg.split]).toEqual(leg.pts[1]);
+    expect(legTicks(leg)).toEqual([]);
+  });
+
+  it("is all gutter leg when the route only drops out through the bottom edge", () => {
+    const raw = spineRoute({ matY: 300, matEnd: 1380, turn: 1410, bottom: 900, left: 60, obstacles: [{ left: 60, top: 320, right: 1395, bottom: 890 }] });
+    const leg = gutterLeg(raw, 14);
+    expect(leg.pts).toEqual(raw);
+    expect(leg.split).toBe(roundRoute(raw, 14).length - 1);
+    expect(legTicks(leg)).toEqual([396, 492, 588, 684, 780, 876]);
   });
 
   it("rounds corners without leaving the corner's two segments", () => {

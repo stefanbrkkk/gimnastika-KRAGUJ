@@ -24,6 +24,10 @@
  * exposure travels it and hands over to the mark's own landing. routeClear()
  * is the runtime guard: a route that would still touch a title line is not
  * drawn into the section.
+ *
+ * gutterLeg() splits off the route's first stretch — the mat carried on and
+ * folded down the right margin — which is drawn as the floor (the mat's
+ * weight, a sharp fold, legTicks() every 96 px); the rest is the spine.
  */
 
 export type Pt = readonly [number, number];
@@ -207,6 +211,14 @@ export function routeClear(pts: readonly Pt[], boxes: readonly SpineRect[], step
   return true;
 }
 
+/** How far corner i of a route is cut back on both sides to round it (radius r, less where a segment is short). */
+function cornerCut(pts: readonly Pt[], i: number, r: number): number {
+  const [ax, ay] = pts[i - 1]!;
+  const [bx, by] = pts[i]!;
+  const [cx, cy] = pts[i + 1]!;
+  return Math.min(r, Math.hypot(bx - ax, by - ay) / 2, Math.hypot(cx - bx, cy - by) / 2);
+}
+
 /**
  * The route with its corners rounded (radius r, less where a segment is
  * short): each corner becomes a quadratic arc sampled into short chords, so
@@ -221,7 +233,7 @@ export function roundRoute(pts: readonly Pt[], r: number, steps = 8): Pt[] {
     const [cx, cy] = pts[i + 1]!;
     const l1 = Math.hypot(bx - ax, by - ay);
     const l2 = Math.hypot(cx - bx, cy - by);
-    const t = Math.min(r, l1 / 2, l2 / 2);
+    const t = cornerCut(pts, i, r);
     if (t < 0.5) {
       out.push([bx, by]);
       continue;
@@ -235,6 +247,55 @@ export function roundRoute(pts: readonly Pt[], r: number, steps = 8): Pt[] {
   }
   out.push(pts[pts.length - 1]!);
   return out;
+}
+
+/** The gutter leg of a route: the floor carried on from the mat's end and folded down the right margin. */
+export interface GutterLeg {
+  /**
+   * The leg as drawn: from the mat's end along the mat line to the fold, sharp
+   * there (a mitred corner, the floor folding — not a card's rounded corner),
+   * and down the margin to where the route starts to round into its next leg.
+   */
+  pts: Pt[];
+  /** The fold (the mat → margin corner), or null when the route turns straight into the diagonal. */
+  fold: Pt | null;
+  /** Index in roundRoute(route, r, steps) of the leg's end, where the rest of the route starts. */
+  split: number;
+}
+
+/**
+ * Splits a spine route (spineRoute's points, before rounding) into its gutter
+ * leg and the rest. The route itself — what the runner follows and what the
+ * dash reveal measures — stays rounded; only the drawn leg keeps its fold sharp.
+ */
+export function gutterLeg(route: readonly Pt[], r: number, steps = 8): GutterLeg {
+  const n = route.length;
+  // the leg runs to the end of the drop down the margin (route[2]), or to the mat's corner when there is no drop
+  const drop = n >= 3 && Math.abs(route[2]![0] - route[1]![0]) < 0.01 && route[2]![1] > route[1]![1];
+  const last = Math.min(n - 1, drop ? 2 : 1);
+  let split = 1;
+  for (let j = 1; j < last; j++) split += cornerCut(route, j, r) < 0.5 ? 1 : steps + 1;
+  const fold = drop ? route[1]! : null;
+  if (last === n - 1) return { pts: [...route], fold, split };
+  const t = cornerCut(route, last, r);
+  const [ax, ay] = route[last - 1]!;
+  const [bx, by] = route[last]!;
+  const l = Math.hypot(bx - ax, by - ay) || 1;
+  const end: Pt = t < 0.5 ? [bx, by] : [bx - ((bx - ax) / l) * t, by - ((by - ay) / l) * t];
+  return { pts: [...route.slice(0, last), end], fold, split };
+}
+
+/**
+ * Marey's measuring rule carried down the gutter leg, like the mat's frame
+ * ticks: the y of a tick every `every` px below the fold, none within `clear`
+ * px of the leg's end (where it rounds into the diagonal).
+ */
+export function legTicks(leg: GutterLeg, every = 96, clear = 12): number[] {
+  if (!leg.fold) return [];
+  const endY = leg.pts[leg.pts.length - 1]![1];
+  const ys: number[] = [];
+  for (let y = leg.fold[1] + every; y <= endY - clear; y += every) ys.push(y);
+  return ys;
 }
 
 /** SVG path data of a route. */

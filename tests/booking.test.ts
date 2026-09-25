@@ -23,6 +23,7 @@ import {
   validateBooking,
   type BookingValues,
 } from "@/lib/booking";
+import { buildFlight, flightTiming, progressAt, saltoClock, timeAt } from "@/components/sections/contact/doskok-path";
 
 const FULL: BookingValues = {
   parent: "Ana Petrović",
@@ -309,5 +310,91 @@ describe("helpers", () => {
   it("belgradeYear() uses Europe/Belgrade (New Year's Eve 23:30 UTC is already next year)", () => {
     expect(belgradeYear(new Date("2026-12-31T23:30:00Z"))).toBe(2027);
     expect(belgradeYear(new Date("2026-06-15T10:00:00Z"))).toBe(2026);
+  });
+});
+
+/**
+ * The S11 finale's flight clock (components/sections/contact/doskok-path.ts): the salto's tuck
+ * is timed by its turn, not by its arc length (CV3-02). Geometry of the 390×844 flight
+ * (px relative to the landing): take-off on the title mark, a 24 px hop, the drop point
+ * under the mark, the three ghost frames and the landing.
+ */
+describe("doskok salto clock (CV3-02)", () => {
+  const P0 = { x: 170, y: -197 };
+  const drop = { x: 163, y: -147 };
+  const through = [
+    { x: 110, y: -92 },
+    { x: 73, y: -53 },
+    { x: 35, y: -22 },
+    { x: 0, y: 0 },
+  ];
+  const path = buildFlight(P0, 24, drop, through);
+  const timing = flightTiming(path, 1, 197, 24, 0.75);
+  const [, , sDrop = 0, sG1 = 0] = path.anchors;
+  const land = timing.rise + timing.fall;
+
+  const samples = (f: (t: number) => number, t1: number) => Array.from({ length: 751 }, (_, i) => f((t1 * i) / 750));
+
+  it("on the ballistic clock this tuck is a whip (< 200 ms for the 290° turn)", () => {
+    expect(timeAt(timing, sG1) - timeAt(timing, sDrop)).toBeLessThan(0.2);
+  });
+
+  it("gives the tuck its minimum from the hop and the drop; ghost 1, the landing and the total stay", () => {
+    const c = saltoClock(timing, sDrop, sG1, 0.26);
+    expect(c.g1 - c.drop).toBeGreaterThanOrEqual(0.26 - 1e-9);
+    expect(c.g1).toBeCloseTo(timeAt(timing, sG1), 9);
+    expect(c.land).toBeCloseTo(land, 9);
+    expect(c.drop).toBeLessThan(timeAt(timing, sDrop));
+    expect(c.apex).toBeLessThan(timing.rise); // a quicker spring: same shape, one pace
+    expect(c.apex / timing.rise).toBeCloseTo(c.drop / timeAt(timing, sDrop), 9);
+  });
+
+  it("passes every anchor at its time, is monotone and continuous, and lands at the end", () => {
+    const c = saltoClock(timing, sDrop, sG1, 0.26);
+    expect(c.progress(0)).toBe(0);
+    expect(c.progress(c.drop)).toBeCloseTo(sDrop, 6);
+    expect(c.progress(c.g1)).toBeCloseTo(sG1, 6);
+    expect(c.progress(land)).toBeCloseTo(path.length, 6);
+    const s = samples((t) => c.progress(t), land);
+    for (let i = 1; i < s.length; i++) {
+      expect(s[i]!).toBeGreaterThanOrEqual(s[i - 1]! - 1e-9); // never backwards
+      expect(s[i]! - s[i - 1]!).toBeLessThan(2); // no jump: < 2 px per ms
+    }
+    // C1 at the drop point and at ghost 1: the speed on both sides agrees within 2%.
+    const v = (t: number, dt: number) => (c.progress(t + dt) - c.progress(t)) / dt;
+    for (const t of [c.drop, c.g1]) {
+      const left = v(t - 1e-5, 1e-5);
+      const right = v(t, 1e-5);
+      expect(Math.abs(right - left) / left).toBeLessThan(0.02);
+    }
+  });
+
+  it("slows through the tuck and is fastest at the landing (never a dart beside the title)", () => {
+    const c = saltoClock(timing, sDrop, sG1, 0.26);
+    const speed = (t: number) => (c.progress(t + 0.002) - c.progress(t - 0.002)) / 0.004;
+    const tuckMin = Math.min(...Array.from({ length: 50 }, (_, i) => speed(c.drop + ((c.g1 - c.drop) * (i + 0.5)) / 50)));
+    const dropMax = Math.max(...Array.from({ length: 50 }, (_, i) => speed(c.apex + ((c.drop - c.apex) * (i + 0.5)) / 50)));
+    expect(tuckMin).toBeLessThan(dropMax);
+    expect(dropMax).toBeLessThan(speed(land - 0.003));
+  });
+
+  it("is exactly the ballistic clock when the tuck already has the time", () => {
+    const c = saltoClock(timing, sDrop, sG1, 0.1);
+    for (const t of [0, 0.05, 0.2, 0.4, 0.6, land]) expect(c.progress(t)).toBe(progressAt(timing, t));
+    expect(c.map(0.6)).toBe(0.6);
+  });
+
+  it("moves ghost 1 later only when the drop cannot give the time, and still lands on time", () => {
+    const c = saltoClock(timing, sDrop, sG1, 0.33, 0.8);
+    expect(c.drop).toBeCloseTo(0.8 * timeAt(timing, sDrop), 9); // the pace floor
+    expect(c.g1).toBeGreaterThan(timeAt(timing, sG1));
+    expect(c.g1 - c.drop).toBeCloseTo(0.33, 9);
+    expect(c.map(land)).toBeCloseTo(land, 9);
+    expect(c.progress(land)).toBeCloseTo(path.length, 6);
+    const s = samples((t) => c.progress(t), land);
+    for (let i = 1; i < s.length; i++) expect(s[i]!).toBeGreaterThanOrEqual(s[i - 1]! - 1e-9);
+    // The open-out never loses more than half its time, even for an impossible tuck.
+    const g = timeAt(timing, sG1);
+    expect(saltoClock(timing, sDrop, sG1, 0.6, 0.8).g1).toBeCloseTo(g + (land - g) / 2, 9);
   });
 });

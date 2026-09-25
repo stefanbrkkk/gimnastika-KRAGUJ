@@ -1,4 +1,4 @@
-import { BRUSH_STRANDS, WALL } from "./brush-geometry";
+import { BRUSH_STRANDS, WALL, gapDashes } from "./brush-geometry";
 
 /**
  * White hand-drawn brush annotation over photo 05 (one of the page's max two, §3): an
@@ -9,8 +9,11 @@ import { BRUSH_STRANDS, WALL } from "./brush-geometry";
  *
  * Five overlapping strands (brush-geometry.ts, design review AC2-01): the loaded core and four
  * bristles offset along the curve's normal, landing and lifting one after another, so both
- * ends splay. Each bristle's dry gaps are a static dash mask, so DrawSVG still owns the dash.
- * A soft navy under-stroke (a copy of the core, masked to the pale wall at the upper right)
+ * ends splay. Every strand has round caps and joins (a brush, not a vector). The two thinnest
+ * bristles run dry in places: a static mask (so DrawSVG still owns the dash) that is white
+ * everywhere except short half-grey marks, so a dry spot thins the strand to half instead of
+ * cutting a hole through to the photo, and never clips the strand's round ends (AC3-02).
+ * A faint navy under-stroke (a copy of the core, masked to the pale wall at the upper right)
  * keeps the white legible where the loop crosses the wall and nowhere else.
  *
  * Geometry: drawn in the 600×400 space of the 3:2 print. The SVG box always equals the photo
@@ -49,7 +52,8 @@ export function BrushStroke() {
         {BRUSH_STRANDS.map((s, i) =>
           s.gaps ? (
             <mask key={i} id={`brush-gaps-${i}`} maskUnits="userSpaceOnUse" x="0" y="0" width="600" height="400">
-              <path d={s.path} fill="none" stroke="#fff" strokeWidth={s.w + 4} strokeDasharray={s.gaps} />
+              <rect width="600" height="400" fill="#fff" />
+              <path d={s.path} fill="none" stroke="#000" strokeOpacity="0.5" strokeWidth={s.w + 4} strokeDasharray={gapDashes(s.gaps)} />
             </mask>
           ) : null,
         )}

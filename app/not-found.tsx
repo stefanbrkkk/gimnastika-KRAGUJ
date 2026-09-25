@@ -1,19 +1,35 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Fragment } from "react";
 import { Logo } from "@/components/brand/Logo";
 import { BeamScene, ScorePlate } from "@/components/notfound/BeamScene";
 import { BeamTiltLoader } from "@/components/notfound/BeamTiltLoader";
+import { titlePhrases } from "@/components/notfound/title";
 import { HERO, NOT_FOUND } from "@/content/copy";
 import { CLUB, PRIMARY_PHONE } from "@/content/site";
 import { telHref } from "@/lib/links";
 import { typesetSr } from "@/lib/typeset";
 
 /**
- * The h1, display only (the document title and content/copy.ts keep plain
- * spaces): „ova stranica“ stays on one line, so the rag never cuts the
- * demonstrative from its noun („Ups — / ova stranica / je izgubila / ravnotežu.“).
+ * The h1, display only (the document title and content/copy.ts keep plain spaces):
+ * four phrases with a toggled <br> before each of the last three (components/notfound/
+ * title.ts), so its lines do not depend on which font has loaded. If the copy ever
+ * stops matching the phrases, the plain typeset sentence („ova stranica“ kept whole).
  */
-const TITLE = typesetSr(NOT_FOUND.title).replace("ova stranica", "ova\u00a0stranica");
+const PHRASES = titlePhrases(NOT_FOUND.title);
+const TITLE = PHRASES
+  ? PHRASES.map((phrase, i) => (
+      <Fragment key={phrase}>
+        {i > 0 ? (
+          <>
+            {" "}
+            <br className={`nf__br nf__br--${i}`} />
+          </>
+        ) : null}
+        {phrase}
+      </Fragment>
+    ))
+  : typesetSr(NOT_FOUND.title).replace("ova stranica", "ova\u00a0stranica");
 
 /**
  * Custom 404 „Ravnoteža na gredi“ (§4) → out/404.html. Renders inside the root

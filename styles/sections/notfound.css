@@ -65,12 +65,34 @@
   }
 }
 
+/* The width is in em, not ch: ch is measured in whichever face is showing, and the fallback's
+   is 14% narrower (16ch = 297 against 346px at 390). 10.8em = Mona Sans' 16ch at 104%. */
 .nf__title {
-  max-width: 16ch;
+  max-width: 10.8em;
   font-size: clamp(2rem, 1.2rem + 3vw, 3.5rem);
   line-height: 1;
   letter-spacing: -0.03em;
   font-weight: 780;
+}
+
+/* The h1's lines are fixed per width (MD3-02, components/notfound/title.ts): it breaks only
+   between its four phrases, at the rag Mona Sans sets there, so the fallback face (narrower)
+   shows the same lines and nothing moves when the font arrives. Measured at 2rem, 104%:
+   „Ups — ova stranica“ 8.94em, „je izgubila ravnotežu.“ 10.19em (+ 2 × 20px gutter):
+   - under 328px, and from 1024 (the 5–6 column copy): one phrase per line;
+   - 328–367: „Ups — ova stranica“ / „je izgubila“ / „ravnotežu.“;
+   - 368–1023: „Ups — ova stranica“ / „je izgubila ravnotežu.“
+   em thresholds, so a larger default text size moves them with the text. */
+@media (min-width: 20.5em) and (max-width: 1023.98px) {
+  .nf__br--1 {
+    display: none;
+  }
+}
+
+@media (min-width: 23em) and (max-width: 1023.98px) {
+  .nf__br--3 {
+    display: none;
+  }
 }
 
 /* Error screen (app/global-error.tsx) --------------------------------------------------- */
@@ -80,6 +102,11 @@
    name in app/fonts.ts, whose @font-face stays in the inlined CSS; falls back cleanly if renamed… */
 .nf--error {
   font-family: mona, "mona Fallback", "Mona Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* Its title is not phrase-set like the 404's (above): it keeps the 16ch measure. */
+.nf--error .nf__title {
+  max-width: 16ch;
 }
 
 /* …and the sprite: the club's name stands in for the logo. */
@@ -342,19 +369,39 @@
 
   /* Centred in the viewport; the iOS button's row is sized from the first paint, so
      centring never moves anything when it appears (iPad). Copy and beam stand on the
-     same floor: both columns end on the grid's bottom edge, the copy 40px above the
-     floor line (+ the frame row under the floor: 10 + 14px, or 6 + 48px on touch). */
+     same floor: both end on the first row's bottom edge, the copy 40px above the floor
+     line. The frame row (10 + 14px, or 6 + 48px on touch) is the second row, across
+     the whole container (CV3-04): KR-404 starts on the page margin under the „Ups —“
+     column, as on phones, not on the stage's invisible left edge in the middle of the
+     floor. .nf__stage-wrap steps out of the box tree so the stage and the row are the
+     grid's own items (it is only a query root for the tilt chunk, never measured). */
   .nf__body {
     grid-template-columns: repeat(12, minmax(0, 1fr));
     column-gap: 24px;
+    row-gap: 0;
     align-items: end;
     margin-block: auto;
     padding-block: 32px 48px;
   }
 
   .nf__copy {
+    grid-row: 1;
     grid-column: 1 / span 5;
-    padding-bottom: calc(40px + var(--nf-foot-gap) + var(--nf-foot-h));
+    padding-bottom: 40px;
+  }
+
+  .nf__stage-wrap {
+    display: contents;
+  }
+
+  .nf__stage {
+    grid-row: 1;
+    grid-column: 6 / span 7;
+  }
+
+  .nf__foot {
+    grid-row: 2;
+    grid-column: 1 / -1;
   }
 
   /* No stage on the error fallback: the copy takes the reading width it needs. */
@@ -366,10 +413,6 @@
     grid-column: 1 / span 7;
     padding-bottom: 0;
   }
-
-  .nf__stage-wrap {
-    grid-column: 6 / span 7;
-  }
 }
 
 /* 1024–1279: five columns are narrower than the two buttons side by side (they
@@ -379,7 +422,7 @@
     grid-column: 1 / span 6;
   }
 
-  .nf__stage-wrap {
+  .nf__stage {
     grid-column: 7 / span 6;
   }
 }

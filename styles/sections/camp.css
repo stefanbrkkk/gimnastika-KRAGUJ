@@ -181,6 +181,15 @@ html.js .postcard[data-slot="2"] {
   transform: translate(-24%, -2%) rotate(-6deg);
 }
 
+/* Phones: a landscape card in the back slot sits tighter and a little smaller, so its right
+   edge (frame and border) stays on screen instead of being sliced by it; the coach's face
+   still shows (RC3-02). Must match PHONE_BACK_LANDSCAPE in camp-postcards.ts. */
+@media (max-width: 639.98px) {
+  html.js .postcard[data-slot="1"][data-orient="landscape"] {
+    transform: translate(14%, -9%) rotate(5deg) scale(0.88);
+  }
+}
+
 /* Every card has depth; the top card's deeper shadow crossfades (opacity only — a
    box-shadow is never animated) as the pile restacks (RC-12). */
 html.js .postcard .frame {
@@ -409,6 +418,15 @@ html:not(.js) .postcards__controls {
     grid-row: 3;
     height: 80px;
     margin-top: -72px;
+  }
+}
+
+/* 1024–1279: the top postcard floats 15–16 px above the wave crest, like at 1280 (it overlapped
+   or touched it here: −4 px at 1024, 1 px at 1100). The horizon comes down by 20 px at 1024,
+   tapering to 2 px at 1279 (RC3-04). The routine's lane is measured at play time. */
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  .camp__horizon {
+    margin-top: calc(-70px + (1280px - 100vw) * 0.07);
   }
 }
 

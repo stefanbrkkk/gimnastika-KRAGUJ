@@ -5,6 +5,7 @@ import {
   SHORT_VIEWPORT_MAX,
   bandDelta,
   focusScrollDelta,
+  headerCapOn,
   headerCtaHidden,
   initialHeaderState,
   isKeyboardOpen,
@@ -12,11 +13,14 @@ import {
   nextHeaderState,
   obscuredBy,
   pickInBand,
+  pickUnder,
   stickyBarVisible,
   toneOf,
   type HeaderScrollState,
 } from "@/components/sections/header/chrome";
 import { POINTER_TILT, SETTLE_KICK, createBalance, isSettled, pointerTarget, stepBalance } from "@/components/notfound/tilt";
+import { titlePhrases } from "@/components/notfound/title";
+import { NOT_FOUND } from "@/content/copy";
 
 /** Feed a scroll path (list of scrollY values) through the header state machine. */
 const run = (path: number[], start = 0): HeaderScrollState =>
@@ -74,6 +78,51 @@ describe("header tone from the section under it", () => {
     expect(pickInBand([hero, quiz], 44)).toBe("kviz");
     expect(pickInBand([{ item: "a", top: -100, bottom: 200 }], 44)).toBe("a");
     expect(pickInBand([], 44)).toBeNull();
+  });
+});
+
+describe("header band picking with nested full-bleed bands (D-37)", () => {
+  const isBand = (id: string) => id.startsWith("band:");
+  it("a band that contains the line wins over its section", () => {
+    const about = { item: "o-nama", top: -900, bottom: 1400 };
+    const band = { item: "band:hronologija", top: -20, bottom: 600 };
+    expect(pickUnder([about, band], 40, isBand)).toBe("band:hronologija");
+    expect(pickUnder([about, band], 5, isBand)).toBe("band:hronologija");
+  });
+  it("otherwise the section that owns the line", () => {
+    const about = { item: "o-nama", top: -900, bottom: 1400 };
+    const band = { item: "band:hronologija", top: 60, bottom: 600 };
+    expect(pickUnder([about, band], 40, isBand)).toBe("o-nama");
+    expect(pickUnder([], 40, isBand)).toBeNull();
+  });
+});
+
+describe("header cap over the gap above the bar (SC3-05)", () => {
+  it("is on while the page is scrolled, in the colour of the section under the gap", () => {
+    expect(headerCapOn({ scrollY: 3200, theme: "light", onEdge: false })).toBe(true);
+    expect(headerCapOn({ scrollY: 1, theme: "dark", onEdge: false })).toBe(true);
+  });
+  it("is off at the very top, while a diagonal edge crosses the gap, and before a section is known", () => {
+    expect(headerCapOn({ scrollY: 0, theme: "dark", onEdge: false })).toBe(false);
+    expect(headerCapOn({ scrollY: 1900, theme: "dark", onEdge: true })).toBe(false);
+    expect(headerCapOn({ scrollY: 1900, theme: null, onEdge: false })).toBe(false);
+  });
+});
+
+describe("404 h1 phrases (MD3-02: the same lines in every face)", () => {
+  it("spell the h1 copy exactly, so the phrase-set title is what renders", () => {
+    const phrases = titlePhrases(NOT_FOUND.title);
+    expect(phrases).not.toBeNull();
+    expect(phrases!.join(" ").replace(/\u00a0/g, " ")).toBe(NOT_FOUND.title);
+    expect(phrases).toHaveLength(4);
+  });
+  it("keep the dash with „Ups“ and the demonstrative with its noun", () => {
+    const phrases = titlePhrases(NOT_FOUND.title)!;
+    expect(phrases[0]).toBe("Ups\u00a0—");
+    expect(phrases[1]).toBe("ova\u00a0stranica");
+  });
+  it("fall back to the plain sentence when the copy changes", () => {
+    expect(titlePhrases("Ups — ova stranica ne postoji.")).toBeNull();
   });
 });
 

@@ -332,6 +332,26 @@ html:not(.js) .gallery .gl-filters {
   flex: none;
 }
 
+/* During a filter Flip the paper is content-sized (photo + foot), never stretched (GE3-01).
+   Flip scales each print from its old box to its new one; the stretch above only absorbs
+   ≤1px rounding at rest, but mid-Flip it tore the paper (blank tails under photos, or the
+   KR foot hanging outside). Flip also writes each staying print's OLD height inline (so the
+   leavers can go absolute without the sheet collapsing): in a flex strip that height would
+   hold the strips at their old heights for the glide and make them snap at the end. The
+   stayers keep their natural height instead — the layout Flip measured as the end state.
+   Leavers keep their inline box (absolute, fading where they stood). */
+.gl-grid[data-flipping] .gl-item:not([data-leaving]) {
+  height: auto !important;
+}
+
+.gl-grid[data-flipping] .gl-item :is(.gl-open, .gl-mount, .gl-print) {
+  height: auto;
+}
+
+.gl-grid[data-flipping] .gl-print .frame-foot {
+  margin-top: 0;
+}
+
 /* A fixed foot (the captioned height): every frame in a strip ends on the same line, with or
    without the category note. */
 .gl-print .frame-foot {

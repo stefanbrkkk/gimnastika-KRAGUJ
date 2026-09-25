@@ -2,7 +2,15 @@
 
 import { useEffect } from "react";
 import { motionAllowed } from "@/lib/motion-env";
-import { initialHeaderState, nextHeaderState, pickInBand, toneOf, type BandCandidate } from "./chrome";
+import {
+  headerCapOn,
+  initialHeaderState,
+  nextHeaderState,
+  pickInBand,
+  pickUnder,
+  toneOf,
+  type BandCandidate,
+} from "./chrome";
 import { installFocusGuard } from "./focus-guard";
 
 /** Scroll-spy band for aria-current: a 1%-tall line at 30% of the viewport. */
@@ -31,6 +39,9 @@ const pageSections = (): HTMLElement[] =>
  *    IntersectionObserver whose root margin leaves a 1px band at that line. A
  *    nested full-bleed band marked [data-header-band] wins over its section.
  * 3. aria-current on the nav links (scroll-spy, second 1px band at 30%).
+ * 3b. data-cap / data-cap-tone: the page-coloured cap over the gap above the bar
+ *    (SC3-05), in the colour of the section under that gap (a third 1px band, at
+ *    its middle); off at the top of the page and while a diagonal edge crosses it.
  * 4. WCAG 2.4.11: keyboard focus that lands under the visible header or the
  *    sticky bottom bar is scrolled clear of it (focus-guard.ts).
  * 5. Chrome motion (nav spy hop, footer take-off) is a lazy chunk, fetched on
@@ -45,9 +56,14 @@ export function HeaderBehavior() {
     // 1 — hide / show
     let scroll = initialHeaderState(window.scrollY);
     let keyboardInside = false;
+    // 3b — the cap's inputs (filled by capIO below)
+    let capTheme: string | null = null;
+    let capOnEdge = false;
     const render = () => {
       const hidden = scroll.hidden && !keyboardInside ? "true" : "false";
       if (root.dataset.hidden !== hidden) root.dataset.hidden = hidden;
+      const cap = headerCapOn({ scrollY: scroll.y, theme: capTheme, onEdge: capOnEdge }) ? "on" : "off";
+      if (root.dataset.cap !== cap) root.dataset.cap = cap;
     };
     const onScroll = () => {
       scroll = nextHeaderState(scroll, window.scrollY);
@@ -67,10 +83,16 @@ export function HeaderBehavior() {
     // 2 + 3 — themes and scroll-spy
     const sections = pageSections();
     const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[data-nav-link]"));
+    const headerBands = Array.from(document.querySelectorAll<HTMLElement>("main [data-header-band][data-theme]"));
+    const edges = Array.from(document.querySelectorAll<Element>("main .edge-line"));
+    const isBand = (el: HTMLElement) => el.hasAttribute("data-header-band");
     const themeBand = new Map<HTMLElement, BandCandidate<HTMLElement>>();
     const spyBand = new Map<HTMLElement, BandCandidate<HTMLElement>>();
+    const capBand = new Map<HTMLElement, BandCandidate<HTMLElement>>();
+    const edgesOnCap = new Set<Element>();
     let bandY = 0;
     let themeIO: IntersectionObserver | null = null;
+    let capIO: IntersectionObserver | null = null;
 
     const track = (band: Map<HTMLElement, BandCandidate<HTMLElement>>, entries: IntersectionObserverEntry[]) => {
       for (const e of entries) {
@@ -80,7 +102,7 @@ export function HeaderBehavior() {
       }
     };
 
-    const buildThemeIO = () => {
+    const buildBands = () => {
       themeIO?.disconnect();
       themeBand.clear();
       // offsetTop/offsetHeight ignore the hide transform: the band stays at the bar's resting centre.
@@ -90,9 +112,7 @@ export function HeaderBehavior() {
         (entries) => {
           track(themeBand, entries);
           // A full-bleed band inside a section ([data-header-band], e.g. S5 „Hronologija“) wins over its parent.
-          const all = [...themeBand.values()];
-          const band = all.find((c) => c.item.hasAttribute("data-header-band") && c.top <= bandY && c.bottom > bandY);
-          const under = band?.item ?? pickInBand(all.filter((c) => !c.item.hasAttribute("data-header-band")), bandY);
+          const under = pickUnder([...themeBand.values()], bandY, isBand);
           if (!under) return;
           // light | dark | darker: "darker" sections (navy-950) get a navy-900 bar so it still reads as a surface.
           const sectionTheme = under.getAttribute("data-theme");
@@ -102,7 +122,33 @@ export function HeaderBehavior() {
         { rootMargin: `-${bandY}px 0px -${below}px 0px` },
       );
       sections.forEach((s) => themeIO?.observe(s));
-      document.querySelectorAll<HTMLElement>("main [data-header-band][data-theme]").forEach((b) => themeIO?.observe(b));
+      headerBands.forEach((b) => themeIO?.observe(b));
+
+      // 3b — the gap above the bar: which section's colour is behind it, and whether a
+      // diagonal edge (.edge-line spans a section's cut) crosses it.
+      capIO?.disconnect();
+      capBand.clear();
+      edgesOnCap.clear();
+      const capY = Math.round(bar.offsetTop / 2);
+      capIO = new IntersectionObserver(
+        (entries) => {
+          const areas: IntersectionObserverEntry[] = [];
+          for (const e of entries) {
+            if (!edges.includes(e.target)) areas.push(e);
+            else if (e.isIntersecting) edgesOnCap.add(e.target);
+            else edgesOnCap.delete(e.target);
+          }
+          track(capBand, areas);
+          capTheme = pickUnder([...capBand.values()], capY, isBand)?.getAttribute("data-theme") ?? capTheme;
+          if (capTheme && root.dataset.capTone !== capTheme) root.dataset.capTone = capTheme;
+          capOnEdge = edgesOnCap.size > 0;
+          render();
+        },
+        { rootMargin: `-${capY}px 0px -${Math.max(0, window.innerHeight - capY - 1)}px 0px` },
+      );
+      sections.forEach((s) => capIO?.observe(s));
+      headerBands.forEach((b) => capIO?.observe(b));
+      edges.forEach((l) => capIO?.observe(l));
     };
 
     const spyIO = new IntersectionObserver(
@@ -119,9 +165,9 @@ export function HeaderBehavior() {
       { rootMargin: SPY_MARGIN },
     );
     sections.forEach((s) => spyIO.observe(s));
-    buildThemeIO();
+    buildBands();
 
-    // Rebuild the theme band only when the viewport really changes size (debounced).
+    // Rebuild the theme and cap bands only when the viewport really changes size (debounced).
     let size = `${window.innerWidth}x${window.innerHeight}`;
     let resizeTimer = 0;
     const onResize = () => {
@@ -130,7 +176,7 @@ export function HeaderBehavior() {
         const next = `${window.innerWidth}x${window.innerHeight}`;
         if (next !== size) {
           size = next;
-          buildThemeIO();
+          buildBands();
         }
       }, 180);
     };
@@ -176,6 +222,7 @@ export function HeaderBehavior() {
       removeFocusGuard();
       window.clearTimeout(resizeTimer);
       themeIO?.disconnect();
+      capIO?.disconnect();
       spyIO.disconnect();
     };
   }, []);

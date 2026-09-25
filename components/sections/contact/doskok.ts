@@ -1,16 +1,22 @@
 /**
  * Final CTA „doskok“ — „Poslednji skok“ (§4 Final CTA; design review v2: C-02, C-13,
- * MD-11, M-01, MI-10; round 2: CV2-01, CV2-06, CV2-07). The page's closing dismount:
+ * MD-11, M-01, MI-10; round 2: CV2-01, CV2-06, CV2-07; round 3: CV3-02). The page's
+ * closing dismount:
  *
  *   take-off  the flier appears exactly ON the S11 title mark's solid frame (same ink size
  *             and centre) and crossfades with it (the frame dims to .3), crouches, springs;
  *   hop       a short rise that never reaches the title line above, then straight down past
  *             the mark until the figure is clear of the title's glyphs (measured at play
- *             time: Range rects of the title text) — small, and turned at most 40°;
- *   salto     only then the back salto: tucked (the figure compressed .9/.82) and still
- *             small through the inverted part, over the empty gap under the title; it opens
- *             out at full size through the three static ghost frames (tilts −330/−344/−354),
- *             each flashing brighter as it is passed — a fresh exposure on the plate;
+ *             time: Range rects of the title text) — small, and only drifting (≤12°) while
+ *             it is beside the title's last line;
+ *   salto     the back turn starts as soon as the turned figure is 8 px under that line
+ *             box and runs on evenly (≤1,050°/s) through the tuck: tucked (the figure
+ *             compressed .9/.82) and still small (≤.75) through the inverted part, over the
+ *             empty gap under the title; timed by its turn, not its path length (≥260 ms
+ *             from the drop point, taken from the hop and the drop — doskok-path
+ *             saltoClock), it opens out at full size through the three static ghost frames
+ *             (tilts −330/−344/−354), each flashing brighter as it is passed — a fresh
+ *             exposure on the plate;
  *   landing   a STUCK landing on the button's top edge: the figure compresses and holds
  *             (--ease-land), the button squashes with it (.94/1.03 → 1, rebound .35 s,
  *             D-S11-4), chalk puffs leave the feet; the afterimages fade back to the
@@ -37,7 +43,7 @@
  * Loaded lazily by ContactDoskok — never in the first-load JS.
  */
 import { DUR, EASE, MQ, gsap, motionAllowed, queuePrimaryMotion, registerMotion } from "@/lib/motion";
-import { buildFlight, flightTiming, keyed, progressAt, timeAt, type Pt } from "./doskok-path";
+import { buildFlight, flightTiming, keyed, saltoClock, timeAt, type Pt } from "./doskok-path";
 
 const noop = () => {};
 
@@ -56,9 +62,18 @@ const TUCK = { scaleX: 0.9, scaleY: 0.82 } as const;
 const GHOST_PEAK = 1.8;
 /** Tilt of each static ghost (contact.css --gr): the salto's last degrees, as negative (backward) turns. */
 const GHOST_TURN = [-330, -344, -354] as const;
-/** Turn and scale limits while the figure is still beside the title (CV2-01). */
-const NEAR_TITLE_TURN = -40;
+/** The hop's turn at the apex, and the slow drift while the figure is beside the title (CV2-01). */
+const HOP_TURN = -8;
+const DRIFT_TURN = -12;
+/** Once clear of the title: at most this turn by the drop point, then an even spin (CV3-02). */
+const DROP_TURN = -60;
+/** Head down: the tuck's smallest point (CV2-07); the head-down part ends 45° past upside down. */
 const TUCK_TURN = -200;
+const HEAD_DOWN_END = -225;
+/** The tuck (drop point → ghost 1) lasts at least this long (s)… */
+const TUCK_MIN = 0.26;
+/** …and never spins faster than this (°/s): a salto, not a spin-blur. */
+const MAX_SPIN = 1050;
 /** Clearance kept from any glyph box (px). */
 const CLEAR = 8;
 const MAX_RISE = 24;
@@ -102,6 +117,28 @@ function halfExtents(w: number, h: number, deg: number): { hw: number; hh: numbe
   const c = Math.abs(Math.cos(a));
   const s = Math.abs(Math.sin(a));
   return { hw: (w * c + h * s) / 2, hh: (w * s + h * c) / 2 };
+}
+
+/** The largest half extents of a w×h box turned by anything from 0 to `maxDeg`. */
+function maxExtents(w: number, h: number, maxDeg: number): { hw: number; hh: number } {
+  let hw = 0;
+  let hh = 0;
+  for (let d = 0; d <= maxDeg; d += 1) {
+    const e = halfExtents(w, h, d);
+    hw = Math.max(hw, e.hw);
+    hh = Math.max(hh, e.hh);
+  }
+  return { hw, hh };
+}
+
+/**
+ * Bottom of the element's last line box (viewport px): the glyph boxes are the font's
+ * content area, taller than the display step's .92 line box, so each is re-centred on it.
+ */
+function lineBoxBottom(el: Element | null | undefined, boxes: Box[]): number {
+  if (!el || boxes.length === 0) return Number.NEGATIVE_INFINITY;
+  const lh = Number.parseFloat(getComputedStyle(el).lineHeight);
+  return Math.max(...boxes.map((b) => (Number.isFinite(lh) ? (b.t + b.b) / 2 + lh / 2 : b.b)));
 }
 
 export function armDoskok(root: HTMLElement): () => void {
@@ -176,39 +213,87 @@ export function armDoskok(root: HTMLElement): () => void {
     if (!hasMark || (title && title.getBoundingClientRect().top < 0)) rise = hasMark ? 0 : 32;
     rise = Math.max(0, rise);
 
-    // Drop point: straight under the mark, low enough that the figure — turned the
-    // NEAR_TITLE_TURN and at hop scale — clears every glyph box it could reach.
+    // Drop point: straight under the mark, low enough that the figure — turned anything up
+    // to the DROP_TURN and at hop scale — clears every glyph box it could reach.
     const dropX = P0.x + drift;
     // The lane spans the hop and the way back to the first ghost frame, so the figure is
     // below every glyph it would otherwise pass under on its way back (e.g. „trening“).
-    const nearBox = frameAt({ x: dropX, y: P0.y }, sHop, NEAR_TITLE_TURN);
+    const near = maxExtents(230 * k * sHop, 150 * k * sHop, -DROP_TURN);
+    const nearBox = { l: dropX + L.x - near.hw, t: P0.y + L.y - near.hh, r: dropX + L.x + near.hw, b: P0.y + L.y + near.hh };
     const g1Box = frameAt(g1, 1, GHOST_TURN[0]);
     const lane = { ...nearBox, l: Math.min(nearBox.l, startBox.l, g1Box.l), r: Math.max(nearBox.r, startBox.r) };
     let floor = startBox.b; // at least below the mark itself
     for (const g of glyphs) if (overlapsX(lane, g) && g.t < lane.b + land.height) floor = Math.max(floor, g.b);
-    const { hh: hhNear } = halfExtents(230 * k * sHop, 150 * k * sHop, NEAR_TITLE_TURN);
-    const D: Pt = { x: dropX, y: Math.max(floor + CLEAR + hhNear - L.y, P0.y + land.height * 0.3 * s0) };
+    const D: Pt = { x: dropX, y: Math.max(floor + CLEAR + near.hh - L.y, P0.y + land.height * 0.3 * s0) };
 
     const path = buildFlight(P0, rise, D, [...G, { x: 0, y: 0 }]);
     const drop = -P0.y; // P0 is above the landing (y < 0)
     const wide = window.innerWidth >= 1024;
     const total = Math.min(wide ? 1.0 : 0.9, Math.max(0.75, 0.04 * Math.sqrt(drop + 2 * rise)));
     const timing = flightTiming(path, 1, drop, rise, total);
-    const [, aApex = 0, aDrop = 0, ...aRest] = path.anchors;
-    const tApex = timeAt(timing, aApex);
-    const tDrop = timeAt(timing, aDrop);
-    const tGhost = G.map((_, i) => timeAt(timing, aRest[i] ?? 0));
-    const tLand = timing.rise + timing.fall;
-    const tG1 = tGhost[0]!;
+    const [, , aDrop = 0, aG1 = 0, ...aRest] = path.anchors;
     // The salto: tucked and small through the inverted part, opening out at full size (CV2-07).
-    const tTuck = tDrop + (tG1 - tDrop) * 0.45;
     const sTuck = Math.min(Math.max(s0 + 0.1, 0.5), 0.75);
+
+    // CV3-02 · The turn is timed by angle. It stays a slow drift (HOP_TURN → DRIFT_TURN)
+    // while the figure is beside the title; from the moment its turned box is CLEAR px under
+    // the title's last line box (and off every glyph box) it turns on, at most DROP_TURN by
+    // the drop point, then evenly through the tuck to ghost 1. The tuck gets at least
+    // TUCK_MIN (the clock takes that time from the hop and the drop), and more if the turn
+    // would still spin faster than MAX_SPIN (the clear point moves with the clock, so it is
+    // re-measured on each pass).
+    const lineBottom = lineBoxBottom(title, textBoxes(title));
+    const clearOf = (b: Box) =>
+      b.t >= lineBottom + CLEAR && glyphs.every((g) => b.r < g.l - CLEAR / 2 || b.l > g.r + CLEAR / 2 || b.b < g.t - CLEAR / 2 || b.t > g.b + CLEAR / 2);
+    let clock = saltoClock(timing, aDrop, aG1, TUCK_MIN);
+    let tClear = clock.drop;
+    let turnC = -DRIFT_TURN;
+    let turnD = turnC;
+    for (let pass = 0; pass < 4; pass++) {
+      const { apex: tA, drop: tD, g1: tG } = clock;
+      const pre = (t: number) => -keyed([[0, 0], [tA, HOP_TURN], [tD, DRIFT_TURN]], t);
+      // The turn (magnitude) from tc on: even spin to ghost 1, capped at DROP_TURN by the drop point.
+      const plan = (tc: number) => {
+        const mc = pre(tc);
+        const spin = (-GHOST_TURN[0] - mc) / (tG - tc);
+        return { mc, md: Math.min(-DROP_TURN, mc + spin * (tD - tc)) };
+      };
+      const step = 1 / 240;
+      tClear = tD;
+      for (let tc = tA; tc < tD; tc += step) {
+        const { mc, md } = plan(tc);
+        let ok = true;
+        for (let t = tc; t <= tD + 1e-6 && ok; t += step) {
+          const turn = t <= tc ? mc : mc + ((md - mc) * (t - tc)) / (tD - tc);
+          const sc = s0 + ((sHop - s0) * t) / tD;
+          ok = clearOf(frameAt(path.at(clock.progress(t)), sc, -turn));
+        }
+        if (ok) {
+          tClear = tc;
+          break;
+        }
+      }
+      ({ mc: turnC, md: turnD } = plan(tClear));
+      const tuckSpin = (-GHOST_TURN[0] - turnD) / (tG - tD);
+      if (tuckSpin <= MAX_SPIN || pass === 3) break;
+      clock = saltoClock(timing, aDrop, aG1, (-GHOST_TURN[0] - turnD) / MAX_SPIN + 0.005);
+    }
+
+    const { apex: tApex, drop: tDrop, g1: tG1, land: tLand } = clock;
+    const tGhost = [tG1, ...aRest.slice(0, GHOST_TURN.length - 1).map((a) => clock.map(timeAt(timing, a)))];
+    // When the even tuck spin reaches a turn (after the drop point).
+    const tAt = (turn: number) => tDrop + ((-turn - turnD) / (-GHOST_TURN[0] - turnD)) * (tG1 - tDrop);
+    // Head down at TUCK_TURN: the tuck's smallest point; the figure opens out only once it is
+    // past head-down (HEAD_DOWN_END), so it is never larger than .75 while inverted.
+    const tTuck = tAt(TUCK_TURN);
+    const tHeadUp = tAt(HEAD_DOWN_END);
+    const sHeadUp = Math.min(0.75, sTuck + ((1 - sTuck) * (tHeadUp - tTuck)) / (tG1 - tTuck));
 
     const turnKeys: [number, number][] = [
       [0, 0],
-      [tApex, -8],
-      [tDrop, NEAR_TITLE_TURN],
-      [tTuck, TUCK_TURN],
+      [tApex, HOP_TURN],
+      [tClear, -turnC],
+      [tDrop, -turnD],
       ...tGhost.map((t, i): [number, number] => [t, GHOST_TURN[i]!]),
       [tLand, -360],
     ];
@@ -216,6 +301,7 @@ export function armDoskok(root: HTMLElement): () => void {
       [0, s0],
       [tDrop, sHop],
       [tTuck, sTuck],
+      [tHeadUp, sHeadUp],
       [tG1, 1],
     ];
     // Figure (its <use>): the crouch before the take-off (negative time), the spring out of
@@ -252,7 +338,7 @@ export function armDoskok(root: HTMLElement): () => void {
     const setFX = gsap.quickSetter(figure, "scaleX");
     const setFY = gsap.quickSetter(figure, "scaleY");
     const place = (t: number) => {
-      const p = path.at(progressAt(timing, t));
+      const p = path.at(clock.progress(t));
       setX(p.x);
       setY(p.y);
       setR(keyed(turnKeys, t));
@@ -277,7 +363,7 @@ export function armDoskok(root: HTMLElement): () => void {
       return el;
     });
 
-    const clock = { t: -CROUCH };
+    const tick = { t: -CROUCH };
     const tl = gsap.timeline({
       onComplete: () => {
         removePuffs();
@@ -295,8 +381,8 @@ export function armDoskok(root: HTMLElement): () => void {
     tl.to(flier, { autoAlpha: 1, duration: CROSSFADE, ease: "none" }, 0);
     if (mark) tl.to(mark, { opacity: 0.3, duration: CROSSFADE, ease: "none" }, 0);
 
-    // 2 · Crouch + flight: one pass of the clock (hop, salto, opening out).
-    tl.to(clock, { t: tLand, duration: CROUCH + tLand, ease: "none", onUpdate: () => place(clock.t) }, CROSSFADE);
+    // 2 · Crouch + flight: one pass of the salto clock (hop, salto, opening out).
+    tl.to(tick, { t: tLand, duration: CROUCH + tLand, ease: "none", onUpdate: () => place(tick.t) }, CROSSFADE);
     const lift = CROSSFADE + CROUCH;
 
     // Ghost frames flash as they are passed — brighter, like a fresh exposure.

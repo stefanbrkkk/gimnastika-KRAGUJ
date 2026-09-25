@@ -277,10 +277,25 @@ export function ScheduleBoard({ heading, programs, days, groups, byGroup, byDay,
 
   // „Sledeći trening“: the earliest training among the groups the filter shows; an „ili“ slot
   // posts its first option and lists the other one under the numerals („ili 16:00“).
+  // Several groups in that very slot (Fri „08:30 ili 16:00“: C starije, C mlađe, A i B): one
+  // swatch per group and the programs' pill labels („C program · A i B program“) on one line.
   const shownGroups = groups.filter((g) => filter === "all" || g.programId === filter);
   const best = now ? earliestNext(shownGroups.map((g) => g.slots), now) : null;
-  const bestGroup = best ? shownGroups[best.index] : undefined;
+  const tied = best ? best.tied.flatMap((i) => shownGroups[i] ?? []) : [];
   const alt = best?.next.alt.length ? `ili ${best.next.alt.join(" ili ")}` : "";
+  const boardName =
+    tied.length > 1
+      ? Array.from(new Set(tied.map((g) => g.programId)), (id) => programs.find((p) => p.id === id)?.label).join(" · ")
+      : tied[0]?.name;
+
+  // SC3-04: after the first posting, a change of the „ili“ line waits for the numerals (lazy enhancer).
+  const altRef = useRef<HTMLParagraphElement>(null);
+  const lastAlt = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const prev = lastAlt.current;
+    lastAlt.current = now ? alt : null;
+    if (prev !== null && now && prev !== alt) enh.current?.alt(altRef.current, prev);
+  }, [alt, now]);
 
   const check = (
     <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" className="ui-icon sched-pill__check">
@@ -388,18 +403,24 @@ export function ScheduleBoard({ heading, programs, days, groups, byGroup, byDay,
             </span>
           ))}
         </p>
-        <p className="sched-score__alt" aria-hidden="true">
+        <p ref={altRef} className="sched-score__alt" aria-hidden="true">
           {alt}
         </p>
         <p className="sched-score__group" aria-hidden="true">
-          {bestGroup ? (
+          {tied.length ? (
             <>
-              <span className="sched-swatch" style={{ ["--swatch" as string]: bestGroup.color } as CSSProperties} />
-              {bestGroup.name}
+              <span className="sched-score__swatches">
+                {tied.map((g) => (
+                  <span key={g.name} className="sched-swatch" style={{ ["--swatch" as string]: g.color } as CSSProperties} />
+                ))}
+              </span>
+              {boardName}
             </>
           ) : null}
         </p>
-        <p className="sr-only">{best && bestGroup ? `${T.next}: ${formatNextTraining(best.next, accusatives)}${alt ? ` ${alt}` : ""}, ${bestGroup.name}` : null}</p>
+        <p className="sr-only">
+          {best && tied.length ? `${T.next}: ${formatNextTraining(best.next, accusatives)}${alt ? ` ${alt}` : ""}, ${tied.map((g) => g.name).join("; ")}` : null}
+        </p>
       </div>
 
       <div role="tabpanel" id="sched-panel-group" aria-labelledby="sched-tab-group" className="sched-panel" hidden={view !== "group"}>

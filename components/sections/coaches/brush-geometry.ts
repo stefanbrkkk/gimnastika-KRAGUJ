@@ -76,22 +76,56 @@ export interface StrandSpec {
   /** How far past the lift point this bristle carries on along the tangent (0 = lifts with the core). */
   flick: number;
   opacity: number;
-  /** Static bristle gaps (applied as a mask, so DrawSVG still owns the dash). */
-  gaps?: string;
+  /**
+   * Dry-bristle gaps as [start, length] along the strand (print units): each one thins the
+   * strand to half (a static mask, so DrawSVG still owns the dash) — never a hole.
+   */
+  gaps?: readonly (readonly [number, number])[];
 }
 
 /**
- * Five strands, loaded core first; the widths echo the S7 underline. The gaps are the dry
- * bristles: few while the brush is loaded, more and longer as it runs dry round the loop
- * (each strand ≈ 760 units long; every list is longer, so the pattern never repeats).
+ * Five strands, loaded core first; the widths echo the S7 underline. Only the two thinnest
+ * bristles run dry (AC3-02): short gaps (1–2 units) that thin the strand to half, rare while
+ * the brush is loaded, closer together as it runs dry up the right side and into the flick.
+ * None on the bottom arc (≈330–600 along these strands), where the loop crosses the coaches'
+ * dark shirt and jackets and any break reads as a black tick.
  */
 export const STRANDS: readonly StrandSpec[] = [
   { w: 4.4, d: 0, u0: 0, flick: 4, opacity: 1 },
-  { w: 3.6, d: 2.2, u0: 0.03, flick: 12, opacity: 0.95, gaps: "300 3 150 6 80 4 60 10 40 8 260 1" },
-  { w: 2.8, d: -2.8, u0: 0.012, flick: 19, opacity: 0.9, gaps: "38 3 240 4 150 6 70 9 60 14 260 1" },
-  { w: 2.4, d: 4.6, u0: 0.05, flick: FLICK, opacity: 0.85, gaps: "180 5 120 4 90 8 55 12 40 16 30 10 260 1" },
-  { w: 1.5, d: -4.9, u0: 0.058, flick: 25, opacity: 0.8, gaps: "27 3 160 5 110 9 60 12 45 18 30 14 300 1" },
-]
+  { w: 3.6, d: 2.2, u0: 0.03, flick: 12, opacity: 0.95 },
+  { w: 2.8, d: -2.8, u0: 0.012, flick: 19, opacity: 0.9 },
+  {
+    w: 2.4,
+    d: 4.6,
+    u0: 0.05,
+    flick: FLICK,
+    opacity: 0.85,
+    gaps: [[120, 1], [215, 1], [290, 1.5], [615, 1.5], [652, 2], [690, 2], [728, 2]],
+  },
+  {
+    w: 1.5,
+    d: -4.9,
+    u0: 0.058,
+    flick: 25,
+    opacity: 0.8,
+    gaps: [[95, 1], [190, 1.5], [268, 1.5], [604, 1.5], [632, 2], [662, 2], [684, 2]],
+  },
+];
+
+/**
+ * A strand's gaps as the dash list of a mask path: dashes are the gaps (a zero dash first, and
+ * a long tail so the pattern never repeats).
+ */
+export function gapDashes(gaps: readonly (readonly [number, number])[]): string {
+  const out: number[] = [0];
+  let at = 0;
+  for (const [start, len] of gaps) {
+    out.push(start - at, len);
+    at = start + len;
+  }
+  out.push(2000);
+  return out.join(" ");
+}
 
 /**
  * A strand's offset along the loop: brush pressure breathes (the band swells and narrows),

@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { QUIZ } from "@/content/copy";
 import { SCHEDULE } from "@/content/schedule";
@@ -391,5 +394,94 @@ describe("quiz — chronophotograph strip geometry", () => {
     const g = await import("@/components/sections/quiz/geometry");
     const { FRAME_LEFT } = await import("@/components/sections/quiz/QuizBand");
     g.FRAME_X.forEach((x, i) => expect(FRAME_LEFT[i]).toBe(`${((x / g.VB_W) * 100).toFixed(2)}%`));
+  });
+});
+
+describe("quiz — strip print: exposures over the scene (QP3-05)", () => {
+  const exposureTags = (html: string) => html.match(/<g class="qf qf--\w+"[^>]*>/g) ?? [];
+
+  it("paints apparatus → occluder → grid and mat → exposures → flier", async () => {
+    const { QuizBandArt } = await import("@/components/sections/quiz/QuizBandArt");
+    const html = renderToStaticMarkup(createElement(QuizBandArt, { occlude: true }));
+    const order = ["qb-apps", "qb-occlude", "qb-grid", "qb-mat", "qb-latent", "qb-fly"].map((c) =>
+      html.indexOf(`class="${c}"`),
+    );
+    for (const i of order) expect(i).toBeGreaterThan(-1);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+  });
+
+  it("the occluder is an exact copy of the seven exposures (same classes, poses and delays)", async () => {
+    const { QuizBandArt } = await import("@/components/sections/quiz/QuizBandArt");
+    const tags = exposureTags(renderToStaticMarkup(createElement(QuizBandArt, { occlude: true })));
+    expect(tags).toHaveLength(14);
+    expect(tags.slice(0, 7)).toEqual(tags.slice(7));
+  });
+
+  it("the no-JS guide's still print (no apparatus shown) carries no occluder", async () => {
+    const { QuizBandArt } = await import("@/components/sections/quiz/QuizBandArt");
+    const html = renderToStaticMarkup(createElement(QuizBandArt, {}));
+    expect(html).not.toContain("qb-occlude");
+    expect(exposureTags(html)).toHaveLength(7);
+  });
+
+  it("the occluder is the strip's own navy, solid where a ghost is developed", () => {
+    const css = readFileSync(new URL("../styles/sections/quiz.css", import.meta.url), "utf8");
+    const band = css.match(/\.quiz-band \{[^}]*background: ([^;]+);/)?.[1];
+    const occ = css.match(/\.qb-occlude \{([^}]*)\}/)?.[1] ?? "";
+    expect(band).toBe("var(--color-navy-900)");
+    expect(occ).toContain(`--ghost-1: ${band};`);
+    expect(occ).toContain(`--ghost-2: ${band};`);
+    expect(occ).toMatch(/--ghost-1-o: 1;/);
+    expect(occ).toMatch(/--ghost-2-o: 1;/);
+  });
+});
+
+describe("quiz — rewind leaves the apparatus after her feet (QP3-04)", () => {
+  const css = readFileSync(new URL("../styles/sections/quiz.css", import.meta.url), "utf8");
+  const tokens = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+  const ease = (name: string) =>
+    (tokens.match(new RegExp(`--ease-${name}: cubic-bezier\\(([^)]+)\\)`))?.[1] ?? "").split(",").map(Number) as [
+      number,
+      number,
+      number,
+      number,
+    ];
+  const rule = (selector: string) => {
+    const at = css.indexOf(`${selector} {`);
+    expect(at, selector).toBeGreaterThan(-1);
+    return css.slice(at, css.indexOf("}", at));
+  };
+  const BACK = '.quiz-app:not([data-lite]) .quiz-band[data-dir="back"]';
+
+  it("keeps the beam ≥ 95 % drawn until her front foot is past its end, and hides it before the rewind ends", async () => {
+    const g = await import("@/components/sections/quiz/geometry");
+    const rewind = Number(rule(`${BACK} .qb-fly`).match(/transform (\d+)ms var\(--ease-flight\)/)?.[1]);
+    const [, dur, delay] = rule(`${BACK} .qb-app path`).match(/stroke-dashoffset (\d+)ms var\(--ease-takeoff\) (\d+)ms/)!.map(Number);
+    const hide = Number(rule(`${BACK} .qb-app`).match(/opacity 0s linear (\d+)ms/)?.[1]);
+    expect(rewind).toBeGreaterThan(0);
+    expect(delay).toBeGreaterThan(0);
+    expect(hide).toBe(delay! + dur!); // hidden exactly when its lines are gone
+    expect(hide).toBeLessThanOrEqual(rewind); // …and never outlives the rewind
+
+    // The rewind off the beam: front foot from the landing back to 02 on --ease-flight.
+    const from = g.FLIER.f2.greda.x + g.FOOT.x;
+    const dx = g.FLIER.f2.greda.x - g.FLIER.f1.x;
+    const beamLeft = g.APPARATUS.greda.x + g.ICON.greda.left * g.APPARATUS.greda.s;
+    const flight = ease("flight");
+    const takeoff = ease("takeoff");
+    for (const e of [flight, takeoff]) expect(e.filter(Number.isFinite)).toHaveLength(4);
+    let leave = 0;
+    while (leave < rewind && from - dx * g.cubicBezier(...flight, leave / rewind) > beamLeft) leave++;
+    expect(leave).toBeLessThan(rewind);
+    // Still ≥ 95 % drawn while her foot is over the beam.
+    const undrawn = g.cubicBezier(...takeoff, Math.max(0, (leave - delay!) / dur!));
+    expect(undrawn).toBeLessThan(0.05);
+  });
+
+  it("reduced motion / Save-Data keeps going back instant (the rules are motion-only)", () => {
+    const motion = css.slice(css.indexOf("@media (prefers-reduced-motion: no-preference)"));
+    expect(motion).toContain(`${BACK} .qb-app {`);
+    expect(motion).toContain(`${BACK} .qb-app path {`);
+    expect(css.indexOf(`${BACK} .qb-app`)).toBeGreaterThan(css.indexOf("@media (prefers-reduced-motion: no-preference)"));
   });
 });

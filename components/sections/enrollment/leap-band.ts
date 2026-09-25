@@ -146,6 +146,20 @@ export function pointAt(b: Pick<Band, "p0" | "c" | "p2">, t: number): Pt {
   };
 }
 
+/**
+ * Parameter t at which the trajectory reaches horizontal position `x` (clamped to the flight).
+ * The flight runs on x at a constant speed and reads y (and the pitch) off the path at that x:
+ * a real leap's ballistics, the same model as the hero's floor pass and the title marks (X
+ * linear, Y a parabola). x(t) is quadratic when the apex tick sits off the chord's midpoint.
+ */
+export function tAtX(b: Pick<Band, "p0" | "c" | "p2">, x: number): number {
+  const a = b.p0.x - 2 * b.c.x + b.p2.x;
+  const k = 2 * (b.c.x - b.p0.x);
+  const d = b.p0.x - x;
+  const t = Math.abs(a) < 1e-9 ? -d / k : (-k + Math.sqrt(Math.max(0, k * k - 4 * a * d))) / (2 * a);
+  return Math.min(1, Math.max(0, t));
+}
+
 /** Torso pitch at parameter t: a quadratic through takeoff (0), apex (.5) and landing (1). */
 export function pitchAt(t: number): number {
   const { takeoff: a, apex: m, landing: b } = PITCH;

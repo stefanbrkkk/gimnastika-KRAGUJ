@@ -276,6 +276,20 @@ html:not(.js) .quiz-app {
 .quiz-band[data-app="razboj"] .qb-app--razboj path {
   stroke-dashoffset: 0;
 }
+/* In a Marey print every exposure lies over the scene (QP3-05). The ghosts are faint, so a rail
+   painted under one still cut through it like a fence. The occluder (QuizBandArt) is a copy of
+   the seven exposures painted right over the apparatus in the strip's own navy: solid wherever a
+   ghost is developed, as one union at 60 %, so a rail keeps 40 % of its ink under a body. Its
+   poses, develop delays and transitions are the visible print's (same classes, same inline
+   variables); a hidden exposure (the landing frame under the flier) occludes nothing, and over
+   the navy strip the occluder is invisible. Grid and mat are painted after it, untouched. */
+.qb-occlude {
+  --ghost-1: var(--color-navy-900);
+  --ghost-2: var(--color-navy-900);
+  --ghost-1-o: 1;
+  --ghost-2-o: 1;
+  opacity: 0.6;
+}
 
 /* The seven exposures (k = the answers 01/02/03, a/b = in flight). Poses per landing
    variant come inline (--t-*). A latent print: 10 % ice; passed in-flight frames develop
@@ -417,6 +431,17 @@ html:not(.js) .quiz-app {
   .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="greda"] .qb-app--greda path,
   .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="razboj"] .qb-app--razboj path {
     transition: stroke-dashoffset 500ms var(--ease-stick) calc(var(--qb-fly) * 0.4);
+  }
+  /* „Nazad“ / „Počnite ponovo“ (QP3-04): the apparatus stays under her while the film rewinds and
+     leaves after her feet do — its draw-in played backwards (--ease-takeoff is --ease-stick
+     reversed) from 160 to 360 ms of her 420 ms rewind, then hidden once its lines are gone. On the
+     beam her front foot is past the beam's end at ≈220 ms. The caption and frame numbers still
+     switch at once; reduced motion / Save-Data stay instant (data-lite). */
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="back"] .qb-app {
+    transition: opacity 0s linear 360ms;
+  }
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="back"] .qb-app path {
+    transition: stroke-dashoffset 200ms var(--ease-takeoff) 160ms;
   }
 
   .quiz-app:not([data-lite]) .quiz-band :is(.qb-mat--span, .qb-mat--air, .qb-tick--2) {

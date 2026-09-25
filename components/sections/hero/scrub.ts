@@ -7,7 +7,7 @@ import { gsap } from "@/lib/motion";
 import type { loadScrollTrigger } from "@/lib/motion";
 import { LEAP_BOX } from "./constants";
 import type { Pt } from "./pass";
-import { measure, nextLeg, roundRoute, routeClear, routePath, spineRoute, type SpineNext, type SpineRect } from "./spine";
+import { gutterLeg, legTicks, measure, nextLeg, roundRoute, routeClear, routePath, spineRoute, type Pt as RoutePt, type SpineNext, type SpineRect } from "./spine";
 
 type ScrollTriggerStatic = Awaited<ReturnType<typeof loadScrollTrigger>>;
 type Matrix = [number, number, number, number, number, number];
@@ -131,12 +131,28 @@ const MIN_SHOWN = 48;
 /** px she keeps from the viewport's side edges; px of air she keeps from text. */
 const EDGE = 8;
 const AIR = 4;
-/** px of route over which the wall-to-wall floor (≥ 1680 px) retracts to the spine's corner. */
+/** px of route over which the wall-to-wall floor (≥ 1680 px) retracts to the fold, where the gutter leg takes over. */
 const MAT_RETRACT = 32;
 /** px of route over which she leaves the logo … */
 const LEAVE = 170;
-/** … and over which she turns and settles onto the mark's first frame. */
+/** … and over which she settles onto the mark's first frame. */
 const ARRIVE = 70;
+/** Samples (± 24 px of route) around a change of direction where she is hidden and turns out of sight. */
+const TURN = 6;
+/** The hop turn on the arrival: over its first 48 px of route she hops (lift × her ink height) and turns at the apex. */
+const HOP = { length: 48, lift: 0.12 } as const;
+/** At the hop's turn her opacity dips to this for 80 ms (the mirror flips in one step, never through zero width). */
+const TURN_DIP = { opacity: 0.4, ms: 80 } as const;
+/** The exposure's fade (ms, .hero-spine__x): she starts it this far ahead of text at the speed she is moving … */
+const FADE_MS = 120;
+/** … plus a frame: a new opacity starts to fade on the next frame drawn. */
+const FRAME_MS = 16.7;
+/** The scrub's catch-up time (s). ScrollTrigger eases it with expo.out … */
+const SCRUB = 0.5;
+/** … so within the fade (and a frame) she covers this share of the way to where the scroll has put her. */
+const COVER = 1 - 2 ** ((-10 * (FADE_MS + FRAME_MS)) / (SCRUB * 1000));
+/** Marey ticks down the gutter leg: every 96 px, 6 px long, pointing out of the page; each draws over 6 px of route. */
+const TICK = { every: 96, length: 6, draw: 6 } as const;
 
 /**
  * Pins the hero for half a viewport of scroll and gives the scrub a purpose:
@@ -147,12 +163,18 @@ const ARRIVE = 70;
  * out of the hero, level across the band above the next section and down
  * beside its title to the title's mark. She keeps at least .45 of the landed
  * size; where she cannot fit (the margin, the lane beside the title) she
- * fades out (120 ms) and only the line draws. The pin keeps the hero still
+ * fades out (120 ms, started as far ahead as the scrub will carry her in that
+ * time, shortened when it will get her there sooner) and only the line draws.
+ * She is only ever seen whole: she turns out of sight, and at the mark in a
+ * hop whose apex flips her in one step. While the pin lives, #top links
+ * scroll to the true top. The pin keeps the hero still
  * for the first stretch; the journey runs on with the page until the mark is
  * in the reading zone, where she turns and hands over ("kraguj:handoff"): the
  * mark's own landing (data-landing + data-landed) carries her the rest of the
  * way, and the line, its job done, fades out (redrawn when scrubbing back).
- * The spine is 2 px steel-300 at .8 and never crosses text — a route that
+ * The gutter leg (mat end → down the margin) is the floor carried on: the
+ * mat's 1.5 px at .6, a mitred fold and the mat's Marey ticks; from the
+ * diagonal on the spine is 2 px steel-300 at .8. It never crosses text — a route that
  * would touch the next title stops at the hero's bottom edge instead, and
  * HeadingLandings lands the mark; everything is recomputed on refreshInit.
  */
@@ -171,10 +193,13 @@ export function pinHero(ScrollTrigger: ScrollTriggerStatic, section: HTMLElement
   spine.setAttribute("focusable", "false");
   spine.innerHTML =
     '<defs><clipPath id="hero-spine-in"><rect/></clipPath><clipPath id="hero-spine-out"><rect/></clipPath></defs>' +
-    '<path class="hero-spine__line" pathLength="1"/>' +
+    '<g class="hero-spine__ink"><path class="hero-spine__floor" pathLength="1"/><g class="hero-spine__ticks"></g><path class="hero-spine__line" pathLength="1"/></g>' +
     '<g class="hero-spine__x" clip-path="url(#hero-spine-in)"><g><use href="#leap"/></g></g>' +
     '<g class="hero-spine__x hero-spine__x--out" clip-path="url(#hero-spine-out)"><g><use href="#leap"/></g></g>';
-  const line = q<SVGPathElement>(spine, "path")!;
+  const line = q<SVGPathElement>(spine, ".hero-spine__line")!;
+  const legLine = q<SVGPathElement>(spine, ".hero-spine__floor")!;
+  const tickGroup = q<SVGGElement>(spine, ".hero-spine__ticks")!;
+  let ticks: SVGPathElement[] = [];
   const clipIn = q<SVGRectElement>(spine, "#hero-spine-in rect")!;
   const clipOut = q<SVGRectElement>(spine, "#hero-spine-out rect")!;
   const xs = qa<SVGGElement>(spine, ".hero-spine__x");
@@ -190,6 +215,11 @@ export function pinHero(ScrollTrigger: ScrollTriggerStatic, section: HTMLElement
   let route = measure([]);
   let facing: number[] = [1];
   let shownAt: boolean[] = [];
+  /** Route arc length where the drawn gutter leg starts (0, or the fold when the floor runs wall to wall) and ends. */
+  let legFrom = 0;
+  let legTo = 0;
+  /** Route arc length of each tick down the gutter leg. */
+  let tickAt: number[] = [];
   let heroLen = 0;
   let start = { x: 0, y: 0, k: 1 };
   let kRun = 1;
@@ -197,7 +227,7 @@ export function pinHero(ScrollTrigger: ScrollTriggerStatic, section: HTMLElement
   /** The mark's top in hero coordinates, as it sits after the pin (unstuck). */
   let markTop = 0;
   let heightOf = 0;
-  /** px of the wall-to-wall floor (≥ 1680 px) past the spine's corner. */
+  /** px of the wall-to-wall floor (≥ 1680 px) past the fold. */
   let matOver = 0;
 
   const layout = () => {
@@ -211,7 +241,8 @@ export function pinHero(ScrollTrigger: ScrollTriggerStatic, section: HTMLElement
     const containerRight = ir ? ir.right - parseFloat(getComputedStyle(inner!).paddingRight) - s.left : m.right - s.left;
     const left = ir ? parseFloat(getComputedStyle(inner!).paddingLeft) + ir.left - s.left : 48;
     const turn = containerRight + Math.min(32, (w - containerRight) / 2);
-    matOver = m.right - s.left - (turn - Math.min(CORNER, (turn - containerRight) / 2));
+    // (wall to wall, the floor retracts to the fold, where the gutter leg takes over)
+    matOver = m.right - s.left - turn;
 
     // where she starts: the landed silhouette (art units → section px)
     const ctm = art.getScreenCTM();
@@ -250,18 +281,19 @@ export function pinHero(ScrollTrigger: ScrollTriggerStatic, section: HTMLElement
     kRun = Math.max(Math.min(laneK, markPose?.k ?? laneK), MIN_SHARE * start.k);
     const base = { matY, matEnd: containerRight, turn, bottom: h, left, obstacles: textBoxes(section, s, 16), runner: { half: RUNNER.half * kRun, height: RUNNER.height * kRun } };
     // corners rounded by 14 px (the obstacles keep 16 px of air, so the arcs never reach text)
-    let pts = roundRoute(spineRoute({ ...base, next }), CORNER);
+    let raw: RoutePt[] = spineRoute({ ...base, next });
+    let pts = roundRoute(raw, CORNER);
     if (next && !routeClear(pts, guard)) {
       // The guard: the route would still touch the next title. It ends at the hero's bottom
       // edge instead, and HeadingLandings lands the mark on its own.
       next = undefined;
       markPose = null;
       keepNext = [];
-      pts = roundRoute(spineRoute(base), CORNER);
+      raw = spineRoute(base);
+      pts = roundRoute(raw, CORNER);
     }
     route = measure(pts);
-    // which way she faces along the route (mirrored going left; a drop keeps the last way), eased
-    // over ±24 px around a change — a turn, not a flip
+    // which way she runs along the route (mirrored going left; a drop keeps the last way)
     const going: number[] = [];
     let way = 1;
     for (let s1 = 0; s1 <= route.length; s1 += SAMPLE) {
@@ -269,28 +301,41 @@ export function pinHero(ScrollTrigger: ScrollTriggerStatic, section: HTMLElement
       if (Math.abs(q1.dx) > 0.2) way = Math.sign(q1.dx);
       going.push(way);
     }
-    facing = going.map((_, i) => {
-      let sum = 0;
-      let n = 0;
-      for (let j = Math.max(0, i - 6); j <= Math.min(going.length - 1, i + 6); j++, n++) sum += going[j]!;
-      return sum / n;
-    });
+    const n = going.length;
+    // within ±24 px of a change of direction she is out of sight: she turns there, unseen — never
+    // squeezed through zero width by a mirror passing through 0
+    const turning = going.map((g, i) => going.slice(Math.max(0, i - TURN), i + TURN + 1).some((o) => o !== g));
+    facing = going;
     // where she is shown: her whole figure inside the viewport (8 px from its sides) and clear of
     // text by 4 px — the hero's, and the next title's inked glyphs; elsewhere only the line draws
     const keep = [...textBoxes(section, s, AIR), ...keepNext];
     shownAt = [];
-    for (let s1 = 0; s1 <= route.length; s1 += SAMPLE) {
+    for (let i = 0; i < n; i++) {
+      const s1 = i * SAMPLE;
       const b = inkBox(poseAt(s1));
       const arriving = markPose !== null && route.length - s1 <= ARRIVE;
-      shownAt.push(arriving || (b.left >= EDGE && b.right <= w - EDGE && !keep.some((r) => overlaps(b, r))));
+      shownAt.push(arriving || (!turning[i] && b.left >= EDGE && b.right <= w - EDGE && !keep.some((r) => overlaps(b, r))));
     }
     // without the mark she leaves with the line through the hero's bottom edge
-    if (!markPose) for (let i = Math.max(0, shownAt.length - MIN_SHOWN / SAMPLE); i < shownAt.length; i++) shownAt[i] = false;
+    if (!markPose) for (let i = Math.max(0, n - MIN_SHOWN / SAMPLE); i < n; i++) shownAt[i] = false;
     // never a flash: a stretch shorter than MIN_SHOWN stays hidden (the arrival at the mark excepted)
-    for (let i = 0; i < shownAt.length; ) {
+    for (let i = 0; i < n; ) {
       let j = i;
-      while (j < shownAt.length && shownAt[j] === shownAt[i]) j++;
-      if (shownAt[i] && j < shownAt.length && (j - i) * SAMPLE < MIN_SHOWN) shownAt.fill(false, i, j);
+      while (j < n && shownAt[j] === shownAt[i]) j++;
+      if (shownAt[i] && j < n && (j - i) * SAMPLE < MIN_SHOWN) shownAt.fill(false, i, j);
+      i = j;
+    }
+    // she keeps her way through each hidden stretch and takes the next one halfway along it,
+    // where she has been out of sight longest: every frame she is seen in is whole (face ±1)
+    facing = going.slice();
+    for (let i = 0; i < n; ) {
+      let j = i;
+      while (j < n && shownAt[j] === shownAt[i]) j++;
+      if (!shownAt[i]) {
+        const before = going[Math.max(0, i - 1)]!;
+        const after = going[Math.min(n - 1, j)]!;
+        for (let k = i; k < j; k++) facing[k] = k < (i + j) / 2 ? before : after;
+      }
       i = j;
     }
     // the hero's share of the route: up to where it leaves through the bottom edge
@@ -304,7 +349,36 @@ export function pinHero(ScrollTrigger: ScrollTriggerStatic, section: HTMLElement
     heightOf = Math.max(h, ...pts.map((p) => p[1] + 4));
     spine.setAttribute("viewBox", `0 0 ${w} ${heightOf}`);
     spine.style.height = `${heightOf}px`;
-    line.setAttribute("d", routePath(pts));
+    // the gutter leg is the floor carried on: the mat's weight, a mitred fold, the mat's ticks
+    const leg = gutterLeg(raw, CORNER);
+    legTo = route.at[leg.split] ?? route.length;
+    legFrom = 0;
+    let legPts = leg.pts;
+    if (matOver > 1 && leg.fold) {
+      // wall to wall the floor itself runs to the fold: the leg starts there (on the mat's last px)
+      let best = Infinity;
+      pts.forEach(([x, y], i) => {
+        const d = Math.hypot(x - leg.fold![0], y - leg.fold![1]);
+        if (d < best) [best, legFrom] = [d, route.at[i]!];
+      });
+      legPts = [[leg.fold[0] - 1, leg.fold[1]], ...leg.pts.slice(leg.pts.indexOf(leg.fold))];
+    }
+    legLine.setAttribute("d", routePath(legPts));
+    const rest = pts.slice(leg.split);
+    line.setAttribute("d", rest.length > 1 ? routePath(rest) : "");
+    const legEnd = leg.pts[leg.pts.length - 1]!;
+    const tickYs = leg.fold ? legTicks(leg, TICK.every) : [];
+    tickAt = tickYs.map((y) => legTo - (legEnd[1] - y));
+    ticks.forEach((t) => t.remove());
+    ticks = tickYs.map((y) => {
+      const t = document.createElementNS(SVG_NS, "path");
+      t.setAttribute("class", "hero-spine__tick");
+      t.setAttribute("pathLength", "1");
+      // perpendicular to the leg, pointing out of the page (the floor's upper side, folded down)
+      t.setAttribute("d", `M${r3(leg.fold![0])} ${r3(y)}h${TICK.length}`);
+      tickGroup.append(t);
+      return t;
+    });
     for (const [rect, y, hh] of [
       [clipIn, -1000, h + 1000],
       [clipOut, h, heightOf + 1000],
@@ -338,25 +412,27 @@ export function pinHero(ScrollTrigger: ScrollTriggerStatic, section: HTMLElement
     const arrive = markPose ? smooth(clamp01(1 - (L - sArc) / ARRIVE)) : 0;
     const leave = smooth(clamp01(sArc / LEAVE));
     let k = kRun;
-    let face = facing[Math.min(facing.length - 1, Math.round(sArc / SAMPLE))] ?? 1;
+    // ±1 only: she never shows squeezed by a mirror passing through 0 (FI3-02)
+    let face = faceAt(sArc);
     const bound = (1 - vertical) * Math.abs(Math.sin((Math.PI * sArc) / (LEAP_BOX.width * k * 1.4))) * 16 * k;
     let A: Pt = [pt.x, pt.y - bound];
     let rot = 0;
     if (markPose) {
-      // the last stretch: she turns (a pirouette: the mirror passes through 0)
-      // and settles exactly on the mark's first frame, pitched like its flier
+      // the last stretch: she settles exactly on the mark's first frame, pitched like its flier,
+      // and on its first 48 px she hops and turns at the apex to face the way the mark flies
       const end: Pt = [markPose.x + 114 * markPose.k, markPose.y + 146.7 * markPose.k];
       A = [A[0] + (end[0] - A[0]) * arrive, A[1] + (end[1] - A[1]) * arrive];
       k += (kMark - k) * arrive;
-      face += (1 - face) * arrive;
       rot = MARK.pitch * arrive;
+      const hop = (ARRIVE - (L - sArc)) / HOP.length;
+      if (hop > 0 && hop < 1) A = [A[0], A[1] - HOP.lift * (INK.bottom - INK.top) * k * 4 * hop * (1 - hop)];
+      if (hop >= 0.5) face = 1;
     }
     if (leave < 1) {
       // leaving: from the landed silhouette (same place, same size) onto the route
       const from: Pt = [start.x + P[0] * start.k, start.y + P[1] * start.k];
       A = [from[0] + (A[0] - from[0]) * leave, from[1] + (A[1] - from[1]) * leave];
       k = start.k + (k - start.k) * leave;
-      face = 1 + (face - 1) * leave;
     }
     const c = Math.cos((rot * Math.PI) / 180);
     const sn = Math.sin((rot * Math.PI) / 180);
@@ -365,6 +441,11 @@ export function pinHero(ScrollTrigger: ScrollTriggerStatic, section: HTMLElement
     const cc = -sn * k;
     const d = c * k;
     return [a, b, cc, d, A[0] - (a * P[0] + cc * P[1]), A[1] - (b * P[0] + d * P[1])];
+  }
+
+  /** Which way she faces at arc length sArc: +1 or −1 (the arrival's hop turn aside). */
+  function faceAt(sArc: number): number {
+    return facing[Math.min(facing.length - 1, Math.max(0, Math.round(sArc / SAMPLE)))] ?? 1;
   }
 
   /** The axis-aligned box of her ink in a pose (section px). */
@@ -383,20 +464,76 @@ export function pinHero(ScrollTrigger: ScrollTriggerStatic, section: HTMLElement
     return { left: Math.min(...xs1), top: Math.min(...ys1), right: Math.max(...xs1), bottom: Math.max(...ys1) };
   }
 
+  /** Where she was on the last draw, and how fast she moves along the route (px/ms). */
+  let lastS = 0;
+  let lastT = 0;
+  let speed = 0;
+  let lastFace = 1;
+  /** Where the scroll position puts her (0 → 1), once the triggers exist: the scrub is on its way there. */
+  let targetP: (() => number) | null = null;
+
   function draw() {
     const p = state.p;
-    line.style.strokeDashoffset = String(r3(1 - p));
     // after the hand-off the line has done its job: it fades out, and is back as soon as she is scrubbed back
     if (handedOff) spine.toggleAttribute("data-handed", p >= 0.98);
     const L = route.length;
     if (!L) return;
     const sArc = p * L;
-    const m = `matrix(${poseAt(sArc).map(r3).join(" ")})`;
+    // the gutter leg, its ticks and the rest of the spine draw as she passes (one tip, three paths)
+    legLine.style.strokeDashoffset = String(r3(1 - clamp01((sArc - legFrom) / Math.max(1, legTo - legFrom))));
+    line.style.strokeDashoffset = String(r3(1 - clamp01((sArc - legTo) / Math.max(1, L - legTo))));
+    ticks.forEach((t, i) => (t.style.strokeDashoffset = String(r3(1 - clamp01((sArc - tickAt[i]!) / TICK.draw)))));
+    const pose = poseAt(sArc);
+    const m = `matrix(${pose.map(r3).join(" ")})`;
     xMoves.forEach((g) => g.setAttribute("transform", m));
-    const shown = !handedOff && sArc >= 0.5 && shownAt[Math.min(shownAt.length - 1, Math.round(sArc / SAMPLE))];
-    xs.forEach((g) => (g.style.opacity = shown ? String(EXPOSURE_OPACITY) : "0"));
-    // wide rooms: the wall-to-wall floor gives way to the spine — its run past the corner retracts
-    // as she sets off, so the line turns down at the floor's end (no T-junction)
+    // She fades over 120 ms: start the fade before she reaches text, as far ahead as she will
+    // travel in that time at her current speed (QP3-06). At rest only where she is counts.
+    // (The first draw after a rest has no previous frame: its step counts over one nominal frame.
+    // Two draws in one frame — the pinned and the onward timeline — keep the last speed.)
+    const now = performance.now();
+    const dt = now - lastT;
+    if (dt > 1) speed = (sArc - lastS) / (dt < 50 ? dt : FRAME_MS);
+    lastS = sArc;
+    lastT = now;
+    // Where she will be when a fade started now has run: at her speed, or — at the first frame of
+    // a wheel step, before she has any — most of the way to where the scroll has put her.
+    const toTarget = targetP ? targetP() * L - sArc : 0;
+    const bySpeed = speed * (FADE_MS + FRAME_MS);
+    const byTarget = toTarget * COVER;
+    const at = (s1: number) => Math.min(shownAt.length - 1, Math.max(0, Math.round(s1 / SAMPLE)));
+    const i0 = at(sArc + Math.min(0, bySpeed, byTarget));
+    const i1 = at(sArc + Math.max(0, bySpeed, byTarget));
+    // the nearest sample on her way where she must not be seen
+    const here = at(sArc);
+    let near = -1;
+    for (let d = 0; here + d <= i1 || here - d >= i0; d++) {
+      if (here + d <= i1 && !shownAt[here + d]) near = here + d;
+      else if (here - d >= i0 && !shownAt[here - d]) near = here - d;
+      if (near >= 0) break;
+    }
+    const shown = !handedOff && sArc >= 0.5 && near < 0;
+    // A wheel step can bring her to text sooner than 120 ms (the scrub covers 85 % of the way in
+    // that time): the fade is then shortened so that she is gone when she gets there.
+    let fade = FADE_MS;
+    if (near >= 0) {
+      const gap = Math.max(0, Math.abs(near * SAMPLE - sArc) - SAMPLE / 2);
+      const far = Math.abs(toTarget);
+      const byScroll = far > gap ? (-Math.log2(1 - gap / far) / 10) * SCRUB * 1000 : Infinity;
+      const bySpeedMs = Math.abs(speed) > 1e-3 ? gap / Math.abs(speed) : Infinity;
+      fade = Math.max(0, Math.min(FADE_MS, Math.min(byScroll, bySpeedMs) - FRAME_MS));
+    }
+    xs.forEach((g) => {
+      if (!handedOff) g.style.transitionDuration = shown ? "" : `${Math.round(fade)}ms`;
+      g.style.opacity = shown ? String(EXPOSURE_OPACITY) : "0";
+    });
+    // the hop turn: the mirror flips in one step at the apex, under an 80 ms dip of her opacity
+    const face = Math.sign(pose[0] * pose[3] - pose[1] * pose[2]) || 1;
+    if (face !== lastFace && shown) {
+      xMoves.forEach((g) => g.animate([{ opacity: TURN_DIP.opacity / EXPOSURE_OPACITY }, { opacity: 1 }], { duration: TURN_DIP.ms, easing: "linear" }));
+    }
+    lastFace = face;
+    // wide rooms: the wall-to-wall floor gives way to the gutter leg — its run past the fold
+    // retracts as she sets off, so the floor folds down at its end (no T-junction)
     floor.style.clipPath = matOver > 1 && sArc > 0 ? `inset(-4px ${r3(matOver * clamp01(sArc / MAT_RETRACT))}px -4px 0)` : "";
   }
 
@@ -438,7 +575,7 @@ export function pinHero(ScrollTrigger: ScrollTriggerStatic, section: HTMLElement
     start: () => (tall() ? "bottom bottom" : "top top"),
     end: "+=50%",
     pin: true,
-    scrub: 0.5,
+    scrub: SCRUB,
     animation: pinned,
     invalidateOnRefresh: true,
   });
@@ -450,14 +587,36 @@ export function pinHero(ScrollTrigger: ScrollTriggerStatic, section: HTMLElement
         // first, with room for the scrub's .5 s to settle her on the mark's first frame).
         // Measured unstuck (the title is sticky on desktop), from the hero's top at the pin's end.
         end: () => pin.end + (tall() ? window.innerHeight - section.offsetHeight : 0) + markTop - window.innerHeight * 0.8,
-        scrub: 0.5,
+        scrub: SCRUB,
         animation: onward,
         invalidateOnRefresh: true,
       })
     : null;
+  targetP = () => (run && run.progress > 0 ? heroShare() + run.progress * (1 - heroShare()) : pin.progress * heroShare());
   ScrollTrigger.refresh();
 
+  // ---- Back to the top (MD3-03) ----
+  // The pin moves the hero down its spacer, so the browser's own #top jump would land mid-scrub
+  // (the hero's pinned offset minus the scroll padding). While the pin lives, a click on a #top
+  // link (the header logo) scrolls to the true top, where the hero rests whole, and moves focus
+  // to its H1 as the jump would have (it is not focusable by itself: tabindex −1).
+  const title = q<HTMLElement>(section, "h1");
+  const onTop = (e: MouseEvent) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (!(e.target instanceof Element) || !e.target.closest('a[href="#top"]')) return;
+    e.preventDefault();
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+    if (window.location.hash !== "#top") window.history.replaceState(window.history.state, "", "#top");
+    if (title) {
+      if (!title.hasAttribute("tabindex")) title.setAttribute("tabindex", "-1");
+      title.focus({ preventScroll: true });
+    }
+  };
+  document.addEventListener("click", onTop);
+
   return () => {
+    document.removeEventListener("click", onTop);
     ScrollTrigger.removeEventListener("refreshInit", layout);
     run?.kill();
     pin.kill(true);

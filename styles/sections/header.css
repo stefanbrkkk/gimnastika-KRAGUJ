@@ -80,6 +80,47 @@
   --hdr-surface: var(--color-navy-900);
 }
 
+/* The gap above the bar (SC3-05): whatever scrolls behind the header shows there cut
+   by the bar — after a day tap in S4 the navy scoreboard's white text, sliced in half.
+   While the page is scrolled (data-cap="on", HeaderBehavior) the gap is painted in the
+   colour of the section under it (data-cap-tone), so it reads as page, never as a cut.
+   Solid down to the bar's top edge, then a 16px fade behind the bar: it only shows in
+   the pill's rounded corners and the side gutters, so no sliver of a dark element is
+   left between the cap and the bar (a fade inside the 10px gap left a navy line there).
+   Off at the very top and while a diagonal section edge crosses the gap. It travels
+   with the header when it hides. */
+.site-header::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: -1; /* under the bar, its ring and shadow */
+  height: calc(var(--hdr-top) + 16px);
+  background: linear-gradient(var(--cap-bg, transparent) var(--hdr-top), transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) linear;
+}
+
+.site-header[data-cap="on"]::before {
+  opacity: 1;
+}
+
+.site-header[data-cap-tone="light"] {
+  --cap-bg: var(--color-chalk);
+}
+
+.site-header[data-cap-tone="ice"] {
+  --cap-bg: var(--color-ice-50);
+}
+
+.site-header[data-cap-tone="dark"] {
+  --cap-bg: var(--color-navy-900);
+}
+
+.site-header[data-cap-tone="darker"] {
+  --cap-bg: var(--color-navy-950);
+}
+
 .site-header__bar {
   pointer-events: auto;
   display: flex;
@@ -1011,6 +1052,7 @@ html.js-motion .sticky-bar[data-visible="true"] .sticky-bar__list > li {
 
 @media (prefers-reduced-motion: reduce) {
   .site-header,
+  .site-header::before,
   .site-header__link::after,
   .site-header .site-header__cta,
   .site-header[data-cta] .site-header__cta,
