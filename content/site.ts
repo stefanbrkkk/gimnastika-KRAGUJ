@@ -124,7 +124,7 @@ export const SEO = {
 export const NAV = [
   { href: "#programi", label: "Programi" },
   { href: "#raspored", label: "Raspored" },
-  { href: "#treneri", label: "Treneri" },
+  { href: "#treneri", label: "Trenerice" },
   { href: "#uspesi", label: "Uspesi" },
   { href: "#kamp", label: "Kamp" },
   { href: "#kontakt", label: "Kontakt" },

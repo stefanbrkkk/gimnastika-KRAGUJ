@@ -14,7 +14,18 @@ export const MQ = {
 } as const;
 
 /** Seconds. tap 100 · fast 180 · base 280 · reveal 600 · slow 900. Hero intro ≤1.9s total. */
-export const DUR = { tap: 0.1, fast: 0.18, base: 0.28, reveal: 0.6, slow: 0.9 } as const;
+export const DUR = {
+  tap: 0.1,
+  fast: 0.18,
+  base: 0.28,
+  reveal: 0.6,
+  slow: 0.9,
+  /** Gymnastics vocabulary (design review v2): stick landing, vault spring, beam wobble, bars swing. */
+  land: 0.26,
+  spring: 0.42,
+  wobble: 0.7,
+  swing: 0.85,
+} as const;
 /** Stagger seconds; a sequence's total stagger must stay ≤ .36s (hero ghosts excepted). */
 export const STAGGER = { words: 0.04, lines: 0.08, cards: 0.06, maxTotal: 0.36 } as const;
 /** Reveal y-offset in px. Prefer clip-path reveals. */
@@ -27,6 +38,16 @@ export const EASE = {
   flight: "flight",
   rebound: "rebound",
   hang: "hang",
+  /** Stuck landing: compress and hold (≤3% overshoot). Use for landings instead of rebound. */
+  land: "land",
+  /** Vault board / springboard. */
+  spring: "back.out(2.2)",
+  /** Beam balance: wobble and settle. */
+  wobble: "elastic.out(1.1, 0.38)",
+  /** Uneven-bars pendulum. */
+  swing: "elastic.out(1, 0.55)",
+  /** Score posting on a 7-row dot-matrix board. */
+  score: "steps(7)",
 } as const;
 
 /**
@@ -71,12 +92,14 @@ export function whenNear(el: Element, onNear: () => void, margin = "100% 0px 100
 
 /**
  * "ONE primary motion per viewport" across sections: sections run their primary
- * motion through this queue, so a motion that starts while another section's
- * primary motion is still playing waits for it (at most `maxWaitMs`).
+ * (content) motion through this queue, so a motion that starts while another
+ * section's primary motion is still playing waits for it — at most `maxWaitMs`
+ * (250 ms: content is never held back behind decoration; design review MD-02).
+ * Section-title landings are accents and do not take a slot.
  *   await queuePrimaryMotion(900); // then start the timeline (≈900 ms long)
  */
 let primaryBusyUntil = 0;
-export function queuePrimaryMotion(durationMs: number, maxWaitMs = 700): Promise<void> {
+export function queuePrimaryMotion(durationMs: number, maxWaitMs = 250): Promise<void> {
   const now = typeof performance === "undefined" ? 0 : performance.now();
   const wait = Math.max(0, Math.min(primaryBusyUntil - now, maxWaitMs));
   primaryBusyUntil = now + wait + durationMs;

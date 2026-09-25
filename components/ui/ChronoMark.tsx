@@ -42,7 +42,10 @@ export function ChronoMark({ className, land = true }: { className?: string; lan
       ))}
       {/* The flier: X travels linearly (.chrono-fly), Y follows the leap's parabola (.chrono-solid). */}
       <g className="chrono-fly">
-        <use href="#leap" className="chrono-solid" x={LANDED.x} y={LANDED.y} width={W} height={H} />
+        {/* .chrono-pitch: torso pitch in flight + the stuck-landing compression (design review v2). */}
+        <g className="chrono-pitch">
+          <use href="#leap" className="chrono-solid" x={LANDED.x} y={LANDED.y} width={W} height={H} />
+        </g>
       </g>
     </svg>
   );

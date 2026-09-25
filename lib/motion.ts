@@ -28,6 +28,7 @@ export function registerMotion(): typeof gsap {
     CustomEase.create(EASE.flight, "M0,0 C0.45,0 0.55,1 1,1");
     CustomEase.create(EASE.rebound, "M0,0 C0.34,1.56 0.64,1 1,1");
     CustomEase.create(EASE.hang, "M0,0 C0.18,0.42 0.34,0.5 0.5,0.5 0.66,0.5 0.82,0.58 1,1");
+    CustomEase.create(EASE.land, "M0,0 C0.22,1.12 0.36,1 1,1");
     registered = true;
   }
   return gsap;

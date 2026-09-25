@@ -1,4 +1,6 @@
 node_modules/
+# agent worktrees / local tool state
+.claude/
 .next/
 out/
 next-env.d.ts

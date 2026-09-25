@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { MQ, motionAllowed, queuePrimaryMotion } from "@/lib/motion-env";
+import { MQ, motionAllowed } from "@/lib/motion-env";
 
 /**
  * Page-wide client glue, mounted once from the layout:
@@ -44,12 +44,13 @@ export function HeadingLandings() {
             io.unobserve(mark);
             // Already landed by its section's own motion (S7: title mask + landing in one slot).
             if (mark.hasAttribute("data-landed")) continue;
-            // A title landing is the first primary motion of its section (≈800 ms incl. delay).
-            void queuePrimaryMotion(800).then(() => mark.setAttribute("data-landed", ""));
+            // An accent (<3% of the viewport): no primary-motion slot, it may overlap content reveals.
+            mark.setAttribute("data-landing", "");
+            mark.setAttribute("data-landed", "");
           }
         }
       },
-      { rootMargin: "0px 0px -15% 0px" },
+      { rootMargin: "0px 0px -35% 0px" },
     );
     marks.forEach((m) => io.observe(m));
     return () => {

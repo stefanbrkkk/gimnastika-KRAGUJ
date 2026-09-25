@@ -21,7 +21,9 @@ const entries = [...registry.matchAll(/slug:\s*"([^"]+)",\s*\n\s*file:\s*"([^"]+
 if (entries.length === 0) throw new Error("No photos found in content/photos.ts");
 
 // Very light cool grade, identical for every photo (contact-sheet consistency).
-const grade = (img) => img.linear([0.975, 0.99, 1.0], [0, 1, 5]).modulate({ saturation: 0.94 });
+// Design review v2 (AC-10): still light, now visible — reds trimmed, shadows lifted toward blue,
+// −10 % saturation, so orange halls, green parks and the rainbow mural sit in one cool family.
+const grade = (img) => img.modulate({ saturation: 0.9 }).linear([0.97, 1.0, 1.04], [-2, 0, 6]);
 
 await rm(OUT_DIR, { recursive: true, force: true });
 await mkdir(OUT_DIR, { recursive: true });

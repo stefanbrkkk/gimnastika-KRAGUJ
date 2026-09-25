@@ -48,41 +48,73 @@
 .section-heading__intro {
   margin-top: 16px;
 }
-/* The mark sits on the title's last line, raised, as if the leap landed on the word. */
+/* Ghost-frame tokens shared by the whole chronophotograph system (hero, title marks,
+   doskok, menu, footer, 404): the leotard steps ice → lavender → violet on dark,
+   the royal/violet end of the same gradient on light (ice is invisible on chalk). */
+:root,
+[data-theme="light"],
+[data-theme="ice"] {
+  --ghost-1: var(--color-royal-500);
+  --ghost-1-o: 0.2;
+  --ghost-2: var(--color-violet-500);
+  --ghost-2-o: 0.3;
+  --ghost-3: var(--color-violet-600);
+  --ghost-3-o: 0.42;
+}
+[data-theme="dark"],
+[data-theme="darker"] {
+  --ghost-1: var(--color-iceblue-200);
+  --ghost-1-o: 0.18;
+  --ghost-2: var(--color-lav-200);
+  --ghost-2-o: 0.28;
+  --ghost-3: var(--color-violet-500);
+  --ghost-3-o: 0.42;
+}
+
+/* The mark sits on the title's last line, feet on the baseline, as if the leap landed on
+   the word. Sized so the flier is about the cap height (design review v2, MD-01). */
 .chrono-mark {
   display: inline-block;
-  width: 1.7em;
+  width: 3em;
   height: auto;
   margin-left: 0.2em;
-  vertical-align: 0.05em;
+  vertical-align: -0.02em;
   overflow: visible;
   color: var(--accent);
 }
+@media (min-width: 640px) {
+  .chrono-mark {
+    width: 2.6em;
+  }
+}
 .chrono-ghost {
-  color: var(--ghost);
-  opacity: var(--o);
+  opacity: 1;
+}
+.chrono-ghost:nth-of-type(1) {
+  color: var(--ghost-1);
+  opacity: var(--ghost-1-o);
+}
+.chrono-ghost:nth-of-type(2) {
+  color: var(--ghost-2);
+  opacity: var(--ghost-2-o);
+}
+.chrono-ghost:nth-of-type(3) {
+  color: var(--ghost-3);
+  opacity: var(--ghost-3-o);
 }
 .chrono-solid {
   color: var(--accent);
 }
-/* On chalk/ice the steel ghosts nearly vanish (≈1.1:1): use the royal family there. */
-[data-theme="light"] .chrono-ghost,
-[data-theme="ice"] .chrono-ghost {
-  color: var(--color-royal-500);
-  opacity: calc(var(--o) * 1.15);
-}
-/* Phones: the mark stays readable at 26px titles (§1 "lands on section titles"). */
-@media (max-width: 639.98px) {
-  .section-heading__mark {
-    width: 2.5em;
-    margin-left: 0.22em;
-  }
+.chrono-pitch {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
 }
 
-/* Landing (HeadingLandings adds data-landed). A real hop: X linear, Y a parabola (one
-   out-of-range cubic-bezier on translateY: takeoff at ghost 1, apex over ghost 2, touchdown),
-   each ghost appearing as the flier passes it (0/208/416 ms). Units are the mark's viewBox.
-   No-JS / reduced motion: static final state. */
+/* Landing (HeadingLandings sets data-landing + data-landed in the reading zone). A real leap:
+   X linear, Y a parabola (one out-of-range cubic-bezier on translateY: takeoff at ghost 1, apex
+   over ghost 2, touchdown), torso pitch in flight, then a STUCK landing — compress and hold
+   (--ease-land, no bounce). Each ghost appears as the flier passes it. Units are the mark's
+   viewBox. No-JS / reduced motion / land={false}: static final state. */
 html.js-motion .chrono-mark:not([data-landed]) .chrono-ghost {
   opacity: 0;
 }
@@ -94,33 +126,98 @@ html.js-motion .chrono-mark:not([data-landed]) .chrono-solid {
   transform: translateY(-6px);
 }
 html.js-motion .chrono-mark .chrono-ghost {
-  transition: opacity var(--dur-fast) linear calc(var(--i) * 208ms);
+  transition: opacity var(--dur-fast) linear calc(var(--i) * 180ms);
 }
 html.js-motion .chrono-mark .chrono-fly {
-  transition: transform var(--dur-reveal) linear;
+  transition: transform 520ms linear;
 }
 html.js-motion .chrono-mark .chrono-solid {
   transition:
     opacity var(--dur-tap) linear,
-    transform var(--dur-reveal) cubic-bezier(0.33, -10.45, 0.67, -10.45);
+    transform 520ms cubic-bezier(0.33, -10.45, 0.67, -10.45);
+}
+html.js-motion .chrono-mark[data-landing] .chrono-pitch {
+  animation:
+    chrono-pitch 520ms linear,
+    chrono-stick var(--dur-land) var(--ease-land) 520ms;
+}
+@keyframes chrono-pitch {
+  0% {
+    rotate: -10deg;
+  }
+  50% {
+    rotate: 4deg;
+  }
+  100% {
+    rotate: 0deg;
+  }
+}
+@keyframes chrono-stick {
+  0% {
+    scale: 1.05 0.86;
+  }
+  100% {
+    scale: 1 1;
+  }
 }
 
-/* Source link "izvor ↗" */
+/* Dark sections cut their top edge on the floor diagonal (the page's spine; design review v2).
+   The section overlaps the previous one by --cut; a mat line runs along the cut. */
+.edge-cut {
+  --cut: clamp(28px, 5.5vw, 88px);
+  margin-top: calc(-1 * var(--cut));
+  padding-top: calc(72px + var(--cut));
+  clip-path: polygon(0 var(--cut), 100% 0, 100% 100%, 0 100%);
+}
+.edge-cut[data-edge="down"] {
+  clip-path: polygon(0 0, 100% var(--cut), 100% 100%, 0 100%);
+}
+@media (min-width: 1024px) {
+  .edge-cut {
+    padding-top: calc(144px + var(--cut));
+  }
+}
+.edge-line {
+  position: absolute;
+  top: 1px;
+  left: 0;
+  width: 100%;
+  height: var(--cut);
+  overflow: visible;
+  pointer-events: none;
+}
+.edge-line line {
+  stroke: var(--color-steel-300);
+  stroke-opacity: 0.6;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Source link "izvor ↗": a footnote, never the loudest thing in a section (design review v2). */
 .source-link {
   display: inline-flex;
   align-items: center;
   min-height: 48px;
   min-width: 48px;
   padding-inline: 4px;
-  font-size: var(--text-small);
+  font-size: var(--text-label);
   font-weight: 600;
-  color: var(--accent);
+  letter-spacing: 0.02em;
+  color: var(--muted);
   text-decoration: underline;
   text-decoration-thickness: 1px;
-  text-underline-offset: 0.22em;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in oklab, currentColor 45%, transparent);
 }
-.source-link:hover {
-  text-decoration-thickness: 2px;
+.source-link:focus-visible {
+  color: var(--accent);
+  text-decoration-color: currentColor;
+}
+@media (hover: hover) {
+  .source-link:hover {
+    color: var(--accent);
+    text-decoration-color: currentColor;
+  }
 }
 
 /* Windows High Contrast / forced colors: chips and outlined buttons keep a border, and the
