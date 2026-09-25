@@ -8,6 +8,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { HERO } from "@/content/copy";
+import { DUR } from "@/lib/motion-env";
 
 const CLOSE_LABEL = "Zatvorite";
 
@@ -36,7 +37,8 @@ export default function EasterEgg({ onClose }: { onClose: () => void }) {
     place();
     window.addEventListener("resize", place);
 
-    const timer = window.setTimeout(() => setFlipped(true), 650);
+    // „10.00“ holds for a beat (the reveal duration), then the board flips.
+    const timer = window.setTimeout(() => setFlipped(true), DUR.reveal * 1000);
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     const onDown = (e: PointerEvent) => {
       if (e.target instanceof Node && !panel.contains(e.target)) onClose();

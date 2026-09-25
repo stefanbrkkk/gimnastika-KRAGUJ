@@ -8,7 +8,8 @@ import { filterStatus, GALLERY_UI, type ChipKey, type GalleryChip, type Lightbox
 /**
  * Gallery island (initial bundle — tiny, no gsap import here).
  * - Chips filter the server-rendered sheet (`hidden` on the items; Flip ≤280ms,
- *   lazily loaded; reduced motion: instant + 150ms crossfade). aria-live status.
+ *   lazily loaded: prints move, leavers fade out in place, newcomers fade in;
+ *   reduced motion: instant + 150ms crossfade). aria-live status.
  * - A tap on a print opens the lightbox, a lazily loaded chunk that is warmed
  *   (with Flip + Observer) when the section is ≤1 viewport away.
  * Without JS the chips are hidden (CSS) and each print links to its file.
@@ -42,6 +43,8 @@ export function GalleryBrowser({ heading, chips, photos, children }: GalleryBrow
   const rootRef = useRef<HTMLDivElement>(null);
   const filterRun = useRef(0);
   const openSeq = useRef(0);
+  /** The running filter Flip (a timeline), so a new filter can land it first. */
+  const flipRef = useRef<{ progress: (value: number) => unknown; kill: () => unknown } | null>(null);
   const [active, setActive] = useState<ChipKey>("all");
   const [status, setStatus] = useState("");
   const [Lightbox, setLightbox] = useState<LightboxComponent | null>(null);
@@ -52,9 +55,13 @@ export function GalleryBrowser({ heading, chips, photos, children }: GalleryBrow
     if (!root) return;
     root.querySelectorAll("[data-gallery-open]").forEach((a) => a.setAttribute("aria-haspopup", "dialog"));
     // Warm the lightbox chunk (+ Flip/Observer) when the sheet is ≤1 viewport away.
-    return whenNear(root, () => {
+    const stopNear = whenNear(root, () => {
       void loadLightbox().then((m) => m.prepareLightbox(motionAllowed()));
     });
+    return () => {
+      stopNear();
+      flipRef.current?.kill();
+    };
   }, []);
 
   const applyFilter = async (chip: GalleryChip) => {
@@ -65,23 +72,43 @@ export function GalleryBrowser({ heading, chips, photos, children }: GalleryBrow
     setStatus(filterStatus(chip.label, chip.count));
 
     const items = Array.from(root.querySelectorAll<HTMLElement>(ITEM));
+    const shows = (el: HTMLElement) => chip.key === "all" || el.dataset.category === chip.key;
     const apply = () => {
-      for (const el of items) el.hidden = chip.key !== "all" && el.dataset.category !== chip.key;
+      for (const el of items) el.hidden = !shows(el);
     };
 
     if (motionAllowed()) {
       const { gsap, loadFlip } = await loadMotion();
       const Flip = await loadFlip();
       if (run !== filterRun.current) return;
-      const state = Flip.getState(items.filter((el) => !el.hidden));
-      apply();
-      Flip.from(state, {
-        targets: items.filter((el) => !el.hidden),
+      flipRef.current?.progress(1); // a filter still in flight lands first (its leavers get `hidden`)
+      const before = items.filter((el) => !el.hidden);
+      const state = Flip.getState(before);
+      // Leaving prints fade out where they stood. They are marked with data-leaving (display:none
+      // in CSS, which Flip's inline display can override) instead of `hidden`: Tailwind's
+      // [hidden]{display:none!important} would cut them on the first frame. `hidden` follows on complete.
+      const leaving = before.filter((el) => !shows(el));
+      for (const el of leaving) el.setAttribute("data-leaving", "");
+      for (const el of items) if (shows(el)) el.hidden = false;
+      const done = () => {
+        for (const el of leaving) {
+          el.hidden = true;
+          el.removeAttribute("data-leaving");
+        }
+        if (leaving.length) gsap.set(leaving, { clearProps: "all" }); // an empty target list would warn
+      };
+      flipRef.current = Flip.from(state, {
+        targets: [...items.filter(shows), ...leaving],
         duration: DUR.base,
         ease: EASE.stick,
+        absoluteOnLeave: true,
         onEnter: (els) => gsap.fromTo(els, { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: DUR.base, ease: EASE.stick }),
+        onLeave: (els) => gsap.to(els, { opacity: 0, scale: 0.94, duration: DUR.fast, ease: EASE.takeoff }),
+        onComplete: done,
+        onInterrupt: done,
       });
     } else {
+      flipRef.current?.progress(1);
       apply();
       const grid = root.querySelector<HTMLElement>("[data-gallery-grid]");
       if (grid && typeof grid.animate === "function") grid.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150, easing: "linear" });
@@ -94,12 +121,12 @@ export function GalleryBrowser({ heading, chips, photos, children }: GalleryBrow
     const root = rootRef.current;
     if (!link || !root?.contains(link)) return;
     event.preventDefault();
-    if (open) return;
+    if (open || link.closest("[data-leaving]")) return; // a print fading out of a filter is not a target
 
     // The lightbox shows the photos the sheet currently shows, in sheet order.
     const shown = new Set(
       Array.from(root.querySelectorAll<HTMLElement>(ITEM))
-        .filter((el) => !el.hidden)
+        .filter((el) => !el.hidden && !el.hasAttribute("data-leaving"))
         .map((el) => el.dataset.photo),
     );
     const list = photos.filter((p) => shown.has(p.id));
@@ -152,7 +179,8 @@ export function GalleryBrowser({ heading, chips, photos, children }: GalleryBrow
               </button>
             ))}
           </div>
-          <p className="gl-status text-small" role="status" aria-live="polite">
+          {/* Screen readers only: on screen the pressed chip (✓ + count) already says it. */}
+          <p className="gl-status sr-only" role="status" aria-live="polite">
             {status}
           </p>
         </div>

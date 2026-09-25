@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { QuietBoundary } from "@/components/ui/QuietBoundary";
 import { HERO } from "@/content/copy";
 import { motionAllowed } from "@/lib/motion-env";
 
@@ -15,9 +16,26 @@ const noSubscribe = () => () => {};
 const introAllowed = () => motionAllowed() && document.documentElement.getAttribute("data-intro") !== "skipped";
 
 /**
+ * The motion chunk failed (network, stale deploy) or threw: show the complete
+ * final composition right away instead of waiting for the head-script
+ * failsafe, and mark the intro "skipped" so nothing touches it afterwards
+ * (other sections keep html.js-motion).
+ */
+function HeroFinalState() {
+  useEffect(() => {
+    const html = document.documentElement;
+    if (html.getAttribute("data-intro") !== "done") html.setAttribute("data-intro", "skipped");
+    document.querySelector("#top [data-hero-decor]")?.setAttribute("data-hero-ready", "");
+  }, []);
+  return null;
+}
+
+/**
  * Tiny client island of the hero (kept in the first-load bundle): starts the
  * lazy motion layer right after hydration when motion is allowed, and counts
- * taps on the landed silhouette for the easter egg.
+ * taps on the landed silhouette for the easter egg. Both lazy chunks sit in a
+ * QuietBoundary: a failed or throwing enhancement never replaces the page with
+ * Next's error screen.
  */
 export function HeroMotionLoader() {
   const motion = useSyncExternalStore(noSubscribe, introAllowed, () => false);
@@ -46,8 +64,16 @@ export function HeroMotionLoader() {
 
   return (
     <>
-      {motion ? <HeroMotion /> : null}
-      {egg ? <EasterEgg onClose={closeEgg} /> : null}
+      {motion ? (
+        <QuietBoundary fallback={<HeroFinalState />}>
+          <HeroMotion />
+        </QuietBoundary>
+      ) : null}
+      {egg ? (
+        <QuietBoundary>
+          <EasterEgg onClose={closeEgg} />
+        </QuietBoundary>
+      ) : null}
       <p className="sr-only" aria-live="polite">
         {egg ? HERO.easterEgg.tooltip : ""}
       </p>

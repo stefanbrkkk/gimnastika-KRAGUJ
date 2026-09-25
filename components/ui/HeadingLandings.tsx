@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { MQ, motionAllowed } from "@/lib/motion-env";
+import { MQ, motionAllowed, queuePrimaryMotion } from "@/lib/motion-env";
 
 /**
  * Page-wide client glue, mounted once from the layout:
@@ -40,8 +40,10 @@ export function HeadingLandings() {
       (entries) => {
         for (const e of entries) {
           if (e.isIntersecting) {
-            e.target.setAttribute("data-landed", "");
-            io.unobserve(e.target);
+            const mark = e.target;
+            io.unobserve(mark);
+            // A title landing is the first primary motion of its section (≈800 ms incl. delay).
+            void queuePrimaryMotion(800).then(() => mark.setAttribute("data-landed", ""));
           }
         }
       },

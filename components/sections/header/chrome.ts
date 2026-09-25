@@ -4,6 +4,12 @@
  * the client islands feed it measurements.
  */
 
+/**
+ * id of the footer's page index (NAV links + trial CTA + call). The header's
+ * "Meni" is a link to it until hydration (and without JS); then it opens the sheet.
+ */
+export const MENU_INDEX_ID = "meni";
+
 /** The header may hide only after the page is scrolled past this many px (§5 HEADER). */
 export const HEADER_HIDE_AFTER = 120;
 /** Scroll travel in one direction needed before the header flips state (debounces jitter). */
@@ -66,21 +72,42 @@ export function pickInBand<T>(candidates: readonly BandCandidate<T>[], bandY: nu
   return pool[pool.length - 1]?.item ?? null;
 }
 
+/** Viewports at most this tall (landscape phones, 400% zoom) never show header and bar together. */
+export const SHORT_VIEWPORT_MAX = 480;
+
 export interface StickyBarInputs {
   /** Viewport below 1024 px (the bar is mobile-only). */
   mobile: boolean;
   /** The hero CTA group has scrolled out ABOVE the viewport. */
   heroCtasPassed: boolean;
-  /** Any part of the S11 contact block is in the viewport. */
+  /**
+   * Any part of the S11 contact block ([data-contact-block]: heading, CTA panel
+   * and contact rows — not the venue card) is in the viewport.
+   */
   contactVisible: boolean;
   /** The on-screen keyboard is open (visualViewport). */
   keyboardOpen: boolean;
   /** Focus is inside a text-entry form field. */
   fieldFocused: boolean;
+  /** The viewport is at most SHORT_VIEWPORT_MAX px tall. */
+  shortViewport?: boolean;
+  /** The floating header is currently shown (data-hidden="false"). */
+  headerShown?: boolean;
 }
 
+/**
+ * The bar is mobile-only, appears once the hero CTAs are passed, and steps
+ * aside over the contact block, for the keyboard and for form fields. On short
+ * viewports it also yields to the header, so the two fixed bars never cover
+ * the same screen together (they swap on scroll direction).
+ */
 export const stickyBarVisible = (s: StickyBarInputs): boolean =>
-  s.mobile && s.heroCtasPassed && !s.contactVisible && !s.keyboardOpen && !s.fieldFocused;
+  s.mobile &&
+  s.heroCtasPassed &&
+  !s.contactVisible &&
+  !s.keyboardOpen &&
+  !s.fieldFocused &&
+  !(s.shortViewport && s.headerShown);
 
 /**
  * The on-screen keyboard shrinks the visual viewport but not the layout

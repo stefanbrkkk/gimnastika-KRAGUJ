@@ -235,8 +235,8 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
       return;
     }
     if (event.key !== "Tab") return;
-    // Strict focus wrap inside the dialog (close · prev · next).
-    const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("button")).filter((el) => el.offsetParent !== null);
+    // Strict focus wrap inside the dialog (photo track · close · prev · next).
+    const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(".lb-track, button")).filter((el) => el.offsetParent !== null);
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
     if (!first || !last) return;
@@ -268,7 +268,15 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
     >
       <div ref={scrimRef} className="lb-scrim" aria-hidden="true" />
 
-      <ul ref={trackRef} className="lb-track" onScroll={onTrackScroll} onClick={onTrackClick}>
+      {/* Focusable scroller (axe scrollable-region-focusable); ←/→/Home/End are handled on the dialog. */}
+      <ul
+        ref={trackRef}
+        className="lb-track"
+        tabIndex={0}
+        aria-label={GALLERY_UI.dialogLabel}
+        onScroll={onTrackScroll}
+        onClick={onTrackClick}
+      >
         {photos.map((p, i) => {
           const thumb = thumbs[p.id];
           const style = {

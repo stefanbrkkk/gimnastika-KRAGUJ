@@ -134,8 +134,19 @@
 /* ---- Statement ---- */
 .hero__eyebrow {
   margin-top: 22px;
-  max-width: 44ch;
   color: var(--muted);
+}
+
+/* Wraps only between segments; each „ · “ is glued to the text before it
+   (no-break space, Hero.tsx), so a separator never starts a line. The first,
+   long segment („Gimnastičko sportsko udruženje „Kraguj““) may break between
+   its words where one line cannot hold it (phones). */
+.hero__eyebrow-seg {
+  white-space: nowrap;
+}
+
+.hero__eyebrow-seg:first-child {
+  white-space: normal;
 }
 
 .hero__title {
@@ -205,6 +216,19 @@
   }
 }
 
+/* Desktop composition. The H1 keeps the display-xl token but is capped for the
+   hero only (the global token is untouched):
+   · width — it always fits cols 1–8. Col 1–8 = ⅔ of the container's content
+     box − 8px (12 cols, 24px gutters) = 66.667cqi − 8px; the widest line
+     („Kragujevcu“) is 5.8917em at wdth 118% and 6.0031em at 121% (measured;
+     5.91 / 6.02 keep ~.3% of air). Active only at 1024–~1140px.
+   · height — the whole H1, descenders included, sits in the first viewport
+     with ≥ 14px of air on short laptops (1280×720, 1280×800, 1366×768,
+     1536×864): 92 header room + 20 + 16 eyebrow + 12 + 20 bottom + 4 = 164px,
+     the art band ≤ 23svh, 4 H1 lines of .88 = 3.52em plus .115em for the
+     g/j descenders of „Kragujevcu“ below the last line box
+     → font-size ≤ (77svh − 164px) / 3.635, never below 88px.
+     1440×900, 1920×1080 and taller are untouched. */
 @media (min-width: 1024px) {
   .hero__inner {
     display: grid;
@@ -213,19 +237,28 @@
     align-content: center;
     padding-top: 92px;
     padding-bottom: 20px;
+    container-type: inline-size;
+    --hero-fit: calc((66.667cqi - 8px) / 5.91);
+    --hero-fs: min(var(--hero-fit), max(5.5rem, min(var(--text-display-xl), calc((77svh - 164px) / 3.635))));
   }
   .hero__art,
   .hero__eyebrow {
     grid-column: 1 / -1;
   }
+  /* Short viewports: the art band gives way first (≤ 23svh), right-aligned so
+     the leap still lands in the logo at the container's right edge. */
+  .hero-art--wide {
+    width: min(100%, calc(23svh * 1650 / 256));
+    margin-left: auto;
+  }
   .hero__eyebrow {
     margin-top: 20px;
-    max-width: none;
   }
   .hero__title {
     grid-column: 1 / 9;
     grid-row: 3;
     margin-top: 12px;
+    font-size: var(--hero-fs);
     font-stretch: 118%;
   }
   .hero__aside {
@@ -233,7 +266,7 @@
     grid-row: 3;
     align-self: start;
     /* the sub's first line sits on the H1's cap line */
-    padding-top: calc(12px + 0.1 * var(--text-display-xl));
+    padding-top: calc(12px + 0.1 * var(--hero-fs));
   }
   .hero__sub {
     margin-top: 0;
@@ -247,9 +280,14 @@
   }
 }
 
+/* 121% (inside the §3 desktop range 118–125): 125% overflows cols 1–8 at every
+   width ≥ 1280; 121% fits with 3–12px to spare. */
 @media (min-width: 1280px) {
+  .hero__inner {
+    --hero-fit: calc((66.667cqi - 8px) / 6.02);
+  }
   .hero__title {
-    font-stretch: 125%;
+    font-stretch: 121%;
   }
 }
 
@@ -286,7 +324,7 @@
   font-weight: 900;
   backface-visibility: hidden;
   transform-origin: 50% 50%;
-  transition: transform 0.45s var(--ease-stick);
+  transition: transform var(--dur-base) var(--ease-stick);
 }
 
 .hero-egg__face--to {
@@ -296,12 +334,12 @@
 .hero-egg[data-flipped] .hero-egg__face--from {
   transform: rotateX(90deg);
   transition-timing-function: var(--ease-takeoff);
-  transition-duration: 0.2s;
+  transition-duration: var(--dur-fast);
 }
 
 .hero-egg[data-flipped] .hero-egg__face--to {
   transform: none;
-  transition-delay: 0.18s;
+  transition-delay: var(--dur-fast);
 }
 
 .hero-egg__text {
@@ -321,6 +359,18 @@
   border-radius: var(--radius-full);
   color: var(--fg);
   cursor: pointer;
+  transition:
+    translate var(--dur-slow-squash) var(--ease-rebound),
+    scale var(--dur-slow-squash) var(--ease-rebound),
+    background-color var(--dur-fast) var(--ease-stick);
+}
+
+.hero-egg__close:hover {
+  background-color: color-mix(in oklab, var(--fg) 8%, transparent);
+}
+
+.hero-egg__close:active {
+  transition-duration: var(--dur-tap);
 }
 
 .hero-egg__close svg {

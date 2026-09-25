@@ -1,8 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ComponentType, type MouseEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentType,
+  type FocusEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { loadMotion } from "@/lib/load-motion";
-import { DUR, EASE, motionAllowed, prefersLessMotion, STAGGER, whenNear } from "@/lib/motion-env";
+import { DUR, EASE, motionAllowed, prefersLessMotion, queuePrimaryMotion, STAGGER, whenNear } from "@/lib/motion-env";
 
 /**
  * Programs island (initial bundle — keep it small, no gsap import here).
@@ -10,8 +19,11 @@ import { DUR, EASE, motionAllowed, prefersLessMotion, STAGGER, whenNear } from "
  *   reduced motion: instant + 150ms crossfade). Status in an aria-live region.
  * - Tap on a card (or its + button) opens the detail sheet, a lazily loaded chunk
  *   (prefetched together with Flip when the section is ≤1 viewport away).
- * - Apparatus icons draw once when their card enters (CSS, data-drawn).
- * - Pager for the mobile scroll-snap row (native scrolling stays the primary input).
+ * - Apparatus icons draw once when their card enters (CSS, data-drawn), after the
+ *   section title has landed and through the page-wide primary-motion queue.
+ * - Pager for the mobile/tablet scroll-snap row (native scrolling stays the primary
+ *   input). It sits above the row, next to the filter status, so it never floats
+ *   under a short card; it counts program cards only (not the photo frame).
  * Without JS: chips, pager and + buttons are hidden by CSS; every card is visible.
  */
 
@@ -48,8 +60,16 @@ interface PagerState {
 }
 
 const CARD = "[data-program-card]";
+/** Set on cards that are leaving during a filter Flip: they must stay rendered while they fade
+ *  (Tailwind's preflight makes [hidden] display:none!important, which Flip cannot override). */
+const OUT = "data-out";
+/** Section title landing (styles/ui.css .chrono-solid: 0.2s delay + 0.6s). */
+const LAND_MS = 800;
+/** Icon draw (programs.css): 0.6s + its stagger. */
+const DRAW_MS = DUR.reveal * 1000;
 
-const visibleItems = (strip: HTMLElement) => Array.from(strip.children).filter((el): el is HTMLElement => el instanceof HTMLElement && !el.hidden);
+const visibleItems = (strip: HTMLElement) =>
+  Array.from(strip.children).filter((el): el is HTMLElement => el instanceof HTMLElement && !el.hidden && !el.hasAttribute(OUT));
 
 export function ProgramsBrowser({ heading, chips, filtersLabel, pager, total, children }: ProgramsBrowserProps) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -60,6 +80,28 @@ export function ProgramsBrowser({ heading, chips, filtersLabel, pager, total, ch
   const [open, setOpen] = useState<{ id: string; card: HTMLElement } | null>(null);
   const [Sheet, setSheet] = useState<ComponentType<Parameters<SheetComponent>[0]> | null>(null);
   const [page, setPage] = useState<PagerState>({ i: 0, n: total, atStart: true, atEnd: false });
+  const prevRef = useRef<HTMLButtonElement>(null);
+  const nextRef = useRef<HTMLButtonElement>(null);
+  /** Pager arrow that last had focus (cleared when focus moves on to something else). */
+  const pagerFocus = useRef<HTMLButtonElement | null>(null);
+  const prevOff = page.atStart;
+  const nextOff = page.atEnd || page.i >= page.n - 1;
+
+  /* An arrow that disables itself while focused would drop keyboard focus to <body>:
+     hand it to the other arrow instead. */
+  useEffect(() => {
+    const was = pagerFocus.current;
+    const active = document.activeElement;
+    if (!was || (active !== was && active !== document.body)) return;
+    if (nextOff && was === nextRef.current && !prevOff) prevRef.current?.focus();
+    else if (prevOff && was === prevRef.current && !nextOff) nextRef.current?.focus();
+  }, [prevOff, nextOff]);
+  const pagerFocusProps = {
+    onFocus: (e: FocusEvent<HTMLButtonElement>) => (pagerFocus.current = e.currentTarget),
+    onBlur: (e: FocusEvent<HTMLButtonElement>) => {
+      if (e.relatedTarget) pagerFocus.current = null;
+    },
+  };
 
   /* Pager: index of the card at the snap start; rAF-throttled, no loop. */
   const measure = useCallback(() => {
@@ -81,7 +123,7 @@ export function ProgramsBrowser({ heading, chips, filtersLabel, pager, total, ch
     });
     const atEnd = x >= max - 2;
     if (atEnd) i = cards.length - 1;
-    const next = { i, n: cards.length, atStart: x <= 2, atEnd };
+    const next = { i: Math.max(i, 0), n: cards.length, atStart: x <= 2, atEnd };
     setPage((prev) =>
       prev.i === next.i && prev.n === next.n && prev.atStart === next.atStart && prev.atEnd === next.atEnd ? prev : next,
     );
@@ -101,22 +143,47 @@ export function ProgramsBrowser({ heading, chips, filtersLabel, pager, total, ch
     ro?.observe(strip);
     measure();
 
-    /* Icons draw once on enter. Without motion they are simply drawn. */
+    /* Icons draw once on enter. Without motion they are simply drawn. With motion, a batch
+       waits for the section title's landing to finish, then for the page-wide primary-motion
+       queue (§4: one primary motion per viewport). */
     const cards = Array.from(strip.querySelectorAll<HTMLElement>(CARD));
     let io: IntersectionObserver | null = null;
+    let mo: MutationObserver | null = null;
+    const timers = new Set<number>();
+    let disposed = false;
     if (!motionAllowed() || typeof IntersectionObserver === "undefined") {
       cards.forEach((c) => c.setAttribute("data-drawn", ""));
     } else {
+      const mark = root.closest("section")?.querySelector(".chrono-mark[data-land]") ?? null;
+      let landedAt = mark && !mark.hasAttribute("data-landed") ? Infinity : -Infinity;
+      if (mark && landedAt === Infinity) {
+        mo = new MutationObserver(() => {
+          if (!mark.hasAttribute("data-landed")) return;
+          landedAt = performance.now();
+          mo?.disconnect();
+        });
+        mo.observe(mark, { attributes: true, attributeFilter: ["data-landed"] });
+      }
+      const draw = (batch: HTMLElement[]) => {
+        if (disposed) return;
+        batch.forEach((el, k) => {
+          el.style.setProperty("--draw-delay", `${Math.min(k * STAGGER.cards, STAGGER.maxTotal)}s`);
+          el.setAttribute("data-drawn", "");
+        });
+      };
       io = new IntersectionObserver(
         (entries) => {
-          let k = 0;
-          for (const e of entries) {
-            if (!e.isIntersecting) continue;
-            const el = e.target as HTMLElement;
-            el.style.setProperty("--draw-delay", `${Math.min(k++ * STAGGER.cards, STAGGER.maxTotal)}s`);
-            el.setAttribute("data-drawn", "");
-            io?.unobserve(el);
-          }
+          const batch = entries.filter((e) => e.isIntersecting).map((e) => e.target as HTMLElement);
+          if (!batch.length) return;
+          batch.forEach((el) => io?.unobserve(el));
+          // Title not landed yet (it lands as it enters): give it its full landing time.
+          const wait = landedAt === Infinity ? LAND_MS : Math.max(0, landedAt + LAND_MS - performance.now());
+          const stagger = Math.min((batch.length - 1) * STAGGER.cards, STAGGER.maxTotal) * 1000;
+          const t = window.setTimeout(() => {
+            timers.delete(t);
+            void queuePrimaryMotion(DRAW_MS + stagger).then(() => draw(batch));
+          }, wait);
+          timers.add(t);
         },
         { threshold: 0.35 },
       );
@@ -130,10 +197,13 @@ export function ProgramsBrowser({ heading, chips, filtersLabel, pager, total, ch
     });
 
     return () => {
+      disposed = true;
       strip.removeEventListener("scroll", onScroll);
       cancelAnimationFrame(raf);
       ro?.disconnect();
       io?.disconnect();
+      mo?.disconnect();
+      timers.forEach((t) => clearTimeout(t));
       stopNear();
     };
   }, [measure]);
@@ -147,19 +217,33 @@ export function ProgramsBrowser({ heading, chips, filtersLabel, pager, total, ch
       setStatus(chip.status);
 
       const items = Array.from(strip.children).filter((el): el is HTMLElement => el instanceof HTMLElement);
-      const apply = () => {
-        for (const el of items) {
-          if (el.matches(CARD)) el.hidden = !chip.ids.includes(el.dataset.programId ?? "");
+      const cards = items.filter((el) => el.matches(CARD));
+      const keeps = (el: HTMLElement) => chip.ids.includes(el.dataset.programId ?? "");
+      /** Final state: filtered-out cards are hidden (a11y tree included). */
+      const settle = () => {
+        for (const el of cards) {
+          el.hidden = !keeps(el);
+          el.removeAttribute(OUT);
         }
-        strip.scrollTo({ left: 0, behavior: "instant" });
       };
 
       if (motionAllowed()) {
         const { gsap, loadFlip } = await loadMotion();
         const Flip = await loadFlip();
         if (run !== filterRun.current) return;
+        // getState() completes a Flip still running from a previous chip.
         const state = Flip.getState(items);
-        apply();
+        // Leaving cards get data-out (display:none in CSS, which Flip's inline display beats) so
+        // their fade actually renders; `hidden` is set once the Flip is done.
+        for (const el of cards) {
+          if (keeps(el)) {
+            el.hidden = false;
+            el.removeAttribute(OUT);
+          } else if (!el.hidden) {
+            el.setAttribute(OUT, "");
+          }
+        }
+        strip.scrollTo({ left: 0, behavior: "instant" });
         Flip.from(state, {
           duration: DUR.base,
           ease: EASE.stick,
@@ -167,10 +251,14 @@ export function ProgramsBrowser({ heading, chips, filtersLabel, pager, total, ch
           absoluteOnLeave: true,
           onEnter: (els) => gsap.fromTo(els, { opacity: 0, scale: 0.96 }, { opacity: 1, scale: 1, duration: DUR.base, ease: EASE.stick }),
           onLeave: (els) => gsap.to(els, { opacity: 0, scale: 0.96, duration: DUR.fast, ease: EASE.takeoff }),
-          onComplete: measure,
+          onComplete: () => {
+            if (run === filterRun.current) settle();
+            measure();
+          },
         });
       } else {
-        apply();
+        settle();
+        strip.scrollTo({ left: 0, behavior: "instant" });
         for (const el of items) {
           el.style.opacity = "";
           el.style.transform = "";
@@ -232,27 +320,45 @@ export function ProgramsBrowser({ heading, chips, filtersLabel, pager, total, ch
           <p className="pg-status text-small" role="status" aria-live="polite">
             {status}
           </p>
+          {/* Controls precede the row they drive; hidden when there is nothing to page through. */}
+          <div className="pg-pager" hidden={page.n <= 1 || (page.atStart && page.atEnd)}>
+            <button
+              ref={prevRef}
+              type="button"
+              className="pg-pager__btn"
+              aria-label={pager.prev}
+              aria-controls="programi-lista"
+              disabled={prevOff}
+              {...pagerFocusProps}
+              onClick={() => go(-1)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M14.5 6l-6 6 6 6" />
+              </svg>
+            </button>
+            <span className="pg-pager__count label-caps tabular" aria-hidden="true">
+              {page.i + 1} / {page.n}
+            </span>
+            <button
+              ref={nextRef}
+              type="button"
+              className="pg-pager__btn"
+              aria-label={pager.next}
+              aria-controls="programi-lista"
+              disabled={nextOff}
+              {...pagerFocusProps}
+              onClick={() => go(1)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M9.5 6l6 6-6 6" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
       <div ref={stripRef} id="programi-lista" className="pg-strip" data-programs-strip="" onClick={onStripClick}>
         {children}
-      </div>
-
-      <div className="pg-pager" hidden={page.atStart && page.atEnd}>
-        <button type="button" className="pg-pager__btn" aria-label={pager.prev} disabled={page.atStart} onClick={() => go(-1)}>
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M14.5 6l-6 6 6 6" />
-          </svg>
-        </button>
-        <span className="pg-pager__count label-caps tabular" aria-hidden="true">
-          {page.i + 1} / {page.n}
-        </span>
-        <button type="button" className="pg-pager__btn" aria-label={pager.next} disabled={page.atEnd} onClick={() => go(1)}>
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M9.5 6l6 6-6 6" />
-          </svg>
-        </button>
       </div>
 
       {open && Sheet ? <Sheet programId={open.id} card={open.card} onClosed={() => setOpen(null)} /> : null}

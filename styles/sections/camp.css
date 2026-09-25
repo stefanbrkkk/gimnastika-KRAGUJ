@@ -47,6 +47,31 @@
   display: none;
 }
 
+/* The call link keeps the note's line box but gets a 48 px tall target (same as .faq__tel). */
+.camp__tel {
+  position: relative;
+  display: inline-block;
+  padding-block: 13px;
+  margin-block: -13px;
+  white-space: nowrap;
+}
+
+/* The focus ring (§3: 3 px gap + 2 px ring) hugs the number like on any inline link, instead of
+   framing the invisible 48 px target across the line above. */
+.camp__tel:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.camp__tel:focus-visible::after {
+  content: "";
+  position: absolute;
+  inset: 8px -5px;
+  border: 2px solid var(--focus);
+  border-radius: 6px;
+  pointer-events: none;
+}
+
 .camp__note-icon {
   flex: none;
   width: 24px;
@@ -142,6 +167,16 @@ html.js .postcard[data-slot="0"] .frame {
     var(--shadow-3);
 }
 
+/* One postcard (e.g. only the „Fotografija uskoro“ placeholder): no stack, no empty stage. */
+html.js .postcards[data-count="1"] {
+  aspect-ratio: auto;
+  padding-block: 16px;
+}
+
+html.js .postcards[data-count="1"] .postcard[data-slot="0"] {
+  transform: rotate(-2deg);
+}
+
 html.js .postcards[data-armed] .postcard[data-slot="0"] {
   cursor: grab;
 }
@@ -196,14 +231,6 @@ html:not(.js) .postcards__controls {
   width: 52px;
   height: 52px;
   padding: 0;
-}
-
-/* .btn-secondary's inset ring (@layer components) would otherwise hide the global focus ring. */
-.postcards__btn:focus-visible {
-  box-shadow:
-    0 0 0 3px var(--bg),
-    0 0 0 5px var(--focus),
-    inset 0 0 0 2px var(--fg);
 }
 
 .postcards__arrow {

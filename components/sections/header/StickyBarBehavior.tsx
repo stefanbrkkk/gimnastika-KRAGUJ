@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
-import { isKeyboardOpen, isTextEntry, stickyBarVisible, type StickyBarInputs } from "./chrome";
+import { SHORT_VIEWPORT_MAX, isKeyboardOpen, isTextEntry, stickyBarVisible, type StickyBarInputs } from "./chrome";
 import { clearFocusFromBar } from "./focus-guard";
 
 const MOBILE = "(max-width: 1023.98px)";
+const SHORT = `(max-height: ${SHORT_VIEWPORT_MAX}px)`;
 
 /**
  * Sticky bar visibility (renders nothing). Two IntersectionObservers (hero CTAs,
  * contact block), visualViewport for the on-screen keyboard, focusin/out for
- * form fields. No scroll handler.
+ * form fields, and — on short viewports — the header's data-hidden (the bar
+ * yields while the header is shown). No scroll handler.
  */
 export function StickyBarBehavior() {
   useEffect(() => {
@@ -17,6 +19,8 @@ export function StickyBarBehavior() {
     if (!bar) return;
 
     const mobile = window.matchMedia(MOBILE);
+    const short = window.matchMedia(SHORT);
+    const header = document.querySelector<HTMLElement>("[data-site-header]");
     const vv = window.visualViewport;
     const s: StickyBarInputs = {
       mobile: mobile.matches,
@@ -24,6 +28,8 @@ export function StickyBarBehavior() {
       contactVisible: false,
       keyboardOpen: false,
       fieldFocused: isTextEntry(document.activeElement as HTMLElement | null),
+      shortViewport: short.matches,
+      headerShown: header?.dataset.hidden !== "true",
     };
     const render = () => {
       const visible = stickyBarVisible(s) ? "true" : "false";
@@ -33,16 +39,26 @@ export function StickyBarBehavior() {
     };
 
     // Hero CTAs: "passed" only once they are ABOVE the viewport (not before we reach them).
+    // The observer's root box reaches far below the viewport, so "intersecting" means
+    // "not yet scrolled past the top edge" and every crossing of that edge fires — also a
+    // jump (menu/anchor link, restored scroll) straight over CTAs that start below the
+    // fold on short screens, which a plain viewport observer would never report.
     // Falls back to the hero section if [data-hero-ctas] is ever missing.
     const hero = document.querySelector("[data-hero-ctas]") ?? document.getElementById("top");
-    const heroIO = new IntersectionObserver(([e]) => {
-      if (!e) return;
-      s.heroCtasPassed = !e.isIntersecting && e.boundingClientRect.bottom <= 0;
-      render();
-    });
+    const heroIO = new IntersectionObserver(
+      ([e]) => {
+        if (!e) return;
+        s.heroCtasPassed = !e.isIntersecting && e.boundingClientRect.bottom <= 0;
+        render();
+      },
+      { rootMargin: "0px 0px 1000000px 0px" },
+    );
     if (hero) heroIO.observe(hero);
     else s.heroCtasPassed = true;
 
+    // The S11 contact block (heading, CTA panel, contact rows). Zero rootMargin: the bar
+    // steps aside as soon as any of it reaches the viewport — i.e. passes under the bar —
+    // and returns once all of it has left (over the venue card and the footer).
     // Falls back to #kontakt if [data-contact-block] is ever missing.
     const contact = document.querySelector("[data-contact-block]") ?? document.getElementById("kontakt");
     const contactIO = new IntersectionObserver(([e]) => {
@@ -59,8 +75,15 @@ export function StickyBarBehavior() {
     };
     const onMobile = () => {
       s.mobile = mobile.matches;
+      s.shortViewport = short.matches;
       render();
     };
+    // Header shown/hidden (HeaderBehavior owns data-hidden; we only read it).
+    const headerMO = new MutationObserver(() => {
+      s.headerShown = header?.dataset.hidden !== "true";
+      render();
+    });
+    if (header) headerMO.observe(header, { attributes: true, attributeFilter: ["data-hidden"] });
     const onFocusIn = (e: FocusEvent) => {
       const t = e.target instanceof HTMLElement ? e.target : null;
       s.fieldFocused = isTextEntry(t);
@@ -75,6 +98,7 @@ export function StickyBarBehavior() {
     };
 
     mobile.addEventListener("change", onMobile);
+    short.addEventListener("change", onMobile);
     vv?.addEventListener("resize", onViewport);
     document.addEventListener("focusin", onFocusIn);
     document.addEventListener("focusout", onFocusOut);
@@ -84,7 +108,9 @@ export function StickyBarBehavior() {
     return () => {
       heroIO.disconnect();
       contactIO.disconnect();
+      headerMO.disconnect();
       mobile.removeEventListener("change", onMobile);
+      short.removeEventListener("change", onMobile);
       vv?.removeEventListener("resize", onViewport);
       document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("focusout", onFocusOut);

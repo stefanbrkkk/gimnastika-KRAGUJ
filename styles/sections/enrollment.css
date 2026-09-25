@@ -97,6 +97,9 @@
       "leap"
       "num"
       "text";
+    /* Rows keep their content height: a step with a shorter text is stretched to the row
+       height, and stretched auto rows would push its numeral below its neighbours'. */
+    align-content: start;
   }
 
   .en-step__leap {
@@ -285,23 +288,28 @@
   stroke-dashoffset: 0;
 }
 
-/* Tick-in once on enter (ChecklistTicks sets data-ticked). Only under html.js-motion. */
-html.js-motion .en-check:not([data-ticked]) .en-check__tick {
-  stroke-dashoffset: 1;
-}
+/* Tick-in once on enter (ChecklistTicks sets data-ticked). The hidden pre-state exists only
+   under html.js-motion AND no-preference, so a live switch to reduced motion shows the ticks at
+   once. Box: the landing squash (--dur-slow-squash, rebound); tick: draws in --dur-base;
+   stagger 60ms (STAGGER.cards, 5 items = 240ms ≤ .36s). Total ≈ 620ms (TICKS_MS). */
+@media (prefers-reduced-motion: no-preference) {
+  html.js-motion .en-check:not([data-ticked]) .en-check__tick {
+    stroke-dashoffset: 1;
+  }
 
-html.js-motion .en-check:not([data-ticked]) .en-check__box {
-  transform: scale(0.86);
-}
+  html.js-motion .en-check:not([data-ticked]) .en-check__box {
+    transform: scale(0.86);
+  }
 
-html.js-motion .en-check .en-check__tick {
-  transition: stroke-dashoffset 0.36s var(--ease-stick) calc(0.12s + var(--i) * 0.06s);
-}
+  html.js-motion .en-check .en-check__tick {
+    transition: stroke-dashoffset var(--dur-base) var(--ease-stick) calc(var(--dur-tap) + var(--i) * 60ms);
+  }
 
-html.js-motion .en-check .en-check__box {
-  transform-origin: center;
-  transform-box: fill-box;
-  transition: transform 0.35s var(--ease-rebound) calc(var(--i) * 0.06s);
+  html.js-motion .en-check .en-check__box {
+    transform-origin: center;
+    transform-box: fill-box;
+    transition: transform var(--dur-slow-squash) var(--ease-rebound) calc(var(--i) * 60ms);
+  }
 }
 
 .en-kit__note {
@@ -345,6 +353,25 @@ html.js-motion .en-check .en-check__box {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* The „doskok“ press (app/globals.css squashes every button/summary) lands on the row's round
+   +/× control, not on the full-width row: a 3% stretch of a 650px row pushes the text and the
+   icon past the dividers and reads as a glitch. */
+.faq__q:active {
+  translate: none;
+  scale: none;
+}
+
+.faq__q:active .faq__icon {
+  translate: 0 1px;
+  scale: 1.03 0.94;
+  transition-duration: var(--dur-tap);
+}
+
+/* Two-line questions split evenly (no lone „počne?“ on the second line). */
+.faq__q-text {
+  text-wrap: balance;
+}
+
 .faq__q::-webkit-details-marker {
   display: none;
 }
@@ -369,7 +396,10 @@ html.js-motion .en-check .en-check__box {
   border-radius: var(--radius-full);
   box-shadow: inset 0 0 0 1.5px var(--hairline);
   color: var(--fg);
-  transition: transform 0.28s var(--ease-stick);
+  transition:
+    transform var(--dur-base) var(--ease-stick),
+    translate var(--dur-slow-squash) var(--ease-rebound),
+    scale var(--dur-slow-squash) var(--ease-rebound);
 }
 
 .faq__icon svg {
@@ -402,8 +432,8 @@ html.js-motion .en-check .en-check__box {
     display: grid;
     grid-template-rows: 0fr;
     transition:
-      grid-template-rows 0.28s var(--ease-stick),
-      content-visibility 0.28s allow-discrete;
+      grid-template-rows var(--dur-base) var(--ease-stick),
+      content-visibility var(--dur-base) allow-discrete;
   }
   .faq__item[open]::details-content {
     grid-template-rows: 1fr;
@@ -444,8 +474,8 @@ html.js-motion .en-check .en-check__box {
   .faq__icon {
     transition: none;
   }
-  html.js-motion .en-check .en-check__tick,
-  html.js-motion .en-check .en-check__box {
-    transition: none;
+  .faq__q:active .faq__icon {
+    translate: none;
+    scale: none;
   }
 }

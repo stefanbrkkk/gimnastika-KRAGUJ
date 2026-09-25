@@ -13,7 +13,7 @@
 /* --------------------------------------------------------------------------
    Header — a solid floating bar, inset from the edges (never glass/blur).
    Geometry lives in custom properties so the menu sheet can mirror it.
-   Bottom edge ≤ 84px < scroll-padding-top (88px).
+   Bottom edge 70 / 74 (≥640) / 84px (≥1024) < scroll-padding-top (88px).
    -------------------------------------------------------------------------- */
 .site-header {
   --hdr-top: 10px;
@@ -28,13 +28,15 @@
   background: transparent;
   color: var(--fg);
   pointer-events: none;
-  transition: transform 0.28s var(--ease-stick);
+  transition: transform var(--dur-base) var(--ease-stick);
 }
 
+/* 640–1023: 64px bar so the CTA pill and "Meni" are full 52px buttons (§3);
+   bottom edge 74px (10 + 64), under scroll-padding-top (88px). */
 @media (min-width: 640px) {
   .site-header {
-    --hdr-top: 12px;
     --hdr-inset: 20px;
+    --hdr-h: 64px;
   }
 }
 
@@ -51,7 +53,7 @@
 /* Exit = takeoff (fast), entry = stick (landing). */
 .site-header[data-hidden="true"] {
   transform: translateY(calc(-100% - 16px));
-  transition-duration: 0.2s;
+  transition-duration: var(--dur-fast);
   transition-timing-function: var(--ease-takeoff);
 }
 
@@ -176,8 +178,8 @@
   transform: scaleX(0);
   transform-origin: left center;
   transition:
-    transform 0.28s var(--ease-stick),
-    opacity 0.18s linear;
+    transform var(--dur-base) var(--ease-stick),
+    opacity var(--dur-fast) linear;
 }
 
 @media (min-width: 1280px) {
@@ -218,24 +220,24 @@
 @media (min-width: 640px) {
   .site-header__cta {
     display: inline-flex;
-    min-height: 48px;
     padding-inline: 20px;
   }
 }
 
 @media (min-width: 1024px) {
   .site-header__cta {
-    min-height: 52px;
     padding-inline: 24px;
   }
 }
 
-/* The theme swap is instant: no background/colour tweening while scrolling. */
+/* The theme swap is instant: only the press squash eases — no background,
+   colour or press-lip (box-shadow) tween while scrolling (§4, D-chrome-1). */
 .site-header .btn {
-  transition-property: transform, box-shadow;
+  transition-property: translate, scale;
 }
 
-/* Menu button (and the sheet's close button, same geometry) */
+/* "Meni" (a link to the footer's #meni until hydration, then a button) and the
+   sheet's close button — same geometry. */
 .menu-btn {
   display: inline-flex;
   align-items: center;
@@ -253,15 +255,29 @@
   font-size: var(--text-small);
   font-weight: 650;
   font-stretch: 104%;
+  text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
+  user-select: none;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.35s var(--ease-rebound);
+  transition:
+    translate var(--dur-slow-squash) var(--ease-rebound),
+    scale var(--dur-slow-squash) var(--ease-rebound);
 }
 
+/* The global button squash (translate/scale), also for the pre-hydration link. */
 .menu-btn:active {
-  transform: translateY(2px) scale(1.03, 0.94);
-  transition-duration: 0.1s;
+  translate: 0 1px;
+  scale: 1.03 0.94;
+  transition-duration: var(--dur-tap);
+}
+
+/* Beside the 52px CTA pill from 640px: same height. */
+@media (min-width: 640px) {
+  .site-header .menu-btn {
+    min-height: 52px;
+  }
 }
 
 @media (min-width: 1024px) {
@@ -270,9 +286,12 @@
   }
 }
 
-/* No JS: the sheet cannot open, so no dead button (the page is one scroll). */
-html:not(.js) .site-header .menu-btn {
-  display: none;
+/* No JS + a short viewport (landscape phone, 400% zoom): the header cannot hide on
+   scroll, so it scrolls away with the page instead of covering it next to the bar. */
+@media (max-height: 480px) {
+  html:not(.js) .site-header {
+    position: absolute;
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -345,7 +364,9 @@ html:has(.menu-sheet[open]) {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 64px;
+  /* 64px rows on tall phones, down to 48px on short ones, so the CTA and the call
+     stay on the first screen of the sheet. */
+  min-height: clamp(48px, 7.6svh, 64px);
   padding-block: 8px;
   border-bottom: 1px solid var(--hairline);
   font-size: clamp(1.75rem, 1.3rem + 2vw, 2.5rem);
@@ -399,14 +420,59 @@ html:has(.menu-sheet[open]) {
   color: var(--color-lav-200);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .menu-sheet[open] {
-    animation: menu-shutter 0.28s var(--ease-stick) both;
+/* The ghost-frame trail is decoration: never let it push the sheet into scrolling. */
+@media (max-height: 780px) {
+  .menu-sheet__trail {
+    display: none;
+  }
+}
+
+/* Landscape phones (and 400% zoom): links in a 3×2 grid, CTA + call in one row,
+   so everything fits without scrolling the sheet (844×390: ends at ≈275px). */
+@media (orientation: landscape) and (max-height: 500px) {
+  .menu-sheet__nav {
+    margin-top: 8px;
   }
 
+  .menu-sheet__list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 24px;
+  }
+
+  .menu-sheet__link {
+    gap: 8px;
+    min-height: 52px;
+    padding-block: 4px;
+    font-size: clamp(1.25rem, 0.9rem + 1.6vw, 1.75rem);
+  }
+
+  .menu-sheet__here {
+    width: 28px;
+  }
+
+  .menu-sheet__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 559.98px) {
+  .menu-sheet__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .menu-sheet[open] {
+    animation: menu-shutter var(--dur-base) var(--ease-stick) both;
+  }
+
+  /* Rows land in a word-rate stagger (40ms × 7 = 280ms, inside the ≤360ms budget). */
   .menu-sheet[open] .menu-sheet__item {
-    animation: menu-land 0.28s var(--ease-stick) both;
-    animation-delay: calc(80ms + var(--i, 0) * 30ms);
+    animation: menu-land var(--dur-base) var(--ease-stick) both;
+    animation-delay: calc(80ms + var(--i, 0) * 40ms);
   }
 }
 
@@ -422,7 +488,7 @@ html:has(.menu-sheet[open]) {
 @keyframes menu-land {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(var(--offset-reveal));
   }
 }
 
@@ -443,8 +509,8 @@ html:has(.menu-sheet[open]) {
   transform: translateY(calc(100% + 16px));
   visibility: hidden;
   transition:
-    transform 0.2s var(--ease-takeoff),
-    visibility 0s linear 0.2s;
+    transform var(--dur-fast) var(--ease-takeoff),
+    visibility 0s linear var(--dur-fast);
 }
 
 .sticky-bar[data-visible="true"],
@@ -452,7 +518,7 @@ html:not(.js) .sticky-bar {
   transform: none;
   visibility: visible;
   transition:
-    transform 0.28s var(--ease-stick),
+    transform var(--dur-base) var(--ease-stick),
     visibility 0s linear 0s;
 }
 
@@ -483,9 +549,10 @@ html:not(.js) .sticky-bar {
   }
 }
 
+/* Content-sized pills sharing the spare width equally: every label gets the same
+   inner air („Raspored“ is the longest, „SMS“/„Viber“ the shortest). */
 .sticky-bar__list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
   gap: 8px;
   max-width: 560px;
   height: 48px;
@@ -494,8 +561,14 @@ html:not(.js) .sticky-bar {
   list-style: none;
 }
 
+.sticky-bar__list > li {
+  display: flex;
+  flex: 1 1 auto;
+}
+
 .sticky-bar__btn {
   display: flex;
+  flex: 1;
   align-items: center;
   justify-content: center;
   gap: 6px;
@@ -510,14 +583,38 @@ html:not(.js) .sticky-bar {
   text-decoration: none;
   color: var(--fg);
   box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--fg) 26%, transparent);
+  user-select: none;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.35s var(--ease-rebound);
+  transition:
+    translate var(--dur-slow-squash) var(--ease-rebound),
+    scale var(--dur-slow-squash) var(--ease-rebound);
 }
 
 .sticky-bar__btn .chrome-icon {
   width: 22px;
   height: 22px;
+}
+
+/* Below 360px (320px phones): tighter geometry so the three pills still fit. */
+@media (max-width: 359.98px) {
+  .sticky-bar {
+    padding-inline: 8px;
+  }
+
+  .sticky-bar__list {
+    gap: 6px;
+  }
+
+  .sticky-bar__btn {
+    gap: 4px;
+    padding-inline: 6px;
+  }
+
+  .sticky-bar__btn .chrome-icon {
+    width: 20px;
+    height: 20px;
+  }
 }
 
 .sticky-bar__btn--primary {
@@ -526,9 +623,15 @@ html:not(.js) .sticky-bar {
   box-shadow: 0 2px 0 0 rgba(10, 26, 56, 0.6);
 }
 
+/* Same press as .btn (the bar's buttons are links, outside the global button rule). */
 .sticky-bar__btn:active {
-  transform: translateY(2px) scale(1.03, 0.94);
-  transition-duration: 0.1s;
+  translate: 0 2px;
+  scale: 1.03 0.94;
+  transition-duration: var(--dur-tap);
+}
+
+.sticky-bar__btn--primary:active {
+  box-shadow: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -543,12 +646,15 @@ html:not(.js) .sticky-bar {
 
   .menu-btn:active,
   .sticky-bar__btn:active {
-    transform: none;
+    translate: none;
+    scale: none;
   }
 }
 
 /* --------------------------------------------------------------------------
    Footer — darkroom navy-950. The logo is the last frame of the roll.
+   Mobile: brand · #meni index (links, CTA, call) · links · base.
+   ≥1024: links and base share one hairline row; ≥1280: brand | index.
    -------------------------------------------------------------------------- */
 .site-footer {
   padding-top: 64px;
@@ -568,27 +674,6 @@ html:not(.js) .sticky-bar {
   row-gap: 40px;
 }
 
-@media (min-width: 1024px) {
-  .site-footer__inner {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    column-gap: 24px;
-    row-gap: 64px;
-    align-items: end;
-  }
-
-  .site-footer__brand {
-    grid-column: 1 / span 7;
-  }
-
-  .site-footer__links {
-    grid-column: 9 / span 4;
-  }
-
-  .site-footer__base {
-    grid-column: 1 / -1;
-  }
-}
-
 .site-footer__mark {
   display: block;
   width: min(100%, 560px);
@@ -606,6 +691,67 @@ html:not(.js) .sticky-bar {
   margin-top: 24px;
   color: var(--muted);
   text-wrap: balance;
+}
+
+/* #meni — the page index (the menu sheet's contents, compact). */
+.site-footer__index {
+  padding-top: 24px;
+  border-top: 1px solid var(--hairline);
+}
+
+.site-footer__label {
+  margin: 0 0 4px;
+  color: var(--muted);
+}
+
+.site-footer__nav {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-footer__nav-link {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  font-size: 1.1875rem;
+  line-height: 1.2;
+  font-weight: 680;
+  font-stretch: 104%;
+  letter-spacing: -0.005em;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.24em;
+  color: var(--fg);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.site-footer__nav-link:hover {
+  text-decoration-color: currentColor;
+}
+
+.site-footer__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+@media (min-width: 640px) {
+  .site-footer__nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 24px;
+    max-width: 640px;
+  }
+
+  .site-footer__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
 }
 
 .site-footer__links {
@@ -630,6 +776,7 @@ html:not(.js) .sticky-bar {
 }
 
 .site-footer__link > span:first-of-type {
+  text-wrap: balance; /* 320px: „Član Gimnastičkog / saveza Srbije“, never a lone „Srbije“ */
   text-decoration: underline;
   text-decoration-color: color-mix(in oklab, var(--fg) 38%, transparent);
   text-decoration-thickness: 1.5px;
@@ -654,21 +801,75 @@ html:not(.js) .sticky-bar {
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px 24px;
-  margin-top: -16px; /* the link list above already ends on a hairline */
+  margin-top: 24px;
   font-size: var(--text-small);
   color: var(--muted);
-}
-
-@media (min-width: 1024px) {
-  .site-footer__base {
-    margin-top: 0;
-    padding-top: 20px;
-    border-top: 1px solid var(--hairline);
-  }
 }
 
 .site-footer__credit {
   color: var(--fg);
   text-decoration: underline;
   text-underline-offset: 0.22em;
+}
+
+/* ≥1024: the links and the base share one hairline row. */
+@media (min-width: 1024px) {
+  .site-footer__inner {
+    row-gap: 48px;
+  }
+
+  .site-footer__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 32px;
+    padding-top: 12px;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .site-footer__links {
+    flex-direction: row;
+    gap: 8px 32px;
+    border-top: 0;
+  }
+
+  .site-footer__link {
+    min-height: 48px;
+    padding-block: 0;
+    border-bottom: 0;
+  }
+
+  .site-footer__arrow {
+    margin-left: 0;
+  }
+
+  .site-footer__base {
+    gap: 8px 32px;
+    margin-top: 0;
+  }
+}
+
+/* ≥1280 (room for the CTA and the call side by side): brand | index. */
+@media (min-width: 1280px) {
+  .site-footer__inner {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: 24px;
+    row-gap: 72px;
+    align-items: end;
+  }
+
+  .site-footer__brand {
+    grid-column: 1 / span 6;
+  }
+
+  .site-footer__index {
+    grid-column: 7 / span 6;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .site-footer__foot {
+    grid-column: 1 / -1;
+  }
 }

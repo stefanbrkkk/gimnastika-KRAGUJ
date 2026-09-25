@@ -71,3 +71,26 @@ export const GRID_SIZES =
   "(min-width: 1440px) 412px, (min-width: 1024px) calc(33.3vw - 60px), (min-width: 640px) calc(33.3vw - 44px), calc(50vw - 38px)";
 
 export const flipId = (id: PhotoId): string => `gl-${id}`;
+
+/**
+ * Contact-sheet order (presentation only — the category mapping stays in
+ * content/gallery.ts). CSS columns fill top to bottom in DOM order, so the
+ * category-grouped order left one column ~430px short at 3 columns. This order
+ * spreads the two portraits (05, 11) and the three squares across columns, so
+ * the sheet ends almost level at 2 and 3 columns, keeps the near-identical
+ * mural frames (12, 14) apart, and every filtered view stays balanced too
+ * (Takmičenja 01·08·05, Treninzi 12·04·14·03·15, Kampovi 16·10·11).
+ * Photos not listed (e.g. 02/09 with CAMP_GROUP_PHOTOS) follow in content order.
+ */
+export const SHEET_ORDER: readonly PhotoId[] = ["01", "16", "08", "05", "12", "10", "04", "14", "03", "11", "15"];
+
+export function inSheetOrder<T extends { photoId: PhotoId }>(items: readonly T[]): T[] {
+  const rank = (item: T, i: number) => {
+    const at = SHEET_ORDER.indexOf(item.photoId);
+    return at < 0 ? SHEET_ORDER.length + i : at;
+  };
+  return items
+    .map((item, i) => ({ item, r: rank(item, i) }))
+    .sort((a, b) => a.r - b.r)
+    .map(({ item }) => item);
+}

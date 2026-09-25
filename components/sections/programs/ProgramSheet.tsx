@@ -15,18 +15,31 @@ import { ScheduleLines } from "./ScheduleLines";
  * Program detail sheet (lazy chunk). Native <dialog> + showModal(): the page
  * behind is inert, Tab is wrapped inside the panel, Esc / backdrop / close
  * button close it and focus returns to the card's + button.
- * Motion: the card becomes the sheet (Flip shared element, card → panel) and
- * the panel flies back onto the card on close. Reduced motion: 150ms crossfade.
+ * Motion: the card becomes the sheet. The panel starts as a card-sized window
+ * (clip-path) placed exactly over the card and opens out to its full box
+ * (transform + clip-path only). Content is never scaled, so there is no
+ * distortion to hide and no empty slab: the colored plate, icon and title are
+ * there from the first frame. On close the window shrinks back onto the card and
+ * fades into it (the card is visible again underneath). Reduced motion: 150ms crossfade.
  * Links inside (booking / schedule) close the sheet synchronously and let the
  * click continue to the document-level delegates of those islands.
  */
 
-const FLIP_ID = "program-sheet";
 const OPEN_DURATION = 0.42; // between DUR.base and DUR.reveal: a large shared-element move
 const FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-type Motion = Awaited<ReturnType<typeof loadMotion>>;
-type FlipPlugin = Awaited<ReturnType<Motion["loadFlip"]>>;
+type Gsap = Awaited<ReturnType<typeof loadMotion>>["gsap"];
+
+const px = (v: number) => `${Math.round(v * 10) / 10}px`;
+/** inset() with four explicit radii, so GSAP interpolates every number of the string. */
+const inset = (top: number, right: number, bottom: number, left: number, radii: readonly number[]) =>
+  `inset(${px(top)} ${px(right)} ${px(bottom)} ${px(left)} round ${radii.map(px).join(" ")})`;
+const radiiOf = (el: Element) => {
+  const cs = getComputedStyle(el);
+  return [cs.borderTopLeftRadius, cs.borderTopRightRadius, cs.borderBottomRightRadius, cs.borderBottomLeftRadius].map(
+    (r) => parseFloat(r) || 0,
+  );
+};
 
 interface ProgramSheetProps {
   programId: string;
@@ -38,7 +51,6 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
   const program = programById(programId as ProgramId);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const innerRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const onClosedRef = useRef(onClosed);
 
@@ -49,12 +61,11 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
   useEffect(() => {
     const dialog = dialogRef.current;
     const panel = panelRef.current;
-    const inner = innerRef.current;
-    if (!dialog || !panel || !inner) return;
+    if (!dialog || !panel) return;
 
     const opener = card.querySelector<HTMLElement>("[data-program-open]");
     const root = document.documentElement;
-    let motion: { gsap: Motion["gsap"]; Flip: FlipPlugin } | null = null;
+    let gsap: Gsap | null = null;
     let cancelled = false;
     let closing = false;
     let done = false;
@@ -80,14 +91,34 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
       onClosedRef.current();
     };
 
+    /**
+     * The card's box relative to the panel's untransformed layout box: the translation that puts
+     * the panel's top-left corner on the card, and the clip that cuts the panel to the card's size.
+     */
+    const onCard = () => {
+      const c = card.getBoundingClientRect();
+      const d = dialog.getBoundingClientRect();
+      const x = c.left - (d.left + panel.offsetLeft);
+      const y = c.top - (d.top + panel.offsetTop);
+      return { x, y, clip: inset(0, panel.offsetWidth - c.width, panel.offsetHeight - c.height, 0, radiiOf(card)) };
+    };
+    const fullClip = () => inset(0, 0, 0, 0, radiiOf(panel));
+
     const close = (animate: boolean, returnFocus = true) => {
       if (closing || done) return;
       closing = true;
       if (!animate) return finish(returnFocus);
-      if (motion && motionAllowed()) {
+      if (gsap && motionAllowed()) {
         dialog.setAttribute("data-closing", "");
-        motion.gsap.to(inner, { opacity: 0, duration: DUR.tap, ease: "none" });
-        motion.Flip.fit(panel, card, { scale: true, duration: DUR.fast, ease: EASE.takeoff, onComplete: () => finish(returnFocus) });
+        gsap.killTweensOf(panel);
+        const to = onCard();
+        // The card is back underneath: the shrinking window fades into it (takeoff = a late fade).
+        card.style.removeProperty("visibility");
+        gsap.fromTo(
+          panel,
+          { clipPath: panel.style.clipPath || fullClip() },
+          { x: to.x, y: to.y, clipPath: to.clip, opacity: 0, duration: DUR.fast, ease: EASE.takeoff, onComplete: () => finish(returnFocus) },
+        );
       } else if (typeof panel.animate === "function") {
         dialog.setAttribute("data-closing", "");
         panel.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 150, easing: "linear", fill: "forwards" }).onfinish = () => finish(returnFocus);
@@ -106,17 +137,16 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
     (async () => {
       if (motionAllowed()) {
         const m = await loadMotion();
-        const Flip = await m.loadFlip();
         if (cancelled) return;
-        motion = { gsap: m.gsap, Flip };
-        card.setAttribute("data-flip-id", FLIP_ID);
-        const state = Flip.getState(card);
-        card.removeAttribute("data-flip-id");
+        gsap = m.gsap;
         show();
+        const from = onCard();
         card.style.setProperty("visibility", "hidden");
-        m.gsap.set(inner, { opacity: 0 });
-        Flip.from(state, { targets: panel, duration: OPEN_DURATION, ease: EASE.stick, scale: true });
-        m.gsap.to(inner, { opacity: 1, duration: DUR.base, delay: OPEN_DURATION * 0.4, ease: "none" });
+        gsap.fromTo(
+          panel,
+          { x: from.x, y: from.y, clipPath: from.clip },
+          { x: 0, y: 0, clipPath: fullClip(), duration: OPEN_DURATION, ease: EASE.stick, clearProps: "transform,clipPath" },
+        );
       } else {
         show();
         if (typeof panel.animate === "function") panel.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150, easing: "linear" });
@@ -172,9 +202,7 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
       dialog.removeEventListener("cancel", onCancel);
       dialog.removeEventListener("close", onNativeClose);
       dialog.removeEventListener("click", onClick);
-      if (motion) {
-        motion.gsap.killTweensOf([panel, inner]);
-      }
+      gsap?.killTweensOf(panel);
       card.style.removeProperty("visibility");
       unlock();
       if (dialog.open) dialog.close();
@@ -185,8 +213,8 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
 
   return (
     <dialog ref={dialogRef} className="program-sheet" aria-labelledby="program-sheet-title" style={programStyle(program)}>
-      <div ref={panelRef} className="ps-panel" data-flip-id={FLIP_ID}>
-        <div ref={innerRef} className="ps-inner">
+      <div ref={panelRef} className="ps-panel">
+        <div className="ps-inner">
           <div className="ps-plate">
             <ProgramIcon icon={program.icon} label={program.iconLabel} className="ps-icon" />
             <button type="button" className="ps-close" data-sheet-close="" aria-label={BOOKING.close}>

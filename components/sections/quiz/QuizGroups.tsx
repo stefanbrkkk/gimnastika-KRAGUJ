@@ -4,6 +4,9 @@
  */
 import type { QuizResultView } from "./types";
 
+/** A time range („08:30–10:30“): never broken at its dash; lines wrap around „ ili “ instead. */
+const RANGE = /(\d{1,2}:\d{2}–\d{1,2}:\d{2})/;
+
 interface QuizGroupsProps {
   view: QuizResultView;
   /** Put data-quiz-focus + tabIndex=-1 on the first heading (island focus target). */
@@ -32,7 +35,24 @@ export function QuizGroups({ view, focusFirst = false }: QuizGroupsProps) {
               {g.slots.map(([days, times]) => (
                 <li key={days + times} className="quiz-slot">
                   <span className="quiz-slot__days">{days}</span>{" "}
-                  <span className="quiz-slot__times tabular">{times}</span>
+                  <span className="quiz-slot__times tabular">
+                    {times
+                      .split(RANGE)
+                      .filter(Boolean)
+                      .map((part, k) =>
+                        RANGE.test(part) ? (
+                          <span key={k} className="quiz-slot__time">
+                            {part}
+                          </span>
+                        ) : part.trim() === "ili" ? (
+                          <span key={k} className="quiz-slot__or">
+                            {part}
+                          </span>
+                        ) : (
+                          part
+                        ),
+                      )}
+                  </span>
                 </li>
               ))}
             </ul>

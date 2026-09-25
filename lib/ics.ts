@@ -12,7 +12,7 @@
 import { HERO } from "@/content/copy";
 import { dayByCode, isFixed, SCHEDULE_LOCATION, type ScheduleBlock, type ScheduleGroup } from "@/content/schedule";
 import { CLUB, SITE_URL, VENUE } from "@/content/site";
-import { addDaysYmd, firstOccurrenceYmd } from "./schedule-logic";
+import { localStamp, occurrenceDates } from "./schedule-logic";
 import { belgradeNow, TIME_ZONE } from "./time";
 
 export const ICS_TZID = TIME_ZONE;
@@ -65,8 +65,8 @@ export const byDay = (block: ScheduleBlock): string => block.days.map((d) => day
 /** "RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR" */
 export const rrule = (block: ScheduleBlock): string => `RRULE:FREQ=WEEKLY;BYDAY=${byDay(block)}`;
 
-/** "2026-09-28" + "18:00" → "20260928T180000" (local wall-clock time, no Z). */
-export const localStamp = (ymd: string, clock: string): string => `${ymd.replaceAll("-", "")}T${clock.replace(":", "")}00`;
+/** Re-exported: the stamp helper lives in lib/schedule-logic.ts (client-safe, no content import). */
+export { localStamp };
 
 /** UTC "20260924T102030Z". */
 export const utcStamp = (date: Date): string => date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
@@ -107,10 +107,8 @@ export function foldLine(line: string, limit = 75): string {
 export function blockDates(block: ScheduleBlock, anchor: Date): { start: string; end: string } {
   const t = block.times[0];
   if (!t) throw new Error("Empty schedule block");
-  const ymd = firstOccurrenceYmd(block.days, belgradeNow(anchor));
-  // A block never crosses midnight in this schedule; guard anyway.
-  const endYmd = t.end > t.start ? ymd : addDaysYmd(ymd, 1);
-  return { start: localStamp(ymd, t.start), end: localStamp(endYmd, t.end) };
+  const [start = "", end = ""] = occurrenceDates(block.days, t.start, t.end, belgradeNow(anchor)).split("/");
+  return { start, end };
 }
 
 const uidHost = (): string => {

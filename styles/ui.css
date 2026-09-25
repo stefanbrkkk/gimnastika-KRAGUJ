@@ -101,3 +101,21 @@ html.js-motion .chrono-mark .chrono-solid {
 .source-link:hover {
   text-decoration-thickness: 2px;
 }
+
+/* Windows High Contrast / forced colors: chips and outlined buttons keep a border, and the
+   pressed state stays visible (S3/S9 chips; S4 styles its own controls). */
+@media (forced-colors: active) {
+  .btn-secondary,
+  .pg-chip,
+  .gl-chip,
+  .pg-pager__btn {
+    border: 1px solid ButtonText;
+  }
+  .pg-chip[aria-pressed="true"],
+  .gl-chip[aria-pressed="true"] {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+    border-color: Highlight;
+  }
+}

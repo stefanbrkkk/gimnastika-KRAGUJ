@@ -4,7 +4,9 @@
    Motion: only transform and opacity (Flip, crossfades). */
 
 /* --------------------------------------------------------------------------
-   Head: heading (right on desktop) + chips/status (left on desktop)
+   Head: heading (right on desktop) + chips (left on desktop). The filter status
+   is a screen-reader-only live region: the pressed chip and its count already
+   say it on screen, so filtering never adds or shifts a row.
    -------------------------------------------------------------------------- */
 .gallery .gl-head {
   display: flex;
@@ -18,9 +20,10 @@
 }
 
 @media (min-width: 1024px) {
+  /* Chips centred on the heading, as in S3 „Programi“. */
   .gallery .gl-head {
     flex-direction: row-reverse;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
     gap: 48px;
     margin-bottom: 56px;
@@ -61,10 +64,12 @@ html:not(.js) .gallery .gl-filters {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  /* translate/scale: the global „doskok“ press squash (app/globals.css) eases back like .btn. */
   transition:
-    background-color 0.18s var(--ease-stick),
-    color 0.18s var(--ease-stick),
-    transform 0.1s linear;
+    background-color var(--dur-fast) var(--ease-stick),
+    color var(--dur-fast) var(--ease-stick),
+    translate var(--dur-slow-squash) var(--ease-rebound),
+    scale var(--dur-slow-squash) var(--ease-rebound);
 }
 
 .gl-chip:hover {
@@ -72,8 +77,11 @@ html:not(.js) .gallery .gl-filters {
 }
 
 .gl-chip:active {
-  transform: translateY(1px);
+  transition-duration: var(--dur-tap);
 }
+
+/* Keyboard focus: the global outline ring (app/globals.css) sits 3px outside the chip's own
+   inset border — violet on this ice section; nothing here overrides it. */
 
 .gl-chip__check {
   display: none;
@@ -95,7 +103,7 @@ html:not(.js) .gallery .gl-filters {
   border-radius: var(--radius-full);
   background: var(--color-white);
   box-shadow: inset 0 0 0 1px var(--hairline);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 650;
   line-height: 1.2;
   text-align: center;
@@ -119,20 +127,11 @@ html:not(.js) .gallery .gl-filters {
   color: var(--color-ice-50);
 }
 
-.gl-status {
-  min-height: 1.5em;
-  margin-top: 10px;
-  color: var(--muted);
-}
-
-.gl-status:empty {
-  margin-top: 0;
-}
-
 /* --------------------------------------------------------------------------
    The sheet: CSS-columns masonry (2 / 3 columns), prints keep their aspect.
    -------------------------------------------------------------------------- */
 .gl-grid {
+  position: relative; /* Flip: leaving prints go absolute inside while they fade */
   margin: 0;
   padding: 0;
   list-style: none;
@@ -154,13 +153,21 @@ html:not(.js) .gallery .gl-filters {
 }
 
 .gl-item {
+  position: relative;
+  z-index: 1; /* moving prints glide over the leaving ones (z-index 0) during a filter Flip */
   display: block;
   break-inside: avoid;
   margin-bottom: 12px;
-  /* Flip moves items between columns: keep them on their own layer only while moving. */
 }
 
-.gl-item[hidden] {
+.gl-item[data-leaving] {
+  z-index: 0;
+}
+
+/* Leaving prints (filter Flip): out of the layout, but — unlike Tailwind's
+   [hidden]{display:none!important} — Flip's inline display can show them while they fade. */
+.gl-item[hidden],
+.gl-item[data-leaving] {
   display: none;
 }
 
@@ -184,11 +191,6 @@ html:not(.js) .gallery .gl-filters {
 
 .gl-print .frame-foot {
   padding-right: 34px; /* room for the zoom mark */
-}
-
-.gl-print .frame-caption {
-  font-size: 12px;
-  letter-spacing: 0.02em;
 }
 
 /* MINOR_PHOTOS=false placeholders: keep the note centred in narrow prints. */
@@ -218,17 +220,22 @@ html:not(.js) .gallery .gl-filters {
   text-decoration: none;
   cursor: zoom-in;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.28s var(--ease-stick);
+  /* Independent translate/scale, like every other press on the page. A print is a photo, not a
+     button: a light lift on hover and a small press, never the button squash. */
+  transition:
+    translate var(--dur-base) var(--ease-stick),
+    scale var(--dur-base) var(--ease-stick);
 }
 
 .gl-open:active {
-  transform: translateY(1px) scale(0.99);
-  transition-duration: 0.1s;
+  translate: 0 1px;
+  scale: 0.99;
+  transition-duration: var(--dur-tap);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .gl-open:hover {
-    transform: translateY(-3px);
+    translate: 0 -3px;
   }
 }
 
@@ -267,7 +274,8 @@ html:not(.js) .gallery .gl-filters {
   .gl-chip,
   .gl-chip:active {
     transition: none;
-    transform: none;
+    translate: none;
+    scale: none;
   }
 }
 
@@ -435,9 +443,12 @@ html[data-lightbox-open] body {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  /* translate/scale: the global „doskok“ press squash (app/globals.css) eases back like .btn. */
   transition:
-    background-color 0.18s var(--ease-stick),
-    transform 0.1s linear;
+    background-color var(--dur-fast) var(--ease-stick),
+    opacity var(--dur-fast) linear,
+    translate var(--dur-slow-squash) var(--ease-rebound),
+    scale var(--dur-slow-squash) var(--ease-rebound);
 }
 
 .lb-btn:hover {
@@ -445,12 +456,22 @@ html[data-lightbox-open] body {
 }
 
 .lb-btn:active {
-  transform: translateY(1px);
+  transition-duration: var(--dur-tap);
 }
 
 .lb-btn[aria-disabled="true"] {
   opacity: 0.35;
   cursor: default;
+}
+
+/* A dead end does not squash. */
+.lb-btn[aria-disabled="true"]:hover {
+  background: rgba(17, 45, 95, 0.72);
+}
+
+.lb-btn[aria-disabled="true"]:active {
+  translate: none;
+  scale: none;
 }
 
 .lb-btn svg {
@@ -492,10 +513,19 @@ html[data-lightbox-open] body {
   }
 }
 
+/* The photo track is focusable (keyboard scroll region): an inset ring, since the track fills
+   the screen and the global outside ring would sit off-screen. */
+.lb-track:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -6px;
+  box-shadow: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lb-btn,
   .lb-btn:active {
     transition: none;
-    transform: none;
+    translate: none;
+    scale: none;
   }
 }

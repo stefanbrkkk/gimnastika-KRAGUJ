@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { BOOKING } from "@/content/copy";
 import {
   BOOKING_ERRORS,
   BOOKING_GROUPS,
   BOOKING_INTRO,
   EMPTY_BOOKING,
   GROUP_UNDECIDED,
+  applyGroupPrefill,
   belgradeYear,
+  birthYearOptions,
   birthYearRange,
   bookingHrefs,
   buildBookingMessage,
@@ -15,6 +18,8 @@ import {
   hasErrors,
   isPlausiblePhone,
   matchGroup,
+  primaryChannel,
+  sendOrder,
   validateBooking,
   type BookingValues,
 } from "@/lib/booking";
@@ -80,6 +85,23 @@ describe("buildBookingMessage — exact §5 format", () => {
     expect(buildBookingMessage({})).toBe(BOOKING_INTRO);
   });
 
+  it("SMS without a phone number: the message simply has no 'tel: …'", () => {
+    expect(composeBookingMessage({ ...FULL, phone: "" })).toBe(
+      "Dobar dan, želim da prijavim dete na probni trening. Roditelj: Ana Petrović; dete: Mila, godište 2018; grupa: Mlađa početna grupa; napomena: Dolazimo posle škole",
+    );
+    expect(composeBookingMessage({ ...FULL, phone: "", child: "", note: "", group: "" })).toBe(
+      "Dobar dan, želim da prijavim dete na probni trening. Roditelj: Ana Petrović; dete: godište 2018; grupa: neka trenerica predloži",
+    );
+  });
+
+  it("every word of the message comes from content (BOOKING.message)", () => {
+    expect(BOOKING_INTRO).toBe(BOOKING.message.intro);
+    const msg = buildBookingMessage(FULL);
+    for (const word of [BOOKING.message.parent, BOOKING.message.phone, BOOKING.message.child, BOOKING.message.birthYear, BOOKING.message.group, BOOKING.message.note]) {
+      expect(msg).toContain(word);
+    }
+  });
+
   it("keeps č ć đ š ž and symbols verbatim (encoding happens only in the hrefs)", () => {
     const msg = buildBookingMessage({ ...FULL, parent: "Đorđe Ćirić & Šćepanović + Žana" });
     expect(msg).toContain("Roditelj: Đorđe Ćirić & Šćepanović + Žana, tel:");
@@ -118,6 +140,36 @@ describe("group text", () => {
   });
 });
 
+describe("Grupa prefill — no stale options", () => {
+  const START = { extraGroups: [] as readonly string[], group: "" };
+
+  it("a program title selects that program and adds no extra option", () => {
+    expect(applyGroupPrefill("Starija početna grupa", START)).toEqual({ extraGroups: [], group: "Starija početna grupa" });
+    expect(applyGroupPrefill("takmičarke - c program", START)).toEqual({ extraGroups: [], group: "Takmičarke — C program" });
+  });
+
+  it("an unknown label (quiz result) becomes the one extra option and is selected", () => {
+    expect(applyGroupPrefill("Takmičarske grupe (A, B i C program)", START)).toEqual({
+      extraGroups: ["Takmičarske grupe (A, B i C program)"],
+      group: "Takmičarske grupe (A, B i C program)",
+    });
+  });
+
+  it("quiz → quiz → program: earlier extras are dropped, the latest choice wins", () => {
+    let state = applyGroupPrefill("Takmičarske grupe (A, B i C program)", START);
+    state = applyGroupPrefill("Mlađa ili starija početna grupa", state);
+    expect(state).toEqual({ extraGroups: ["Mlađa ili starija početna grupa"], group: "Mlađa ili starija početna grupa" });
+    state = applyGroupPrefill("Starija početna grupa", state);
+    expect(state).toEqual({ extraGroups: [], group: "Starija početna grupa" });
+  });
+
+  it("an empty prefill (hero CTA) keeps the parent's current choice and extras", () => {
+    const current = { extraGroups: ["Takmičarske grupe (A, B i C program)"], group: "Aerobna gimnastika" };
+    expect(applyGroupPrefill("", current)).toBe(current);
+    expect(applyGroupPrefill("   ", current)).toBe(current);
+  });
+});
+
 describe("bookingHrefs — action links", () => {
   const message = buildBookingMessage(FULL);
   const hrefs = bookingHrefs(message);
@@ -147,38 +199,58 @@ describe("bookingHrefs — action links", () => {
   });
 });
 
-describe("validateBooking", () => {
+describe("validateBooking — on send, per channel", () => {
   const YEAR = 2026;
 
-  it("accepts a complete form", () => {
-    expect(validateBooking(FULL, YEAR)).toEqual({});
-    expect(hasErrors(validateBooking(FULL, YEAR))).toBe(false);
+  it("accepts a complete form on every channel", () => {
+    for (const channel of ["sms", "email", "viber"] as const) {
+      expect(validateBooking(FULL, YEAR, channel)).toEqual({});
+      expect(hasErrors(validateBooking(FULL, YEAR, channel))).toBe(false);
+    }
   });
 
-  it("requires parent, phone and birth year — optional fields may stay empty", () => {
-    expect(validateBooking(EMPTY_BOOKING, YEAR)).toEqual({
+  it("email requires parent, phone and birth year — optional fields may stay empty", () => {
+    expect(validateBooking(EMPTY_BOOKING, YEAR, "email")).toEqual({
       parent: BOOKING_ERRORS.parent,
       phone: BOOKING_ERRORS.phoneMissing,
       birthYear: BOOKING_ERRORS.birthYearMissing,
     });
-    expect(validateBooking({ ...FULL, child: "", note: "", group: "" }, YEAR)).toEqual({});
+    expect(validateBooking({ ...FULL, child: "", note: "", group: "" }, YEAR, "email")).toEqual({});
+  });
+
+  it("SMS and Viber do not need the phone (the app sends the number) but still need parent and year", () => {
+    for (const channel of ["sms", "viber"] as const) {
+      expect(validateBooking(EMPTY_BOOKING, YEAR, channel)).toEqual({
+        parent: BOOKING_ERRORS.parent,
+        birthYear: BOOKING_ERRORS.birthYearMissing,
+      });
+      expect(validateBooking({ ...FULL, phone: "" }, YEAR, channel)).toEqual({});
+      expect(validateBooking({ ...FULL, phone: "  " }, YEAR, channel)).toEqual({});
+    }
+    expect(validateBooking({ ...FULL, phone: "" }, YEAR, "email")).toEqual({ phone: BOOKING_ERRORS.phoneMissing });
+  });
+
+  it("a phone that is filled in must look like one, on every channel", () => {
+    for (const channel of ["sms", "email", "viber"] as const) {
+      expect(validateBooking({ ...FULL, phone: "abc" }, YEAR, channel).phone).toBe(BOOKING_ERRORS.phoneInvalid);
+    }
   });
 
   it("whitespace-only required fields count as empty", () => {
-    const errors = validateBooking({ ...FULL, parent: "   ", phone: " \n " }, YEAR);
+    const errors = validateBooking({ ...FULL, parent: "   ", phone: " \n " }, YEAR, "email");
     expect(errors.parent).toBe(BOOKING_ERRORS.parent);
     expect(errors.phone).toBe(BOOKING_ERRORS.phoneMissing);
   });
 
-  it("birth year: four digits between (year − 18) and (year − 2)", () => {
+  it("birth year: one of the select's years, (year − 18) … (year − 2)", () => {
     expect(birthYearRange(YEAR)).toEqual({ min: 2008, max: 2024 });
     for (const ok of ["2008", "2015", "2024", " 2020 "]) {
-      expect(validateBooking({ ...FULL, birthYear: ok }, YEAR).birthYear).toBeUndefined();
+      expect(validateBooking({ ...FULL, birthYear: ok }, YEAR, "sms").birthYear).toBeUndefined();
     }
-    for (const bad of ["2007", "2025", "18", "20188", "20a8", "dve hiljade"]) {
-      expect(validateBooking({ ...FULL, birthYear: bad }, YEAR).birthYear).toBe(BOOKING_ERRORS.birthYearRange(2008, 2024));
+    for (const bad of ["", "2007", "2025", "18", "20188", "20a8", "dve hiljade"]) {
+      expect(validateBooking({ ...FULL, birthYear: bad }, YEAR, "sms").birthYear).toBe(BOOKING_ERRORS.birthYearMissing);
     }
-    expect(BOOKING_ERRORS.birthYearRange(2008, 2024)).toBe("Upišite godište od četiri cifre, između 2008. i 2024.");
+    expect(BOOKING_ERRORS.birthYearMissing).toBe("Izaberite godište deteta.");
   });
 
   it("phone: Serbian and international formats pass, junk fails", () => {
@@ -188,7 +260,43 @@ describe("validateBooking", () => {
     for (const bad of ["12345", "060 abc 4567", "0601234567+", "++381601234567", "1234567890123456"]) {
       expect(isPlausiblePhone(bad)).toBe(false);
     }
-    expect(validateBooking({ ...FULL, phone: "abc" }, YEAR).phone).toBe(BOOKING_ERRORS.phoneInvalid);
+  });
+});
+
+describe("birth-year select", () => {
+  it("offers (year − 2) down to (year − 18), newest first", () => {
+    const years = birthYearOptions(2026);
+    expect(years).toHaveLength(17);
+    expect(years[0]).toBe("2024");
+    expect(years.at(-1)).toBe("2008");
+    expect(years).toEqual([...years].sort((a, b) => Number(b) - Number(a)));
+  });
+
+  it("follows the Europe/Belgrade year across New Year (UTC is still in the old year)", () => {
+    const eve = new Date("2026-12-31T22:59:00Z"); // 23:59 in Belgrade — still 2026
+    const newYear = new Date("2026-12-31T23:30:00Z"); // 00:30 in Belgrade — already 2027
+    expect(birthYearOptions(belgradeYear(eve))).toEqual(birthYearOptions(2026));
+    expect(birthYearOptions(belgradeYear(newYear))[0]).toBe("2025");
+    expect(birthYearOptions(belgradeYear(newYear)).at(-1)).toBe("2009");
+    // A year picked before midnight that fell out of the range is caught on send.
+    expect(validateBooking({ ...FULL, birthYear: "2008" }, belgradeYear(newYear), "sms").birthYear).toBe(BOOKING_ERRORS.birthYearMissing);
+  });
+});
+
+describe("device-dependent primary action", () => {
+  it("touch-first devices lead with SMS", () => {
+    expect(primaryChannel({ coarsePointer: true, canHover: false })).toBe("sms"); // phone, tablet
+    expect(primaryChannel({ coarsePointer: true, canHover: true })).toBe("sms");
+    expect(primaryChannel({ coarsePointer: false, canHover: false })).toBe("sms"); // no hover = touch-first
+  });
+
+  it("desktops (fine pointer that hovers, touch laptops included) lead with email", () => {
+    expect(primaryChannel({ coarsePointer: false, canHover: true })).toBe("email");
+  });
+
+  it("the primary comes first, the other channel second — never two primaries", () => {
+    expect(sendOrder("sms")).toEqual(["sms", "email"]);
+    expect(sendOrder("email")).toEqual(["email", "sms"]);
   });
 });
 

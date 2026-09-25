@@ -5,6 +5,8 @@
  * and leaves ghost frames behind. Reduced motion / Save-Data / no-JS: the static
  * final composition (landed figure + both ghosts). Purely decorative (aria-hidden).
  */
+import { Fragment } from "react";
+
 export type QuizStep = 0 | 1 | 2;
 
 const VB_W = 720;
@@ -35,8 +37,8 @@ interface QuizBandProps {
   step: QuizStep;
   /** Whether step 2 was part of this run (age ≥ 8). */
   asked?: boolean;
-  /** Edge print: the answers so far („9 god. · Tek počinje“). */
-  caption?: string;
+  /** Edge print: the answers so far, one part per answer („9 god.“, „Tek počinje“). */
+  caption?: readonly string[];
   /** Final composition regardless of step (no-JS guide). */
   still?: boolean;
 }
@@ -48,7 +50,9 @@ function frameStates(step: QuizStep, asked: boolean, still: boolean): readonly F
   return ["done", asked ? "done" : "skip", "current"];
 }
 
-export function QuizBand({ step, asked = false, caption = "", still = false }: QuizBandProps) {
+const NO_CAPTION: readonly string[] = [];
+
+export function QuizBand({ step, asked = false, caption = NO_CAPTION, still = false }: QuizBandProps) {
   const states = frameStates(step, asked, still);
   return (
     <div
@@ -59,7 +63,15 @@ export function QuizBand({ step, asked = false, caption = "", still = false }: Q
       data-still={still ? "" : undefined}
     >
       <p className="quiz-band__edge">
-        <span className="quiz-band__caption">{caption}</span>
+        {/* Each answer stays whole; a narrow strip wraps only after the „ · “ separator. */}
+        <span className="quiz-band__caption">
+          {caption.map((part, i) => (
+            <Fragment key={part}>
+              {i > 0 ? "\u00a0· " : null}
+              <span className="quiz-band__part">{part}</span>
+            </Fragment>
+          ))}
+        </span>
         <span className="quiz-band__code">KR-Q</span>
       </p>
       <svg className="quiz-band__svg" viewBox={`0 0 ${VB_W} 200`} focusable="false">

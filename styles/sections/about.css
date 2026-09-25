@@ -96,6 +96,13 @@
     grid-row: 1 / span 2;
     padding: 16px 0 0 16px;
   }
+  /* Where the text runs longer than the single print (1024–1279), the print travels with
+     the reader (same sticky offset as the „Hronologija“ title) instead of leaving a hole.
+     Not for the taller pair (CAMP_GROUP_PHOTOS), which could outgrow the viewport. */
+  .about__prints:not(.about__prints--pair) {
+    position: sticky;
+    top: 112px;
+  }
   .about__print::before {
     translate: -16px -16px;
   }
@@ -216,12 +223,13 @@
   height: 6px;
   border-radius: 1px;
   background: var(--fg);
-  transition: transform 0.28s var(--ease-rebound) 0.22s;
+  /* Pops as the line (DUR.reveal, ease stick) reaches the node — ~0.22 s into the leg. */
+  transition: transform var(--dur-base) var(--ease-rebound) 0.22s;
 }
 
 .timeline[data-armed] .timeline__item:not([data-reached]) .timeline__dot {
   transform: scale(0);
-  transition-duration: 0.18s;
+  transition-duration: var(--dur-fast);
   transition-delay: 0s;
 }
 
@@ -258,8 +266,21 @@
 .timeline__sources {
   display: flex;
   flex-wrap: wrap;
-  column-gap: 16px;
-  margin: -4px 0 -12px -4px; /* the links keep 48px targets without adding visual air */
+  gap: 26px 16px; /* wrapped rows: the 48 px targets never overlap */
+  margin: 9px 0 0 -4px;
+}
+
+/* The link box — and so its focus ring — hugs the text instead of crossing the title
+   above; ::before keeps the 48 px target. */
+.timeline__sources .source-link {
+  position: relative;
+  min-height: 0;
+}
+
+.timeline__sources .source-link::before {
+  content: "";
+  position: absolute;
+  inset: calc(50% - 24px) 0;
 }
 
 .timeline__photo {

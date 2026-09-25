@@ -10,28 +10,11 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  margin-bottom: 28px;
+  margin-bottom: 18px;
 }
 
 .programs .pg-head .section-heading {
   margin-bottom: 0;
-}
-
-@media (min-width: 1024px) {
-  .programs .pg-head {
-    flex-direction: row-reverse;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 48px;
-    margin-bottom: 56px;
-  }
-  .programs .pg-head .section-heading {
-    flex: 0 1 auto;
-  }
-  .programs .pg-filters {
-    flex: 1 1 auto;
-    max-width: 640px;
-  }
 }
 
 /* Chips — hidden without JS (every card is visible anyway). */
@@ -64,10 +47,12 @@ html:not(.js) .programs .pc-open {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  /* translate/scale: the global press squash (app/globals.css) eases back like .btn. */
   transition:
-    background-color 0.18s var(--ease-stick),
-    color 0.18s var(--ease-stick),
-    transform 0.1s linear;
+    background-color var(--dur-fast) var(--ease-stick),
+    color var(--dur-fast) var(--ease-stick),
+    translate var(--dur-slow-squash) var(--ease-rebound),
+    scale var(--dur-slow-squash) var(--ease-rebound);
 }
 
 .pg-chip:hover {
@@ -75,7 +60,7 @@ html:not(.js) .programs .pc-open {
 }
 
 .pg-chip:active {
-  transform: translateY(1px);
+  transition-duration: var(--dur-tap);
 }
 
 .pg-chip__check {
@@ -101,14 +86,70 @@ html:not(.js) .programs .pc-open {
   display: block;
 }
 
+/* Keyboard focus: the global outline ring (app/globals.css) sits outside the chip's own
+   inset border, 3px away, in violet on this light section; nothing here overrides it. */
+
+/* Filters block: chips, the status line (aria-live) and the pager (<1024). Phones: chips /
+   status / pager, each on its own row. ≥640 the pager joins the chips row when it fits and
+   the status goes under both. The pager always precedes the row it drives. */
+.programs .pg-filters {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+}
+
+.pg-chips {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
 .pg-status {
-  min-height: 1.5em;
-  margin-top: 10px;
+  order: 1;
+  flex: 1 0 100%;
   color: var(--muted);
 }
 
+/* Empty: out of the flow, so it adds no row (still rendered: the live region keeps working). */
 .pg-status:empty {
-  margin-top: 0;
+  position: absolute;
+}
+
+@media (min-width: 640px) {
+  .pg-status {
+    order: 2;
+  }
+}
+
+@media (min-width: 1024px) {
+  /* Chips left, heading right, centered on the chips row; the status line sits under the
+     chips in its own row, so it never moves the heading or the chips. */
+  .programs .pg-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "chips heading"
+      "status .";
+    align-items: center;
+    gap: 0 48px;
+    margin-bottom: 56px;
+  }
+  .programs .pg-head .section-heading {
+    grid-area: heading;
+    justify-self: end;
+  }
+  .programs .pg-filters {
+    display: contents;
+  }
+  .programs .pg-chips {
+    grid-area: chips;
+    max-width: 640px;
+  }
+  .programs .pg-status {
+    grid-area: status;
+    margin-top: 10px;
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -117,7 +158,9 @@ html:not(.js) .programs .pc-open {
 .pg-strip {
   position: relative; /* Flip: leaving cards go absolute inside */
   display: flex;
-  align-items: flex-start; /* natural heights: no gap above the CTAs on a phone */
+  /* Phones show one card at a time: natural heights, so a short card keeps its CTAs right
+     under its times (the pager sits above the row, so nothing floats under a short card). */
+  align-items: flex-start;
   gap: 12px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
@@ -131,7 +174,10 @@ html:not(.js) .programs .pc-open {
 }
 
 @media (min-width: 640px) {
+  /* Tablets show two or three cards side by side: equal frames, times and CTAs on one line
+     along the bottom (as in the desktop grid). */
   .pg-strip {
+    align-items: stretch;
     gap: 16px;
     margin-inline: -32px;
     padding-inline: 32px;
@@ -144,8 +190,9 @@ html:not(.js) .programs .pc-open {
   scroll-snap-align: start;
 }
 
-.pg-strip > [hidden] {
-  display: none;
+.pg-strip > [hidden],
+.pg-strip > [data-out] {
+  display: none; /* [data-out]: a leaving card; Flip's inline display keeps it rendered while it fades */
 }
 
 @media (min-width: 1024px) {
@@ -189,7 +236,7 @@ html:not(.js) .programs .pc-open {
     0 0 0 1px var(--hairline),
     var(--shadow-2);
   /* `translate` (not `transform`) so the hover lift never fights Flip/GSAP transforms. */
-  transition: translate 0.28s var(--ease-stick);
+  transition: translate var(--dur-base) var(--ease-stick);
 }
 
 html.js .program-card {
@@ -229,18 +276,21 @@ html.js .program-card {
   stroke-linejoin: round;
 }
 
-/* Draw once on enter (.6s). Hidden pre-state ONLY under html.js-motion. */
+/* Draw once on enter (.6s). Hidden pre-state ONLY under html.js-motion AND while motion is
+   allowed: a live switch to reduced motion shows the drawn icons at once. */
 .pc-icon [data-draw] {
   stroke-dasharray: 1 3;
   stroke-dashoffset: 0;
 }
 
-html.js-motion .program-card:not([data-drawn]) .pc-icon [data-draw] {
-  stroke-dashoffset: 1.05;
-}
+@media (prefers-reduced-motion: no-preference) {
+  html.js-motion .program-card:not([data-drawn]) .pc-icon [data-draw] {
+    stroke-dashoffset: 1.05;
+  }
 
-html.js-motion .program-card .pc-icon [data-draw] {
-  transition: stroke-dashoffset 0.6s var(--ease-stick) var(--draw-delay, 0s);
+  html.js-motion .program-card .pc-icon [data-draw] {
+    transition: stroke-dashoffset var(--dur-reveal) var(--ease-stick) var(--draw-delay, 0s);
+  }
 }
 
 /* + button (JS only): opens the detail sheet. 48×48 target. */
@@ -258,7 +308,14 @@ html.js-motion .program-card .pc-icon [data-draw] {
   box-shadow: 0 0 0 1px rgba(17, 45, 95, 0.12), 0 2px 6px -2px rgba(17, 45, 95, 0.25);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: rotate 0.28s var(--ease-rebound);
+  transition:
+    rotate var(--dur-base) var(--ease-rebound),
+    translate var(--dur-slow-squash) var(--ease-rebound),
+    scale var(--dur-slow-squash) var(--ease-rebound);
+}
+
+.pc-open:active {
+  transition-duration: var(--dur-tap);
 }
 
 .pc-open svg {
@@ -289,15 +346,8 @@ html.js-motion .program-card .pc-icon [data-draw] {
   padding: 18px 14px 14px;
 }
 
-.pc-title {
-  font-stretch: 104%;
-}
-
-@media (min-width: 1024px) {
-  .pc-title {
-    font-stretch: 108%;
-  }
-}
+/* .pc-title keeps the global h3 width axis (104% mobile, 118% desktop): measured at
+   1024/1280/1440, 118% adds no line to any title. */
 
 .pc-age {
   align-self: flex-start;
@@ -330,12 +380,14 @@ html.js-motion .program-card .pc-icon [data-draw] {
   padding-top: 20px;
 }
 
-/* Two stacked pills in a narrow card: slightly tighter side padding. */
+/* Two stacked pills in a narrow card: slightly tighter side padding; if a label must wrap
+   (320px phones), it wraps balanced („Zakažite / probni trening“), never leaving one word. */
 .pc-actions .btn,
 .ps-actions .btn {
   position: relative;
   z-index: 1;
   padding-inline: 16px;
+  text-wrap: balance;
 }
 
 /* --------------------------------------------------------------------------
@@ -378,7 +430,7 @@ html.js-motion .program-card .pc-icon [data-draw] {
   color: var(--fg);
 }
 
-.pg-sched__slot {
+.pg-sched__range {
   white-space: nowrap;
 }
 
@@ -388,32 +440,72 @@ html.js-motion .program-card .pc-icon [data-draw] {
   color: var(--muted);
 }
 
-/* Week row (sheet): Po–Ne, active days filled with the program color + bold. */
+/* Week row (sheet): the S4 „Po grupi“ 7-dot row — seven dots on one mat line, training days
+   filled with the program color (navy ring) and a bold day label. Visual only (aria-hidden);
+   no boxes, so it never reads as a day picker. */
 .pg-week {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 4px;
-  margin-bottom: 10px;
   max-width: 360px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.pg-week::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: calc(100% / 14);
+  right: calc(100% / 14);
+  height: 1px;
+  background: var(--hairline);
 }
 
 .pg-week__day {
-  display: grid;
-  place-items: center;
-  height: 34px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--muted);
-  box-shadow: inset 0 0 0 1px var(--hairline);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
 
-.pg-week__day[data-on] {
+.pg-week__dot {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+}
+
+.pg-week__dot::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-white);
+  box-shadow: inset 0 0 0 1.5px var(--color-steel-300);
+}
+
+.pg-week__day[data-on] .pg-week__dot::before {
+  width: 20px;
+  height: 20px;
   background: var(--pc);
-  color: var(--pc-ink);
+  box-shadow:
+    inset 0 0 0 2px var(--color-navy-900),
+    0 0 0 3px var(--color-white);
+}
+
+.pg-week__label {
+  font-size: var(--text-label);
+  line-height: 1;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.pg-week__day[data-on] .pg-week__label {
   font-weight: 750;
-  /* ring in the ink color: the lightest program colors stay distinct from "off" days */
-  box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--pc-ink) 55%, transparent);
+  color: var(--fg);
 }
 
 /* --------------------------------------------------------------------------
@@ -441,8 +533,9 @@ html.js-motion .program-card .pc-icon [data-draw] {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 4px;
+  gap: 4px;
+  order: 1;
+  margin-left: auto;
 }
 
 .pg-pager[hidden] {
@@ -456,7 +549,7 @@ html.js-motion .program-card .pc-icon [data-draw] {
 }
 
 .pg-pager__count {
-  min-width: 4.5em;
+  min-width: 4.25em;
   text-align: center;
   color: var(--muted);
 }
@@ -471,6 +564,20 @@ html.js-motion .program-card .pc-icon [data-draw] {
   box-shadow: inset 0 0 0 2px var(--hairline);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    translate var(--dur-slow-squash) var(--ease-rebound),
+    scale var(--dur-slow-squash) var(--ease-rebound);
+}
+
+@media (hover: hover) {
+  .pg-pager__btn:not(:disabled):hover {
+    box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--fg) 45%, transparent);
+  }
+}
+
+.pg-pager__btn:active {
+  transition-duration: var(--dur-tap);
 }
 
 .pg-pager__btn svg {
@@ -518,10 +625,10 @@ html.js-motion .program-card .pc-icon [data-draw] {
 
 @media (prefers-reduced-motion: no-preference) {
   .program-sheet[open]::backdrop {
-    animation: pg-backdrop-in 0.28s var(--ease-stick);
+    animation: pg-backdrop-in var(--dur-base) var(--ease-stick);
   }
   .program-sheet[data-closing]::backdrop {
-    animation: pg-backdrop-out 0.18s var(--ease-takeoff) forwards;
+    animation: pg-backdrop-out var(--dur-fast) var(--ease-takeoff) forwards;
   }
 }
 
@@ -635,7 +742,9 @@ html.js-motion .program-card .pc-icon [data-draw] {
   outline: none;
 }
 
+/* Focus lands on the title when the sheet opens: an underline, not the global box ring. */
 .ps-title:focus-visible {
+  outline: none;
   box-shadow: none;
   text-decoration: underline;
   text-decoration-thickness: 2px;
@@ -697,7 +806,8 @@ html.js-motion .program-card .pc-icon [data-draw] {
 @media (prefers-reduced-motion: reduce) {
   .program-card,
   .pc-open,
-  .pg-chip {
+  .pg-chip,
+  .pg-pager__btn {
     transition: none;
   }
   html.js .program-card:hover,

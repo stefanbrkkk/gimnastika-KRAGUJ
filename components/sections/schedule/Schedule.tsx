@@ -19,22 +19,21 @@ export function Schedule() {
   const groups = SCHEDULE.filter((g) => rank.has(g.programId)).toSorted(
     (a, b) => (rank.get(a.programId) ?? 0) - (rank.get(b.programId) ?? 0),
   );
-  // Build date (Europe/Belgrade) = first DTSTART of the Google Calendar links; same rule as the static .ics files.
+  // Build date (Europe/Belgrade) = first DTSTART of the Google Calendar links (no-JS fallback; the island
+  // recomputes the dates after mount); same rule as the static .ics files.
   const anchor = new Date();
 
   return (
     <Section id="raspored" theme="light" labelledBy="raspored-title" className="sched-section">
       <div className="container-site">
         <SectionHeading id="raspored-title" title={SCHEDULE_LOCATION.heading} align="left" intro={SCHEDULE_LOCATION.sub} />
-        <div className="sched-layout">
-          <ScheduleBoard
-            programs={programs.map((p) => ({ id: p.id, label: p.short, color: p.color }))}
-            days={DAYS.map((d) => ({ code: d.code, short: d.short, full: d.full, iso: d.iso }))}
-            byGroup={<GroupCards groups={groups} anchor={anchor} />}
-            byDay={<DayPanels groups={groups} />}
-          />
-          <LocationCard />
-        </div>
+        <ScheduleBoard
+          programs={programs.map((p) => ({ id: p.id, label: p.short, color: p.color }))}
+          days={DAYS.map((d) => ({ code: d.code, short: d.short, full: d.full, accusative: d.accusative, iso: d.iso }))}
+          byGroup={<GroupCards groups={groups} anchor={anchor} />}
+          byDay={<DayPanels groups={groups} />}
+          aside={<LocationCard />}
+        />
       </div>
     </Section>
   );

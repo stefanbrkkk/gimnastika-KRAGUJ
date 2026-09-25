@@ -9,8 +9,13 @@
  * no scroll listener and no rAF loop of its own (IntersectionObserver-driven);
  * years the reader has already passed are shown reached without animation;
  * gsap.matchMedia reverts to the static full line if reduced motion is switched on.
+ *
+ * The line is S5's primary motion: a new leg goes through queuePrimaryMotion(), so it
+ * waits for another section's primary motion still playing (and S6's portraits wait for
+ * it). A leg that starts while the line is already travelling just retargets it. The
+ * node dots are marked reached when their leg starts, so dot and line stay in step.
  */
-import { DUR, EASE, MQ, gsap, registerMotion } from "@/lib/motion";
+import { DUR, EASE, MQ, gsap, queuePrimaryMotion, registerMotion } from "@/lib/motion";
 
 /** Viewport fraction a node must cross (from below) to count as reached. */
 const TRIGGER = 0.65;
@@ -26,7 +31,8 @@ export function armTimeline(root: HTMLElement): () => void {
   const nodeEls = nodes as HTMLElement[];
 
   const mm = gsap.matchMedia();
-  mm.add(MQ.noReduce, () => {
+  mm.add(MQ.noReduce, (context) => {
+    let live = true;
     /** scaleY stop for each node: its centre along the line (the last node = full line). */
     let stops: number[] = [];
     const measure = () => {
@@ -55,12 +61,29 @@ export function armTimeline(root: HTMLElement): () => void {
     root.setAttribute("data-armed", "");
 
     let io: IntersectionObserver | undefined;
+    /** Furthest node the reader has passed; `reached` follows it when the leg starts. */
+    let wanted = reached;
+    let queued = false;
+    const move = () => {
+      if (!live || wanted <= reached) return;
+      for (let i = reached + 1; i <= wanted; i++) items[i]?.setAttribute("data-reached", "");
+      reached = wanted;
+      context.add(() => gsap.to(line, { scaleY: target(), duration: DUR.reveal, ease: EASE.stick, overwrite: true }));
+    };
     const advance = (to: number) => {
-      if (to <= reached) return;
-      for (let i = reached + 1; i <= to; i++) items[i]?.setAttribute("data-reached", "");
-      reached = to;
-      gsap.to(line, { scaleY: target(), duration: DUR.reveal, ease: EASE.stick, overwrite: true });
-      if (reached >= nodeEls.length - 1) io?.disconnect();
+      if (to <= wanted) return;
+      wanted = to;
+      if (wanted >= nodeEls.length - 1) io?.disconnect();
+      if (gsap.isTweening(line)) {
+        move(); // already travelling: the same motion goes on to the new stop
+        return;
+      }
+      if (queued) return;
+      queued = true;
+      void queuePrimaryMotion(DUR.reveal * 1000).then(() => {
+        queued = false;
+        move();
+      });
     };
 
     if (reached < nodeEls.length - 1) {
@@ -82,16 +105,20 @@ export function armTimeline(root: HTMLElement): () => void {
 
     // Keep the stops in sync with the real layout (fonts, wrapping, width changes).
     const ro = new ResizeObserver(() => {
+      if (!live) return;
       measure();
-      if (gsap.isTweening(line)) {
-        gsap.to(line, { scaleY: target(), duration: DUR.base, ease: EASE.stick, overwrite: true });
-      } else {
-        gsap.set(line, { scaleY: target() });
-      }
+      context.add(() => {
+        if (gsap.isTweening(line)) {
+          gsap.to(line, { scaleY: target(), duration: DUR.base, ease: EASE.stick, overwrite: true });
+        } else {
+          gsap.set(line, { scaleY: target() });
+        }
+      });
     });
     ro.observe(root);
 
     return () => {
+      live = false;
       io?.disconnect();
       ro.disconnect();
       root.removeAttribute("data-armed");

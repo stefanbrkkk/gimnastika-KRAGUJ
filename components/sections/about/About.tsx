@@ -1,4 +1,5 @@
 import { Picture, isPhotoVisible } from "@/components/ui/Picture";
+import { QuietBoundary } from "@/components/ui/QuietBoundary";
 import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ABOUT } from "@/content/copy";
@@ -53,7 +54,9 @@ export function About() {
           <Timeline labelledBy="o-nama-hronologija" />
         </div>
       </div>
-      <TimelineMotion />
+      <QuietBoundary>
+        <TimelineMotion />
+      </QuietBoundary>
     </Section>
   );
 }

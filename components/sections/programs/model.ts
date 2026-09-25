@@ -22,7 +22,7 @@ import {
    Mechanical UI strings (not in the master prompt; listed in newCopy).
    -------------------------------------------------------------------------- */
 export const PROGRAMS_UI = {
-  filtersLabel: "Prikažite programe za uzrast",
+  filtersLabel: "Prikažite programe",
   openLabel: (title: string) => `Više o programu „${title}“`,
   scheduleLabel: "Raspored",
   prev: "Prethodni program",
@@ -93,8 +93,9 @@ export function programSchedule(program: Program, showShiftNote?: boolean): Prog
 /* --------------------------------------------------------------------------
    Age chips. Mapping follows the §5 quiz rules (3–7 → mlađa početna; 8+ →
    starija početna or the competitive groups) and the card age lines. Aerobic
-   gymnastics has no age claim, so it appears only under "Svi programi" and the
-   status line then repeats the quiz hint about it.
+   gymnastics has no age claim, so it appears only under „Sve“ and the status
+   line then repeats the quiz hint about it. „Sve“ + the ✓ pressed state are the
+   filter vocabulary shared with S4 (program pills) and S9 (gallery chips).
    -------------------------------------------------------------------------- */
 export type ChipKey = "svi" | "3-8" | "8+" | "takmicarke";
 
@@ -106,7 +107,7 @@ export interface ProgramChip {
 }
 
 export const PROGRAM_CHIPS: readonly ProgramChip[] = [
-  { key: "svi", label: "Svi programi", ids: null },
+  { key: "svi", label: "Sve", ids: null },
   { key: "3-8", label: "3–8 godina", ids: ["mladja"] },
   { key: "8+", label: "Od 8 godina", ids: ["starija", "c-program", "ab-program"] },
   { key: "takmicarke", label: "Takmičarke", ids: ["c-program", "ab-program"] },
@@ -129,7 +130,7 @@ export function usableChips(visible: readonly ProgramId[]): ProgramChip[] {
 }
 
 /**
- * Status line for the aria-live region. Empty for "Svi programi" (nothing is
+ * Status line for the aria-live region. Empty for „Sve“ (nothing is
  * hidden). Otherwise: "Prikazano: 1 od 5 programa." + the aerobic hint when the
  * filter hid aerobic gymnastics.
  */

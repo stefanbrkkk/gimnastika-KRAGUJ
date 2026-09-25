@@ -2,8 +2,8 @@ import { Fragment, type CSSProperties } from "react";
 import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { BOOKING, CONTACT, HERO } from "@/content/copy";
-import { CTA, EMAIL, FLAGS, PHONES, SOCIAL, VENUE } from "@/content/site";
-import { mailtoHref, telHref } from "@/lib/links";
+import { CTA, EMAIL, FLAGS, PHONES, PRIMARY_PHONE, SOCIAL, VENUE } from "@/content/site";
+import { mailtoHref, smsHref, telHref } from "@/lib/links";
 import { ContactDoskok } from "./ContactDoskok";
 import { ContactIcon, type ContactIconName } from "./ContactIcon";
 
@@ -52,6 +52,15 @@ const rows: Row[] = [
 
 const NEW_WINDOW = "(otvara se u novom prozoru)";
 
+/**
+ * The doskok button's own href — what it does WITHOUT JS (or if the booking sheet
+ * cannot load): a text message to the coach that starts with the §5 intro, the
+ * same hand-off the sheet makes. With JS, BookingSheet intercepts [data-booking]
+ * and opens the sheet instead. (Every other booking CTA keeps href="#kontakt",
+ * which lands right here.)
+ */
+const NO_JS_TRIAL_HREF = smsHref(PRIMARY_PHONE.e164, BOOKING.message.intro);
+
 /** Long e-mail / handle values wrap at „@“ and after „_“ on 360px screens, never mid-word. */
 function breakable(value: string) {
   const parts = value.split(/(?=@)|(?<=_)/);
@@ -65,17 +74,23 @@ function breakable(value: string) {
 
 /**
  * S11 — Contact + final CTA „doskok“ (§5 S11, §4 Final CTA). Dark theme.
- * The contact block is self-sufficient without JS: it is where every booking CTA
- * lands when JS is off (href="#kontakt"). The sticky bottom bar hides while
- * [data-contact-block] is visible.
+ * Self-sufficient without JS: every other booking CTA lands here (href="#kontakt"),
+ * the doskok button texts the coach, and the call / e-mail rows are plain links.
+ *
+ * [data-contact-block] wraps the heading, the CTA panel and the contact channels —
+ * NOT the venue card: the mobile sticky bar (StickyBarBehavior) hides while any of
+ * that block is on screen and comes back once only the venue card and the footer
+ * are left, so a one-tap call stays in reach at the end of the page.
+ * Layout ≥640: the wrapper is a subgrid of .contact__grid so the venue card can sit
+ * beside the channels (tablet) or under them (desktop) while staying outside it.
  */
 export function Contact() {
   return (
     <Section id="kontakt" theme="dark" labelledBy="kontakt-title" className="contact">
-      <div className="container-site">
-        <SectionHeading id="kontakt-title" title={CONTACT.heading} align="right" />
+      <div className="container-site contact__grid">
+        <div className="contact__block" data-contact-block="">
+          <SectionHeading id="kontakt-title" title={CONTACT.heading} align="right" className="contact__heading" />
 
-        <div className="contact__layout">
           {/* Leotard-gradient CTA panel: text only ever sits on the solid navy slab. */}
           <div className="cta-panel">
             <div className="cta-panel__slab">
@@ -108,7 +123,7 @@ export function Contact() {
                       style={{ ["--x" as string]: `${LANDED_X}%` }}
                       data-doskok-leap=""
                     />
-                    <a href="#kontakt" data-booking="" className="btn btn-primary doskok__btn">
+                    <a href={NO_JS_TRIAL_HREF} data-booking="" className="btn btn-primary doskok__btn">
                       {CTA.trial}
                     </a>
                   </div>
@@ -118,7 +133,7 @@ export function Contact() {
             </div>
           </div>
 
-          <address className="contact-block" data-contact-block="">
+          <address className="contact-channels">
             <ul className="contact-list">
               {rows.map((r) => (
                 <li key={r.href}>
@@ -144,23 +159,24 @@ export function Contact() {
                 </li>
               ))}
             </ul>
-
-            <div className="contact-venue">
-              <p className="contact-row__label label-caps">{CONTACT.addressLabel}</p>
-              <p className="contact-venue__name">{VENUE.name}</p>
-              <p className="contact-venue__street">
-                <span className="whitespace-nowrap">{VENUE.street},</span>{" "}
-                <span className="whitespace-nowrap">
-                  {VENUE.postalCode} {VENUE.city}
-                </span>
-              </p>
-              <a className="btn btn-secondary contact-venue__maps" href={VENUE.mapsUrl} target="_blank" rel="noopener noreferrer">
-                <ContactIcon name="pin" />
-                <span>{CONTACT.mapsCta}</span>
-                <span className="sr-only">{NEW_WINDOW}</span>
-              </a>
-            </div>
           </address>
+        </div>
+
+        {/* The training venue: a place, not contact information — so outside <address>. */}
+        <div className="contact-venue">
+          <p className="contact-row__label label-caps">{CONTACT.addressLabel}</p>
+          <p className="contact-venue__name">{VENUE.name}</p>
+          <p className="contact-venue__street">
+            <span className="whitespace-nowrap">{VENUE.street},</span>{" "}
+            <span className="whitespace-nowrap">
+              {VENUE.postalCode} {VENUE.city}
+            </span>
+          </p>
+          <a className="btn btn-secondary contact-venue__maps" href={VENUE.mapsUrl} target="_blank" rel="noopener noreferrer">
+            <ContactIcon name="pin" />
+            <span>{CONTACT.mapsCta}</span>
+            <span className="sr-only">{NEW_WINDOW}</span>
+          </a>
         </div>
       </div>
       <ContactDoskok />

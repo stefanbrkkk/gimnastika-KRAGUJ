@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { BOOKING_ATTR, openBooking } from "@/lib/events";
+import { MENU_INDEX_ID } from "./chrome";
 import { HEADER_COPY } from "./header-copy";
 import { CloseIcon, MenuIcon } from "./icons";
 
@@ -9,13 +10,28 @@ const DIALOG_ID = "site-menu";
 const WIDE = "(min-width: 1024px)";
 const FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+/** false for the server HTML and the hydration render, true right after (no mismatch). */
+const noSubscribe = () => () => {};
+const useHydrated = () =>
+  useSyncExternalStore(
+    noSubscribe,
+    () => true,
+    () => false,
+  );
+
 /**
  * Mobile (<1024px) menu sheet: native <dialog> + showModal() (the rest of the
- * page becomes inert; Esc closes; focus returns to the menu button; Tab wraps).
- * Activating any link closes the sheet FIRST — in a window capture listener,
- * before the browser follows the #anchor — so the anchor scroll happens on the
- * un-blocked page. The sheet's CTA opens the booking sheet via openBooking(),
- * so closing the booking sheet returns focus to the menu button.
+ * page becomes inert; Esc closes; focus returns to "Meni"; Tab wraps).
+ *
+ * Progressive enhancement: "Meni" is server-rendered as a real link to the
+ * footer's page index (#meni: the same links, the trial CTA and the call), so
+ * it works without JS and in the gap before hydration. Once hydrated it
+ * becomes a button (role, Space key) that opens the sheet instead.
+ *
+ * Activating any link in the sheet closes it FIRST — in a window capture
+ * listener, before the browser follows the #anchor — so the anchor scroll
+ * happens on the un-blocked page. The sheet's CTA opens the booking sheet via
+ * openBooking(), so closing the booking sheet returns focus to "Meni".
  */
 interface MobileMenuProps {
   /** Logo shown in the sheet's top row (server-rendered). */
@@ -25,9 +41,10 @@ interface MobileMenuProps {
 }
 
 export function MobileMenu({ logo, children }: MobileMenuProps) {
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const openerRef = useRef<HTMLAnchorElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
+  const enhanced = useHydrated();
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -37,7 +54,7 @@ export function MobileMenu({ logo, children }: MobileMenuProps) {
     const onClose = () => {
       setOpen(false);
       // Safety net: close() restores focus natively; make sure it did (Esc / close button).
-      if (!closingForLink && (document.activeElement === document.body || document.activeElement === null)) buttonRef.current?.focus();
+      if (!closingForLink && (document.activeElement === document.body || document.activeElement === null)) openerRef.current?.focus();
       closingForLink = false;
     };
 
@@ -49,7 +66,7 @@ export function MobileMenu({ logo, children }: MobileMenuProps) {
       const link = target?.closest("a[href]");
       if (!link || !dialog.contains(link)) return;
       closingForLink = true;
-      dialog.close(); // focus returns to the menu button (synchronously)
+      dialog.close(); // focus returns to "Meni" (synchronously)
       const plain = event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
       if (plain && link.hasAttribute(BOOKING_ATTR)) {
         // Open the booking sheet ourselves so its focus-return target is the
@@ -57,11 +74,11 @@ export function MobileMenu({ logo, children }: MobileMenuProps) {
         event.preventDefault();
         event.stopImmediatePropagation();
         openBooking({ group: link.getAttribute(BOOKING_ATTR) ?? "" });
-      } else if (link.getAttribute("href")?.startsWith("#") && document.activeElement === buttonRef.current) {
+      } else if (link.getAttribute("href")?.startsWith("#") && document.activeElement === openerRef.current) {
         // In-page link: drop the restored focus so the fragment navigation that
         // follows sets the sequential-focus starting point — the next Tab goes
         // into the target section (as with a native in-page link), not back to the top.
-        buttonRef.current?.blur();
+        openerRef.current?.blur();
       }
     };
 
@@ -105,20 +122,40 @@ export function MobileMenu({ logo, children }: MobileMenuProps) {
     setOpen(true);
   };
 
+  const onOpenerClick = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    // Modified clicks keep the link behaviour (the footer index in a new tab/window).
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    openMenu();
+  };
+
+  // role="button" after hydration: Space activates on key-up, as on a native button
+  // (key-down only stops the page from scrolling).
+  const onOpenerKeyDown = (event: ReactKeyboardEvent<HTMLAnchorElement>) => {
+    if (event.key === " ") event.preventDefault();
+  };
+  const onOpenerKeyUp = (event: ReactKeyboardEvent<HTMLAnchorElement>) => {
+    if (event.key === " ") openMenu();
+  };
+
   return (
     <>
-      <button
-        ref={buttonRef}
-        type="button"
+      <a
+        ref={openerRef}
+        href={`#${MENU_INDEX_ID}`}
         className="menu-btn"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-controls={DIALOG_ID}
-        onClick={openMenu}
+        // Plain link in the server HTML; a disclosure button for the sheet once hydrated.
+        role={enhanced ? "button" : undefined}
+        aria-haspopup={enhanced ? "dialog" : undefined}
+        aria-expanded={enhanced ? open : undefined}
+        aria-controls={enhanced ? DIALOG_ID : undefined}
+        onClick={onOpenerClick}
+        onKeyDown={enhanced ? onOpenerKeyDown : undefined}
+        onKeyUp={enhanced ? onOpenerKeyUp : undefined}
       >
         <span>{HEADER_COPY.menu}</span>
         <MenuIcon />
-      </button>
+      </a>
 
       <dialog ref={dialogRef} id={DIALOG_ID} className="menu-sheet" data-theme="dark" aria-label={HEADER_COPY.menu}>
         <div className="menu-sheet__inner">

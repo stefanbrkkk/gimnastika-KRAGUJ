@@ -59,7 +59,8 @@ describe("programs: schedule lines", () => {
 describe("programs: age chips", () => {
   const ids = (key: Parameters<typeof chipByKey>[0]) => matchingIds(chipByKey(key), VISIBLE);
 
-  it("keeps every program under „Svi programi“", () => {
+  it("keeps every program under „Sve“ (the all-chip label shared with S4 and S9)", () => {
+    expect(chipByKey("svi").label).toBe("Sve");
     expect(ids("svi")).toEqual(VISIBLE);
   });
 

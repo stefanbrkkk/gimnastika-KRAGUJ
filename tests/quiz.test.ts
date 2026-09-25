@@ -164,3 +164,26 @@ describe("quiz — rules and UI table", () => {
     });
   });
 });
+
+describe("quiz — result views (booking prefill)", () => {
+  it("prefills the booking sheet's Grupa with one short label per result", async () => {
+    const { resultView, BOTH_BEGINNERS_BOOKING } = await import("@/components/sections/quiz/views");
+    expect(resultView("mladja").booking).toBe("Mlađa početna grupa");
+    expect(resultView("starija").booking).toBe("Starija početna grupa");
+    expect(BOTH_BEGINNERS_BOOKING).toBe("Mlađa ili starija početna grupa");
+    expect(resultView("obe-pocetne").booking).toBe(BOTH_BEGINNERS_BOOKING);
+    expect(resultView("takmicarske").booking).toBe(QUIZ.competitiveTitle);
+  });
+});
+
+describe("quiz — group name typography", () => {
+  it("keeps the dash with the word before it and a program designation whole (text unchanged)", async () => {
+    const { groupNameDisplay, resultView } = await import("@/components/sections/quiz/views");
+    expect(groupNameDisplay("Takmičarke — C program, starije")).toBe("Takmičarke — C program, starije");
+    expect(groupNameDisplay("Takmičarke — A i B program")).toBe("Takmičarke — A i B program");
+    expect(groupNameDisplay("Mlađa početna grupa")).toBe("Mlađa početna grupa");
+    for (const g of resultView("takmicarske").groups) {
+      expect(g.name.replace(/ /g, " ")).toMatch(/^Takmičarke — /);
+    }
+  });
+});

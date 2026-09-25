@@ -3,7 +3,7 @@ import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { GALLERY, GALLERY_CATEGORIES, GALLERY_COPY } from "@/content/gallery";
 import { GalleryBrowser } from "./GalleryBrowser";
-import { flipId, GALLERY_UI, GRID_SIZES, largestSrc, type GalleryChip, type LightboxPhoto } from "./model";
+import { flipId, GALLERY_UI, GRID_SIZES, inSheetOrder, largestSrc, type GalleryChip, type LightboxPhoto } from "./model";
 
 const HINT_ID = "galerija-hint";
 
@@ -15,7 +15,8 @@ const HINT_ID = "galerija-hint";
  * Placeholder tiles (MINOR_PHOTOS=false) are never openable.
  */
 export function Gallery() {
-  const items = GALLERY.filter((item) => isPhotoVisible(item.photoId));
+  // Sheet order balances the masonry columns (model.ts SHEET_ORDER); the lightbox follows it.
+  const items = inSheetOrder(GALLERY.filter((item) => isPhotoVisible(item.photoId)));
   const labelOf = new Map(GALLERY_CATEGORIES.map((c) => [c.id, c.label] as const));
 
   const chips: GalleryChip[] = [
@@ -68,7 +69,14 @@ export function Gallery() {
               return (
                 <li key={item.photoId} className="gl-item" data-category={item.category} data-photo={item.photoId}>
                   {photo ? (
-                    <a className="gl-open" href={largestSrc(photo)} data-gallery-open={item.photoId} aria-describedby={HINT_ID}>
+                    // aria-label: Chrome computes no name from content through the <figure> (empty link name).
+                    <a
+                      className="gl-open"
+                      href={largestSrc(photo)}
+                      data-gallery-open={item.photoId}
+                      aria-label={photo.alt}
+                      aria-describedby={HINT_ID}
+                    >
                       {print}
                       <span className="gl-zoom" aria-hidden="true">
                         <svg viewBox="0 0 20 20" focusable="false">

@@ -60,6 +60,40 @@ async function stickyBar(browser, url, report, consoleLog) {
   const overContact = await barState(page);
   report.check("stickyBar.hidesOverContact", overContact.attr === "false", `contact block in view: data-visible="${overContact.attr}"`, overContact);
 
+  // The whole S11 contact block (heading → CTA panel → channel list) must hide the bar,
+  // not only its last part: scroll so that only the top of #kontakt is on screen.
+  const kontaktTopY = await page.evaluate(() => {
+    const el = document.getElementById("kontakt");
+    return el.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.7;
+  });
+  await scrollToY(page, kontaktTopY);
+  const atKontaktTop = await barState(page);
+  const blockInView = await page.evaluate(() => {
+    const el = document.querySelector("[data-contact-block]");
+    const r = el?.getBoundingClientRect();
+    return !!r && r.bottom > 0 && r.top < window.innerHeight;
+  });
+  report.check(
+    "stickyBar.hidesFromKontaktTop",
+    !blockInView || atKontaktTop.attr === "false",
+    `top of #kontakt in view (contact block in view: ${blockInView}): data-visible="${atKontaktTop.attr}"`,
+  );
+
+  // Bottom of the page: once the contact channels are scrolled away (venue card, footer),
+  // the bar must be back so a parent can still call in one tap.
+  await scrollToY(page, 1e7);
+  const atEnd = await barState(page);
+  const endBlockInView = await page.evaluate(() => {
+    const el = document.querySelector("[data-contact-block]");
+    const r = el?.getBoundingClientRect();
+    return !!r && r.bottom > 0 && r.top < window.innerHeight;
+  });
+  report.check(
+    "stickyBar.consistentAtPageEnd",
+    endBlockInView ? atEnd.attr === "false" : atEnd.attr === "true",
+    `max scroll: contact block in view ${endBlockInView}, data-visible="${atEnd.attr}"`,
+  );
+
   const midY = await page.evaluate(() => document.getElementById("raspored")?.getBoundingClientRect().top + window.scrollY);
   await scrollToY(page, midY);
   const back = await barState(page);

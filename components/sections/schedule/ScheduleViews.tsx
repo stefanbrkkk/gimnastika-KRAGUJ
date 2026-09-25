@@ -13,9 +13,11 @@ import {
   type ScheduleBlock,
   type ScheduleGroup,
 } from "@/content/schedule";
-import { VENUE } from "@/content/site";
-import { googleCalendarUrl } from "@/lib/gcal";
+import { HERO } from "@/content/copy";
+import { PRIMARY_PHONE, VENUE } from "@/content/site";
+import { gcalData, googleCalendarUrl } from "@/lib/gcal";
 import { fixedBlocks, icsHref } from "@/lib/ics";
+import { telHref } from "@/lib/links";
 import { daySessions, groupSlots } from "@/lib/schedule-logic";
 import { SCHEDULE_UI as T } from "./copy";
 import { NextTraining } from "./NextTraining";
@@ -25,13 +27,34 @@ const ACCUSATIVES = DAYS.map((d) => d.accusative);
 const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 /**
  * Display-only typesetting: a one-letter word („C“, „A“, „i“) never ends a line,
- * and an age such as „(3–8 god.)“ never splits.
+ * a dash never starts one, and an age such as „(3–8 god.)“ never splits.
  */
 const glue = (s: string): string =>
   s
+    .replace(/\s—/g, "\u00A0—")
     .replace(/(?<=^|\s)(\p{L})\s(?=\p{L})/gu, "$1\u00A0")
     .replace(/\s(god\.)/g, "\u00A0$1")
     .replace(/(\d)–(\d)/g, "$1\u2060–\u2060$2");
+
+/** A slot such as „Ut, Če 19:30–21:30“ stays on one line inside running text. */
+const nbsp = (s: string): string => s.replace(/ /g, "\u00A0");
+
+/** A hyphenated compound („Trgovinsko-ugostiteljska“) never breaks at its hyphen (display only). */
+function KeepHyphenated({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/(\S+-\S+)/).map((part, i) =>
+        i % 2 === 1 ? (
+          <span key={i} className="sched-nowrap">
+            {part}
+          </span>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
+}
 
 /** "Po, Sr, Pe" visible; "ponedeljak, sreda, petak" for screen readers. */
 function DayNames({ days }: { days: readonly DayCode[] }) {
@@ -109,6 +132,15 @@ function ExternalIcon() {
   );
 }
 
+/** Same drawing as the page-chrome phone icon (24px grid, 1.75 stroke). */
+function PhoneIcon() {
+  return (
+    <svg className="sched-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M7 3.5h2.6l1.4 4.1-2.1 1.5a11.5 11.5 0 0 0 6 6l1.5-2.1 4.1 1.4V17a2.5 2.5 0 0 1-2.7 2.5A15.8 15.8 0 0 1 4.5 6.2 2.5 2.5 0 0 1 7 3.5z" />
+    </svg>
+  );
+}
+
 function PinIcon() {
   return (
     <svg className="sched-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -161,6 +193,7 @@ function GroupCard({ group, anchor }: { group: ScheduleGroup; anchor: Date }) {
                   key={formatBlock(block)}
                   className="sched-cal__link"
                   href={googleCalendarUrl(group, block, anchor)}
+                  data-gcal={gcalData(block)}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-describedby={titleId}
@@ -172,9 +205,20 @@ function GroupCard({ group, anchor }: { group: ScheduleGroup; anchor: Date }) {
                 </a>
               ))}
             </div>
-            {mixed ? <p className="sched-cal__note">{T.fixedOnly(fixed.map((b) => formatBlock(b)).join("; "))}</p> : null}
+            {mixed ? <p className="sched-cal__note">{T.fixedOnly(fixed.map((b) => nbsp(formatBlock(b))).join("; "))}</p> : null}
           </div>
-        ) : null}
+        ) : (
+          // No fixed slot (C program, starije): say why there is no calendar link and offer the call instead.
+          <div className="sched-card__foot">
+            <p className="sched-cal__note">{T.noFixed}</p>
+            <div className="sched-cal">
+              <a className="sched-cal__link" href={telHref(PRIMARY_PHONE.e164)}>
+                <PhoneIcon />
+                {HERO.ctaSecondary}
+              </a>
+            </div>
+          </div>
+        )}
       </article>
     </li>
   );
@@ -251,7 +295,7 @@ export function LocationCard() {
     <div className="sched-location" role="group" aria-labelledby="sched-location-title">
       <p className="label-caps sched-location__label">{T.addressLabel}</p>
       <h3 id="sched-location-title" className="sched-location__title">
-        {VENUE.name}
+        <KeepHyphenated text={VENUE.name} />
       </h3>
       <p className="sched-location__nick">
         {T.nicknamePrefix} {VENUE.nickname}

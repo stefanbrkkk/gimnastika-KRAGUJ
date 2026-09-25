@@ -1,17 +1,24 @@
+import { MENU_INDEX_ID } from "@/components/sections/header/chrome";
 import { ExternalIcon, FacebookIcon, InstagramIcon } from "@/components/sections/header/icons";
 import { HEADER_COPY } from "@/components/sections/header/header-copy";
 import { FooterMark } from "@/components/sections/header/LeapTrail";
 import { CONTACT, FOOTER } from "@/content/copy";
-import { CLUB, CREDIT_NAME, CREDIT_URL, FLAGS, GSS, SOCIAL } from "@/content/site";
+import { CLUB, CREDIT_NAME, CREDIT_URL, CTA, FLAGS, GSS, NAV, PRIMARY_PHONE, SOCIAL } from "@/content/site";
+import { telHref } from "@/lib/links";
 
 /**
  * Footer (§5 FOOTER), darkroom navy-950. The white logo is the last frame of
  * the page's chronophotograph: the leap takes off again past the logo in fading
  * ghost frames. On mobile the bottom padding clears the sticky bottom bar.
+ *
+ * #meni — a compact page index mirroring the menu sheet (the six NAV links, the
+ * trial CTA, the call). It is where the header's "Meni" leads without JS and
+ * before hydration, and it gives parents a way on from the bottom of the page.
  */
 export function Footer() {
   const external = { target: "_blank", rel: "noopener noreferrer" } as const;
   const newTab = <span className="sr-only"> {HEADER_COPY.newTab}</span>;
+  const indexLabelId = `${MENU_INDEX_ID}-label`;
 
   return (
     <footer data-theme="darker" className="site-footer">
@@ -21,45 +28,72 @@ export function Footer() {
           <p className="site-footer__line">{FOOTER.line}</p>
         </div>
 
-        <ul className="site-footer__links">
-          <li>
-            <a href={GSS.clubPage} className="site-footer__link" {...external}>
-              <span>{FOOTER.gss}</span>
-              <ExternalIcon className="site-footer__arrow" />
-              {newTab}
+        <div id={MENU_INDEX_ID} className="site-footer__index">
+          <p id={indexLabelId} className="site-footer__label label-caps">
+            {HEADER_COPY.menu}
+          </p>
+          <nav aria-labelledby={indexLabelId}>
+            <ul className="site-footer__nav">
+              {NAV.map((item) => (
+                <li key={item.href}>
+                  <a href={item.href} className="site-footer__nav-link">
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <div className="site-footer__actions">
+            <a href="#kontakt" data-booking="" className="btn btn-primary">
+              {CTA.trial}
             </a>
-          </li>
-          <li>
-            <a href={SOCIAL.instagram} className="site-footer__link" {...external}>
-              <InstagramIcon />
-              <span>{CONTACT.instagramLabel}</span>
-              {newTab}
+            <a href={telHref(PRIMARY_PHONE.e164)} className="btn btn-secondary">
+              {`${CTA.call} ${PRIMARY_PHONE.display}`}
             </a>
-          </li>
-          {FLAGS.SHOW_FACEBOOK ? (
+          </div>
+        </div>
+
+        <div className="site-footer__foot">
+          <ul className="site-footer__links">
             <li>
-              <a href={SOCIAL.facebook} className="site-footer__link" {...external}>
-                <FacebookIcon />
-                <span>{CONTACT.facebookLabel}</span>
+              <a href={GSS.clubPage} className="site-footer__link" {...external}>
+                <span>{FOOTER.gss}</span>
+                <ExternalIcon className="site-footer__arrow" />
                 {newTab}
               </a>
             </li>
-          ) : null}
-        </ul>
-
-        <div className="site-footer__base">
-          <p>{FOOTER.copyright}</p>
-          <p>
-            {FOOTER.creditPrefix}{" "}
-            {CREDIT_URL ? (
-              <a href={CREDIT_URL} className="site-footer__credit" {...external}>
-                {CREDIT_NAME}
+            <li>
+              <a href={SOCIAL.instagram} className="site-footer__link" {...external}>
+                <InstagramIcon />
+                <span>{CONTACT.instagramLabel}</span>
                 {newTab}
               </a>
-            ) : (
-              CREDIT_NAME
-            )}
-          </p>
+            </li>
+            {FLAGS.SHOW_FACEBOOK ? (
+              <li>
+                <a href={SOCIAL.facebook} className="site-footer__link" {...external}>
+                  <FacebookIcon />
+                  <span>{CONTACT.facebookLabel}</span>
+                  {newTab}
+                </a>
+              </li>
+            ) : null}
+          </ul>
+
+          <div className="site-footer__base">
+            <p>{FOOTER.copyright}</p>
+            <p>
+              {FOOTER.creditPrefix}{" "}
+              {CREDIT_URL ? (
+                <a href={CREDIT_URL} className="site-footer__credit" {...external}>
+                  {CREDIT_NAME}
+                  {newTab}
+                </a>
+              ) : (
+                CREDIT_NAME
+              )}
+            </p>
+          </div>
         </div>
       </div>
     </footer>

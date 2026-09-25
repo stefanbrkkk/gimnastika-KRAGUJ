@@ -9,6 +9,8 @@ export type MedalKind = "gold" | "silver" | "bronze";
  * Three-step podium drawn up from the bottom edge of the „Medalje“ gradient band:
  * 2nd (left) · 1st (centre) · 3rd (right), then the two step dividers.
  * Medal marks rest above the steps (gold/silver/bronze tokens only here).
+ * Under the line sits its dotted ghost (the chronophotograph „ghost → solid“): hidden
+ * by the solid line in the final state, it is what shows while the draw waits its turn.
  */
 export const PODIUM = {
   viewBox: "0 0 296 112",
@@ -23,6 +25,7 @@ export const PODIUM = {
 export function Podium() {
   return (
     <svg className="podium" viewBox={PODIUM.viewBox} aria-hidden="true" focusable="false" data-podium="">
+      <path className="podium__ghost" d={PODIUM.d} />
       <path className="podium__line" d={PODIUM.d} data-podium-line="" />
       {PODIUM.marks.map((m) => (
         <circle key={m.kind} className={`podium__mark medal-fill--${m.kind}`} cx={m.cx} cy={m.cy} r="9" data-podium-mark="" />

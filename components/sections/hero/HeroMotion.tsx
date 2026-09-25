@@ -14,11 +14,14 @@
  *           fills stepped, opacity .10→.28, stagger .12)
  *   1.1–1.9 the wordmark reveals by a clip-path wipe
  * Desktop: pin +=80%, scrub .5 — ghost frames fade one by one, the mat line
- * extends and drops into the floor-exercise diagonal toward the next section.
+ * extends and drops into the floor-exercise diagonal toward the next section
+ * (routed around the text, spine.ts). The pin is created only while the page
+ * rests at the top (never under a scrolled viewport or a deep link).
  */
 import { useEffect } from "react";
-import { EASE, MQ, gsap, loadScrollTrigger, registerMotion } from "@/lib/motion";
+import { DUR, EASE, MQ, gsap, loadScrollTrigger, queuePrimaryMotion, registerMotion } from "@/lib/motion";
 import { ALIGN_ORIGIN, GHOST_OPACITY, GHOST_P, INTRO } from "./constants";
+import { spinePath, type SpineRect } from "./spine";
 
 type ScrollTriggerStatic = Awaited<ReturnType<typeof loadScrollTrigger>>;
 
@@ -97,13 +100,18 @@ export default function HeroMotion() {
       const flight = flightEnd - flightStart;
       const firstGhostAt = flightStart + flight * timeAtProgress(gsap.parseEase(EASE.hang), GHOST_P[0]);
 
+      // The hero is the page's first primary motion: it only registers its
+      // duration (never waits), so other sections' primary motions queue after it.
+      void queuePrimaryMotion(INTRO.wordmark[1] * 1000);
+
       gsap
         .timeline({ onComplete: finish })
         .to(mat, { strokeDashoffset: 0, autoRound: false, duration: INTRO.matDraw[1] - INTRO.matDraw[0], ease: EASE.stick }, INTRO.matDraw[0])
-        .to(leap, { opacity: 1, duration: 0.14, ease: "none" }, flightStart - 0.12)
+        // The silhouette appears on the mat just before it takes off.
+        .to(leap, { opacity: 1, duration: DUR.tap, ease: "none" }, flightStart - DUR.tap)
         .to(leap, { motionPath: { path, align: path, alignOrigin: ALIGN_ORIGIN }, duration: flight, ease: EASE.hang }, flightStart)
-        .to(ghosts, { opacity: (i: number) => GHOST_OPACITY[i]!, duration: 0.18, ease: "none", stagger: INTRO.ghostStagger }, firstGhostAt)
-        .to(ticks, { opacity: (i: number) => tickTo[i]!, duration: 0.18, ease: "none", stagger: INTRO.ghostStagger }, firstGhostAt)
+        .to(ghosts, { opacity: (i: number) => GHOST_OPACITY[i]!, duration: DUR.fast, ease: "none", stagger: INTRO.ghostStagger }, firstGhostAt)
+        .to(ticks, { opacity: (i: number) => tickTo[i]!, duration: DUR.fast, ease: "none", stagger: INTRO.ghostStagger }, firstGhostAt)
         .to(
           wordmark,
           { clipPath: "inset(0% 0% 0% 0%)", duration: INTRO.wordmark[1] - INTRO.wordmark[0], ease: EASE.stick },
@@ -117,6 +125,11 @@ export default function HeroMotion() {
     });
 
     // ---- Desktop only: pin + scrub after the intro ----
+    // The pin inserts 80vh of spacing after the hero. It is created only while
+    // the page rests at the top, so it never shifts a scrolled viewport, never
+    // cuts off a smooth hash scroll (deep link /#raspored, a nav click during
+    // the intro) and never snaps back a visitor who scrolled during the intro.
+    // Otherwise it is armed the first time the page returns to the top.
     let scrollStarted = false;
     function startScrollChoreography() {
       if (scrollStarted || disposed) return;
@@ -124,14 +137,24 @@ export default function HeroMotion() {
       mm.add(`${MQ.desktopFine} and ${MQ.noReduce}`, (ctx) => {
         let live = true;
         let cleanup: (() => void) | undefined;
-        loadScrollTrigger().then((ScrollTrigger) => {
-          if (!live || disposed) return;
+        let stopWaiting: (() => void) | undefined;
+        const arm = (ScrollTrigger: ScrollTriggerStatic) => {
+          if (!live || disposed || cleanup) return;
           ctx.add(() => {
             cleanup = pinHero(ScrollTrigger, section!, decor!, visibleArt());
           });
-        });
+        };
+        loadScrollTrigger()
+          .then((ScrollTrigger) => {
+            if (!live || disposed) return;
+            if (restingAtTop()) arm(ScrollTrigger);
+            else stopWaiting = whenBackAtTop(() => arm(ScrollTrigger));
+          })
+          // The scrub is an enhancement: a failed chunk leaves the static hero.
+          .catch(() => {});
         return () => {
           live = false;
+          stopWaiting?.();
           cleanup?.();
         };
       });
@@ -147,9 +170,65 @@ export default function HeroMotion() {
 }
 
 /**
+ * The page rests at the top: not scrolled, and no deep link whose target lies
+ * further down (the browser may still be smooth-scrolling to it).
+ */
+function restingAtTop(): boolean {
+  if (window.scrollY > 1) return false;
+  let id = "";
+  try {
+    id = decodeURIComponent(window.location.hash.slice(1));
+  } catch {
+    return true;
+  }
+  if (!id || id === "top") return true;
+  const target = document.getElementById(id);
+  return !target || target.getBoundingClientRect().top + window.scrollY <= 1;
+}
+
+/** Calls `onTop` once, the first time the page comes back to the top after having left it. */
+function whenBackAtTop(onTop: () => void): () => void {
+  let left = window.scrollY > 1;
+  const onScroll = () => {
+    if (window.scrollY > 1) {
+      left = true;
+    } else if (left) {
+      stop();
+      onTop();
+    }
+  };
+  const stop = () => window.removeEventListener("scroll", onScroll);
+  window.addEventListener("scroll", onScroll, { passive: true });
+  return stop;
+}
+
+/** Text boxes of the hero statement, relative to the section, inflated by `pad`. */
+function textBoxes(section: HTMLElement, origin: DOMRect, pad: number): SpineRect[] {
+  const boxes: SpineRect[] = [];
+  const add = (r: DOMRect) => {
+    if (r.width > 0 && r.height > 0) {
+      boxes.push({
+        left: r.left - origin.left - pad,
+        top: r.top - origin.top - pad,
+        right: r.right - origin.left + pad,
+        bottom: r.bottom - origin.top + pad,
+      });
+    }
+  };
+  const range = document.createRange();
+  qa<HTMLElement>(section, ".hero__eyebrow, .hero__title, .hero__sub, .hero__trust li").forEach((el) => {
+    range.selectNodeContents(el);
+    Array.from(range.getClientRects()).forEach(add);
+  });
+  qa<HTMLElement>(section, ".hero__ctas .btn").forEach((el) => add(el.getBoundingClientRect()));
+  return boxes;
+}
+
+/**
  * Pins the hero for 80% of a viewport of scroll. Scrubbed: the ghost frames fade
- * one by one, then the mat line extends to the right edge and drops into the
- * floor-exercise diagonal toward the next section (bottom-left).
+ * one by one, then the mat line extends into the right margin, drops down it
+ * and turns into the floor-exercise diagonal that leaves through the hero's
+ * bottom edge toward the next section — around the text, never through it.
  */
 function pinHero(
   ScrollTrigger: ScrollTriggerStatic,
@@ -169,18 +248,31 @@ function pinHero(
   spine.appendChild(line);
   section.prepend(spine);
 
+  // Route: mat end → right margin → down the margin → a 28° diagonal through
+  // the empty space under the aside, out through the hero's bottom edge toward
+  // the next section. It never crosses text (see spine.ts).
   const layout = () => {
     const s = section.getBoundingClientRect();
     const m = matSvg.getBoundingClientRect();
     const w = section.clientWidth;
     const h = section.offsetHeight;
-    const y = m.top + m.height / 2 - s.top;
-    const x0 = m.right - s.left;
-    const turn = w - Math.min(32, (w - x0) / 2);
+    const matY = m.top + m.height / 2 - s.top;
+    const matEnd = m.right - s.left;
     const inner = q<HTMLElement>(section, ".hero__inner");
     const left = inner ? parseFloat(getComputedStyle(inner).paddingLeft) + inner.getBoundingClientRect().left - s.left : 48;
     spine.setAttribute("viewBox", `0 0 ${w} ${h}`);
-    line.setAttribute("d", `M${x0} ${y}H${turn}L${left} ${h}`);
+    line.setAttribute(
+      "d",
+      spinePath({
+        matY,
+        matEnd,
+        // Hugs the content column: half the margin, at most 32px out.
+        turn: matEnd + Math.min(32, (w - matEnd) / 2),
+        bottom: h,
+        left,
+        obstacles: textBoxes(section, s, 16),
+      }),
+    );
   };
   layout();
   ScrollTrigger.addEventListener("refreshInit", layout);

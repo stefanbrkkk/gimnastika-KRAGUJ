@@ -83,14 +83,25 @@ html:not(.js) .quiz-app {
 }
 .quiz-band__edge {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  min-height: 14px;
+  min-height: 16px;
   margin: 0;
 }
+/* The answers so far are real text: 13px (the label floor), set as written („9 god. · Tek
+   počinje“) so both answers fit one line on a phone; only the frame code „KR-Q“ and the
+   frame numbers keep the 11px caps frame-label style. */
 .quiz-band__caption {
+  min-width: 0;
   color: var(--color-ice-50);
-  overflow-wrap: anywhere;
+  font-size: var(--text-label);
+  line-height: 16px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+.quiz-band__part {
+  white-space: nowrap;
 }
 .quiz-band__code {
   flex: none;
@@ -169,7 +180,7 @@ html:not(.js) .quiz-app {
    reduced motion, Save-Data (data-lite, set by the island) and in the no-JS guide. */
 @media (prefers-reduced-motion: no-preference) {
   .quiz-app:not([data-lite]) .quiz-leap--fig {
-    transition: transform 0.6s var(--ease-stick);
+    transition: transform var(--dur-reveal) var(--ease-stick);
   }
   .quiz-app:not([data-lite]) .quiz-band[data-step="0"] .quiz-leap--fig {
     transform: var(--pose-1);
@@ -179,7 +190,7 @@ html:not(.js) .quiz-app {
   }
   .quiz-app:not([data-lite]) .quiz-leap--ghost1,
   .quiz-app:not([data-lite]) .quiz-leap--ghost2 {
-    transition: opacity 0.28s linear 0.12s;
+    transition: opacity var(--dur-base) linear 0.12s;
   }
   .quiz-app:not([data-lite]) .quiz-band[data-step="0"] .quiz-leap--ghost1,
   .quiz-app:not([data-lite]) .quiz-band:not([data-step="2"]) .quiz-leap--ghost2,
@@ -189,13 +200,14 @@ html:not(.js) .quiz-app {
 
   .quiz-app[data-entered]:not([data-lite]) .quiz-step,
   .quiz-app[data-entered]:not([data-lite]) .quiz-result {
-    animation: quiz-in 0.28s var(--ease-stick) both;
+    animation: quiz-in var(--dur-base) var(--ease-stick) both;
   }
 }
+/* §4 offset token: 16px mobile / 24px desktop (--offset-reveal). */
 @keyframes quiz-in {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(var(--offset-reveal));
   }
 }
 
@@ -227,21 +239,22 @@ html:not(.js) .quiz-app {
   rotate: var(--tilt);
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  /* translate/scale: the global press squash (app/globals.css) eases back like .btn. */
   transition:
-    rotate 0.28s var(--ease-rebound),
-    translate 0.1s linear,
-    background-color 0.18s var(--ease-stick),
-    color 0.18s var(--ease-stick);
+    rotate var(--dur-base) var(--ease-rebound),
+    translate var(--dur-slow-squash) var(--ease-rebound),
+    scale var(--dur-slow-squash) var(--ease-rebound),
+    background-color var(--dur-fast) var(--ease-stick),
+    color var(--dur-fast) var(--ease-stick);
 }
+/* Focus: the global outline ring (3px gap + 2px); the chip only straightens. */
 .quiz-chip:focus-visible {
   --tilt: 0deg;
-  box-shadow:
-    0 0 0 3px var(--surface),
-    0 0 0 5px var(--focus);
 }
 .quiz-chip:active {
   translate: 0 2px;
   box-shadow: none;
+  transition-duration: var(--dur-tap);
 }
 .quiz-chip[aria-pressed="true"] {
   --tilt: 0deg;
@@ -329,12 +342,22 @@ html:not(.js) .quiz-app {
 }
 
 /* ---- Back / restart ------------------------------------------------------ */
+/* -8px: the controls' own padding, so their icons sit on the text edge (also when they wrap);
+   the rule above them stays on the content edges. */
 .quiz-controls {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
-  gap: 0 20px;
-  margin-top: 20px;
-  padding-top: 4px;
+  gap: 0 12px;
+  margin: 20px -8px 0;
+  padding-top: 5px;
+}
+.quiz-controls::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 8px;
+  left: 8px;
   border-top: 1px solid var(--hairline);
 }
 .quiz-ctrl {
@@ -342,7 +365,6 @@ html:not(.js) .quiz-app {
   align-items: center;
   gap: 8px;
   min-height: 48px;
-  margin-left: -8px;
   padding: 0 8px;
   border: 0;
   border-radius: 8px;
@@ -353,9 +375,13 @@ html:not(.js) .quiz-app {
   font-weight: 650;
   cursor: pointer;
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    translate var(--dur-slow-squash) var(--ease-rebound),
+    scale var(--dur-slow-squash) var(--ease-rebound);
 }
-.quiz-ctrl + .quiz-ctrl {
-  margin-left: 0;
+.quiz-ctrl:active {
+  transition-duration: var(--dur-tap);
 }
 .quiz-ctrl svg {
   width: 18px;
@@ -391,7 +417,8 @@ html:not(.js) .quiz-app {
     gap: 24px;
   }
 }
-@media (min-width: 1024px) {
+/* Three columns only where each is wide enough for „08:30–10:30 ili 16:00–18:00“ on one line. */
+@media (min-width: 1280px) {
   .quiz-groups[data-count="3"] {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 20px;
@@ -402,6 +429,7 @@ html:not(.js) .quiz-app {
   align-items: baseline;
   gap: 10px;
   margin: 0;
+  text-wrap: balance;
   font-size: var(--text-h3);
   line-height: var(--text-h3--line-height);
   letter-spacing: var(--text-h3--letter-spacing);
@@ -458,6 +486,15 @@ html:not(.js) .quiz-app {
 }
 .quiz-groups[data-sub] .quiz-slot__times {
   font-size: 1.0625rem;
+}
+.quiz-slot__time {
+  white-space: nowrap;
+}
+/* „ili“ as in the program cards: a quiet joiner between two alternative times. */
+.quiz-slot__or {
+  font-size: var(--text-small);
+  font-weight: 500;
+  color: var(--muted);
 }
 .quiz-note {
   margin: 20px 0 0;
@@ -522,7 +559,7 @@ html:not(.js) .quiz-app {
 }
 @media (min-width: 640px) {
   .quiz-rule {
-    grid-template-columns: 10.5rem minmax(0, 1fr);
+    grid-template-columns: 11.75rem minmax(0, 1fr); /* „Treniralo je rekreativno“ on one line */
     gap: 24px;
   }
 }
@@ -544,6 +581,9 @@ html:not(.js) .quiz-app {
   font-size: var(--text-small);
   font-weight: 600;
 }
+.quiz-rule__answer {
+  white-space: nowrap;
+}
 .quiz-guide .quiz-result__title {
   margin-bottom: 12px;
   font-size: 1.1875rem;
@@ -551,8 +591,10 @@ html:not(.js) .quiz-app {
 .quiz-guide .quiz-group__name {
   font-size: 1.1875rem;
 }
-.quiz-guide .quiz-groups[data-count="3"] {
+/* The guide's answer column is narrow next to the ages: its groups always stack. */
+.quiz-guide .quiz-groups {
   grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
 }
 .quiz-guide .quiz-note {
   margin-top: 14px;
@@ -561,8 +603,11 @@ html:not(.js) .quiz-app {
 /* ---- Reduced motion: no tilt transitions, no press travel ----------------- */
 @media (prefers-reduced-motion: reduce) {
   .quiz-chip,
-  .quiz-chip:active {
+  .quiz-chip:active,
+  .quiz-ctrl,
+  .quiz-ctrl:active {
     transition: none;
     translate: none;
+    scale: none;
   }
 }

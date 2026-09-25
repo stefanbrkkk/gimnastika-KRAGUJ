@@ -1,8 +1,10 @@
 /* ==========================================================================
    Booking sheet (components/booking/*). Native <dialog> in the top layer.
    Mobile: bottom sheet (radius 28 on top). ≥768px: centered dialog (radius 28).
+   Three rows: head · fields (the only part that scrolls) · action footer, so the
+   send actions are always in view (safe-area padding under them on phones).
    Theme: light (data-theme="light" on the dialog) — navy CTA, chalk surface.
-   Motion: enter .36s ease-stick, exit .18s ease-takeoff; none under reduced motion.
+   Motion: enter --dur-base ease-stick, exit --dur-fast ease-takeoff; none under reduced motion.
    ========================================================================== */
 
 /* Body scroll lock while the sheet is open (set/cleared by BookingDialog). */
@@ -15,6 +17,12 @@ html[data-booking-open] body {
 }
 
 .booking {
+  /* One look for every text input and select. */
+  --control-font: 1.0625rem; /* 17px — ≥16px: no iOS zoom on focus */
+  --control-h: 52px;
+  --control-border: var(--color-slate-600);
+  --pad-x: 20px;
+
   position: fixed;
   inset: auto 0 0 0;
   width: 100%;
@@ -40,26 +48,13 @@ html[data-booking-open] body {
   background: rgba(10, 26, 56, 0.66);
 }
 
-.booking__panel {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 0 20px calc(24px + env(safe-area-inset-bottom));
-  scroll-padding-block: 88px 24px;
-}
-
 /* --- Head --------------------------------------------------------------- */
 .booking__head {
-  position: sticky;
-  top: 0;
-  z-index: 1;
+  flex: none;
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-inline: -20px;
-  padding: 14px 16px 14px 20px;
-  background: var(--bg);
+  padding: 14px 16px 14px var(--pad-x);
   box-shadow: 0 1px 0 0 var(--hairline);
 }
 
@@ -80,15 +75,7 @@ html[data-booking-open] body {
   letter-spacing: var(--text-h3--letter-spacing);
   font-weight: var(--text-h3--font-weight);
   font-stretch: 104%;
-  outline: none;
-}
-
-.booking__title:focus-visible {
-  box-shadow: none;
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.18em;
-  text-decoration-color: var(--focus);
+  border-radius: var(--radius-sm);
 }
 
 .booking__close {
@@ -103,22 +90,31 @@ html[data-booking-open] body {
   color: var(--fg);
   box-shadow: inset 0 0 0 1.5px var(--hairline);
   cursor: pointer;
-  transition: background-color 0.18s var(--ease-stick);
+  transition:
+    translate var(--dur-slow-squash) var(--ease-rebound),
+    scale var(--dur-slow-squash) var(--ease-rebound),
+    background-color var(--dur-fast) var(--ease-stick);
 }
 
 .booking__close:hover {
   background: var(--color-ice-50);
 }
 
-/* --- Fields ------------------------------------------------------------- */
-.booking__form {
-  padding-top: 20px;
+/* --- Body: the fields scroll here, between the head and the footer ---------- */
+.booking__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 20px var(--pad-x) 20px;
+  scroll-padding-block: 16px;
 }
 
-.booking__grid {
+.booking__form {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 18px 16px;
+  gap: 16px 12px;
+  align-items: start;
 }
 
 .booking-field {
@@ -134,20 +130,26 @@ html[data-booking-open] body {
   font-weight: 650;
 }
 
-.booking-field__control {
-  display: block;
+/* Text inputs, the textarea and the select boxes share size, border and radius. */
+.booking-field__control,
+.booking-select {
   width: 100%;
-  min-height: 52px;
-  padding: 12px 16px;
-  border: 1px solid var(--color-slate-600);
+  min-height: var(--control-h);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--fg);
-  font: inherit;
-  font-size: 1.0625rem; /* ≥16px: no iOS zoom on focus */
+  font-size: var(--control-font);
   line-height: 1.4;
+  transition: border-color var(--dur-fast) var(--ease-stick);
+}
+
+.booking-field__control {
+  display: block;
+  padding: 12px 16px;
+  font-family: inherit;
+  font-weight: inherit;
   caret-color: var(--color-royal-600);
-  transition: border-color 0.18s var(--ease-stick);
 }
 
 .booking-field__control::placeholder {
@@ -155,44 +157,53 @@ html[data-booking-open] body {
   opacity: 1;
 }
 
-.booking-field__control:hover {
+.booking-field__control:hover,
+.booking-field__control:focus-visible,
+.booking-select:hover,
+.booking-select:focus-within {
   border-color: var(--fg);
-}
-
-.booking-field__control:focus-visible {
-  border-color: var(--fg);
-}
-
-.booking-field__control[aria-invalid="true"] {
-  border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
-
-.booking-field__control[aria-invalid="true"]:focus-visible {
-  box-shadow:
-    inset 0 0 0 1px var(--accent),
-    0 0 0 3px var(--bg),
-    0 0 0 5px var(--focus);
-}
-
-.booking-field__control--year {
-  letter-spacing: 0.04em;
 }
 
 .booking-field__control--note {
-  min-height: 88px;
+  min-height: calc(3lh + 26px); /* 3 rows */
   resize: vertical;
 }
 
+/* Select: the native <select> lies transparently over the visible value box,
+   so long labels wrap instead of being cut off. */
 .booking-select {
   position: relative;
+  display: flex;
+  align-items: center;
+  padding: 12px 48px 12px 16px;
 }
 
-.booking-select select {
+.booking-select__native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0 48px 0 16px;
+  border: 0;
+  border-radius: inherit;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--control-font);
+  opacity: 0;
   appearance: none;
-  padding-right: 48px;
-  text-overflow: ellipsis;
   cursor: pointer;
+}
+
+.booking-select__value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+
+.booking-select[data-placeholder] .booking-select__value {
+  color: var(--muted);
 }
 
 .booking-select__chevron {
@@ -202,6 +213,26 @@ html[data-booking-open] body {
   translate: 0 -50%;
   color: var(--fg);
   pointer-events: none;
+}
+
+/* The transparent <select> cannot show a ring itself: the box draws the same one
+   as the global focus ring (2px --focus, 3px offset). */
+.booking-select:has(.booking-select__native:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+@supports not selector(:has(*)) {
+  .booking-select:focus-within {
+    outline: 2px solid var(--focus);
+    outline-offset: 3px;
+  }
+}
+
+/* Invalid: thicker accent border + icon + text (colour is never the only signal). */
+.booking-field__control[aria-invalid="true"],
+.booking-select[data-invalid] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .booking-field__error {
@@ -220,16 +251,68 @@ html[data-booking-open] body {
   margin-top: 1px;
 }
 
-@media (min-width: 560px) {
-  .booking__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+/* ≥360: the child's name and birth year share a row (the year box is short). */
+@media (min-width: 360px) {
+  .booking__form {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
   }
+  .booking-field--parent,
+  .booking-field--phone,
   .booking-field--wide {
     grid-column: 1 / -1;
   }
 }
 
-/* --- Privacy line, actions, status --------------------------------------- */
+/* ≥560: two equal columns — parent | phone, child | year; group and note full width. */
+@media (min-width: 560px) {
+  .booking__form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 16px;
+  }
+  .booking-field--parent,
+  .booking-field--phone {
+    grid-column: auto;
+  }
+}
+
+/* „+ Dodajte napomenu“: a quiet text button in place of the collapsed note field. */
+.booking-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  margin: -6px 0 -8px -2px;
+  padding: 0 12px 0 2px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.3;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    translate var(--dur-slow-squash) var(--ease-rebound),
+    scale var(--dur-slow-squash) var(--ease-rebound);
+}
+
+.booking-more svg {
+  flex: none;
+}
+
+.booking-more:hover span {
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.2em;
+}
+
+.booking__close:active,
+.booking-more:active {
+  transition-duration: var(--dur-tap);
+}
+
+/* --- Privacy line (end of the body) --------------------------------------- */
 .booking__privacy {
   display: flex;
   align-items: flex-start;
@@ -246,24 +329,62 @@ html[data-booking-open] body {
   color: var(--fg);
 }
 
-.booking__actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
-  margin-top: 20px;
+/* --- Footer: status + send actions, always in view ------------------------- */
+.booking__foot {
+  flex: none;
+  container-type: inline-size;
+  padding: 12px var(--pad-x) calc(6px + env(safe-area-inset-bottom));
+  background: var(--bg);
+  box-shadow: 0 -1px 0 0 var(--hairline);
 }
 
-.booking__action {
+.booking__status {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+.booking__status:not(:empty) {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--color-ice-50);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.booking__sends {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.booking__send {
   width: 100%;
+  padding-inline: 12px;
+  white-space: nowrap;
+}
+
+/* Primary (filled) and secondary (outlined) side by side once both labels fit. */
+@container (min-width: 300px) {
+  .booking__sends {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .booking__send--wide,
+  .booking__viber-number {
+    grid-column: 1 / -1;
+  }
 }
 
 .booking__call {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  min-height: 52px;
-  padding: 8px 16px;
+  width: fit-content;
+  min-height: 48px;
+  margin: 2px auto 0;
+  padding: 4px 12px;
   border-radius: var(--radius-full);
   color: var(--fg);
   font-weight: 650;
@@ -286,69 +407,51 @@ html[data-booking-open] body {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 52px;
+  min-height: 48px;
   margin: 0;
   gap: 0.35em;
   font-weight: 650;
 }
 
-@media (min-width: 560px) {
-  .booking__actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .booking__call,
-  .booking__viber-number {
-    grid-column: 1 / -1;
-  }
-}
-
-.booking__status {
-  margin: 0;
-  font-size: var(--text-small);
-  line-height: 1.45;
-  font-weight: 600;
-}
-
-.booking__status:not(:empty) {
-  margin-top: 16px;
-  padding: 12px 16px;
-  border-radius: var(--radius-md);
-  background: var(--color-ice-50);
-  box-shadow: inset 0 0 0 1px var(--hairline);
-}
-
 /* --- Desktop: centered dialog ------------------------------------------- */
 @media (min-width: 768px) {
   .booking {
+    --pad-x: 36px;
     inset: 0;
     margin: auto;
     width: min(640px, calc(100% - 64px));
     height: fit-content;
-    max-height: min(880px, calc(100svh - 64px));
+    max-height: min(880px, calc(100svh - 48px));
     border-radius: var(--radius-xl);
   }
-  .booking__panel {
-    padding: 0 36px 32px;
-  }
   .booking__head {
-    margin-inline: -36px;
-    padding: 20px 28px 16px 36px;
+    padding: 20px 28px 16px var(--pad-x);
+  }
+  .booking__body {
+    padding-block: 24px 20px;
+  }
+  .booking__foot {
+    padding-block: 16px 24px;
   }
 }
 
 /* --- Motion -------------------------------------------------------------- */
 @media (prefers-reduced-motion: no-preference) {
   .booking[open] {
-    animation: booking-sheet-in 0.36s var(--ease-stick) both;
+    animation: booking-sheet-in var(--dur-base) var(--ease-stick) both;
   }
+  /* ::backdrop may not inherit custom properties in every engine: literal token values. */
   .booking[open]::backdrop {
     animation: booking-fade-in 0.28s linear both;
   }
   .booking[open][data-closing] {
-    animation: booking-sheet-out 0.18s var(--ease-takeoff) both;
+    animation: booking-sheet-out var(--dur-fast) var(--ease-takeoff) both;
   }
   .booking[open][data-closing]::backdrop {
     animation: booking-fade-out 0.18s linear both;
+  }
+  .booking-field--note {
+    animation: booking-fade-in var(--dur-fast) linear both;
   }
 
   @media (min-width: 768px) {
@@ -358,6 +461,15 @@ html[data-booking-open] body {
     .booking[open][data-closing] {
       animation-name: booking-dialog-out;
     }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .booking__close,
+  .booking-more,
+  .booking-field__control,
+  .booking-select {
+    transition: none;
   }
 }
 
@@ -374,13 +486,13 @@ html[data-booking-open] body {
 @keyframes booking-dialog-in {
   from {
     opacity: 0;
-    transform: translateY(24px) scale(0.98);
+    transform: translateY(var(--offset-reveal)) scale(0.98);
   }
 }
 @keyframes booking-dialog-out {
   to {
     opacity: 0;
-    transform: translateY(12px) scale(0.985);
+    transform: translateY(16px) scale(0.985);
   }
 }
 @keyframes booking-fade-in {

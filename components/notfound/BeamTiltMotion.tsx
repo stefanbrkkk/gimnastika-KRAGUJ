@@ -20,7 +20,8 @@ const screenAngle = (): number => {
 
 /**
  * Tilt island for the 404 scene — a lazy chunk, loaded by BeamTiltLoader on the
- * 404 only. Motion allowed only (static under reduced motion / Save-Data): a
+ * 404 only, and only when motion is allowed (static under reduced motion / Save-Data;
+ * a live switch to reduced motion unmounts it and restores the static pose): a
  * one-shot wobble on load, then the upper body counter-rotates with DeviceOrientation. Android: no permission needed. iOS: a tap on
  * NOT_FOUND.enableTilt calls DeviceOrientationEvent.requestPermission().
  * One rAF loop, running only while she moves and the page is visible.
@@ -83,24 +84,35 @@ export default function BeamTiltMotion({ label }: { label: string }) {
       wake();
     };
 
-    document.addEventListener("visibilitychange", onVisibility);
-    // Listen right away: Android sends data without any prompt.
-    window.addEventListener("deviceorientation", onOrientation);
-    wake();
-    // iOS sends nothing until a tap grants permission. Chromium also exposes
-    // requestPermission, so only ask on touch devices that stayed silent for 1 s.
-    const askTimer =
-      typeof Ctor?.requestPermission === "function" && navigator.maxTouchPoints > 0
-        ? window.setTimeout(() => {
-            if (!gotData) setAskPermission(true);
-          }, 1000)
-        : 0;
-    return () => {
+    let askTimer = 0;
+    const stop = () => {
       sleep();
       window.clearTimeout(askTimer);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("deviceorientation", onOrientation);
+      // Unmounted (e.g. a live switch to reduced motion) or failed: back to the static composition.
+      figure.setAttribute("transform", swayAt(0));
+      ghosts.forEach((g, i) => g.setAttribute("transform", swayAt(GHOSTS[i]!.fan)));
     };
+    try {
+      document.addEventListener("visibilitychange", onVisibility);
+      // Listen right away: Android sends data without any prompt.
+      window.addEventListener("deviceorientation", onOrientation);
+      wake();
+      // iOS sends nothing until a tap grants permission. Chromium also exposes
+      // requestPermission, so only ask on touch devices that stayed silent for 1 s.
+      if (typeof Ctor?.requestPermission === "function" && navigator.maxTouchPoints > 0) {
+        askTimer = window.setTimeout(() => {
+          if (!gotData) setAskPermission(true);
+        }, 1000);
+      }
+    } catch {
+      // No error boundary above this optional enhancement (BeamTiltLoader): an
+      // unexpected API failure must leave the static scene, never an error screen.
+      stop();
+      return;
+    }
+    return stop;
   }, []);
 
   const enableTilt = async () => {

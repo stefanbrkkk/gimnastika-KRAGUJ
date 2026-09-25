@@ -1,4 +1,4 @@
-import { Picture, isPhotoVisible } from "@/components/ui/Picture";
+import { Picture, isPhotoPlaceholder, isPhotoVisible } from "@/components/ui/Picture";
 import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { CAMP } from "@/content/copy";
@@ -35,7 +35,7 @@ function CampNote() {
         {hasPhone ? (
           <>
             {before}
-            <a className="link tabular whitespace-nowrap" href={telHref(PRIMARY_PHONE.e164)}>
+            <a className="link camp__tel tabular" href={telHref(PRIMARY_PHONE.e164)}>
               {PRIMARY_PHONE.display}
             </a>
             {after}
@@ -67,7 +67,11 @@ function Arrow({ dir }: { dir: "prev" | "next" }) {
  *   when the visitor's Europe/Belgrade date is past it (DECISIONS D-19).
  */
 export function Camp() {
-  const cards = POSTCARDS.filter((c) => isPhotoVisible(c.id));
+  // Never a stack of identical „Fotografija uskoro“ cards to flick through: placeholders
+  // (MINOR_PHOTOS=false) drop out while a real photo remains, else ONE placeholder stays.
+  const visible = POSTCARDS.filter((c) => isPhotoVisible(c.id));
+  const real = visible.filter((c) => !isPhotoPlaceholder(c.id));
+  const cards = real.length > 0 ? real : visible.slice(0, 1);
   const showNote = belgradeNow().ymd <= CAMP.noteUntil;
   const multiple = cards.length > 1;
 

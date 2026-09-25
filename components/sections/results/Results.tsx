@@ -1,4 +1,4 @@
-import { Picture } from "@/components/ui/Picture";
+import { Picture, isPhotoPlaceholder } from "@/components/ui/Picture";
 import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { SourceLink } from "@/components/ui/SourceLink";
@@ -7,6 +7,14 @@ import { Brush, Podium, type MedalKind } from "./art";
 import { ResultsMotion } from "./ResultsMotion";
 
 const NEW_WINDOW = "(otvara se u novom prozoru)";
+
+/**
+ * What a tile's „izvor“ link proves, for its accessible name. A year tile reads like
+ * the §5 S7 line („2007 — početak rada“); the others read as one phrase
+ * („42 registrovane takmičarke …“, „oko 120 članova (2024)“).
+ */
+const statContext = ({ prefix, value, label }: StatTile): string =>
+  !prefix && /^(19|20)\d{2}$/.test(value) ? `${value} — ${label}` : `${prefix ? `${prefix} ` : ""}${value} ${label}`;
 
 function StatValue({ stat }: { stat: StatTile }) {
   const head = stat.value.slice(0, -1);
@@ -25,16 +33,24 @@ function StatValue({ stat }: { stat: StatTile }) {
   );
 }
 
+/**
+ * One decorative medal mark per row (aria-hidden; the row text carries the meaning).
+ * Several kinds („Zlato, srebro i bronza“) share ONE disc banded in the three metals —
+ * kinds, never a count (§5 S7: no medal counts).
+ */
+function MedalMark({ kinds }: { kinds: readonly MedalKind[] }) {
+  const single = kinds.length === 1 ? kinds[0] : undefined;
+  return (
+    <span className="result-row__marks" aria-hidden="true">
+      <span className={`medal-mark ${single ? `medal-fill--${single}` : "medal-mark--mixed"}`} />
+    </span>
+  );
+}
+
 function ResultRow({ item, marks }: { item: ResultItem; marks?: readonly MedalKind[] }) {
   return (
     <li className="result-row">
-      {marks?.length ? (
-        <span className="result-row__marks" aria-hidden="true">
-          {marks.map((m) => (
-            <span key={m} className={`medal-mark medal-fill--${m}`} />
-          ))}
-        </span>
-      ) : null}
+      {marks?.length ? <MedalMark kinds={marks} /> : null}
       <div className="result-row__body">
         <p className="result-row__text">{item.text}</p>
         <p className="result-row__meta tabular">{item.date}</p>
@@ -74,7 +90,7 @@ export function Results() {
               <p className="stat__label">{stat.label}</p>
               <SourceLink
                 href={stat.sourceUrl}
-                context={`${stat.prefix ? `${stat.prefix} ` : ""}${stat.value} ${stat.label}`}
+                context={statContext(stat)}
                 label={RESULTS_COPY.sourceLabel}
                 className="stat__source"
               />
@@ -92,7 +108,8 @@ export function Results() {
                 caption={RESULTS_COPY.photoCaption}
                 className="results__figure"
               />
-              <Brush />
+              {/* The annotation belongs to the photo: never over the „Fotografija uskoro“ placeholder. */}
+              {isPhotoPlaceholder("01") ? null : <Brush />}
             </div>
           </div>
 

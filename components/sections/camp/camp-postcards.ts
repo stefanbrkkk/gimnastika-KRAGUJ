@@ -8,7 +8,7 @@
  * Only transform (x, xPercent, yPercent, rotation) and z-index change.
  */
 import type { Draggable } from "gsap/Draggable";
-import { DUR, EASE, gsap, loadDraggable, registerMotion } from "@/lib/motion";
+import { DUR, EASE, MQ, gsap, loadDraggable, registerMotion } from "@/lib/motion";
 import { postcardCounter } from "./camp-copy";
 
 export interface PostcardsController {
@@ -35,6 +35,8 @@ const slotAt = (i: number): Slot => SLOTS[Math.min(i, SLOTS.length - 1)] ?? SLOT
 const FLICK = 0.22;
 const OUT = 1.05;
 const TILT = 14;
+/** The fan re-settles like a landing (§4 reveal token, ease stick); exits use DUR.fast (≤200 ms). */
+const RESTACK = DUR.reveal;
 
 export async function armPostcards(layout: HTMLElement, { inertia }: { inertia: boolean }): Promise<PostcardsController> {
   registerMotion();
@@ -46,7 +48,9 @@ export async function armPostcards(layout: HTMLElement, { inertia }: { inertia: 
   const n = cards.length;
   if (!stage || n < 2) return { go: () => {}, destroy: () => {} };
 
-  const animate = inertia;
+  // Re-checked on every change, so a live switch to reduced motion makes changes instant.
+  const reduce = window.matchMedia(MQ.reduce);
+  const animate = () => inertia && !reduce.matches;
   const order = cards.slice();
   const width = () => stage.getBoundingClientRect().width;
   let tl: gsap.core.Timeline | null = null;
@@ -79,7 +83,7 @@ export async function armPostcards(layout: HTMLElement, { inertia }: { inertia: 
     const at = timeline.duration(); // one start time for every card (not ">" — that chains them)
     order.forEach((card, i) => {
       timeline.set(card, { zIndex: n - i }, at);
-      timeline.to(card, { ...slotAt(i), x: 0, duration: DUR.reveal * 0.75, ease: EASE.stick }, at);
+      timeline.to(card, { ...slotAt(i), x: 0, duration: RESTACK, ease: EASE.stick }, at);
     });
   };
 
@@ -91,14 +95,14 @@ export async function armPostcards(layout: HTMLElement, { inertia }: { inertia: 
     if (!top) return;
     order.push(top);
     announce();
-    if (!animate) {
+    if (!animate()) {
       ctx.add(snapInstant);
       return;
     }
     ctx.add(() => {
       tl = gsap.timeline({ onComplete: () => void (tl = null) });
       if (!thrown) {
-        tl.to(top, { x: width() * 0.62, rotation: slotAt(0).rotation + 10, duration: DUR.fast + 0.04, ease: EASE.takeoff });
+        tl.to(top, { x: width() * 0.62, rotation: slotAt(0).rotation + 10, duration: DUR.fast, ease: EASE.takeoff });
       }
       tl.set(top, { zIndex: 0 });
       restack(tl);
@@ -111,13 +115,13 @@ export async function armPostcards(layout: HTMLElement, { inertia }: { inertia: 
     if (!back) return;
     order.unshift(back);
     announce();
-    if (!animate) {
+    if (!animate()) {
       ctx.add(snapInstant);
       return;
     }
     ctx.add(() => {
       tl = gsap.timeline({ onComplete: () => void (tl = null) });
-      tl.to(back, { x: -width() * 0.62, rotation: slotAt(0).rotation - 10, duration: DUR.fast + 0.04, ease: EASE.takeoff });
+      tl.to(back, { x: -width() * 0.62, rotation: slotAt(0).rotation - 10, duration: DUR.fast, ease: EASE.takeoff });
       tl.set(back, { zIndex: n + 1 });
       restack(tl);
     });

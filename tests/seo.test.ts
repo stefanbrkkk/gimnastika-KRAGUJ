@@ -1,11 +1,20 @@
 /**
  * SEO: JSON-LD (§5 SEO, §7 "JSON-LD parses and matches §5"), metadata, robots.txt
- * and sitemap.xml per INDEXABLE (§6 Indexing), generated icons, and the 404 tilt math.
- * Expected values are HARD-CODED from the master prompt, not read back from content/.
+ * and sitemap.xml per INDEXABLE (§6 Indexing), generated icons, the 404 tilt math and
+ * the Serbian error fallbacks. Expected values are HARD-CODED from the master prompt, not
+ * read back from content/ (the fallbacks' mirrored facts are also checked against content/).
  */
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import GlobalError from "@/app/global-error";
+import { ERROR_COPY, FALLBACK_FACTS } from "@/components/notfound/fallback";
 import { ICON_SPECS, ogArtSvg } from "@/components/seo/art";
+import { HERO } from "@/content/copy";
+import { CLUB, PRIMARY_PHONE } from "@/content/site";
+import { telHref } from "@/lib/links";
 import { MAX_TILT, balanceTarget, createBalance, gravityAngle, isSettled, stepBalance } from "@/components/notfound/tilt";
 import { FAQ, visibleFaq, type FaqItem } from "@/content/faq";
 import {
@@ -273,5 +282,33 @@ describe("404 tilt math", () => {
     expect(t).toBeLessThan(3);
     expect(s.angle).toBeCloseTo(10, 1);
     s.lags.forEach((l) => expect(l).toBeCloseTo(10, 1));
+  });
+});
+
+describe("error fallback (Serbian, never Next's English screen)", () => {
+  it("mirrors the content facts exactly (copied to keep content/* out of the first-load bundle)", () => {
+    expect(FALLBACK_FACTS).toEqual({ brandName: CLUB.brandName, call: HERO.ctaSecondary, tel: telHref(PRIMARY_PHONE.e164) });
+    expect(FALLBACK_FACTS.tel).toBe("tel:+381600287631");
+    expect(FALLBACK_FACTS.call).toBe("Pozovite 060 028 7631");
+  });
+
+  it("the copy module stays dependency-free (it ships on every page)", () => {
+    const src = readFileSync(new URL("../components/notfound/fallback.ts", import.meta.url), "utf8");
+    expect(src).not.toMatch(/^\s*import\b/m);
+  });
+
+  it("global-error renders its own Serbian document: skip-link target, one h1, reload button and the phone", () => {
+    const html = renderToStaticMarkup(createElement(GlobalError));
+    expect(html).toMatch(/^<html lang="sr-Latn">/);
+    expect(html).toContain('<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>');
+    expect(html).toContain("<title>Stranica se nije učitala | Gimnastički klub Kraguj</title>");
+    expect(html).toContain('<main id="sadrzaj" tabindex="-1" class="nf nf--error" data-theme="dark">');
+    expect(html.match(/<h1\b/g)).toHaveLength(1);
+    expect(html).toContain(`<h1 class="nf__title">${ERROR_COPY.title}</h1>`);
+    expect(html).toContain('<button type="button" class="btn btn-primary">Osvežite stranicu</button>');
+    expect(html).toContain('<a class="btn btn-secondary" href="tel:+381600287631">Pozovite 060 028 7631</a>');
+    // the layout's sprite is gone in a replaced document: the club's name as text, never an empty <use>
+    expect(html).toContain('<a class="nf__brand nf__brand-name" href="/">Gimnastički klub Kraguj</a>');
+    expect(html).not.toContain("<use");
   });
 });

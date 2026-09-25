@@ -147,9 +147,13 @@ export const BOOKING = {
     phoneHint: "+381…",
     child: "Ime deteta (opciono)",
     birthYear: "Godište deteta",
+    /** Empty first option of the Godište select. */
+    birthYearPlaceholder: "Izaberite",
     group: "Grupa",
     note: "Napomena (opciono)",
   },
+  /** Quiet text button that reveals the (collapsed) Napomena field; a drawn „+“ icon precedes it. */
+  addNote: "Dodajte napomenu",
   privacy: "Sajt ne čuva vaše podatke — poruka ide direktno trenerici.",
   actions: {
     sms: "Pošaljite SMS",
@@ -179,7 +183,7 @@ export const BOOKING = {
     parent: "Upišite ime roditelja.",
     phoneMissing: "Upišite broj telefona.",
     phoneInvalid: "Proverite broj telefona — dozvoljene su cifre, razmaci i „+“ na početku.",
-    birthYearMissing: "Upišite godište deteta.",
+    birthYearMissing: "Izaberite godište deteta.",
   },
 } as const;
 

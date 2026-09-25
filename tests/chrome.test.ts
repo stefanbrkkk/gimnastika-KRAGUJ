@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   HEADER_HIDE_AFTER,
+  MENU_INDEX_ID,
+  SHORT_VIEWPORT_MAX,
   initialHeaderState,
   isKeyboardOpen,
   isTextEntry,
@@ -89,6 +91,17 @@ describe("sticky bottom bar visibility", () => {
     expect(stickyBarVisible({ ...base, fieldFocused: true })).toBe(false);
   });
 
+  it("yields to the header on short viewports (landscape phones, 400% zoom)", () => {
+    expect(SHORT_VIEWPORT_MAX).toBe(480);
+    // short + header shown (scroll-up / keyboard focus in the header) → bar steps aside
+    expect(stickyBarVisible({ ...base, shortViewport: true, headerShown: true })).toBe(false);
+    // short + header hidden (scrolling down) → the bar is back
+    expect(stickyBarVisible({ ...base, shortViewport: true, headerShown: false })).toBe(true);
+    // tall viewports keep both, as before
+    expect(stickyBarVisible({ ...base, shortViewport: false, headerShown: true })).toBe(true);
+    expect(stickyBarVisible({ ...base, headerShown: true })).toBe(true);
+  });
+
   it("detects the on-screen keyboard from the visual viewport", () => {
     expect(isKeyboardOpen(800, 800)).toBe(false);
     expect(isKeyboardOpen(800, 720)).toBe(false); // URL bar / small changes
@@ -119,5 +132,11 @@ describe("focus not obscured (WCAG 2.4.11)", () => {
   it("scrolls down when focus sits under the bottom bar", () => {
     expect(obscuredBy({ top: 700, bottom: 760 }, { side: "bottom", edge: 736 })).toBe(760 - 724);
     expect(obscuredBy({ top: 500, bottom: 560 }, { side: "bottom", edge: 736 })).toBe(0);
+  });
+});
+
+describe("menu fallback", () => {
+  it("Meni links to the footer page index until hydration", () => {
+    expect(MENU_INDEX_ID).toBe("meni");
   });
 });

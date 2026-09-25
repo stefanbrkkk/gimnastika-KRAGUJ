@@ -2,24 +2,50 @@
    no scroll choreography. Motion: sliding tab pill (transform), Flip on filtering (JS),
    a short fade when the user switches a view/day. Everything is readable without JS. */
 
-/* ---------- layout ---------- */
-.sched-layout {
-  display: grid;
-  gap: 32px;
+/* ---------- layout ----------
+   Up to 1279px: controls, panel, location card stacked (cards 2-up from 640px). From
+   1280px: the controls run the full width (so the six program pills fit on one line),
+   the panel takes 8 columns and the location card sits beside it (sticky). At 1024 an
+   8/4 split would squeeze the cards to ~290px (3-line titles, wrapped chips).
+   No-JS: the controls row is display:none and the panel + card start at the top. */
+.sched-aside {
+  margin-top: 32px;
 }
-@media (min-width: 1024px) {
-  .sched-layout {
+@media (min-width: 1280px) {
+  .sched-board {
+    display: grid;
     grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
     column-gap: 48px;
     align-items: start;
+  }
+  .sched-controls {
+    grid-column: 1 / -1;
+  }
+  .sched-panel {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .sched-aside {
+    grid-column: 2;
+    grid-row: 2;
+    position: sticky;
+    top: 104px;
+    margin-top: 0;
   }
 }
 
 /* ---------- controls (JS only) ---------- */
 .sched-controls {
+  container: sched-controls / inline-size;
   display: grid;
   gap: 12px;
   margin-bottom: 20px;
+}
+@media (min-width: 1024px) {
+  .sched-controls {
+    gap: 16px;
+    margin-bottom: 24px;
+  }
 }
 html:not(.js) .sched-controls {
   display: none;
@@ -48,7 +74,7 @@ html:not(.js) .sched-controls {
   border-radius: var(--radius-full);
   background: var(--color-navy-900);
   box-shadow: var(--shadow-press);
-  transition: transform 0.28s var(--ease-stick);
+  transition: transform var(--dur-base) var(--ease-stick);
 }
 .sched-views[data-active="day"] .sched-views__pill {
   transform: translateX(100%);
@@ -62,15 +88,22 @@ html:not(.js) .sched-controls {
   font-weight: var(--text-button--font-weight);
   color: var(--fg);
   cursor: pointer;
-  transition: color 0.18s var(--ease-stick);
+  touch-action: manipulation;
+  transition:
+    color var(--dur-fast) var(--ease-stick),
+    translate var(--dur-slow-squash) var(--ease-rebound),
+    scale var(--dur-slow-squash) var(--ease-rebound);
   -webkit-tap-highlight-color: transparent;
 }
 .sched-views__tab[aria-selected="true"] {
   color: var(--color-white);
 }
 
-/* Filter pills: a swipeable row on phones, wrapping from 640px. */
+/* Filter pills: a swipeable row on phones (the edge with more pills behind it fades —
+   data-more-start / data-more-end, set by the island), wrapping from 640px. */
 .sched-filters {
+  --fade-start: 0px;
+  --fade-end: 0px;
   position: relative;
   display: flex;
   gap: 8px;
@@ -81,9 +114,20 @@ html:not(.js) .sched-controls {
   scroll-padding-inline: 20px;
   scroll-snap-type: x proximity;
   scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--fade-start), #000 calc(100% - var(--fade-end)), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 var(--fade-start), #000 calc(100% - var(--fade-end)), transparent);
+}
+.sched-filters[data-more-start] {
+  --fade-start: 28px;
+}
+.sched-filters[data-more-end] {
+  --fade-end: 56px;
 }
 .sched-filters::-webkit-scrollbar {
   display: none;
+}
+.sched-filters__line {
+  display: contents;
 }
 @media (min-width: 640px) {
   .sched-filters {
@@ -91,39 +135,83 @@ html:not(.js) .sched-controls {
     margin-inline: -6px;
     padding-inline: 6px;
     overflow: visible;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  /* Too narrow for one line of six pills (measured ≈951px): two real lines (Sve + 2 | 3). */
+  @container sched-controls (width < 960px) {
+    .sched-filters {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .sched-filters__line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
   }
 }
+/* Same chip vocabulary as the S3 program chips and the S9 gallery chips:
+   2px hairline ring, pressed = navy fill + white text + check mark (shape, not color alone). */
 .sched-pill {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-height: 48px;
   padding: 0 18px;
   border-radius: var(--radius-full);
-  background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--hairline);
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--hairline);
   font-size: var(--text-small);
-  font-weight: 600;
+  font-weight: 620;
+  font-stretch: 104%;
+  line-height: 1.2;
   color: var(--fg);
   white-space: nowrap;
   cursor: pointer;
   scroll-snap-align: start;
+  touch-action: manipulation;
   transition:
-    background-color 0.18s var(--ease-stick),
-    color 0.18s var(--ease-stick);
+    background-color var(--dur-fast) var(--ease-stick),
+    color var(--dur-fast) var(--ease-stick),
+    translate var(--dur-slow-squash) var(--ease-rebound),
+    scale var(--dur-slow-squash) var(--ease-rebound);
   -webkit-tap-highlight-color: transparent;
 }
-.sched-pill:hover {
-  box-shadow: inset 0 0 0 1.5px var(--color-steel-300);
+@media (hover: hover) {
+  .sched-pill:hover {
+    box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--fg) 45%, transparent);
+  }
 }
 .sched-pill[aria-pressed="true"] {
   background: var(--color-navy-900);
   color: var(--color-white);
-  box-shadow: none;
+  box-shadow: inset 0 0 0 2px var(--color-navy-900);
 }
 .sched-pill[aria-pressed="true"] .sched-swatch {
   box-shadow: 0 0 0 2px var(--color-white);
+}
+.sched-pill__check {
+  display: none;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-left: -4px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.sched-pill[aria-pressed="true"] .sched-pill__check {
+  display: block;
+}
+/* Press: the global squash eases in quickly and springs back (release uses the rule above). */
+.sched-pill:active,
+.sched-views__tab:active,
+.sched-strip__day:active {
+  transition-duration: var(--dur-tap);
 }
 
 /* Program swatch: color + a navy ring, always next to a text label. */
@@ -145,25 +233,36 @@ html:not(.js) .sched-controls {
 @keyframes sched-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(var(--offset-reveal));
   }
 }
 @media (prefers-reduced-motion: no-preference) {
   .sched-board[data-interacted] > .sched-panel:not([hidden]),
   .sched-board[data-interacted] .sched-days[data-selected] > .sched-day {
-    animation: sched-in 0.28s var(--ease-stick) both;
+    animation: sched-in var(--dur-base) var(--ease-stick) both;
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .sched-views__pill,
   .sched-views__tab,
-  .sched-pill {
+  .sched-pill,
+  .sched-strip__day {
     transition: none;
   }
 }
 
+/* Filter Flip: an item the filter removes keeps `hidden` off while it fades out, so it is
+   display:none through this (non-!important) rule, which Flip's inline display can
+   override for the fade; the island sets `hidden` when the fade ends. */
+[data-sched-item][data-leaving] {
+  display: none;
+  z-index: -1;
+}
+
 /* ---------- "Po grupi": cards ---------- */
 .sched-cards {
+  position: relative;
+  isolation: isolate;
   display: grid;
   gap: 12px;
 }
@@ -210,11 +309,12 @@ html:not(.js) .sched-controls {
   font-weight: 700;
   letter-spacing: -0.01em;
   font-stretch: 104%;
+  text-wrap: balance;
 }
 @media (min-width: 1024px) {
   .sched-card__title {
     font-size: 1.375rem;
-    font-stretch: 112%;
+    font-stretch: 118%;
   }
 }
 
@@ -319,7 +419,6 @@ html:not(.js) .sched-controls {
 }
 .sched-next {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   column-gap: 6px;
   min-height: 36px;
@@ -328,13 +427,25 @@ html:not(.js) .sched-controls {
 .sched-next[data-state="ready"] {
   justify-self: start;
   padding: 4px 14px 4px 10px;
-  border-radius: var(--radius-full);
+  /* Half the 36px one-line height: a pill on one line, a soft ticket if a long day name wraps. */
+  border-radius: 18px;
   background: var(--color-ice-50);
   box-shadow: inset 0 0 0 1px var(--hairline);
 }
-.sched-next[data-state="none"],
+/* No fixed slot is next right now (mixed groups): keep the row's height so the cards —
+   and every section below — never shrink after hydration (deep links land exactly). */
+.sched-next[data-state="none"] {
+  visibility: hidden;
+}
 html:not(.js) .sched-next {
   display: none;
+}
+.sched-next__text {
+  min-width: 0;
+  line-height: 1.4;
+}
+.sched-nowrap {
+  white-space: nowrap;
 }
 .sched-next__leap {
   flex: none;
@@ -350,6 +461,7 @@ html:not(.js) .sched-next {
 .sched-next__value {
   font-weight: 700;
   color: var(--fg);
+  white-space: nowrap;
 }
 
 .sched-cal {
@@ -372,10 +484,16 @@ html:not(.js) .sched-next {
 .sched-cal__link:hover {
   text-decoration-thickness: 2px;
 }
+/* Calendar scope (mixed groups) / why there is no calendar link (no fixed slot):
+   decision-relevant, so body-small in the text colour, not a muted footnote. */
 .sched-cal__note {
-  font-size: 0.8125rem;
-  line-height: 1.45;
-  color: var(--muted);
+  max-width: 44ch;
+  font-size: var(--text-small);
+  line-height: var(--text-small--line-height);
+  color: var(--fg);
+}
+.sched-cal + .sched-cal__note {
+  margin-top: 4px;
 }
 
 .sched-icon {
@@ -403,7 +521,7 @@ html:not(.js) .sched-next {
   background: var(--bg);
   border-bottom: 1px solid var(--hairline);
 }
-/* Header geometry (styles/sections/header.css): bottom edge 70px / 72px (≥640) / 84px (≥1024). */
+/* Header geometry (styles/sections/header.css): bottom edge 70px / 74px (≥640) / 84px (≥1024). */
 .sched-board {
   --sched-header-offset: 76px;
 }
@@ -443,10 +561,16 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   border-radius: 12px;
   color: var(--fg);
   cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    translate var(--dur-slow-squash) var(--ease-rebound),
+    scale var(--dur-slow-squash) var(--ease-rebound);
   -webkit-tap-highlight-color: transparent;
 }
-.sched-strip__day:hover {
-  background: color-mix(in oklab, var(--color-line) 55%, transparent);
+@media (hover: hover) {
+  .sched-strip__day:hover {
+    background: color-mix(in oklab, var(--color-line) 55%, transparent);
+  }
 }
 .sched-strip__short {
   font-size: var(--text-body);
@@ -457,12 +581,12 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   font-weight: 500;
   color: var(--muted);
 }
+/* „danas“ as written (lowercase): 13px label size; caps + tracking would not fit the 7 tabs at 320px. */
 .sched-strip__today {
-  font-size: 10px;
+  font-size: var(--text-label);
   line-height: 1.2;
   font-weight: 650;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--accent);
 }
 .sched-strip__day[aria-selected="true"] {
@@ -510,6 +634,8 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   font-stretch: 100%;
 }
 .sched-rows {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
 }
@@ -534,6 +660,7 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   align-items: flex-start;
   gap: 10px;
   font-weight: 600;
+  text-wrap: balance;
 }
 .sched-row__group .sched-swatch {
   margin-top: 0.4em;
@@ -574,11 +701,15 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   background: var(--color-ice-50);
   box-shadow: inset 0 0 0 1px var(--hairline);
 }
+/* 320–359px: 4px more room so „Trgovinsko-ugostiteljska“ (kept whole) stays inside the padding. */
+@media (max-width: 359px) {
+  .sched-location {
+    padding-inline: 16px;
+  }
+}
 @media (min-width: 1024px) {
   .sched-location {
-    position: sticky;
-    top: 104px;
-    padding: 28px 28px 28px;
+    padding: 28px;
   }
 }
 .sched-location__label {
@@ -590,6 +721,13 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   line-height: var(--text-h3--line-height);
   letter-spacing: var(--text-h3--letter-spacing);
   font-weight: var(--text-h3--font-weight);
+}
+@media (min-width: 1280px) {
+  /* Sidebar: „Trgovinsko-ugostiteljska“ (one word) must fit the 4-column card on one line
+     (24px at 1280 → 28px at 1440) instead of breaking at its hyphen. */
+  .sched-location__title {
+    font-size: clamp(1.5rem, 2.5vw - 0.5rem, 1.75rem);
+  }
 }
 .sched-location__nick {
   margin-top: 6px;
@@ -605,5 +743,50 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
 @media (max-width: 639px) {
   .sched-location__maps {
     align-self: stretch;
+  }
+}
+
+/* ---------- forced colors (Windows High Contrast) ----------
+   Box-shadows and backgrounds are dropped there: give controls a real border and mark the
+   selected tab / pressed pill / selected day with the system highlight. */
+@media (forced-colors: active) {
+  .sched-views,
+  .sched-pill,
+  .sched-strip,
+  .sched-card__inner,
+  .sched-day,
+  .sched-location,
+  .sched-next[data-state="ready"] {
+    border: 1px solid CanvasText;
+  }
+  /* .btn-secondary draws its outline with an inset box-shadow, which forced colors drop. */
+  .sched-location__maps {
+    border: 2px solid ButtonText;
+  }
+  .sched-views__pill {
+    display: none;
+  }
+  .sched-views__tab[aria-selected="true"],
+  .sched-pill[aria-pressed="true"],
+  .sched-strip__day[aria-selected="true"] {
+    forced-color-adjust: none;
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+    box-shadow: none;
+  }
+  .sched-strip__day[aria-selected="true"] .sched-strip__short,
+  .sched-strip__day[aria-selected="true"] .sched-strip__today {
+    color: HighlightText;
+  }
+  .sched-swatch {
+    forced-color-adjust: none;
+  }
+  .sched-week__dot::before {
+    border: 1.5px solid CanvasText;
+  }
+  .sched-week__day[data-on] .sched-week__dot::before {
+    forced-color-adjust: none;
+    background: CanvasText;
   }
 }

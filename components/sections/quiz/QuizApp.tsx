@@ -111,12 +111,10 @@ export function QuizApp({ vm }: { vm: QuizViewModel }) {
     go(0);
   };
 
-  const caption =
+  const caption: string[] =
     age === null || step === 0
-      ? ""
-      : [`${age} ${copy.ageUnit}`, step === 2 && asked && exp !== null ? copy.experience[exp] : null]
-          .filter(Boolean)
-          .join(" · ");
+      ? []
+      : [`${age} ${copy.ageUnit}`, step === 2 && asked && exp !== null ? (copy.experience[exp] ?? "") : ""].filter(Boolean);
   const q1 = `${uid}-q1`;
   const q2 = `${uid}-q2`;
 

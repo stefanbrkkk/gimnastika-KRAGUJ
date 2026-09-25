@@ -158,7 +158,7 @@ export const SCHEDULE_UI = {
   next: "Sledeći trening",
   ics: "Dodajte u kalendar (.ics)",
   gcal: "Google Kalendar",
-  newTab: "(otvara se u novoj kartici)",
+  newTab: "(otvara se u novom prozoru)",
   weekLabel: "Dani treninga",
   dayOn: "trening",
   dayOff: "bez treninga",
@@ -170,6 +170,12 @@ export const SCHEDULE_UI = {
   addressLabel: "Adresa",
   nicknamePrefix: "u gradu poznata kao",
   maps: "Otvorite u mapama",
+  /** Card of a group without a fixed slot (C program, starije): why it has no calendar links. */
+  noFixed: "Termini ove grupe nemaju stalno vreme, pa se ne dodaju u kalendar.",
+  /** Polite status after a filter / day change („Po grupi“). */
+  statusGroups: (shown: number, total: number) => `Prikazano: ${shown} od ${total} grupa.`,
+  /** Polite status after a filter / day change („Po danu“); `day` = DAYS[].accusative. */
+  statusDay: (shown: number, total: number, day: string) => `Prikazano: ${shown} od ${total} treninga u ${day}.`,
 } as const;
 
 export const SCHEDULE_LOCATION = {

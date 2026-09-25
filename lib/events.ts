@@ -4,6 +4,8 @@
  * Booking: any <a href="#kontakt" data-booking="…"> opens the booking sheet
  * when JS runs (the sheet island delegates clicks); without JS it jumps to
  * #kontakt. The attribute value is the group label to prefill ("" = none).
+ * Exception: the S11 doskok button uses an sms: href with the §5 intro as its
+ * own no-JS action; JS intercepts it the same way.
  *
  * Schedule: any link with data-schedule-program="<ProgramId>" scrolls to
  * #raspored and filters it to that program (delegated by the schedule island).

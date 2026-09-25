@@ -7,10 +7,10 @@ import {
   useState,
   useSyncExternalStore,
   type ChangeEvent,
-  type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
   type PointerEvent,
+  type Ref,
   type SyntheticEvent,
 } from "react";
 import { flushSync } from "react-dom";
@@ -21,35 +21,44 @@ import {
   BOOKING_REQUIRED,
   EMPTY_BOOKING,
   GROUP_UNDECIDED,
+  applyGroupPrefill,
   belgradeYear,
+  birthYearOptions,
   bookingHrefs,
-  clean,
   composeBookingMessage,
   hasErrors,
-  matchGroup,
+  primaryChannel,
+  sendOrder,
   validateBooking,
   type BookingErrors,
   type BookingField,
   type BookingValues,
+  type MessageChannel,
+  type SendChannel,
 } from "@/lib/booking";
 import { prefersLessMotion } from "@/lib/motion-env";
 import type { BookingRequest } from "./types";
 
 /** Viber: if the page is still visible this long after the tap, the app did not open. */
 const VIBER_CHECK_MS = 1500;
-/** Must match the exit animation in styles/sections/booking.css (exits ≤200 ms). */
+/** Must match the exit animation in styles/sections/booking.css (--dur-fast, exits ≤200 ms). */
 const CLOSE_MS = 180;
 
+// Device → primary send action (lib/booking primaryChannel). Live: a tablet that
+// gets a mouse, or DevTools device emulation, re-renders the actions.
 const COARSE = "(pointer: coarse)";
-const subscribeCoarse = (onChange: () => void) => {
-  const mq = window.matchMedia(COARSE);
-  mq.addEventListener("change", onChange);
-  return () => mq.removeEventListener("change", onChange);
+const HOVER = "(hover: hover)";
+const subscribeDevice = (onChange: () => void) => {
+  const queries = [COARSE, HOVER].map((q) => window.matchMedia(q));
+  queries.forEach((mq) => mq.addEventListener("change", onChange));
+  return () => queries.forEach((mq) => mq.removeEventListener("change", onChange));
 };
-const isCoarse = () => window.matchMedia(COARSE).matches;
-const isCoarseOnServer = () => true;
+const devicePrimary = (): SendChannel =>
+  primaryChannel({ coarsePointer: window.matchMedia(COARSE).matches, canHover: window.matchMedia(HOVER).matches });
+const serverPrimary = (): SendChannel => "sms";
 
-type TextField = Exclude<keyof BookingValues, "group">;
+type TextField = "parent" | "phone" | "child";
+type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 
 /** The phone number inside status copy never breaks across lines. */
 const keepNumberTogether = (text: string) =>
@@ -64,41 +73,127 @@ const keepNumberTogether = (text: string) =>
         ],
   );
 
+const withoutError = (errors: BookingErrors, field: keyof BookingValues): BookingErrors => {
+  if (!(field in errors)) return errors;
+  const next = { ...errors };
+  delete next[field as BookingField];
+  return next;
+};
+
+function ErrorLine({ id, text }: { id: string; text: string }) {
+  return (
+    <p id={id} className="booking-field__error">
+      <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
+        <circle cx="10" cy="10" r="8.25" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M10 5.5v5.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+        <circle cx="10" cy="14.25" r="1.1" fill="currentColor" />
+      </svg>
+      <span>{text}</span>
+    </p>
+  );
+}
+
+interface SelectOption {
+  value: string;
+  label: string;
+  disabled?: boolean;
+}
+
+/**
+ * Native <select> (keyboard, screen readers and the phone's own picker all work)
+ * laid transparently over a visible value box. The box wraps long labels — a
+ * prefilled quiz group is never cut off with „…“ as a native select would.
+ */
+function SelectBox({
+  id,
+  name,
+  value,
+  options,
+  onChange,
+  selectRef,
+  invalid,
+  describedBy,
+  required,
+}: {
+  id: string;
+  name: string;
+  value: string;
+  options: readonly SelectOption[];
+  onChange: (event: ChangeEvent<HTMLSelectElement>) => void;
+  selectRef?: Ref<HTMLSelectElement>;
+  invalid?: boolean;
+  describedBy?: string;
+  required?: boolean;
+}) {
+  const selected = options.find((o) => o.value === value) ?? options[0];
+  const placeholder = Boolean(selected?.disabled);
+  return (
+    <div className="booking-select" data-invalid={invalid ? "" : undefined} data-placeholder={placeholder ? "" : undefined}>
+      <select
+        ref={selectRef}
+        id={id}
+        name={name}
+        className="booking-select__native"
+        value={value}
+        onChange={onChange}
+        aria-invalid={invalid ? true : undefined}
+        aria-describedby={describedBy}
+        required={required}
+      >
+        {options.map((o) => (
+          <option key={o.value || "empty"} value={o.value} disabled={o.disabled}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <span className="booking-select__value" aria-hidden="true">
+        {selected?.label}
+      </span>
+      <svg className="booking-select__chevron" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false">
+        <path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </div>
+  );
+}
+
 /**
  * The booking sheet: native <dialog> + showModal() (focus trap, inert page, Esc).
  * Bottom sheet on mobile, centered dialog ≥768px (styles/sections/booking.css).
+ * Head · scrolling fields · a footer whose send actions are always in view.
  * Composes one message and hands it to SMS / email (/ Viber); nothing is stored.
  */
 export function BookingDialog({ request }: { request: BookingRequest }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
-  const statusRef = useRef<HTMLParagraphElement>(null);
+  const primaryRef = useRef<HTMLAnchorElement>(null);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
   const pressedOnBackdrop = useRef(false);
   const viberTimer = useRef(0);
-  const fields = useRef<Partial<Record<BookingField, HTMLInputElement | null>>>({});
+  const fields = useRef<Partial<Record<BookingField, Control | null>>>({});
 
   const [values, setValues] = useState<BookingValues>(EMPTY_BOOKING);
   const [extraGroups, setExtraGroups] = useState<readonly string[]>([]);
-  const [attempted, setAttempted] = useState(false);
+  const [errors, setErrors] = useState<BookingErrors>({});
+  const [noteOpen, setNoteOpen] = useState(false);
   const [status, setStatus] = useState("");
   const [year] = useState(() => belgradeYear());
   const [seenRequest, setSeenRequest] = useState(0);
-  const coarse = useSyncExternalStore(subscribeCoarse, isCoarse, isCoarseOnServer);
+  const primary = useSyncExternalStore(subscribeDevice, devicePrimary, serverPrimary);
+  const touchFirst = primary === "sms";
   const uid = useId();
 
-  // A new open request: reset the status line and prefill the group (derived state,
-  // adjusted during render). An unknown label (e.g. the quiz's combined result) becomes its own option.
+  // A new open request (derived state, adjusted during render): clear the status and
+  // old errors, prefill the group. An unknown label (the quiz's combined result)
+  // becomes the one extra option; earlier extras are dropped (lib/booking applyGroupPrefill).
   if (request.id !== seenRequest) {
     setSeenRequest(request.id);
     setStatus("");
-    const prefill = clean(request.group);
-    if (prefill) {
-      const match = matchGroup(prefill, [...BOOKING_GROUPS, ...extraGroups]);
-      if (match === null) setExtraGroups((groups) => [prefill, ...groups]);
-      setValues((v) => ({ ...v, group: match ?? prefill }));
-    }
+    setErrors({});
+    const next = applyGroupPrefill(request.group, { extraGroups, group: values.group });
+    if (next.extraGroups !== extraGroups) setExtraGroups(next.extraGroups);
+    if (next.group !== values.group) setValues((v) => ({ ...v, group: next.group }));
   }
 
   // Open (or re-target) the dialog for each request.
@@ -109,12 +204,12 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
     if (!dialog.open) {
       dialog.removeAttribute("data-closing");
       dialog.showModal();
-      if (panelRef.current) panelRef.current.scrollTop = 0;
+      if (bodyRef.current) bodyRef.current.scrollTop = 0;
     }
     document.documentElement.setAttribute("data-booking-open", ""); // body scroll lock
     // Touch: focus the title so the keyboard does not cover the sheet on open.
     // Mouse/keyboard: straight into the first field.
-    const target = isCoarse() ? titleRef.current : fields.current.parent;
+    const target = window.matchMedia(COARSE).matches ? titleRef.current : fields.current.parent;
     target?.focus({ preventScroll: true });
   }, [request]);
 
@@ -125,11 +220,6 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
     },
     [],
   );
-
-  // Keep the "after" / Viber status in view — on a phone it sits below the actions.
-  useEffect(() => {
-    if (status) statusRef.current?.scrollIntoView({ block: "nearest", behavior: prefersLessMotion() ? "auto" : "smooth" });
-  }, [status]);
 
   const requestClose = () => {
     const dialog = dialogRef.current;
@@ -162,7 +252,7 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
     if (event.key !== "Tab") return;
     const focusable = Array.from(
       event.currentTarget.querySelectorAll<HTMLElement>("a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])"),
-    ).filter((el) => el.offsetParent !== null);
+    ).filter((el) => el.getClientRects().length > 0);
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
     if (!first || !last) return;
@@ -185,28 +275,47 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
     pressedOnBackdrop.current = false;
   };
 
-  const update = (field: keyof BookingValues) => (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  // Editing a field clears its own error at once; the form is validated again only on send.
+  const update = (field: keyof BookingValues) => (event: ChangeEvent<Control>) => {
     const { value } = event.target;
     setValues((v) => ({ ...v, [field]: value }));
+    setErrors((e) => withoutError(e, field));
     setStatus("");
   };
 
-  const errors: BookingErrors = attempted ? validateBooking(values, year) : {};
+  // Enter in a text field moves on to the next field (the form has no submit button,
+  // so browsers would otherwise do nothing); nothing is ever sent by Enter.
+  const onFieldEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    const controls = Array.from(event.currentTarget.form?.elements ?? []).filter(
+      (el): el is Control => el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement,
+    );
+    const next = controls[controls.indexOf(event.currentTarget) + 1] ?? primaryRef.current;
+    next?.focus();
+  };
+
   const message = composeBookingMessage(values);
   const hrefs = bookingHrefs(message);
 
-  /** Validates before a message action; on errors shows them inline and focuses the first invalid field. */
-  const ready = (): boolean => {
-    const found = validateBooking(values, year);
-    if (!hasErrors(found)) return true;
-    flushSync(() => setAttempted(true));
+  /** Validates for this channel; on errors shows them inline and focuses the first invalid field. */
+  const ready = (channel: MessageChannel): boolean => {
+    const found = validateBooking(values, year, channel);
+    if (!hasErrors(found)) {
+      setErrors({});
+      return true;
+    }
+    flushSync(() => {
+      setErrors(found);
+      setStatus("");
+    });
     const first = BOOKING_REQUIRED.find((f) => found[f]);
     if (first) fields.current[first]?.focus();
     return false;
   };
 
-  const onSend = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (!ready()) {
+  const onSend = (channel: SendChannel) => (event: MouseEvent<HTMLAnchorElement>) => {
+    if (!ready(channel)) {
       event.preventDefault();
       return;
     }
@@ -214,7 +323,7 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
   };
 
   const onViber = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (!ready()) {
+    if (!ready("viber")) {
       event.preventDefault();
       return;
     }
@@ -222,7 +331,7 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
     try {
       navigator.clipboard?.writeText(message).catch(() => {});
     } catch {
-      /* clipboard unavailable — the message is still shown via SMS/email */
+      /* clipboard unavailable — the message is still offered via SMS/email */
     }
     setStatus(BOOKING.after);
     window.clearTimeout(viberTimer.current);
@@ -231,35 +340,38 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
     }, VIBER_CHECK_MS);
   };
 
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); // Enter in a field: validate, then move to the send actions
-    if (ready()) document.getElementById(`${uid}-sms`)?.focus();
+  const openNote = () => {
+    flushSync(() => setNoteOpen(true));
+    noteRef.current?.focus();
   };
 
-  const fieldProps = (field: TextField) => {
-    const error = field === "parent" || field === "phone" || field === "birthYear" ? errors[field] : undefined;
-    return {
+  const errorId = (field: BookingField) => `${uid}-${field}-error`;
+  const invalidProps = (field: BookingField) =>
+    errors[field] ? ({ "aria-invalid": true, "aria-describedby": errorId(field) } as const) : {};
+  const errorLine = (field: BookingField) => {
+    const text = errors[field];
+    return text ? <ErrorLine id={errorId(field)} text={text} /> : null;
+  };
+
+  const textProps = (field: TextField) =>
+    ({
       id: `${uid}-${field}`,
       name: field,
       value: values[field],
       onChange: update(field),
       className: "booking-field__control",
-      "aria-invalid": error ? true : undefined,
-      "aria-describedby": error ? `${uid}-${field}-error` : undefined,
-    } as const;
-  };
+      enterKeyHint: "next",
+    }) as const;
 
-  const errorLine = (field: BookingField) =>
-    errors[field] ? (
-      <p id={`${uid}-${field}-error`} className="booking-field__error">
-        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
-          <circle cx="10" cy="10" r="8.25" fill="none" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M10 5.5v5.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-          <circle cx="10" cy="14.25" r="1.1" fill="currentColor" />
-        </svg>
-        <span>{errors[field]}</span>
-      </p>
-    ) : null;
+  const yearOptions: SelectOption[] = [
+    { value: "", label: BOOKING.fields.birthYearPlaceholder, disabled: true },
+    ...birthYearOptions(year).map((y) => ({ value: y, label: y })),
+  ];
+  const groupOptions: SelectOption[] = [
+    { value: "", label: GROUP_UNDECIDED.label },
+    ...extraGroups.map((g) => ({ value: g, label: g })),
+    ...BOOKING_GROUPS.map((g) => ({ value: g, label: g })),
+  ];
 
   return (
     <dialog
@@ -274,163 +386,162 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
       onPointerDown={onPointerDown}
       onClick={onDialogClick}
     >
-      <div ref={panelRef} className="booking__panel">
-        <div className="booking__head">
-          <svg className="booking__leap" viewBox="0 0 230 150" aria-hidden="true" focusable="false">
-            <use href="#leap" width="230" height="150" />
+      <div className="booking__head">
+        <svg className="booking__leap" viewBox="0 0 230 150" aria-hidden="true" focusable="false">
+          <use href="#leap" width="230" height="150" />
+        </svg>
+        <h2 ref={titleRef} id={`${uid}-title`} className="booking__title" tabIndex={-1}>
+          {BOOKING.title}
+        </h2>
+        <button type="button" className="booking__close" aria-label={BOOKING.close} onClick={requestClose}>
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
-          <h2 ref={titleRef} id={`${uid}-title`} className="booking__title" tabIndex={-1}>
-            {BOOKING.title}
-          </h2>
-          <button type="button" className="booking__close" aria-label={BOOKING.close} onClick={requestClose}>
-            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
-              <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
+        </button>
+      </div>
 
-        <form className="booking__form" noValidate onSubmit={onSubmit}>
-          <div className="booking__grid">
-            <div className="booking-field">
-              <label htmlFor={`${uid}-parent`}>{BOOKING.fields.parent}</label>
-              <input
-                ref={(el) => {
-                  fields.current.parent = el;
-                }}
-                type="text"
-                autoComplete="name"
-                autoCapitalize="words"
-                enterKeyHint="next"
-                required
-                maxLength={80}
-                {...fieldProps("parent")}
-              />
-              {errorLine("parent")}
-            </div>
+      <div ref={bodyRef} className="booking__body">
+        <form className="booking__form" noValidate onSubmit={(event) => event.preventDefault()}>
+          <div className="booking-field booking-field--parent">
+            <label htmlFor={`${uid}-parent`}>{BOOKING.fields.parent}</label>
+            <input
+              ref={(el) => {
+                fields.current.parent = el;
+              }}
+              onKeyDown={onFieldEnter}
+              type="text"
+              autoComplete="name"
+              autoCapitalize="words"
+              required
+              maxLength={80}
+              {...textProps("parent")}
+              {...invalidProps("parent")}
+            />
+            {errorLine("parent")}
+          </div>
 
-            <div className="booking-field">
-              <label htmlFor={`${uid}-phone`}>{BOOKING.fields.phone}</label>
-              <input
-                ref={(el) => {
-                  fields.current.phone = el;
-                }}
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                enterKeyHint="next"
-                placeholder={BOOKING.fields.phoneHint}
-                required
-                maxLength={24}
-                {...fieldProps("phone")}
-              />
-              {errorLine("phone")}
-            </div>
+          <div className="booking-field booking-field--phone">
+            <label htmlFor={`${uid}-phone`}>{BOOKING.fields.phone}</label>
+            <input
+              ref={(el) => {
+                fields.current.phone = el;
+              }}
+              onKeyDown={onFieldEnter}
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder={BOOKING.fields.phoneHint}
+              maxLength={24}
+              {...textProps("phone")}
+              {...invalidProps("phone")}
+            />
+            {errorLine("phone")}
+          </div>
 
-            <div className="booking-field">
-              <label htmlFor={`${uid}-child`}>{BOOKING.fields.child}</label>
-              <input type="text" autoComplete="off" autoCapitalize="words" enterKeyHint="next" maxLength={80} {...fieldProps("child")} />
-            </div>
+          <div className="booking-field booking-field--child">
+            <label htmlFor={`${uid}-child`}>{BOOKING.fields.child}</label>
+            <input type="text" autoComplete="off" autoCapitalize="words" maxLength={80} onKeyDown={onFieldEnter} {...textProps("child")} />
+          </div>
 
-            <div className="booking-field">
-              <label htmlFor={`${uid}-birthYear`}>{BOOKING.fields.birthYear}</label>
-              <input
-                ref={(el) => {
-                  fields.current.birthYear = el;
-                }}
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                autoComplete="off"
-                enterKeyHint="next"
-                required
-                maxLength={4}
-                {...fieldProps("birthYear")}
-                className="booking-field__control booking-field__control--year tabular"
-              />
-              {errorLine("birthYear")}
-            </div>
+          <div className="booking-field booking-field--year">
+            <label htmlFor={`${uid}-birthYear`}>{BOOKING.fields.birthYear}</label>
+            <SelectBox
+              id={`${uid}-birthYear`}
+              name="birthYear"
+              selectRef={(el) => {
+                fields.current.birthYear = el;
+              }}
+              value={values.birthYear}
+              options={yearOptions}
+              onChange={update("birthYear")}
+              invalid={Boolean(errors.birthYear)}
+              describedBy={errors.birthYear ? errorId("birthYear") : undefined}
+              required
+            />
+            {errorLine("birthYear")}
+          </div>
 
-            <div className="booking-field booking-field--wide">
-              <label htmlFor={`${uid}-group`}>{BOOKING.fields.group}</label>
-              <div className="booking-select">
-                <select id={`${uid}-group`} name="group" className="booking-field__control" value={values.group} onChange={update("group")}>
-                  <option value="">{GROUP_UNDECIDED.label}</option>
-                  {extraGroups.map((g) => (
-                    <option key={`x-${g}`} value={g}>
-                      {g}
-                    </option>
-                  ))}
-                  {BOOKING_GROUPS.map((g) => (
-                    <option key={g} value={g}>
-                      {g}
-                    </option>
-                  ))}
-                </select>
-                <svg className="booking-select__chevron" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false">
-                  <path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-            </div>
+          <div className="booking-field booking-field--wide">
+            <label htmlFor={`${uid}-group`}>{BOOKING.fields.group}</label>
+            <SelectBox id={`${uid}-group`} name="group" value={values.group} options={groupOptions} onChange={update("group")} />
+          </div>
 
-            <div className="booking-field booking-field--wide">
+          {noteOpen ? (
+            <div className="booking-field booking-field--wide booking-field--note">
               <label htmlFor={`${uid}-note`}>{BOOKING.fields.note}</label>
               <textarea
+                ref={noteRef}
                 id={`${uid}-note`}
                 name="note"
                 className="booking-field__control booking-field__control--note"
-                rows={2}
+                rows={3}
                 maxLength={400}
                 value={values.note}
                 onChange={update("note")}
               />
             </div>
-          </div>
-
-          <p id={`${uid}-privacy`} className="booking__privacy">
-            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
-              <rect x="4" y="9" width="12" height="8.5" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M6.75 9V6.75a3.25 3.25 0 0 1 6.5 0V9" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            </svg>
-            <span>{BOOKING.privacy}</span>
-          </p>
-
-          <div className="booking__actions">
-            <a id={`${uid}-sms`} className="btn btn-primary booking__action" href={hrefs.sms} onClick={onSend}>
-              {BOOKING.actions.sms}
-            </a>
-            {FLAGS.SHOW_VIBER ? (
-              coarse ? (
-                <a className="btn btn-secondary booking__action" href={hrefs.viber} onClick={onViber}>
-                  {BOOKING.actions.viber}
-                </a>
-              ) : (
-                <p className="booking__viber-number">
-                  {BOOKING.actions.viber}: <span className="tabular">{PRIMARY_PHONE.display}</span>
-                </p>
-              )
-            ) : null}
-            <a className="btn btn-secondary booking__action" href={hrefs.email} onClick={onSend}>
-              {BOOKING.actions.email}
-            </a>
-            <a className="booking__call" href={hrefs.tel}>
-              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
-                <path
-                  d="M6.6 3.5h2.6l1.4 4-2 1.4a11.5 11.5 0 0 0 6.5 6.5l1.4-2 4 1.4v2.6a2 2 0 0 1-2.2 2A16.6 16.6 0 0 1 4.6 5.7a2 2 0 0 1 2-2.2Z"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <span>{BOOKING.actions.call}</span>
-              <span className="booking__call-number tabular">{PRIMARY_PHONE.display}</span>
-            </a>
-          </div>
-
-          <p ref={statusRef} className="booking__status" role="status" aria-live="polite">
-            {keepNumberTogether(status)}
-          </p>
+          ) : (
+            <div className="booking-field--wide">
+              <button type="button" className="booking-more" onClick={openNote}>
+                <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false">
+                  <path d="M10 4v12M4 10h12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+                <span>{BOOKING.addNote}</span>
+              </button>
+            </div>
+          )}
         </form>
+
+        <p id={`${uid}-privacy`} className="booking__privacy">
+          <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
+            <rect x="4" y="9" width="12" height="8.5" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M6.75 9V6.75a3.25 3.25 0 0 1 6.5 0V9" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+          <span>{BOOKING.privacy}</span>
+        </p>
+      </div>
+
+      <div className="booking__foot">
+        <p className="booking__status" role="status" aria-live="polite">
+          {keepNumberTogether(status)}
+        </p>
+        <div className="booking__sends">
+          {sendOrder(primary).map((channel, i) => (
+            <a
+              key={channel}
+              ref={i === 0 ? primaryRef : undefined}
+              className={`btn ${i === 0 ? "btn-primary" : "btn-secondary"} booking__send`}
+              href={hrefs[channel]}
+              onClick={onSend(channel)}
+            >
+              {BOOKING.actions[channel]}
+            </a>
+          ))}
+          {FLAGS.SHOW_VIBER ? (
+            touchFirst ? (
+              <a className="btn btn-secondary booking__send booking__send--wide" href={hrefs.viber} onClick={onViber}>
+                {BOOKING.actions.viber}
+              </a>
+            ) : (
+              <p className="booking__viber-number">
+                {BOOKING.actions.viber}: <span className="tabular">{PRIMARY_PHONE.display}</span>
+              </p>
+            )
+          ) : null}
+        </div>
+        <a className="booking__call" href={hrefs.tel}>
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+            <path
+              d="M6.6 3.5h2.6l1.4 4-2 1.4a11.5 11.5 0 0 0 6.5 6.5l1.4-2 4 1.4v2.6a2 2 0 0 1-2.2 2A16.6 16.6 0 0 1 4.6 5.7a2 2 0 0 1 2-2.2Z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span>{BOOKING.actions.call}</span>
+          <span className="booking__call-number tabular">{PRIMARY_PHONE.display}</span>
+        </a>
       </div>
     </dialog>
   );

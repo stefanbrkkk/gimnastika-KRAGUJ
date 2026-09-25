@@ -1,9 +1,32 @@
+import { Fragment } from "react";
 import { HERO } from "@/content/copy";
 import { PRIMARY_PHONE } from "@/content/site";
 import { telHref } from "@/lib/links";
 import { COMPACT, WIDE } from "./geometry";
 import { HeroArt } from "./HeroArt";
 import { HeroMotionLoader } from "./HeroMotionLoader";
+
+/**
+ * Eyebrow typesetting (display only — content/copy.ts and the OG image keep the
+ * plain string): each „ · “ separator is glued to the text before it with a
+ * no-break space, so a separator never starts a line, and the eyebrow wraps
+ * only between its segments (nowrap per segment, styles/sections/hero.css).
+ * The first, long segment may still wrap between its words on phones, where
+ * it cannot fit on one line.
+ */
+const EYEBROW_SEGMENTS = HERO.eyebrow
+  .split(" · ")
+  .map((segment, i, all) => (i < all.length - 1 ? `${segment}\u00a0·` : segment));
+
+/**
+ * Serbian typesetting of the subline (display only, no-break spaces): a dash
+ * never starts a line, a one-letter word („i“, „u“, „s“ …) never ends one,
+ * and a number stays with its neighbours („od 3. godine“).
+ */
+const SUB = HERO.sub
+  .replace(/ ([—–]) /g, "\u00a0$1 ")
+  .replace(/(^|\s)([aiouskvzAIOUSKVZ]) /g, "$1$2\u00a0")
+  .replace(/(\S+) (\d+\.) (\S+)/g, "$1\u00a0$2\u00a0$3");
 
 /**
  * S1 HERO — the signature moment (§4, §5 S1). Server-rendered FINAL composition:
@@ -25,13 +48,20 @@ export function Hero() {
           </svg>
         </div>
 
-        <p className="hero__eyebrow label-caps">{HERO.eyebrow}</p>
+        <p className="hero__eyebrow label-caps">
+          {EYEBROW_SEGMENTS.map((segment, i) => (
+            <Fragment key={segment}>
+              {i > 0 ? " " : null}
+              <span className="hero__eyebrow-seg">{segment}</span>
+            </Fragment>
+          ))}
+        </p>
         <h1 id="hero-title" className="hero__title text-display-xl">
           {HERO.h1}
         </h1>
 
         <div className="hero__aside">
-          <p className="hero__sub">{HERO.sub}</p>
+          <p className="hero__sub">{SUB}</p>
           <div className="hero__ctas" data-hero-ctas="">
             <a href="#kontakt" data-booking="" className="btn btn-primary">
               {HERO.ctaPrimary}

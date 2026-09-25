@@ -5,9 +5,11 @@
 import ICAL from "ical.js";
 import { describe, expect, it } from "vitest";
 import { generateStaticParams, GET } from "@/app/kalendar/[file]/route";
-import { isFixed, SCHEDULE, type ScheduleGroup } from "@/content/schedule";
-import { GCAL_BASE, googleCalendarUrl } from "@/lib/gcal";
-import { buildGroupIcs, eventLocation, eventTitle, fixedBlocks, foldLine, hasFixedSlot, icsFileName, icsHref } from "@/lib/ics";
+import { isFixed, SCHEDULE, type DayCode, type ScheduleGroup } from "@/content/schedule";
+import { GCAL_BASE, gcalData, googleCalendarUrl } from "@/lib/gcal";
+import { buildGroupIcs, eventLocation, eventTitle, fixedBlocks, foldLine, hasFixedSlot, icsFileName, icsHref, localStamp } from "@/lib/ics";
+import { firstOccurrenceYmd, occurrenceDates, withGcalDates } from "@/lib/schedule-logic";
+import { belgradeNow } from "@/lib/time";
 
 const NOW = new Date("2026-09-24T12:34:56Z"); // Thursday → Ut/Če blocks start today, Po/Sr/Pe tomorrow
 const WITH_FIXED = SCHEDULE.filter(hasFixedSlot);
@@ -164,4 +166,41 @@ describe("Google Kalendar links", () => {
       });
     }
   }
+});
+
+describe("Google Kalendar dates after mount (never a past date)", () => {
+  const mladja = group("mladja");
+  const block = mladja.blocks[0]!;
+  const buildHref = googleCalendarUrl(mladja, block, new Date("2026-09-24T12:00:00Z")); // build: Thu → Fri 25 Sep
+  const refresh = (iso: string) => {
+    const [days = "", start = "", end = ""] = gcalData(block).split("|");
+    return new URL(withGcalDates(buildHref, occurrenceDates(days.split(",") as DayCode[], start, end, belgradeNow(new Date(iso)), true))).searchParams.get("dates");
+  };
+
+  it("carries the block as data-gcal and keeps the build date as the no-JS href", () => {
+    expect(gcalData(block)).toBe("po,sr,pe|18:00|19:00");
+    expect(new URL(buildHref).searchParams.get("dates")).toBe("20260925T180000/20260925T190000");
+  });
+
+  it("months after the build the link opens on the next real training, not the build date", () => {
+    expect(refresh("2027-03-10T12:00:00Z")).toBe("20270310T180000/20270310T190000"); // Wed 13:00 CET → today 18:00
+    expect(refresh("2027-03-10T17:30:00Z")).toBe("20270312T180000/20270312T190000"); // Wed 18:30 → started → Friday
+    expect(refresh("2027-03-12T17:00:00Z")).toBe("20270315T180000/20270315T190000"); // Fri 18:00 sharp → Monday
+    expect(refresh("2027-03-13T09:00:00Z")).toBe("20270315T180000/20270315T190000"); // Saturday → Monday
+  });
+
+  it("only the dates parameter changes (text, recur, ctz, location, details stay encoded)", () => {
+    const next = withGcalDates(buildHref, "20270315T180000/20270315T190000");
+    expect(next.replace(/dates=[^&]*/, "")).toBe(buildHref.replace(/dates=[^&]*/, ""));
+    expect(next).not.toMatch(/[ +]/);
+  });
+
+  it("strict mode only skips a start that has passed; the build rule (on/after the date) is unchanged", () => {
+    const fri1805 = belgradeNow(new Date("2026-09-25T16:05:00Z")); // Fri 18:05 CEST
+    expect(firstOccurrenceYmd(["pe"], fri1805)).toBe("2026-09-25");
+    expect(firstOccurrenceYmd(["pe"], fri1805, "18:00")).toBe("2026-10-02");
+    expect(firstOccurrenceYmd(["pe"], fri1805, "19:00")).toBe("2026-09-25");
+    expect(occurrenceDates(["ut", "ce"], "17:30", "19:30", fri1805)).toBe("20260929T173000/20260929T193000");
+    expect(localStamp("2026-09-28", "18:00")).toBe("20260928T180000");
+  });
 });

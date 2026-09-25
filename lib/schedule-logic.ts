@@ -106,12 +106,35 @@ export function addDaysYmd(ymd: string, days: number): string {
 
 /**
  * Local (Europe/Belgrade) date of the first day on/after `today` that is one
- * of `days` — the DTSTART date of a weekly recurring block.
+ * of `days` — the DTSTART date of a weekly recurring block. With `startClock`,
+ * today counts only while that start is still ahead (a training that has
+ * already started today is skipped → next week's day).
  */
-export function firstOccurrenceYmd(days: readonly DayCode[], today: BelgradeNow): string {
-  for (let offset = 0; offset < 7; offset++) {
+export function firstOccurrenceYmd(days: readonly DayCode[], today: BelgradeNow, startClock?: string): string {
+  const startMin = startClock === undefined ? Number.POSITIVE_INFINITY : clockToMinutes(startClock);
+  for (let offset = 0; offset <= 7; offset++) {
     const iso = ((today.isoWeekday - 1 + offset) % 7) + 1;
+    if (offset === 0 && startMin <= today.minutes) continue;
     if (days.some((d) => ISO_BY_DAY[d] === iso)) return addDaysYmd(today.ymd, offset);
   }
   return today.ymd;
 }
+
+/** "2026-09-28" + "18:00" → "20260928T180000" (local wall-clock time, no Z). */
+export const localStamp = (ymd: string, clock: string): string => `${ymd.replaceAll("-", "")}T${clock.replace(":", "")}00`;
+
+/**
+ * Google Calendar `dates` value ("20260928T180000/20260928T190000", local times in
+ * ctz) of a weekly block's first occurrence. The static HTML carries the build-date
+ * value (no-JS fallback); the schedule island recomputes it after mount with
+ * `strict` = true, so a link never opens on a past date or an already started training.
+ */
+export function occurrenceDates(days: readonly DayCode[], start: string, end: string, today: BelgradeNow, strict = false): string {
+  const ymd = firstOccurrenceYmd(days, today, strict ? start : undefined);
+  // A block never crosses midnight in this schedule; guard anyway.
+  const endYmd = end > start ? ymd : addDaysYmd(ymd, 1);
+  return `${localStamp(ymd, start)}/${localStamp(endYmd, end)}`;
+}
+
+/** Replaces the `dates=` parameter of a Google Calendar template URL. */
+export const withGcalDates = (href: string, dates: string): string => href.replace(/([?&]dates=)[^&]*/, `$1${dates}`);

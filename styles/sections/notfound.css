@@ -49,6 +49,32 @@
   font-weight: 780;
 }
 
+/* Error screen (app/global-error.tsx) --------------------------------------------------- */
+
+/* It replaces the layout: its <html> lost the next/font variable classes (so --font-mona and
+   with it var(--font-sans) are undefined). The family is named directly: "mona" = the export
+   name in app/fonts.ts, whose @font-face stays in the inlined CSS; falls back cleanly if renamed… */
+.nf--error {
+  font-family: mona, "mona Fallback", "Mona Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* …and the sprite: the club's name stands in for the logo. */
+.nf__brand-name {
+  font-size: 1.125rem;
+  line-height: 1.2;
+  font-weight: 760;
+  font-stretch: 112%;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+/* One short line under the title. */
+.nf__lead {
+  margin-top: 20px;
+  max-width: 44ch;
+  color: var(--muted);
+}
+
 .nf__actions {
   display: flex;
   flex-direction: column;
@@ -138,6 +164,11 @@
     grid-column: 1 / span 5;
   }
 
+  /* No stage on the error fallback: the copy takes the reading width it needs. */
+  .nf--error .nf__copy {
+    grid-column: 1 / span 7;
+  }
+
   .nf__stage-wrap {
     position: relative;
     grid-column: 6 / span 7;
@@ -148,5 +179,17 @@
     position: absolute;
     top: 100%;
     left: 0;
+  }
+}
+
+/* 1024–1279: five columns are narrower than the two buttons side by side (they
+   would wrap into two uneven rows) — split the grid 6/6 until 1280. */
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  .nf__copy {
+    grid-column: 1 / span 6;
+  }
+
+  .nf__stage-wrap {
+    grid-column: 7 / span 6;
   }
 }
