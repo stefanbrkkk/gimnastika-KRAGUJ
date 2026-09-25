@@ -81,6 +81,22 @@ const onScreen = (el: Element): boolean => {
 
 const shown = (el: HTMLElement): boolean => !el.hidden && !el.hasAttribute(LEAVING);
 
+const NO_DAYS: ReadonlySet<string> = new Set();
+
+/**
+ * Day panels ("Po danu") with no training of `filter`. Computed from the filter itself
+ * (matches()), never from `hidden`: a running Flip sets `hidden` only when it completes.
+ */
+function emptyDaysFor(root: HTMLElement, filter: string): ReadonlySet<string> {
+  if (filter === "all") return NO_DAYS;
+  const empty = new Set<string>();
+  root.querySelectorAll<HTMLElement>(".sched-day[data-day]").forEach((panel) => {
+    const items = Array.from(panel.querySelectorAll<HTMLElement>(ITEM));
+    if (panel.dataset.day && !items.some((el) => matches(el, filter))) empty.add(panel.dataset.day);
+  });
+  return empty;
+}
+
 /** Arrow/Home/End roving focus for a tablist (automatic activation). */
 function roving<K>(e: KeyboardEvent, keys: readonly K[], current: K, pick: (k: K) => void, idOf: (k: K) => string): void {
   const i = Math.max(0, keys.indexOf(current));
@@ -109,12 +125,16 @@ export function ScheduleBoard({ programs, days, byGroup, byDay, aside }: Schedul
   const flipTl = useRef<ReturnType<FlipPlugin["from"]> | null>(null);
   const [view, setView] = useState<View>("group");
   const [filter, setFilter] = useState("all");
+  /** Days with no training of the filtered program (muted day tabs); none under „Sve“. */
+  const [emptyDays, setEmptyDays] = useState<ReadonlySet<string>>(NO_DAYS);
   const [pickedDay, setPickedDay] = useState<DayCode | null>(null);
   const [interacted, setInteracted] = useState(false);
   const [status, setStatus] = useState("");
   /** Filter and day changes are announced (view switches are announced by the tabs themselves). */
   const [announce, setAnnounce] = useState(0);
   const announcePending = useRef(false);
+  /** Set by a user's day pick only (not the after-mount today selection, a view or a filter change). */
+  const dayPicked = useRef(false);
 
   // Today (Europe/Belgrade) exists only after mount: SSR renders no selection.
   const now = useBelgradeMinute();
@@ -142,6 +162,7 @@ export function ScheduleBoard({ programs, days, byGroup, byDay, aside }: Schedul
     });
     applyFilter(root, next);
     setFilter(next);
+    setEmptyDays(emptyDaysFor(root, next));
     announcePending.current = true;
     setAnnounce((n) => n + 1);
     if (m && state) {
@@ -202,6 +223,24 @@ export function ScheduleBoard({ programs, days, byGroup, byDay, aside }: Schedul
       ro?.disconnect();
     };
   }, []);
+
+  // A day picked while the strip is stuck (the user scrolled into the previous day) keeps the
+  // scroll position, which can leave the new day's first rows — or the whole shorter panel —
+  // above the strip. Bring the panels' top back just under the strip. Measures .sched-days,
+  // not the day panel (that one is still translated by its sched-in entrance). The target
+  // uses the header-shown offset: the correction scrolls up, which brings the header back.
+  useLayoutEffect(() => {
+    if (!dayPicked.current) return;
+    dayPicked.current = false;
+    if (view !== "day") return;
+    const board = rootRef.current;
+    const strip = board?.querySelector<HTMLElement>(".sched-strip");
+    const daysBox = board?.querySelector<HTMLElement>(".sched-days");
+    if (!board || !strip || !daysBox) return;
+    const target = (parseFloat(getComputedStyle(board).getPropertyValue("--sched-header-offset")) || 0) + strip.offsetHeight + 12;
+    const top = daysBox.getBoundingClientRect().top;
+    if (top < target) window.scrollBy({ top: top - target, behavior: "instant" });
+  }, [selectedDay, view]);
 
   // Polite status after a user-initiated filter/day change: what the visible panel now shows.
   useEffect(() => {
@@ -290,6 +329,7 @@ export function ScheduleBoard({ programs, days, byGroup, byDay, aside }: Schedul
     setInteracted(true);
   };
   const pickDay = (d: DayCode) => {
+    if (d !== selectedDay) dayPicked.current = true;
     setPickedDay(d);
     setInteracted(true);
     announcePending.current = true;
@@ -299,7 +339,7 @@ export function ScheduleBoard({ programs, days, byGroup, byDay, aside }: Schedul
   const focusDay: DayCode = selectedDay ?? dayCodes[0] ?? "po";
 
   const check = (
-    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" className="sched-pill__check">
+    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" className="ui-icon sched-pill__check">
       <path d="M3.5 8.5l3 3 6-7" />
     </svg>
   );
@@ -366,27 +406,34 @@ export function ScheduleBoard({ programs, days, byGroup, byDay, aside }: Schedul
 
       <div role="tabpanel" id="sched-panel-day" aria-labelledby="sched-tab-day" className="sched-panel" hidden={view !== "day"}>
         <div className="sched-strip" role="tablist" aria-label={T.dayStripLabel}>
-          {days.map((d) => (
-            <button
-              key={d.code}
-              type="button"
-              role="tab"
-              id={`sched-daytab-${d.code}`}
-              className="sched-strip__day"
-              aria-selected={selectedDay === d.code}
-              aria-controls={`sched-day-${d.code}`}
-              tabIndex={focusDay === d.code ? 0 : -1}
-              data-weekend={d.iso >= 6 ? "" : undefined}
-              onClick={() => pickDay(d.code)}
-              onKeyDown={(e) => roving(e, dayCodes, focusDay, pickDay, (k) => `sched-daytab-${k}`)}
-            >
-              <span className="sched-strip__short" aria-hidden="true">
-                {d.short}
-              </span>
-              <span className="sr-only">{d.full}</span>
-              {today === d.code ? <span className="sched-strip__today">{T.today}</span> : null}
-            </button>
-          ))}
+          {days.map((d) => {
+            const empty = emptyDays.has(d.code);
+            return (
+              <button
+                key={d.code}
+                type="button"
+                role="tab"
+                id={`sched-daytab-${d.code}`}
+                className="sched-strip__day"
+                aria-selected={selectedDay === d.code}
+                aria-controls={`sched-day-${d.code}`}
+                tabIndex={focusDay === d.code ? 0 : -1}
+                data-weekend={d.iso >= 6 ? "" : undefined}
+                data-empty={empty ? "" : undefined}
+                onClick={() => pickDay(d.code)}
+                onKeyDown={(e) => roving(e, dayCodes, focusDay, pickDay, (k) => `sched-daytab-${k}`)}
+              >
+                <span className="sched-strip__short" aria-hidden="true">
+                  {d.short}
+                </span>
+                <span className="sr-only">
+                  {d.full}
+                  {empty ? `, ${T.dayOff}` : null}
+                </span>
+                {today === d.code ? <span className="sched-strip__today">{T.today}</span> : null}
+              </button>
+            );
+          })}
         </div>
         <div className="sched-days" data-selected={selectedDay ?? undefined}>
           {byDay}

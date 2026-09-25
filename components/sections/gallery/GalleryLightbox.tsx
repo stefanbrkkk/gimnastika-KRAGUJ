@@ -49,6 +49,28 @@ const CROSSFADE_MS = 150;
 
 const clamp = (i: number, n: number) => Math.min(Math.max(i, 0), n - 1);
 
+/**
+ * Brings a grid print fully into the free band between the header and the
+ * sticky bar (the page's scroll-padding + 12px air) with one instant scroll.
+ * Every close path calls it while the lightbox still covers the page, so the
+ * jump is hidden, the close Flip measures the final spot, and the focus return
+ * (preventScroll) never scrolls the page after the photo has landed. It measures
+ * the whole print link (frame + caption foot = the focus target, whose ring the
+ * 2.4.11 focus guard would otherwise still correct), not only the photo inside
+ * it. A print taller than the band keeps its top edge in view.
+ */
+const revealPrint = (thumb: HTMLElement | null) => {
+  if (!thumb || thumb.offsetParent === null) return;
+  const print = thumb.closest<HTMLElement>("[data-gallery-open]") ?? thumb;
+  const cs = getComputedStyle(document.documentElement);
+  const top = (parseFloat(cs.scrollPaddingTop) || 0) + 12;
+  const bottom = window.innerHeight - (parseFloat(cs.scrollPaddingBottom) || 0) - 12;
+  const b = print.getBoundingClientRect();
+  const dy = b.top < top ? b.top - top : b.bottom > bottom ? Math.min(b.bottom - bottom, b.top - top) : 0;
+  // Whole pixels, rounded outward: a fractional rest would leave the ring 1px over the band.
+  if (dy) window.scrollBy({ top: dy > 0 ? Math.ceil(dy) : Math.floor(dy), behavior: "instant" });
+};
+
 interface GalleryLightboxProps {
   photos: readonly LightboxPhoto[];
   start: number;
@@ -115,8 +137,10 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
     finalized.current = true;
     document.documentElement.removeAttribute("data-lightbox-open");
     const photo = photos[indexRef.current];
+    // A close that bypassed requestClose (forced by the browser) still brings the print into view.
+    if (!closing.current) revealPrint(printOf(photo));
     const link = photo ? document.querySelector<HTMLAnchorElement>(`[data-gallery-open="${photo.id}"]`) : null;
-    link?.focus();
+    link?.focus({ preventScroll: true });
     onClosed();
   };
 
@@ -127,17 +151,20 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
     const i = indexRef.current;
     const media = mediaRefs.current[i];
     const thumb = printOf(photos[i]);
+    // Before either close path, while the scrim still hides the page: the landing spot is final.
+    revealPrint(thumb);
     const Flip = motionAllowed() ? flip : null;
     const done = () => {
-      if (dialog.open) dialog.close(); // → onClose → finalize
-      else finalize();
+      if (dialog.open) dialog.close();
+      // Now, not on the queued `close` event: the native focus restore to the opener never
+      // paints a ring for a frame before focus moves to the current print (finalize is idempotent).
+      finalize();
     };
 
     if (Flip && media && thumb && thumb.offsetParent !== null) {
-      const box = thumb.getBoundingClientRect();
-      if (box.bottom < 0 || box.top > window.innerHeight) thumb.scrollIntoView({ block: "center", behavior: "instant" });
       gsap.to(chrome(), { opacity: 0, duration: DUR.fast, ease: "none", overwrite: true });
-      gsap.to(scrimRef.current, { opacity: 0, duration: DUR.base, ease: "none", overwrite: true });
+      // An exit (≤200ms, §4): the veil is gone by the time the photo has visually landed.
+      gsap.to(scrimRef.current, { opacity: 0, duration: DUR.fast, ease: "none", overwrite: true });
       Flip.fit(media, thumb, { duration: DUR.base, ease: EASE.stick, scale: true, onComplete: done });
     } else if (typeof dialog.animate === "function") {
       const fade = dialog.animate([{ opacity: 1 }, { opacity: 0 }], { duration: CROSSFADE_MS, easing: "linear", fill: "forwards" });
@@ -328,7 +355,7 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
           {current?.frame}
         </span>
         <button ref={closeRef} type="button" className="lb-btn lb-close" aria-label={GALLERY_UI.close} onClick={requestClose}>
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <svg className="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
           </svg>
         </button>
@@ -342,7 +369,7 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
           aria-disabled={index === 0}
           onClick={() => go(indexRef.current - 1)}
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <svg className="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path d="M14.5 6l-6 6 6 6" />
           </svg>
         </button>
@@ -353,7 +380,7 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
           aria-disabled={index === n - 1}
           onClick={() => go(indexRef.current + 1)}
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <svg className="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path d="M9.5 6l6 6-6 6" />
           </svg>
         </button>

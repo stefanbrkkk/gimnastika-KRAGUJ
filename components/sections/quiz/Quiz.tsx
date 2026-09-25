@@ -7,6 +7,7 @@
 import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { QUIZ } from "@/content/copy";
+import { typesetSr } from "@/lib/typeset";
 import { QuizApp } from "./QuizApp";
 import { QuizGuide } from "./QuizGuide";
 import { buildQuizViewModel } from "./views";
@@ -16,7 +17,7 @@ export function Quiz() {
   return (
     <Section id="kviz" theme="light" labelledBy="kviz-title">
       <div className="container-site quiz-layout">
-        <SectionHeading id="kviz-title" title={QUIZ.heading} align="left" className="quiz-heading" />
+        <SectionHeading id="kviz-title" title={typesetSr(QUIZ.heading)} align="left" className="quiz-heading" />
         <div className="quiz-stage">
           <QuizApp vm={vm} />
           <QuizGuide />

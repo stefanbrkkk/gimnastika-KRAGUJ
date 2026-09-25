@@ -2,6 +2,7 @@ import { Fragment } from "react";
 import { HERO } from "@/content/copy";
 import { PRIMARY_PHONE } from "@/content/site";
 import { telHref } from "@/lib/links";
+import { typesetSr } from "@/lib/typeset";
 import { COMPACT, WIDE } from "./geometry";
 import { HeroArt } from "./HeroArt";
 import { HeroMotionLoader } from "./HeroMotionLoader";
@@ -16,17 +17,21 @@ import { HeroMotionLoader } from "./HeroMotionLoader";
  */
 const EYEBROW_SEGMENTS = HERO.eyebrow
   .split(" · ")
-  .map((segment, i, all) => (i < all.length - 1 ? `${segment}\u00a0·` : segment));
+  .map((segment, i, all) => typesetSr(i < all.length - 1 ? `${segment}\u00a0·` : segment));
 
 /**
- * Serbian typesetting of the subline (display only, no-break spaces): a dash
- * never starts a line, a one-letter word („i“, „u“, „s“ …) never ends one,
- * and a number stays with its neighbours („od 3. godine“).
+ * The H1 (display only): the one-letter preposition is glued to its word, so
+ * the 144px headline never ends a line on „u“ („za decu / u Kragujevcu“).
+ * The document title, meta and OG image keep the plain string.
  */
-const SUB = HERO.sub
-  .replace(/ ([—–]) /g, "\u00a0$1 ")
-  .replace(/(^|\s)([aiouskvzAIOUSKVZ]) /g, "$1$2\u00a0")
-  .replace(/(\S+) (\d+\.) (\S+)/g, "$1\u00a0$2\u00a0$3");
+const TITLE = typesetSr(HERO.h1);
+
+/**
+ * Serbian typesetting of the subline (display only, no-break spaces, lib/typeset):
+ * a dash never starts a line, a one-letter word („i“, „u“, „s“ …) never ends
+ * one, and a number stays with both neighbours („od 3. godine“).
+ */
+const SUB = typesetSr(HERO.sub).replace(/(\S) (\d+\.?)\u00a0/g, "$1\u00a0$2\u00a0");
 
 /**
  * S1 HERO — the signature moment (§4, §5 S1). Server-rendered FINAL composition:
@@ -57,26 +62,26 @@ export function Hero() {
           ))}
         </p>
         <h1 id="hero-title" className="hero__title text-display-xl">
-          {HERO.h1}
+          {TITLE}
         </h1>
 
         <div className="hero__aside">
           <p className="hero__sub">{SUB}</p>
           <div className="hero__ctas" data-hero-ctas="">
             <a href="#kontakt" data-booking="" className="btn btn-primary">
-              {HERO.ctaPrimary}
+              {typesetSr(HERO.ctaPrimary)}
             </a>
             <a href={telHref(PRIMARY_PHONE.e164)} className="btn btn-secondary">
-              {HERO.ctaSecondary}
+              {typesetSr(HERO.ctaSecondary)}
             </a>
           </div>
           <ul className="hero__trust">
             {HERO.trust.map((item) => (
               <li key={item}>
-                <svg className="hero__tick" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <svg className="hero__tick ui-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
                   <path d="M3 8.6 6.4 12 13 4.5" />
                 </svg>
-                {item}
+                {typesetSr(item)}
               </li>
             ))}
           </ul>

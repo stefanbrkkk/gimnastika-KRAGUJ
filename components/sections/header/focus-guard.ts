@@ -1,4 +1,4 @@
-import { obscuredBy } from "./chrome";
+import { focusScrollDelta } from "./chrome";
 
 /** Scroll idle time that counts as "settled" (smooth focus scrolling included). */
 const SETTLE_MS = 140;
@@ -12,6 +12,29 @@ const isKeyboardFocus = (el: Element): boolean => {
     return true;
   }
 };
+
+/**
+ * Scroll the focused element into the free band between the header and the
+ * sticky bar (resting edges: the header is fixed at the top, the bar at the
+ * bottom; offset* ignore their slide transforms). Tall elements are handled
+ * too — one that cannot fit the band gets its top edge pinned under the header.
+ */
+function clearFocus(t: HTMLElement, header: HTMLElement | null, headerBar: HTMLElement | null): void {
+  const box = t.getBoundingClientRect();
+  const vh = window.innerHeight;
+  if (box.bottom < 0 || box.top > vh) return;
+  const bar = document.querySelector<HTMLElement>("[data-sticky-bar]");
+  // (offsetParent is always null for position:fixed, so test for a rendered box instead)
+  const barShown = bar?.dataset.visible === "true" && bar.getClientRects().length > 0;
+  const dy = focusScrollDelta(box, {
+    scrollY: window.scrollY,
+    viewportHeight: vh,
+    headerShown: Boolean(header && headerBar) && header?.dataset.hidden !== "true",
+    headerBottom: headerBar ? headerBar.offsetTop + headerBar.offsetHeight : 0,
+    barTop: bar && barShown ? vh - bar.offsetHeight : null,
+  });
+  if (dy !== 0) window.scrollBy({ top: dy, behavior: "instant" });
+}
 
 /**
  * WCAG 2.4.11 Focus Not Obscured: after keyboard focus moves, wait until any
@@ -31,19 +54,7 @@ export function installFocusGuard(header: HTMLElement, headerBar: HTMLElement): 
     target = null;
     window.removeEventListener("scroll", onScroll);
     if (!t || document.activeElement !== t) return;
-    const box = t.getBoundingClientRect();
-    if (box.height > window.innerHeight / 2 || box.bottom < 0 || box.top > window.innerHeight) return;
-
-    let dy = 0;
-    if (header.dataset.hidden !== "true") {
-      dy = obscuredBy(box, { side: "top", edge: headerBar.getBoundingClientRect().bottom });
-    }
-    const bar = document.querySelector<HTMLElement>("[data-sticky-bar]");
-    // (offsetParent is always null for position:fixed, so test for a rendered box instead)
-    if (dy === 0 && bar?.dataset.visible === "true" && bar.getClientRects().length > 0) {
-      dy = obscuredBy(box, { side: "bottom", edge: bar.getBoundingClientRect().top });
-    }
-    if (dy !== 0) window.scrollBy({ top: dy, behavior: "instant" });
+    clearFocus(t, header, headerBar);
   };
 
   const arm = () => {
@@ -75,16 +86,14 @@ export function installFocusGuard(header: HTMLElement, headerBar: HTMLElement): 
 }
 
 /**
- * The sticky bar just appeared: if keyboard focus sits where the bar will
- * rest, scroll just enough that the focused element sits above the bar.
- * (offsetHeight ignores the bar's slide-in transform, so this is its final edge.)
+ * The sticky bar just appeared (data-visible="true" is already set; its resting
+ * edge ignores the slide-in): if keyboard focus sits where the bar will rest,
+ * scroll the focused element back into the free band.
  */
-export function clearFocusFromBar(bar: HTMLElement): void {
+export function clearFocusFromBar(): void {
   const t = document.activeElement;
   if (!(t instanceof HTMLElement) || t === document.body || t.closest("dialog, [data-site-header], [data-sticky-bar]")) return;
   if (!isKeyboardFocus(t)) return;
-  const box = t.getBoundingClientRect();
-  if (box.height > window.innerHeight / 2 || box.bottom < 0 || box.top > window.innerHeight) return;
-  const dy = obscuredBy(box, { side: "bottom", edge: window.innerHeight - bar.offsetHeight });
-  if (dy !== 0) window.scrollBy({ top: dy, behavior: "instant" });
+  const header = document.querySelector<HTMLElement>("[data-site-header]");
+  clearFocus(t, header, header?.querySelector<HTMLElement>("[data-header-bar]") ?? null);
 }

@@ -3,6 +3,8 @@ import {
   HEADER_HIDE_AFTER,
   MENU_INDEX_ID,
   SHORT_VIEWPORT_MAX,
+  bandDelta,
+  focusScrollDelta,
   initialHeaderState,
   isKeyboardOpen,
   isTextEntry,
@@ -132,6 +134,43 @@ describe("focus not obscured (WCAG 2.4.11)", () => {
   it("scrolls down when focus sits under the bottom bar", () => {
     expect(obscuredBy({ top: 700, bottom: 760 }, { side: "bottom", edge: 736 })).toBe(760 - 724);
     expect(obscuredBy({ top: 500, bottom: 560 }, { side: "bottom", edge: 736 })).toBe(0);
+  });
+
+  it("fits a box into the free band between the bars, 12px clear of both", () => {
+    // 640×400 (1280×800 at 200%): header hidden, bar top 336 → band 0…336
+    expect(bandDelta({ top: 88, bottom: 351 }, 0, 336)).toBe(351 - 324); // a 263px print, taller than half the viewport
+    expect(bandDelta({ top: 40, bottom: 300 }, 0, 336)).toBe(0);
+    expect(bandDelta({ top: 60, bottom: 110 }, 70, 780)).toBe(60 - 82);
+  });
+
+  it("pins the top edge of a box that cannot fit the band", () => {
+    expect(bandDelta({ top: 200, bottom: 600 }, 74, 326)).toBe(200 - 86);
+    expect(bandDelta({ top: -30, bottom: 330 }, 0, 326)).toBe(-30 - 12);
+    expect(bandDelta({ top: 86, bottom: 486 }, 74, 326)).toBe(0);
+  });
+
+  const phone = { scrollY: 3000, viewportHeight: 844, headerShown: true, headerBottom: 70, barTop: 780 };
+
+  it("clears the header and the sticky bar together", () => {
+    expect(focusScrollDelta({ top: 300, bottom: 500 }, phone)).toBe(0);
+    expect(focusScrollDelta({ top: 50, bottom: 250 }, phone)).toBe(50 - 82);
+    expect(focusScrollDelta({ top: 600, bottom: 800 }, phone)).toBe(800 - 768);
+    expect(focusScrollDelta({ top: 600, bottom: 800 }, { ...phone, barTop: null })).toBe(0);
+  });
+
+  it("a scroll up that brings the hidden header back clears its resting edge too", () => {
+    const hidden = { ...phone, headerShown: false };
+    // ≥ 12px up → nextHeaderState shows the header → land under it, not at 12px
+    expect(focusScrollDelta({ top: -40, bottom: 160 }, hidden)).toBe(-40 - 82);
+    // a nudge smaller than the header's travel threshold keeps it hidden
+    expect(focusScrollDelta({ top: 4, bottom: 204 }, hidden)).toBe(4 - 12);
+    // …unless it ends within the first 120px, where the header always shows
+    expect(focusScrollDelta({ top: 4, bottom: 204 }, { ...hidden, scrollY: 100 })).toBe(4 - 82);
+    // short viewport (844×390): the bar steps aside once the header is back
+    const short = { scrollY: 3000, viewportHeight: 390, headerShown: false, headerBottom: 74, barTop: 326 };
+    expect(focusScrollDelta({ top: -27, bottom: 326 }, short)).toBe(-27 - 86);
+    // scrolling down never brings the header back: header edge ignored
+    expect(focusScrollDelta({ top: 40, bottom: 330 }, short)).toBe(330 - 314);
   });
 });
 

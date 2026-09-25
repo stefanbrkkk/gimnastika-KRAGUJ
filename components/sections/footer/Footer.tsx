@@ -5,6 +5,10 @@ import { FooterMark } from "@/components/sections/header/LeapTrail";
 import { CONTACT, FOOTER } from "@/content/copy";
 import { CLUB, CREDIT_NAME, CREDIT_URL, CTA, FLAGS, GSS, NAV, PRIMARY_PHONE, SOCIAL } from "@/content/site";
 import { telHref } from "@/lib/links";
+import { typesetSr } from "@/lib/typeset";
+
+/** Display typesetting, plus: a „ · “ separator never starts a line (glued to the word before). */
+const typeset = (text: string) => typesetSr(text).replace(/ · /g, "\u00a0· ");
 
 /**
  * Footer (§5 FOOTER), darkroom navy-950. The white logo is the last frame of
@@ -25,7 +29,7 @@ export function Footer() {
       <div className="container-site site-footer__inner">
         <div className="site-footer__brand">
           <FooterMark className="site-footer__mark" title={CLUB.brandName} />
-          <p className="site-footer__line">{FOOTER.line}</p>
+          <p className="site-footer__line">{typeset(FOOTER.line)}</p>
         </div>
 
         <div id={MENU_INDEX_ID} className="site-footer__index">
@@ -45,10 +49,10 @@ export function Footer() {
           </nav>
           <div className="site-footer__actions">
             <a href="#kontakt" data-booking="" className="btn btn-primary">
-              {CTA.trial}
+              {typeset(CTA.trial)}
             </a>
             <a href={telHref(PRIMARY_PHONE.e164)} className="btn btn-secondary">
-              {`${CTA.call} ${PRIMARY_PHONE.display}`}
+              {typeset(`${CTA.call} ${PRIMARY_PHONE.display}`)}
             </a>
           </div>
         </div>
@@ -57,7 +61,7 @@ export function Footer() {
           <ul className="site-footer__links">
             <li>
               <a href={GSS.clubPage} className="site-footer__link" {...external}>
-                <span>{FOOTER.gss}</span>
+                <span>{typeset(FOOTER.gss)}</span>
                 <ExternalIcon className="site-footer__arrow" />
                 {newTab}
               </a>
@@ -66,6 +70,7 @@ export function Footer() {
               <a href={SOCIAL.instagram} className="site-footer__link" {...external}>
                 <InstagramIcon />
                 <span>{CONTACT.instagramLabel}</span>
+                <ExternalIcon className="site-footer__arrow" />
                 {newTab}
               </a>
             </li>
@@ -74,6 +79,7 @@ export function Footer() {
                 <a href={SOCIAL.facebook} className="site-footer__link" {...external}>
                   <FacebookIcon />
                   <span>{CONTACT.facebookLabel}</span>
+                  <ExternalIcon className="site-footer__arrow" />
                   {newTab}
                 </a>
               </li>
@@ -81,9 +87,9 @@ export function Footer() {
           </ul>
 
           <div className="site-footer__base">
-            <p>{FOOTER.copyright}</p>
+            <p>{typeset(FOOTER.copyright)}</p>
             <p>
-              {FOOTER.creditPrefix}{" "}
+              {typeset(FOOTER.creditPrefix)}{" "}
               {CREDIT_URL ? (
                 <a href={CREDIT_URL} className="site-footer__credit" {...external}>
                   {CREDIT_NAME}

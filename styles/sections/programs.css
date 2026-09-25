@@ -1,7 +1,9 @@
 /* programs section styles — owned by the programs section (S3 „Programi“).
    A contact sheet of program "frames": mobile/tablet = native scroll-snap row,
    desktop = 2 (1024–1279) / 3 (≥1280) column sheet with photo 04 as a frame.
-   Motion: only transform, opacity, stroke-dashoffset. */
+   Theme: a navy-900 "darkroom" section (AD-02); the program cards are white prints that
+   carry the light tokens themselves (data-theme="light"), KR-04 keeps the dark frame.
+   Motion: only transform, opacity, stroke-dashoffset. Every :hover is gated by (hover: hover). */
 
 /* --------------------------------------------------------------------------
    Head: heading (right on desktop) + chips/status (left on desktop)
@@ -33,7 +35,7 @@ html:not(.js) .programs .pc-open {
 .pg-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px; /* icon-to-label gap (✓), as every icon + label on the page */
   min-height: 48px;
   padding: 0 18px;
   border-radius: var(--radius-full);
@@ -47,16 +49,17 @@ html:not(.js) .programs .pc-open {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
-  /* translate/scale: the global press squash (app/globals.css) eases back like .btn. */
+  /* Only translate/scale: the global press squash (app/globals.css) eases back like .btn.
+     The pressed colours switch at once (MI-04): a fade blanks both chips mid-way. */
   transition:
-    background-color var(--dur-fast) var(--ease-stick),
-    color var(--dur-fast) var(--ease-stick),
     translate var(--dur-slow-squash) var(--ease-rebound),
     scale var(--dur-slow-squash) var(--ease-rebound);
 }
 
-.pg-chip:hover {
-  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--fg) 45%, transparent);
+@media (hover: hover) {
+  .pg-chip:hover {
+    box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--fg) 45%, transparent);
+  }
 }
 
 .pg-chip:active {
@@ -75,19 +78,29 @@ html:not(.js) .programs .pc-open {
   display: none;
 }
 
-/* Pressed: filled navy + check mark (shape, not color alone). */
+/* Pressed: filled with the section's CTA pair + check mark (shape, not color alone):
+   lav-200 + navy text on this dark section, navy + white on a light one. */
 .pg-chip[aria-pressed="true"] {
-  background: var(--color-navy-900);
-  color: var(--color-white);
-  box-shadow: inset 0 0 0 2px var(--color-navy-900);
+  background: var(--cta-bg);
+  color: var(--cta-fg);
+  box-shadow: inset 0 0 0 2px var(--cta-bg);
 }
 
 .pg-chip[aria-pressed="true"] .pg-chip__check {
   display: block;
 }
 
+/* Forced colors: the pressed chip uses the system highlight (styles/ui.css sets it, but the
+   rule above comes later in the cascade and would keep the lavender fill). */
+@media (forced-colors: active) {
+  .pg-chip[aria-pressed="true"] {
+    background: Highlight;
+    color: HighlightText;
+  }
+}
+
 /* Keyboard focus: the global outline ring (app/globals.css) sits outside the chip's own
-   inset border, 3px away, in violet on this light section; nothing here overrides it. */
+   inset border, 3px away, in lav-200 on this dark section; nothing here overrides it. */
 
 /* Filters block: chips, the status line (aria-live) and the pager (<1024). Phones: chips /
    status / pager, each on its own row. ≥640 the pager joins the chips row when it fits and
@@ -158,9 +171,10 @@ html:not(.js) .programs .pc-open {
 .pg-strip {
   position: relative; /* Flip: leaving cards go absolute inside */
   display: flex;
-  /* Phones show one card at a time: natural heights, so a short card keeps its CTAs right
-     under its times (the pager sits above the row, so nothing floats under a short card). */
-  align-items: flex-start;
+  /* Every frame has the row's height (BRK-07), phones included: the CTAs sit at the same
+     place on every card (.pc-actions margin-top:auto), so they never jump between swipes and
+     the row ends on one line. A short card's extra height is whitespace above its CTAs. */
+  align-items: stretch;
   gap: 12px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
@@ -174,10 +188,7 @@ html:not(.js) .programs .pc-open {
 }
 
 @media (min-width: 640px) {
-  /* Tablets show two or three cards side by side: equal frames, times and CTAs on one line
-     along the bottom (as in the desktop grid). */
   .pg-strip {
-    align-items: stretch;
     gap: 16px;
     margin-inline: -32px;
     padding-inline: 32px;
@@ -188,6 +199,14 @@ html:not(.js) .programs .pc-open {
 .pg-strip > * {
   flex: 0 0 min(320px, calc(100vw - 72px));
   scroll-snap-align: start;
+}
+
+/* 320–339px: a slightly wider frame keeps „Zakažite probni trening“ on one line (52px pill,
+   as from 340px up); the next card still peeks by 28px. */
+@media (max-width: 339.98px) {
+  .pg-strip > * {
+    flex-basis: calc(100vw - 60px);
+  }
 }
 
 .pg-strip > [hidden],
@@ -241,6 +260,18 @@ html:not(.js) .programs .pc-open {
 
 html.js .program-card {
   cursor: pointer;
+}
+
+/* On the navy darkroom the navy-tinted sh-2 disappears: the print keeps a 1px mount edge. */
+.programs[data-theme="dark"] .program-card {
+  box-shadow: 0 0 0 1px var(--hairline);
+}
+
+/* A light print inside a dark section: `[data-theme="dark"] .btn-primary` (globals) still
+   matches through the nearer data-theme="light", so the card and sheet CTAs get the light
+   lip back. Press (lip → 0) and focus (ring) fall through to their global rules. */
+:is(.program-card, .ps-panel) .btn-primary:not(:active):not(:focus-visible) {
+  box-shadow: var(--shadow-press);
 }
 
 @media (hover: hover) {
@@ -355,7 +386,8 @@ html.js .program-card {
   margin-top: 10px;
   padding: 5px 10px 4px;
   border-radius: var(--radius-full);
-  box-shadow: inset 0 0 0 1.5px var(--hairline);
+  /* 1px: a label, not a control (2px rings mean tappable). */
+  box-shadow: inset 0 0 0 1px var(--hairline);
   color: var(--fg);
 }
 
@@ -380,8 +412,8 @@ html.js .program-card {
   padding-top: 20px;
 }
 
-/* Two stacked pills in a narrow card: slightly tighter side padding; if a label must wrap
-   (320px phones), it wraps balanced („Zakažite / probni trening“), never leaving one word. */
+/* Two stacked pills in a narrow card: slightly tighter side padding; a label never wraps
+   from 320px up (see the 320–339px frame width), and would wrap balanced if it ever had to. */
 .pc-actions .btn,
 .ps-actions .btn {
   position: relative;
@@ -526,8 +558,46 @@ html.js .program-card {
   }
 }
 
+/* ≥1280 (3 columns): the KR-04 print ends on its row's baseline like the cards next to it.
+   The frame stretches with the row, but the photo box is capped at 533px (native 1066/2): a
+   column is ≤412px wide, so the square photo is cover-cropped into a box ≤ 412×533 and drawn
+   at ≤533 CSS px — never upscaled (Picture's maxCssWidth rule for a taller box). The frame is
+   capped with it, so a taller filtered row leaves a short notch, never an empty mount. */
+@media (min-width: 1280px) {
+  .pg-photo {
+    --pg-photo-cap: 533px; /* photo 04: native 1066px / 2 */
+    --pg-frame-chrome: 34px; /* .frame padding-top 6px + .frame-foot 28px (measured) */
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+  }
+  .pg-photo .frame {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-height: calc(var(--pg-photo-cap) + var(--pg-frame-chrome));
+  }
+  .pg-photo .photo {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: var(--pg-photo-cap);
+    /* Beats Picture's inline aspect-ratio: 1 (kept below 1280): the box takes the row height. */
+    aspect-ratio: auto !important;
+  }
+  .pg-photo .photo picture {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .pg-photo .photo img {
+    object-position: 50% 40%;
+  }
+}
+
 /* --------------------------------------------------------------------------
-   Pager (mobile/tablet, JS only)
+   Pager (mobile/tablet, JS only). Buttons use the shared .icon-btn recipe
+   (app/globals.css: 48px, 2px hairline ring, 22px glyph, gated hover, disabled).
    -------------------------------------------------------------------------- */
 .pg-pager {
   display: flex;
@@ -554,45 +624,13 @@ html.js .program-card {
   color: var(--muted);
 }
 
-.pg-pager__btn {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-full);
-  color: var(--fg);
-  box-shadow: inset 0 0 0 2px var(--hairline);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  transition:
-    translate var(--dur-slow-squash) var(--ease-rebound),
-    scale var(--dur-slow-squash) var(--ease-rebound);
-}
-
-@media (hover: hover) {
-  .pg-pager__btn:not(:disabled):hover {
-    box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--fg) 45%, transparent);
-  }
-}
-
-.pg-pager__btn:active {
-  transition-duration: var(--dur-tap);
-}
-
+/* Chevron: an action glyph, 2 CSS px (.ui-icon keeps the stroke unscaled). */
 .pg-pager__btn svg {
-  width: 22px;
-  height: 22px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-
-.pg-pager__btn:disabled {
-  color: color-mix(in oklab, var(--fg) 35%, transparent);
-  cursor: default;
 }
 
 /* --------------------------------------------------------------------------
@@ -788,15 +826,41 @@ html.js .program-card {
   margin: 20px -16px -16px;
   padding: 12px 16px 16px;
   background: var(--color-white);
-  box-shadow: 0 -1px 0 var(--hairline);
+  /* The white copy 40px lower covers the panel's bottom padding, which the sticky row does
+     not (it sticks to the content edge): scrolling text never peeks out under the CTAs. */
+  box-shadow:
+    0 -1px 0 var(--hairline),
+    0 40px 0 var(--color-white);
 }
 
+/* ≥640: two equal columns across the sheet, filled CTA first (the booking sheet's footer). */
 @media (min-width: 640px) {
   .ps-actions {
-    flex-direction: row;
-    justify-content: flex-end;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
     margin: 24px -26px -22px;
     padding: 14px 26px 22px;
+  }
+}
+
+/* Short viewports (landscape phones, 400% zoom): a compact plate leaves room to read. */
+@media (max-height: 480px) {
+  .ps-plate {
+    height: 72px;
+  }
+  .ps-icon {
+    width: 40px;
+    height: 40px;
+    stroke-width: 2.5; /* ≈2.1px at 40px, so the small drawing does not go hairline-thin */
+  }
+}
+
+/* …and on narrow ones the stacked CTAs follow the text instead of covering it (from 640px
+   they are one short row and stay pinned). */
+@media (max-height: 480px) and (max-width: 639.98px) {
+  .ps-actions {
+    position: static;
   }
 }
 
@@ -810,9 +874,11 @@ html.js .program-card {
   .pg-pager__btn {
     transition: none;
   }
-  html.js .program-card:hover,
-  html.js .program-card:hover .pc-open {
-    translate: none;
-    rotate: none;
+  @media (hover: hover) {
+    html.js .program-card:hover,
+    html.js .program-card:hover .pc-open {
+      translate: none;
+      rotate: none;
+    }
   }
 }

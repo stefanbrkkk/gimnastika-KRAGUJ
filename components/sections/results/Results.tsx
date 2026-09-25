@@ -3,6 +3,7 @@ import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { SourceLink } from "@/components/ui/SourceLink";
 import { RESULTS, RESULTS_COPY, STATS, TRUST_ROW, type ResultItem, type StatTile } from "@/content/results";
+import { typesetSr } from "@/lib/typeset";
 import { Brush, Podium, type MedalKind } from "./art";
 import { ResultsMotion } from "./ResultsMotion";
 
@@ -52,8 +53,8 @@ function ResultRow({ item, marks }: { item: ResultItem; marks?: readonly MedalKi
     <li className="result-row">
       {marks?.length ? <MedalMark kinds={marks} /> : null}
       <div className="result-row__body">
-        <p className="result-row__text">{item.text}</p>
-        <p className="result-row__meta tabular">{item.date}</p>
+        <p className="result-row__text">{typesetSr(item.text)}</p>
+        <p className="result-row__meta">{typesetSr(item.date)}</p>
       </div>
       <SourceLink href={item.sourceUrl} context={`${item.text}, ${item.date}`} label={RESULTS_COPY.sourceLabel} className="result-row__source" />
     </li>
@@ -62,7 +63,7 @@ function ResultRow({ item, marks }: { item: ResultItem; marks?: readonly MedalKi
 
 function ExternalIcon() {
   return (
-    <svg className="trust-link__icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+    <svg className="trust-link__icon ui-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
       <path d="M7 5h8v8M15 5 5.5 14.5" />
     </svg>
   );
@@ -81,13 +82,13 @@ export function Results() {
   return (
     <Section id="uspesi" theme="darker" labelledBy="uspesi-title" className="results">
       <div className="container-site" data-results="">
-        <SectionHeading id="uspesi-title" title={RESULTS_COPY.heading} align="right" className="results__heading" />
+        <SectionHeading id="uspesi-title" title={typesetSr(RESULTS_COPY.heading)} align="right" className="results__heading" />
 
         <ul className="scoreboard" data-scoreboard="">
           {STATS.map((stat) => (
             <li key={stat.label} className="stat">
               <StatValue stat={stat} />
-              <p className="stat__label">{stat.label}</p>
+              <p className="stat__label">{typesetSr(stat.label)}</p>
               <SourceLink
                 href={stat.sourceUrl}
                 context={statContext(stat)}
@@ -105,7 +106,7 @@ export function Results() {
                 id="01"
                 sizes="(min-width: 1440px) 760px, (min-width: 1024px) 54vw, (min-width: 640px) calc(100vw - 64px), calc(100vw - 40px)"
                 frame
-                caption={RESULTS_COPY.photoCaption}
+                caption={typesetSr(RESULTS_COPY.photoCaption)}
                 className="results__figure"
               />
               {/* The annotation belongs to the photo: never over the „Fotografija uskoro“ placeholder. */}
@@ -119,7 +120,7 @@ export function Results() {
                 <Podium />
               </div>
               <div className="medals__body">
-                <h3 className="medals__title text-h3">{RESULTS_COPY.medalsHeading}</h3>
+                <h3 className="medals__title text-h3">{typesetSr(RESULTS_COPY.medalsHeading)}</h3>
                 <ul className="result-list">
                   {medals.map((item) => (
                     <ResultRow key={item.sourceUrl} item={item} marks={item.medals} />
@@ -129,7 +130,7 @@ export function Results() {
             </div>
 
             <div className="appearances">
-              <h3 className="appearances__title">{RESULTS_COPY.appearancesHeading}</h3>
+              <h3 className="appearances__title">{typesetSr(RESULTS_COPY.appearancesHeading)}</h3>
               <ul className="result-list result-list--plain">
                 {appearances.map((item) => (
                   <ResultRow key={item.sourceUrl} item={item} />
@@ -143,7 +144,7 @@ export function Results() {
           {TRUST_ROW.map((t) => (
             <li key={t.href + t.text}>
               <a className="trust-link" href={t.href} target="_blank" rel="noopener noreferrer">
-                <span>{t.text}</span>
+                <span>{typesetSr(t.text)}</span>
                 <ExternalIcon />
                 <span className="sr-only">{` ${NEW_WINDOW}`}</span>
               </a>

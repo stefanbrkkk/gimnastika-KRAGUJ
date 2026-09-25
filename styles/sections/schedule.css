@@ -8,7 +8,11 @@
    the panel takes 8 columns and the location card sits beside it (sticky). At 1024 an
    8/4 split would squeeze the cards to ~290px (3-line titles, wrapped chips).
    No-JS: the controls row is display:none and the panel + card start at the top. */
+/* Positioned (z 1) so the opaque card paints over a card that is fading out of the
+   positioned .sched-cards above it when a filter pulls the card up (stacked layouts). */
 .sched-aside {
+  position: relative;
+  z-index: 1;
   margin-top: 32px;
 }
 @media (min-width: 1280px) {
@@ -172,9 +176,8 @@ html:not(.js) .sched-controls {
   cursor: pointer;
   scroll-snap-align: start;
   touch-action: manipulation;
+  /* MI-04: the pressed state swaps instantly (no colour tween: both chips went blank mid-fade); only the squash eases. */
   transition:
-    background-color var(--dur-fast) var(--ease-stick),
-    color var(--dur-fast) var(--ease-stick),
     translate var(--dur-slow-squash) var(--ease-rebound),
     scale var(--dur-slow-squash) var(--ease-rebound);
   -webkit-tap-highlight-color: transparent;
@@ -288,7 +291,9 @@ html:not(.js) .sched-controls {
   padding: 20px;
   border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: 0 0 0 1px var(--hairline);
+  box-shadow:
+    0 0 0 1px var(--hairline),
+    var(--shadow-2);
 }
 @media (min-width: 1024px) {
   .sched-card__inner {
@@ -380,7 +385,7 @@ html:not(.js) .sched-controls {
 }
 .sched-block {
   display: grid;
-  grid-template-columns: 5.75rem minmax(0, 1fr);
+  grid-template-columns: minmax(0, 5.75rem) minmax(min-content, 1fr);
   column-gap: 12px;
   align-items: baseline;
 }
@@ -433,9 +438,12 @@ html:not(.js) .sched-controls {
   box-shadow: inset 0 0 0 1px var(--hairline);
 }
 /* No fixed slot is next right now (mixed groups): keep the row's height so the cards —
-   and every section below — never shrink after hydration (deep links land exactly). */
+   and every section below — never shrink after hydration (deep links land exactly).
+   The reserved row moves to the end of the foot (grid order), where it reads as bottom
+   padding instead of a hole under the hairline. */
 .sched-next[data-state="none"] {
   visibility: hidden;
+  order: 99;
 }
 html:not(.js) .sched-next {
   display: none;
@@ -446,6 +454,13 @@ html:not(.js) .sched-next {
 }
 .sched-nowrap {
   white-space: nowrap;
+}
+/* „Trgovinsko-ugostiteljska“ is one atomic box: whole on a normal line (the h3 stays
+   balanced), broken at its hyphen only when it cannot fit (≤300px, zoom, text spacing). */
+.sched-location__title .sched-nowrap {
+  display: inline-block;
+  white-space: normal;
+  max-width: 100%;
 }
 .sched-next__leap {
   flex: none;
@@ -478,11 +493,13 @@ html:not(.js) .sched-next {
   font-weight: 600;
   color: var(--accent);
   text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.22em;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.2em;
 }
-.sched-cal__link:hover {
-  text-decoration-thickness: 2px;
+@media (hover: hover) {
+  .sched-cal__link:hover {
+    text-decoration-thickness: 2.5px;
+  }
 }
 /* Calendar scope (mixed groups) / why there is no calendar link (no fixed slot):
    decision-relevant, so body-small in the text colour, not a muted footnote. */
@@ -581,6 +598,12 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   font-weight: 500;
   color: var(--muted);
 }
+/* A program filter is on and this day has none of its trainings: same muted weight as the
+   weekend (weight + colour, not colour alone). The tab stays focusable and selectable. */
+.sched-strip__day[data-empty]:not([aria-selected="true"]) .sched-strip__short {
+  font-weight: 500;
+  color: var(--muted);
+}
 /* „danas“ as written (lowercase): 13px label size; caps + tracking would not fit the 7 tabs at 320px. */
 .sched-strip__today {
   font-size: var(--text-label);
@@ -616,7 +639,9 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   padding: 16px 20px 4px;
   border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: 0 0 0 1px var(--hairline);
+  box-shadow:
+    0 0 0 1px var(--hairline),
+    var(--shadow-2);
 }
 @media (min-width: 1024px) {
   .sched-day {

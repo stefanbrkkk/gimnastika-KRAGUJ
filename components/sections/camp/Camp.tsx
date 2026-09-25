@@ -6,6 +6,7 @@ import type { PhotoId } from "@/content/photos";
 import { PRIMARY_PHONE } from "@/content/site";
 import { telHref } from "@/lib/links";
 import { belgradeNow } from "@/lib/time";
+import { typesetSr } from "@/lib/typeset";
 import { postcardCounter } from "./camp-copy";
 import { CampIsland } from "./CampIsland";
 import { HORIZON_VIEWBOX, LEGS_D, WAVE_D } from "./horizon";
@@ -21,27 +22,31 @@ const POSTCARDS: readonly { id: PhotoId; orient: "landscape" | "portrait"; sizes
   { id: "09", orient: "landscape", sizes: "(min-width: 1024px) 520px, (min-width: 640px) 70vw, 84vw" },
 ];
 
-/** The camp note with the phone number as a tel: link (text stays exactly as in content/copy.ts). */
+/**
+ * The camp note with the phone number as a tel: link (text stays exactly as in content/copy.ts;
+ * split first, then each part is typeset for display: the dash never starts a line, the number
+ * never breaks).
+ */
 function CampNote() {
-  const [before, after] = CAMP.note.split(PRIMARY_PHONE.display);
+  const [before = "", after] = CAMP.note.split(PRIMARY_PHONE.display);
   const hasPhone = after !== undefined;
   return (
     <p className="camp__note" data-camp-note="" data-until={CAMP.noteUntil}>
-      <svg className="camp__note-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <svg className="camp__note-icon ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <circle cx="12" cy="12" r="4.2" />
         <path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" />
       </svg>
       <span>
         {hasPhone ? (
           <>
-            {before}
-            <a className="link camp__tel tabular" href={telHref(PRIMARY_PHONE.e164)}>
-              {PRIMARY_PHONE.display}
+            {typesetSr(before)}
+            <a className="link camp__tel" href={telHref(PRIMARY_PHONE.e164)}>
+              {typesetSr(PRIMARY_PHONE.display)}
             </a>
-            {after}
+            {typesetSr(after)}
           </>
         ) : (
-          CAMP.note
+          typesetSr(CAMP.note)
         )}
       </span>
     </p>
@@ -50,7 +55,7 @@ function CampNote() {
 
 function Arrow({ dir }: { dir: "prev" | "next" }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="postcards__arrow">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="postcards__arrow ui-icon">
       <path d={dir === "prev" ? "M14.5 5.5 8 12l6.5 6.5" : "M9.5 5.5 16 12l-6.5 6.5"} />
     </svg>
   );
@@ -78,11 +83,11 @@ export function Camp() {
   return (
     <Section id="kamp" theme="light" labelledBy="kamp-title" className="camp">
       <div className="container-site">
-        <SectionHeading id="kamp-title" title={CAMP.heading} align="left" />
+        <SectionHeading id="kamp-title" title={typesetSr(CAMP.heading)} align="left" />
 
         <div className="camp__layout" data-camp="">
           <div className="camp__text">
-            <p className="camp__lead measure">{CAMP.lead}</p>
+            <p className="camp__lead measure">{typesetSr(CAMP.lead)}</p>
             {showNote ? <CampNote /> : null}
           </div>
 
@@ -108,7 +113,7 @@ export function Camp() {
 
           {multiple ? (
             <div className="postcards__controls" data-postcards-controls="">
-              <button type="button" className="btn btn-secondary postcards__btn" data-postcards-dir="prev" aria-controls="kamp-razglednice">
+              <button type="button" className="icon-btn postcards__btn" data-postcards-dir="prev" aria-controls="kamp-razglednice">
                 <Arrow dir="prev" />
                 <span className="sr-only">{CAMP.prev}</span>
               </button>
@@ -120,7 +125,7 @@ export function Camp() {
                   {postcardCounter(1, cards.length)}
                 </span>
               </p>
-              <button type="button" className="btn btn-secondary postcards__btn" data-postcards-dir="next" aria-controls="kamp-razglednice">
+              <button type="button" className="icon-btn postcards__btn" data-postcards-dir="next" aria-controls="kamp-razglednice">
                 <span className="sr-only">{CAMP.next}</span>
                 <Arrow dir="next" />
               </button>

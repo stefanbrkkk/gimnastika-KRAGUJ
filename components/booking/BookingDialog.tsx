@@ -37,6 +37,7 @@ import {
   type SendChannel,
 } from "@/lib/booking";
 import { prefersLessMotion } from "@/lib/motion-env";
+import { typesetSr } from "@/lib/typeset";
 import type { BookingRequest } from "./types";
 
 /** Viber: if the page is still visible this long after the tap, the app did not open. */
@@ -60,18 +61,10 @@ const serverPrimary = (): SendChannel => "sms";
 type TextField = "parent" | "phone" | "child";
 type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 
-/** The phone number inside status copy never breaks across lines. */
-const keepNumberTogether = (text: string) =>
-  text.split(PRIMARY_PHONE.display).flatMap((part, i) =>
-    i === 0
-      ? [part]
-      : [
-          <span key={i} className="whitespace-nowrap">
-            {PRIMARY_PHONE.display}
-          </span>,
-          part,
-        ],
-  );
+// Visible sheet copy goes through typesetSr() (lib/typeset, display only): a spaced
+// dash never starts a line, one-letter words hold on to the next word, and the phone
+// number in the status / call line never breaks between its digit groups (D-BK-7).
+// This chunk is lazy (never first-load); the message and hrefs stay raw.
 
 const withoutError = (errors: BookingErrors, field: keyof BookingValues): BookingErrors => {
   if (!(field in errors)) return errors;
@@ -80,15 +73,16 @@ const withoutError = (errors: BookingErrors, field: keyof BookingValues): Bookin
   return next;
 };
 
+/** Error line: a FILLED accent disc with a white „!“ (a solid „stop“ mark) + navy text. */
 function ErrorLine({ id, text }: { id: string; text: string }) {
   return (
     <p id={id} className="booking-field__error">
-      <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
-        <circle cx="10" cy="10" r="8.25" fill="none" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M10 5.5v5.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-        <circle cx="10" cy="14.25" r="1.1" fill="currentColor" />
+      <svg className="ui-icon" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
+        <circle cx="10" cy="10" r="9" fill="currentColor" />
+        <path className="booking-field__error-mark" d="M10 5.25v5.75" fill="none" strokeWidth="2" strokeLinecap="round" />
+        <circle className="booking-field__error-dot" cx="10" cy="14.4" r="1.2" />
       </svg>
-      <span>{text}</span>
+      <span>{typesetSr(text)}</span>
     </p>
   );
 }
@@ -146,11 +140,13 @@ function SelectBox({
           </option>
         ))}
       </select>
+      {/* Display typesetting on the visible box only („B i C program“ holds together);
+          the <option> labels and the message keep the raw text. */}
       <span className="booking-select__value" aria-hidden="true">
-        {selected?.label}
+        {selected ? typesetSr(selected.label) : null}
       </span>
-      <svg className="booking-select__chevron" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false">
-        <path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+      <svg className="booking-select__chevron ui-icon" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false">
+        <path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </div>
   );
@@ -204,6 +200,7 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
     if (!dialog.open) {
       dialog.removeAttribute("data-closing");
       dialog.showModal();
+      dialog.scrollTop = 0; // ≤480px tall the whole sheet is the scroller (booking.css)
       if (bodyRef.current) bodyRef.current.scrollTop = 0;
     }
     document.documentElement.setAttribute("data-booking-open", ""); // body scroll lock
@@ -394,7 +391,7 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
           {BOOKING.title}
         </h2>
         <button type="button" className="booking__close" aria-label={BOOKING.close} onClick={requestClose}>
-          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+          <svg className="ui-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
             <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
         </button>
@@ -483,7 +480,7 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
           ) : (
             <div className="booking-field--wide">
               <button type="button" className="booking-more" onClick={openNote}>
-                <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false">
+                <svg className="ui-icon" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false">
                   <path d="M10 4v12M4 10h12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
                 <span>{BOOKING.addNote}</span>
@@ -493,17 +490,17 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
         </form>
 
         <p id={`${uid}-privacy`} className="booking__privacy">
-          <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
-            <rect x="4" y="9" width="12" height="8.5" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M6.75 9V6.75a3.25 3.25 0 0 1 6.5 0V9" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <svg className="ui-icon" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
+            <rect x="4" y="9" width="12" height="8.5" rx="2" fill="none" stroke="currentColor" strokeWidth="1.75" />
+            <path d="M6.75 9V6.75a3.25 3.25 0 0 1 6.5 0V9" fill="none" stroke="currentColor" strokeWidth="1.75" />
           </svg>
-          <span>{BOOKING.privacy}</span>
+          <span>{typesetSr(BOOKING.privacy)}</span>
         </p>
       </div>
 
       <div className="booking__foot">
         <p className="booking__status" role="status" aria-live="polite">
-          {keepNumberTogether(status)}
+          {typesetSr(status)}
         </p>
         <div className="booking__sends">
           {sendOrder(primary).map((channel, i) => (
@@ -524,23 +521,23 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
               </a>
             ) : (
               <p className="booking__viber-number">
-                {BOOKING.actions.viber}: <span className="tabular">{PRIMARY_PHONE.display}</span>
+                {BOOKING.actions.viber}: <span>{typesetSr(PRIMARY_PHONE.display)}</span>
               </p>
             )
           ) : null}
         </div>
         <a className="booking__call" href={hrefs.tel}>
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <svg className="ui-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
             <path
               d="M6.6 3.5h2.6l1.4 4-2 1.4a11.5 11.5 0 0 0 6.5 6.5l1.4-2 4 1.4v2.6a2 2 0 0 1-2.2 2A16.6 16.6 0 0 1 4.6 5.7a2 2 0 0 1 2-2.2Z"
               fill="none"
               stroke="currentColor"
-              strokeWidth="1.6"
+              strokeWidth="1.75"
               strokeLinejoin="round"
             />
           </svg>
           <span>{BOOKING.actions.call}</span>
-          <span className="booking__call-number tabular">{PRIMARY_PHONE.display}</span>
+          <span className="booking__call-number">{typesetSr(PRIMARY_PHONE.display)}</span>
         </a>
       </div>
     </dialog>

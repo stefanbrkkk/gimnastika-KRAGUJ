@@ -137,8 +137,9 @@ export function buildVariant(spec: VariantSpec): ArtVariant {
 }
 
 /**
- * Phones (< 640 px): a high leap from the left edge, landing in a logo that
- * fills the right two-thirds. Container 320 px → 1 unit ≈ .45 px.
+ * Phones and portrait tablets (portrait touch ≥ 1024 px included): a high leap
+ * from the left edge, landing in a logo that fills the right two-thirds.
+ * Container 320 px → 1 unit ≈ .45 px.
  */
 export const COMPACT_SPEC: VariantSpec = {
   width: 713,
@@ -149,8 +150,9 @@ export const COMPACT_SPEC: VariantSpec = {
 };
 
 /**
- * Tablet and desktop (≥ 640 px): a long, low travelling leap (the logo's own
- * grand jeté) across the band above the headline. Container 1320 px → 1 unit = .8 px.
+ * Landscape ≥ 640 px and desktop (≥ 1024 px with a fine pointer): a long, low
+ * travelling leap (the logo's own grand jeté) across the band above the
+ * headline. Container 1320 px → 1 unit = .8 px.
  */
 export const WIDE_SPEC: VariantSpec = {
   width: 1650,

@@ -195,7 +195,7 @@ await runScript("content", { target: OUT }, async (report) => {
           const block = n.parentElement?.closest("li, p, dd, dt, tr, figure, article, blockquote") ?? n.parentElement;
           if (block) blocks.add(block);
         }
-        const h1s = [...document.querySelectorAll("h1")].map((h) => h.textContent?.trim());
+        const h1s = [...document.querySelectorAll("h1")].map((h) => h.textContent?.replace(/\s+/g, " ").trim());
         const ids = new Set([...document.querySelectorAll("[id]")].map((e) => e.id));
         const anchors = [...document.querySelectorAll('a[href^="#"]')].map((a) => a.getAttribute("href"));
         return {

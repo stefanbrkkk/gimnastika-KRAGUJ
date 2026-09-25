@@ -1,5 +1,6 @@
 import { Logo } from "@/components/brand/Logo";
 import { CTA, NAV } from "@/content/site";
+import { typesetSr } from "@/lib/typeset";
 import { HEADER_COPY } from "./header-copy";
 import { HeaderBehavior } from "./HeaderBehavior";
 import { MenuSheetBody } from "./MenuSheetBody";
@@ -33,7 +34,7 @@ export function Header() {
 
         <div className="site-header__actions">
           <a href="#kontakt" data-booking="" className="btn btn-primary site-header__cta">
-            {CTA.trial}
+            {typesetSr(CTA.trial)}
           </a>
           <MobileMenu logo={<Logo className="menu-sheet__logo" title={null} />}>
             <MenuSheetBody />

@@ -39,6 +39,26 @@
   letter-spacing: -0.003em;
 }
 
+/* Phones: the mission's first sentence is the statement (h3 step), the rest reads as body copy —
+   an entry point instead of a 15-line lead. Display-only split (About.tsx Mission); from 640 px
+   the span is inline and the lead above applies unchanged. */
+@media (max-width: 639px) {
+  .about__lead {
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+  }
+  .about__lead-first {
+    display: block;
+    margin-bottom: 12px;
+    font-size: var(--text-h3);
+    line-height: 1.25;
+    font-weight: 650;
+    font-stretch: 104%;
+    letter-spacing: var(--text-h3--letter-spacing);
+    color: var(--fg);
+  }
+}
+
 .about__text {
   font-size: var(--text-body);
   line-height: var(--text-body--line-height);
@@ -97,7 +117,7 @@
     padding: 16px 0 0 16px;
   }
   /* Where the text runs longer than the single print (1024–1279), the print travels with
-     the reader (same sticky offset as the „Hronologija“ title) instead of leaving a hole.
+     the reader (sticky, 112 px — the header's clearance) instead of leaving a hole.
      Not for the taller pair (CAMP_GROUP_PHOTOS), which could outgrow the viewport. */
   .about__prints:not(.about__prints--pair) {
     position: sticky;
@@ -141,11 +161,10 @@
     column-gap: 24px;
     margin-top: 128px;
   }
+  /* Static title: cols 1–4 below it carry the KR-17 margin print (.timeline__photo). */
   .about__chrono-title {
     grid-column: 1 / span 4;
     align-self: start;
-    position: sticky;
-    top: 112px;
     margin: 0;
   }
   .about__chrono .timeline {
@@ -317,8 +336,19 @@
     grid-template-columns: 8.25rem minmax(0, 1fr);
     column-gap: 32px;
   }
+  /* KR-17 hangs in the empty cols 1–4 as a margin print, level with the 2017 → 2022 leg:
+     the list item (and so the reading order) stays; it only drops out of the flow. Right edge
+     48 px short of the rail; width = cols 1–4 − 24 px (269 px at 1024), capped at 300 px —
+     the caption stays on one line. The zero-height item keeps one 44 px row gap. */
   .timeline__photo {
-    padding-left: calc(var(--gutter) + 8.25rem + 32px);
+    height: 0;
+    padding: 0;
+  }
+  .timeline__photo .timeline__print {
+    position: absolute;
+    top: -24px;
+    right: calc(100% + 48px);
+    width: min(300px, calc((100% + 24px) / 2 - 48px));
   }
 }
 

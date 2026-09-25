@@ -6,6 +6,7 @@ import { ENROLLMENT, HERO } from "@/content/copy";
 import { FAQ_COPY, visibleFaq } from "@/content/faq";
 import { CTA, PRIMARY_PHONE } from "@/content/site";
 import { telHref } from "@/lib/links";
+import { typesetSr } from "@/lib/typeset";
 import { ChecklistTicks } from "./ChecklistTicks";
 
 const CHECKLIST_ID = "upis-checklist";
@@ -43,7 +44,7 @@ export function Enrollment() {
   return (
     <Section id="upis" theme="light" labelledBy="upis-title" className="enrollment">
       <div className="container-site">
-        <SectionHeading id="upis-title" title={ENROLLMENT.heading} align="left" />
+        <SectionHeading id="upis-title" title={typesetSr(ENROLLMENT.heading)} align="left" />
 
         <ol className="en-steps" role="list">
           {ENROLLMENT.steps.map((step, i) => {
@@ -53,8 +54,8 @@ export function Enrollment() {
                 <svg className="en-step__leap" viewBox={`0 0 ${lw} ${lh}`} aria-hidden="true" focusable="false">
                   <use href="#leap" width={lw} height={lh} />
                 </svg>
-                <span className="en-step__num tabular">{i + 1}</span>
-                <p className="en-step__text">{step}</p>
+                <span className="en-step__num">{i + 1}</span>
+                <p className="en-step__text">{typesetSr(step)}</p>
               </li>
             );
           })}
@@ -67,14 +68,14 @@ export function Enrollment() {
                 <i key={m} />
               ))}
             </span>
-            {ENROLLMENT.yearRound}
+            {typesetSr(ENROLLMENT.yearRound)}
           </p>
           <div className="en-actions">
             <a href="#kontakt" data-booking="" className="btn btn-primary">
-              {CTA.trial}
+              {typesetSr(CTA.trial)}
             </a>
             <a href={telHref(PRIMARY_PHONE.e164)} className="btn btn-secondary">
-              {HERO.ctaSecondary}
+              {typesetSr(HERO.ctaSecondary)}
             </a>
           </div>
         </div>
@@ -82,7 +83,7 @@ export function Enrollment() {
         <div className="en-lower">
           <div className="en-kit" role="group" aria-labelledby={KIT_TITLE_ID}>
             <h3 id={KIT_TITLE_ID} className="en-kit__title text-h3">
-              {ENROLLMENT.checklistHeading}
+              {typesetSr(ENROLLMENT.checklistHeading)}
             </h3>
             <ul className="en-check" id={CHECKLIST_ID} role="list">
               {ENROLLMENT.checklist.map((item, i) => (
@@ -91,40 +92,40 @@ export function Enrollment() {
                     <rect className="en-check__frame" x="1.5" y="1.5" width="25" height="25" rx="7" />
                     <path className="en-check__tick" pathLength={1} d="M8 14.5l4.2 4.2L20.5 9.5" />
                   </svg>
-                  <span className="en-check__label">{item}</span>
+                  <span className="en-check__label">{typesetSr(item)}</span>
                 </li>
               ))}
             </ul>
-            <p className="en-kit__note">{ENROLLMENT.checklistNote}</p>
+            <p className="en-kit__note">{typesetSr(ENROLLMENT.checklistNote)}</p>
           </div>
 
           <div className="en-faq">
             <h3 id={FAQ_TITLE_ID} className="en-faq__title text-h3">
-              {FAQ_COPY.heading}
+              {typesetSr(FAQ_COPY.heading)}
             </h3>
             <div className="faq">
               {faq.map((item) => (
                 <details key={item.q} className="faq__item">
                   <summary className="faq__q">
-                    <span className="faq__q-text">{item.q}</span>
+                    <span className="faq__q-text">{typesetSr(item.q)}</span>
                     <span className="faq__icon" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" focusable="false">
+                      <svg className="ui-icon" viewBox="0 0 24 24" focusable="false">
                         <path d="M12 5.5v13M5.5 12h13" />
                       </svg>
                     </span>
                   </summary>
                   <div className="faq__a">
-                    <p>{item.a}</p>
+                    <p>{typesetSr(item.a)}</p>
                   </div>
                 </details>
               ))}
             </div>
             <p className="faq__last">
-              {lastBefore}
+              {typesetSr(lastBefore)}
               <a className="faq__tel" href={telHref(PRIMARY_PHONE.e164)}>
-                {PRIMARY_PHONE.display}
+                {typesetSr(PRIMARY_PHONE.display)}
               </a>
-              {lastAfter}
+              {typesetSr(lastAfter)}
             </p>
           </div>
         </div>

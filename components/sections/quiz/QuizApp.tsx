@@ -30,6 +30,34 @@ function onChipKeys(e: KeyboardEvent<HTMLDivElement>) {
   chips[next]?.focus();
 }
 
+/** Clearance for the result heading under the floating header (70–84 px). */
+const HEAD_GAP = 96;
+
+/**
+ * Result shown (heading already focused, without the native scroll): a heading off-screen is
+ * brought to HEAD_GAP from the top, as the focus scroll did. Otherwise the page scrolls just
+ * far enough for the booking CTA to clear the fold or the mobile sticky bar — only when the
+ * whole CTA fits with the heading still ≥ HEAD_GAP from the top; never a partial scroll.
+ */
+function revealResult(root: HTMLElement, heading: HTMLElement) {
+  const cta = root.querySelector<HTMLElement>(".quiz-live .quiz-cta");
+  const card = root.querySelector<HTMLElement>(".quiz-live .quiz-result");
+  if (!cta || !card) return;
+  // Resting layout: the result may still be sliding in (quiz-in, translateY).
+  const shift = new DOMMatrixReadOnly(getComputedStyle(card).transform).m42;
+  const h = heading.getBoundingClientRect();
+  const top = h.top - shift;
+  const bar = document.querySelector<HTMLElement>('[data-sticky-bar][data-visible="true"]');
+  const bottom = bar && bar.getClientRects().length ? bar.getBoundingClientRect().top : window.innerHeight;
+  let dy = 0;
+  if (top < HEAD_GAP || h.bottom - shift > bottom) dy = top - HEAD_GAP;
+  else {
+    const need = cta.getBoundingClientRect().bottom - shift + 16 - bottom;
+    if (need > 0 && need <= top - HEAD_GAP) dy = need;
+  }
+  if (dy) window.scrollBy({ top: dy, behavior: prefersLessMotion() ? "instant" : "smooth" });
+}
+
 function ChipGroup({
   labelledBy,
   className,
@@ -87,9 +115,19 @@ export function QuizApp({ vm }: { vm: QuizViewModel }) {
   }, []);
 
   // After a user-driven step change, move focus to the new question / result heading.
+  // The result focuses without the native scroll and then brings the booking CTA into view
+  // when that keeps the heading on screen (revealResult).
   useEffect(() => {
-    if (!moved) return;
-    rootRef.current?.querySelector<HTMLElement>("[data-quiz-focus]")?.focus();
+    const root = rootRef.current;
+    const el = moved ? root?.querySelector<HTMLElement>("[data-quiz-focus]") : null;
+    if (!root || !el) return;
+    if (step !== 2) {
+      el.focus();
+      return;
+    }
+    el.focus({ preventScroll: true });
+    const frame = requestAnimationFrame(() => revealResult(root, el));
+    return () => cancelAnimationFrame(frame);
   }, [step, moved]);
 
   const go = (next: QuizStep) => {
@@ -163,7 +201,7 @@ export function QuizApp({ vm }: { vm: QuizViewModel }) {
                     onClick={() => chooseExp(i)}
                   >
                     <span>{label}</span>
-                    <svg className="quiz-chip__arrow" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                    <svg className="quiz-chip__arrow ui-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                       <path d="M4 10h11m-4.5-4.5L15 10l-4.5 4.5" />
                     </svg>
                   </button>
@@ -181,14 +219,14 @@ export function QuizApp({ vm }: { vm: QuizViewModel }) {
         {step > 0 ? (
           <div className="quiz-controls">
             <button type="button" className="quiz-ctrl" onClick={back}>
-              <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+              <svg className="ui-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                 <path d="M16 10H5m4.5-4.5L5 10l4.5 4.5" />
               </svg>
               {copy.back}
             </button>
             {step === 2 ? (
               <button type="button" className="quiz-ctrl" onClick={restart}>
-                <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <svg className="ui-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                   <path d="M4.5 9.5a6 6 0 1 1 1.8 4.6M4.5 15.5v-4h4" />
                 </svg>
                 {copy.restart}

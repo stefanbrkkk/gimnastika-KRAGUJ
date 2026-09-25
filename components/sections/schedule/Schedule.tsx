@@ -3,6 +3,7 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { visiblePrograms } from "@/content/programs";
 import { DAYS, SCHEDULE, SCHEDULE_LOCATION } from "@/content/schedule";
 import { FLAGS } from "@/content/site";
+import { typesetSr } from "@/lib/typeset";
 import { ScheduleBoard } from "./ScheduleBoard";
 import { DayPanels, GroupCards, LocationCard } from "./ScheduleViews";
 
@@ -26,7 +27,7 @@ export function Schedule() {
   return (
     <Section id="raspored" theme="light" labelledBy="raspored-title" className="sched-section">
       <div className="container-site">
-        <SectionHeading id="raspored-title" title={SCHEDULE_LOCATION.heading} align="left" intro={SCHEDULE_LOCATION.sub} />
+        <SectionHeading id="raspored-title" title={SCHEDULE_LOCATION.heading} align="left" intro={typesetSr(SCHEDULE_LOCATION.sub)} />
         <ScheduleBoard
           programs={programs.map((p) => ({ id: p.id, label: p.short, color: p.color }))}
           days={DAYS.map((d) => ({ code: d.code, short: d.short, full: d.full, accusative: d.accusative, iso: d.iso }))}

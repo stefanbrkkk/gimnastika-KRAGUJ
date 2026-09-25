@@ -3,6 +3,7 @@ import { Picture, isPhotoVisible } from "@/components/ui/Picture";
 import { SourceLink } from "@/components/ui/SourceLink";
 import { FLAGS, SOURCES } from "@/content/site";
 import { TIMELINE, TIMELINE_PHOTO, type TimelineItem } from "@/content/timeline";
+import { typesetSr } from "@/lib/typeset";
 
 /**
  * Accessible context for items with more than one source (2026: GSS registration lists).
@@ -38,8 +39,8 @@ function Entry({ item }: { item: TimelineItem }) {
   const sources = item.sources ?? [];
   return (
     <>
-      <p className="timeline__title">{item.title}</p>
-      {item.text ? <p className="timeline__text">{item.text}</p> : null}
+      <p className="timeline__title">{typesetSr(item.title)}</p>
+      {item.text ? <p className="timeline__text">{typesetSr(item.text)}</p> : null}
       {sources.length > 0 ? (
         <p className="timeline__sources">
           {sources.map((href, i) => {
@@ -64,7 +65,8 @@ function Entry({ item }: { item: TimelineItem }) {
  * „Hronologija“: an ordered list of years on a vertical line. The static markup
  * is the final state (full line, every node filled) — TimelineMotion only adds
  * the growing line (GSAP scaleY) when motion is allowed.
- * Photo 17 (club birthday cake) sits between 2017 and 2022 with no date claim.
+ * Photo 17 (club birthday cake) sits between 2017 and 2022 with no date claim; from 1024 px
+ * it hangs in the empty cols 1–4 as a margin print (about.css), its list position unchanged.
  */
 export function Timeline({ labelledBy }: { labelledBy: string }) {
   const groups = groupByYear(TIMELINE);
@@ -108,7 +110,7 @@ export function Timeline({ labelledBy }: { labelledBy: string }) {
                     id={TIMELINE_PHOTO.photoId}
                     frame
                     aspect={4 / 3}
-                    caption={TIMELINE_PHOTO.caption}
+                    caption={typesetSr(TIMELINE_PHOTO.caption)}
                     sizes="(min-width: 640px) 288px, min(288px, calc(100vw - 112px))"
                   />
                 </div>

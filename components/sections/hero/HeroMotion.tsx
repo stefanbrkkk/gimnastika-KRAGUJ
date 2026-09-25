@@ -226,7 +226,7 @@ function textBoxes(section: HTMLElement, origin: DOMRect, pad: number): SpineRec
 
 /**
  * Pins the hero for 80% of a viewport of scroll. Scrubbed: the ghost frames fade
- * one by one, then the mat line extends into the right margin, drops down it
+ * one by one while the mat line extends into the right margin, drops down it
  * and turns into the floor-exercise diagonal that leaves through the hero's
  * bottom edge toward the next section — around the text, never through it.
  */
@@ -277,14 +277,16 @@ function pinHero(
   layout();
   ScrollTrigger.addEventListener("refreshInit", layout);
 
-  // Oldest frames decay first, like afterimages.
+  // Oldest frames decay first, like afterimages. The diagonal grows out of the
+  // mat's right end (under the logo) from the first wheel tick and reaches the
+  // hero's bottom edge exactly at the pin's end.
   const ghosts = qa<SVGGElement>(art, "[data-hero-ghost]");
   const ticks = qa<SVGLineElement>(art, "[data-hero-tick]");
   const tl = gsap
     .timeline({ defaults: { ease: "none" } })
     .to(ghosts, { opacity: 0, duration: 0.2, stagger: 0.09 }, 0)
     .to(ticks, { opacity: 0, duration: 0.2, stagger: 0.09 }, 0)
-    .fromTo(line, { strokeDashoffset: 1 }, { strokeDashoffset: 0, autoRound: false, duration: 0.75 }, 0.25);
+    .fromTo(line, { strokeDashoffset: 1 }, { strokeDashoffset: 0, autoRound: false, duration: 1 }, 0);
 
   ScrollTrigger.create({
     trigger: section,

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { BOOKING_ATTR, openBooking } from "@/lib/events";
+import { prefersLessMotion } from "@/lib/motion-env";
 import { MENU_INDEX_ID } from "./chrome";
 import { HEADER_COPY } from "./header-copy";
 import { CloseIcon, MenuIcon } from "./icons";
@@ -9,6 +10,10 @@ import { CloseIcon, MenuIcon } from "./icons";
 const DIALOG_ID = "site-menu";
 const WIDE = "(min-width: 1024px)";
 const FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
+/** Set while the exit shutter plays (CSS menu-shutter-out, 180 ms takeoff). */
+const CLOSING = "data-closing";
+/** Close anyway if animationend never comes (hidden tab, animation overridden). */
+const EXIT_FALLBACK_MS = 260;
 
 /** false for the server HTML and the hydration render, true right after (no mismatch). */
 const noSubscribe = () => () => {};
@@ -32,6 +37,11 @@ const useHydrated = () =>
  * listener, before the browser follows the #anchor — so the anchor scroll
  * happens on the un-blocked page. The sheet's CTA opens the booking sheet via
  * openBooking(), so closing the booking sheet returns focus to "Meni".
+ *
+ * "Zatvorite", Esc and Android back ('cancel') close with an exit shutter
+ * (requestClose: data-closing → animationend → close()); links keep the
+ * synchronous close above. Every close, however it happens, ends in onClose,
+ * which clears the exit state.
  */
 interface MobileMenuProps {
   /** Logo shown in the sheet's top row (server-rendered). */
@@ -43,8 +53,21 @@ interface MobileMenuProps {
 export function MobileMenu({ logo, children }: MobileMenuProps) {
   const openerRef = useRef<HTMLAnchorElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const exitTimer = useRef(0);
   const [open, setOpen] = useState(false);
   const enhanced = useHydrated();
+
+  /** Close with the exit shutter; instant under reduced motion / Save-Data. */
+  const requestClose = useCallback(() => {
+    const dialog = dialogRef.current;
+    if (!dialog?.open || dialog.hasAttribute(CLOSING)) return;
+    if (prefersLessMotion()) {
+      dialog.close();
+      return;
+    }
+    dialog.setAttribute(CLOSING, "");
+    exitTimer.current = window.setTimeout(() => dialog.close(), EXIT_FALLBACK_MS);
+  }, []);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -52,6 +75,9 @@ export function MobileMenu({ logo, children }: MobileMenuProps) {
 
     let closingForLink = false;
     const onClose = () => {
+      // Any close (exit shutter, link, ≥1024px, a forced native close) ends the exit state.
+      window.clearTimeout(exitTimer.current);
+      dialog.removeAttribute(CLOSING);
       setOpen(false);
       // Safety net: close() restores focus natively; make sure it did (Esc / close button).
       if (!closingForLink && (document.activeElement === document.body || document.activeElement === null)) openerRef.current?.focus();
@@ -98,22 +124,36 @@ export function MobileMenu({ logo, children }: MobileMenuProps) {
       }
     };
 
+    // Esc / Android back: play the exit instead of the native instant close.
+    const onCancel = (event: Event) => {
+      event.preventDefault();
+      requestClose();
+    };
+    const onAnimationEnd = (event: AnimationEvent) => {
+      if (event.target === dialog && dialog.hasAttribute(CLOSING)) dialog.close();
+    };
+
     const wide = window.matchMedia(WIDE);
     const onWide = () => {
       if (wide.matches && dialog.open) dialog.close();
     };
 
     dialog.addEventListener("close", onClose);
+    dialog.addEventListener("cancel", onCancel);
+    dialog.addEventListener("animationend", onAnimationEnd);
     dialog.addEventListener("keydown", onKeyDown);
     window.addEventListener("click", onClickCapture, true);
     wide.addEventListener("change", onWide);
     return () => {
       dialog.removeEventListener("close", onClose);
+      dialog.removeEventListener("cancel", onCancel);
+      dialog.removeEventListener("animationend", onAnimationEnd);
       dialog.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("click", onClickCapture, true);
       wide.removeEventListener("change", onWide);
+      window.clearTimeout(exitTimer.current);
     };
-  }, []);
+  }, [requestClose]);
 
   const openMenu = () => {
     const dialog = dialogRef.current;
@@ -161,7 +201,7 @@ export function MobileMenu({ logo, children }: MobileMenuProps) {
         <div className="menu-sheet__inner">
           <div className="menu-sheet__top">
             {logo}
-            <button type="button" className="menu-btn" onClick={() => dialogRef.current?.close()}>
+            <button type="button" className="menu-btn" onClick={requestClose}>
               <span>{HEADER_COPY.close}</span>
               <CloseIcon />
             </button>

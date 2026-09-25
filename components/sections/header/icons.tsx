@@ -1,10 +1,12 @@
 import type { ReactNode } from "react";
 
 /**
- * Page-chrome line icons, drawn for this site: 24×24 grid, 1.75 stroke, round
- * caps and joins, currentColor. Always paired with a visible text label.
+ * Page-chrome line icons, drawn for this site: 24×24 grid, round caps and joins,
+ * currentColor. Always paired with a visible text label. .ui-icon keeps the stroke
+ * in CSS px at any rendered size: pictograms 1.75, action glyphs (× ↗ and the
+ * menu bars that swap with ×) 2.
  */
-function Icon({ children, className }: { children: ReactNode; className?: string }) {
+function Icon({ children, className, weight = 1.75 }: { children: ReactNode; className?: string; weight?: number }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -12,12 +14,12 @@ function Icon({ children, className }: { children: ReactNode; className?: string
       height="24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth={weight}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
       focusable="false"
-      className={["chrome-icon", className].filter(Boolean).join(" ")}
+      className={["chrome-icon ui-icon", className].filter(Boolean).join(" ")}
     >
       {children}
     </svg>
@@ -28,14 +30,14 @@ type IconProps = { className?: string };
 
 /** Menu: two bars at different heights — the uneven bars (dvovisinski razboj). */
 export const MenuIcon = ({ className }: IconProps) => (
-  <Icon className={className}>
+  <Icon className={className} weight={2}>
     <path d="M3.5 8h17" />
     <path d="M3.5 16h11" />
   </Icon>
 );
 
 export const CloseIcon = ({ className }: IconProps) => (
-  <Icon className={className}>
+  <Icon className={className} weight={2}>
     <path d="M6 6l12 12M18 6 6 18" />
   </Icon>
 );
@@ -87,7 +89,7 @@ export const FacebookIcon = ({ className }: IconProps) => (
 
 /** External link arrow (↗) as a drawn icon. */
 export const ExternalIcon = ({ className }: IconProps) => (
-  <Icon className={className}>
+  <Icon className={className} weight={2}>
     <path d="M7.5 16.5l9-9M9.5 7.5h7v7" />
   </Icon>
 );

@@ -4,7 +4,9 @@ import type { ArtVariant } from "./geometry";
 const { width: W, height: H } = LEAP_BOX;
 
 /**
- * One art variant (compact < 640 px, wide ≥ 640 px), in logo units.
+ * One art variant, in logo units: compact (the high leap — phones, portrait
+ * tablets, portrait touch ≥ 1024 px) or wide (the long, low leap — landscape
+ * ≥ 640 px, or ≥ 1024 px with a fine pointer). CSS shows one (hero.css).
  * Static state = the FINAL composition: 6 ghost frames along the parabola,
  * the wordmark fully revealed and the white silhouette landed in the logo.
  * Everything is a <use> of the #leap / #wordmark sprite symbols.

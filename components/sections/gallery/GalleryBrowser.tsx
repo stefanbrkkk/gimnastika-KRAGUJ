@@ -8,8 +8,9 @@ import { filterStatus, GALLERY_UI, type ChipKey, type GalleryChip, type Lightbox
 /**
  * Gallery island (initial bundle — tiny, no gsap import here).
  * - Chips filter the server-rendered sheet (`hidden` on the items; Flip ≤280ms,
- *   lazily loaded: prints move, leavers fade out in place, newcomers fade in;
- *   reduced motion: instant + 150ms crossfade). aria-live status.
+ *   lazily loaded: prints move, leavers fade out in place (linear fade, takeoff
+ *   shrink), newcomers fade in; reduced motion: instant + 150ms crossfade).
+ *   aria-live status. No chips (public variant with one category) = no filter row.
  * - A tap on a print opens the lightbox, a lazily loaded chunk that is warmed
  *   (with Flip + Observer) when the section is ≤1 viewport away.
  * Without JS the chips are hidden (CSS) and each print links to its file.
@@ -102,8 +103,19 @@ export function GalleryBrowser({ heading, chips, photos, children }: GalleryBrow
         duration: DUR.base,
         ease: EASE.stick,
         absoluteOnLeave: true,
-        onEnter: (els) => gsap.fromTo(els, { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: DUR.base, ease: EASE.stick }),
-        onLeave: (els) => gsap.to(els, { opacity: 0, scale: 0.94, duration: DUR.fast, ease: EASE.takeoff }),
+        // One recipe for the S3/S4/S9 filters: the fade is linear, so a leaving print is already
+        // half gone while the others glide past it; only its shrink keeps the takeoff ease.
+        onEnter: (els) =>
+          gsap.fromTo(
+            els,
+            { opacity: 0, scale: 0.96 },
+            { opacity: 1, scale: 1, duration: DUR.base, ease: EASE.stick, clearProps: "opacity,transform" },
+          ),
+        onLeave: (els) =>
+          gsap
+            .timeline()
+            .to(els, { opacity: 0, duration: DUR.fast, ease: "none" }, 0)
+            .to(els, { scale: 0.96, duration: DUR.fast, ease: EASE.takeoff }, 0),
         onComplete: done,
         onInterrupt: done,
       });
@@ -160,30 +172,32 @@ export function GalleryBrowser({ heading, chips, photos, children }: GalleryBrow
     <div ref={rootRef} className="gallery-browser" onClick={onGridClick}>
       <div className="gl-head">
         {heading}
-        <div className="gl-filters">
-          <div className="gl-chips" role="group" aria-label={GALLERY_UI.filtersLabel}>
-            {chips.map((chip) => (
-              <button
-                key={chip.key}
-                type="button"
-                className="gl-chip"
-                aria-pressed={active === chip.key}
-                aria-controls="galerija-lista"
-                onClick={() => void applyFilter(chip)}
-              >
-                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" className="gl-chip__check">
-                  <path d="M3.5 8.5l3 3 6-7" />
-                </svg>
-                {chip.label}
-                <span className="gl-chip__count tabular">{chip.count}</span>
-              </button>
-            ))}
+        {chips.length > 0 ? (
+          <div className="gl-filters">
+            <div className="gl-chips" role="group" aria-label={GALLERY_UI.filtersLabel}>
+              {chips.map((chip) => (
+                <button
+                  key={chip.key}
+                  type="button"
+                  className="gl-chip"
+                  aria-pressed={active === chip.key}
+                  aria-controls="galerija-lista"
+                  onClick={() => void applyFilter(chip)}
+                >
+                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" className="gl-chip__check ui-icon">
+                    <path d="M3.5 8.5l3 3 6-7" />
+                  </svg>
+                  {chip.label}
+                  <span className="gl-chip__count tabular">{chip.count}</span>
+                </button>
+              ))}
+            </div>
+            {/* Screen readers only: on screen the pressed chip (✓ + count) already says it. */}
+            <p className="gl-status sr-only" role="status" aria-live="polite">
+              {status}
+            </p>
           </div>
-          {/* Screen readers only: on screen the pressed chip (✓ + count) already says it. */}
-          <p className="gl-status sr-only" role="status" aria-live="polite">
-            {status}
-          </p>
-        </div>
+        ) : null}
       </div>
 
       {children}

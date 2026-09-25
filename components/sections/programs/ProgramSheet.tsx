@@ -7,7 +7,8 @@ import { SCHEDULE_LOCATION, type ProgramId } from "@/content/schedule";
 import { CTA } from "@/content/site";
 import { loadMotion } from "@/lib/load-motion";
 import { DUR, EASE, motionAllowed } from "@/lib/motion-env";
-import { glueDash, programSchedule, programStyle, PROGRAMS_UI } from "./model";
+import { typesetSr } from "@/lib/typeset";
+import { programSchedule, programStyle, PROGRAMS_UI } from "./model";
 import { ProgramIcon } from "./ProgramIcon";
 import { ScheduleLines } from "./ScheduleLines";
 
@@ -19,13 +20,20 @@ import { ScheduleLines } from "./ScheduleLines";
  * (clip-path) placed exactly over the card and opens out to its full box
  * (transform + clip-path only). Content is never scaled, so there is no
  * distortion to hide and no empty slab: the colored plate, icon and title are
- * there from the first frame. On close the window shrinks back onto the card and
- * fades into it (the card is visible again underneath). Reduced motion: 150ms crossfade.
+ * there from the first frame. On close the window shrinks back onto the card (0.18s
+ * takeoff, fully opaque); the card reappears in the frame the sheet closes, so the
+ * two are never printed over each other. Reduced motion: 150ms crossfade.
+ * The sheet is a light print even though it lives inside the dark S3 section
+ * (data-theme="light" on the dialog; .ps-panel sets its own tokens).
  * Links inside (booking / schedule) close the sheet synchronously and let the
  * click continue to the document-level delegates of those islands.
  */
 
 const OPEN_DURATION = 0.42; // between DUR.base and DUR.reveal: a large shared-element move
+/** Display-only: the school's name and the street address never split across lines
+ *  (typesetSr has no fixed phrases); SCHEDULE_LOCATION.sub itself is unchanged. */
+const glueVenue = (text: string) =>
+  text.replace(/Toza Dragović/g, "Toza\u00A0Dragović").replace(/Save Kovačevića (\d+)/g, "Save\u00A0Kovačevića\u00A0$1");
 const FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 type Gsap = Awaited<ReturnType<typeof loadMotion>>["gsap"];
@@ -112,12 +120,12 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
         dialog.setAttribute("data-closing", "");
         gsap.killTweensOf(panel);
         const to = onCard();
-        // The card is back underneath: the shrinking window fades into it (takeoff = a late fade).
-        card.style.removeProperty("visibility");
+        // The opaque window shrinks back onto the (still hidden) card; finish() shows the card
+        // in the same frame the sheet closes: one clean swap, never a double exposure.
         gsap.fromTo(
           panel,
           { clipPath: panel.style.clipPath || fullClip() },
-          { x: to.x, y: to.y, clipPath: to.clip, opacity: 0, duration: DUR.fast, ease: EASE.takeoff, onComplete: () => finish(returnFocus) },
+          { x: to.x, y: to.y, clipPath: to.clip, duration: DUR.fast, ease: EASE.takeoff, onComplete: () => finish(returnFocus) },
         );
       } else if (typeof panel.animate === "function") {
         dialog.setAttribute("data-closing", "");
@@ -212,36 +220,42 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
   const groups = programSchedule(program);
 
   return (
-    <dialog ref={dialogRef} className="program-sheet" aria-labelledby="program-sheet-title" style={programStyle(program)}>
+    <dialog
+      ref={dialogRef}
+      className="program-sheet"
+      data-theme="light"
+      aria-labelledby="program-sheet-title"
+      style={programStyle(program)}
+    >
       <div ref={panelRef} className="ps-panel">
         <div className="ps-inner">
           <div className="ps-plate">
             <ProgramIcon icon={program.icon} label={program.iconLabel} className="ps-icon" />
             <button type="button" className="ps-close" data-sheet-close="" aria-label={BOOKING.close}>
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <svg className="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
               </svg>
             </button>
           </div>
           <div className="ps-body">
             <h2 id="program-sheet-title" ref={titleRef} tabIndex={-1} className="ps-title text-h2">
-              {glueDash(program.title)}
+              {typesetSr(program.title)}
             </h2>
-            {program.age ? <p className="pc-age label-caps">{program.age}</p> : null}
-            <p className="ps-desc">{program.description}</p>
+            {program.age ? <p className="pc-age label-caps">{typesetSr(program.age)}</p> : null}
+            <p className="ps-desc">{typesetSr(program.description)}</p>
             <section className="ps-schedule" aria-labelledby="program-sheet-raspored">
               <h3 id="program-sheet-raspored" className="ps-schedule__title label-caps">
                 {PROGRAMS_UI.scheduleLabel}
               </h3>
               <ScheduleLines groups={groups} week className="ps-sched" />
-              <p className="ps-where text-small">{SCHEDULE_LOCATION.sub}</p>
+              <p className="ps-where text-small">{glueVenue(typesetSr(SCHEDULE_LOCATION.sub))}</p>
             </section>
             <div className="ps-actions">
-              <a href="#raspored" data-schedule-program={program.id} className="btn btn-secondary">
-                {CTA.viewSchedule}
-              </a>
               <a href="#kontakt" data-booking={program.title} className="btn btn-primary">
                 {CTA.trial}
+              </a>
+              <a href="#raspored" data-schedule-program={program.id} className="btn btn-secondary">
+                {CTA.viewSchedule}
               </a>
             </div>
           </div>

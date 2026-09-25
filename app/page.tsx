@@ -17,7 +17,7 @@ import { Schedule } from "@/components/sections/schedule/Schedule";
 
 /**
  * One page (§5). Section order, ids and themes:
- * S1 #top dark · S2 #kviz light · S3 #programi ice · S4 #raspored light ·
+ * S1 #top dark · S2 #kviz light · S3 #programi dark · S4 #raspored light ·
  * S5 #o-nama ice · S6 #treneri light · S7 #uspesi darker · S8 #kamp light ·
  * S9 #galerija ice · S10 #upis light · S11 #kontakt dark
  */

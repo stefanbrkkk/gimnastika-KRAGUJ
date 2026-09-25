@@ -53,6 +53,8 @@
   color: transparent;
   -webkit-text-stroke: 1.5px var(--color-royal-500);
   paint-order: stroke fill;
+  /* Proportional figures: the tabular „1“ is a slab-footed glyph beside a grotesque „2“ and „3“. */
+  font-variant-numeric: lining-nums proportional-nums;
 }
 
 .en-step[data-frame="solid"] .en-step__num {
@@ -206,6 +208,17 @@
   display: grid;
   gap: 48px;
   margin-top: 56px;
+}
+
+/* Tablets: the kit card beside the FAQ (5/7), as at ≥1024 but not sticky. */
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  .en-lower {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    column-gap: 24px;
+  }
+  .en-kit {
+    align-self: start;
+  }
 }
 
 @media (min-width: 1024px) {
@@ -380,11 +393,13 @@
   content: "";
 }
 
-.faq__q:hover .faq__q-text {
-  text-decoration: underline;
-  text-decoration-thickness: 1.5px;
-  text-underline-offset: 0.2em;
-  text-decoration-color: var(--hairline);
+@media (hover: hover) {
+  .faq__q:hover .faq__q-text {
+    text-decoration: underline;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 0.2em;
+    text-decoration-color: var(--hairline);
+  }
 }
 
 .faq__icon {
@@ -402,6 +417,7 @@
     scale var(--dur-slow-squash) var(--ease-rebound);
 }
 
+/* An action glyph (.ui-icon: stroke in CSS px). */
 .faq__icon svg {
   width: 20px;
   height: 20px;
@@ -460,14 +476,19 @@
   margin-block: -12px;
   color: var(--accent);
   font-weight: 700;
+  /* One inline phone recipe (S8 note, S10, S11): 700, accent, 1.5px underline at .2em, and the
+     same proportional figures as every other „060 028 7631“ on the page. */
+  font-variant-numeric: lining-nums proportional-nums;
   white-space: nowrap;
   text-decoration: underline;
   text-decoration-thickness: 1.5px;
   text-underline-offset: 0.2em;
 }
 
-.faq__tel:hover {
-  text-decoration-thickness: 2.5px;
+@media (hover: hover) {
+  .faq__tel:hover {
+    text-decoration-thickness: 2.5px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

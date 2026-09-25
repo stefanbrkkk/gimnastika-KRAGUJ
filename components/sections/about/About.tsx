@@ -3,8 +3,26 @@ import { QuietBoundary } from "@/components/ui/QuietBoundary";
 import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ABOUT } from "@/content/copy";
+import { typesetSr } from "@/lib/typeset";
 import { Timeline } from "./Timeline";
 import { TimelineMotion } from "./TimelineMotion";
+
+/**
+ * The mission's first sentence as a display statement (phones: about.css). Display-only:
+ * the text stays one <p>, character for character. It splits only before a capital letter,
+ * so an ordinal („2007. godine“) never cuts it; no match → no split.
+ */
+function Mission({ text }: { text: string }) {
+  const m = text.match(/\.\s+(?=\p{Lu})/u);
+  if (m?.index === undefined) return <>{text}</>;
+  const cut = m.index + 1;
+  return (
+    <>
+      <span className="about__lead-first">{text.slice(0, cut)}</span>
+      {text.slice(cut)}
+    </>
+  );
+}
 
 /**
  * S5 — „O nama“ (§5 S5). Ice theme; heading on the right (floor diagonal).
@@ -18,12 +36,14 @@ export function About() {
   return (
     <Section id="o-nama" theme="ice" labelledBy="o-nama-title" className="about">
       <div className="container-site">
-        <SectionHeading id="o-nama-title" title={ABOUT.heading} align="right" />
+        <SectionHeading id="o-nama-title" title={typesetSr(ABOUT.heading)} align="right" />
 
         <div className="about__grid">
           <div className="about__mission">
-            <h3 className="about__label label-caps">{ABOUT.missionLabel}</h3>
-            <p className="about__lead measure">{ABOUT.mission}</p>
+            <h3 className="about__label label-caps">{typesetSr(ABOUT.missionLabel)}</h3>
+            <p className="about__lead measure">
+              <Mission text={typesetSr(ABOUT.mission)} />
+            </p>
           </div>
 
           <div className={["about__prints", showCampGroup ? "about__prints--pair" : ""].filter(Boolean).join(" ")}>
@@ -42,14 +62,14 @@ export function About() {
           </div>
 
           <div className="about__history">
-            <h3 className="about__label label-caps">{ABOUT.historyLabel}</h3>
-            <p className="about__text measure">{ABOUT.history}</p>
+            <h3 className="about__label label-caps">{typesetSr(ABOUT.historyLabel)}</h3>
+            <p className="about__text measure">{typesetSr(ABOUT.history)}</p>
           </div>
         </div>
 
         <div className="about__chrono">
           <h3 className="about__chrono-title text-h3" id="o-nama-hronologija">
-            {ABOUT.timelineLabel}
+            {typesetSr(ABOUT.timelineLabel)}
           </h3>
           <Timeline labelledBy="o-nama-hronologija" />
         </div>

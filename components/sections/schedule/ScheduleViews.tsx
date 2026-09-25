@@ -19,6 +19,7 @@ import { gcalData, googleCalendarUrl } from "@/lib/gcal";
 import { fixedBlocks, icsHref } from "@/lib/ics";
 import { telHref } from "@/lib/links";
 import { daySessions, groupSlots } from "@/lib/schedule-logic";
+import { typesetSr } from "@/lib/typeset";
 import { SCHEDULE_UI as T } from "./copy";
 import { NextTraining } from "./NextTraining";
 
@@ -26,11 +27,12 @@ const swatch = (color: string): CSSProperties => ({ ["--swatch" as string]: colo
 const ACCUSATIVES = DAYS.map((d) => d.accusative);
 const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 /**
- * Display-only typesetting: a one-letter word („C“, „A“, „i“) never ends a line,
- * a dash never starts one, and an age such as „(3–8 god.)“ never splits.
+ * Display-only typesetting of group names: the site-wide rules (typesetSr) plus any
+ * one-letter word („C“, „A“, „i“) glued, a dash never starting a line, and an age such
+ * as „(3–8 god.)“ never splitting.
  */
 const glue = (s: string): string =>
-  s
+  typesetSr(s)
     .replace(/\s—/g, "\u00A0—")
     .replace(/(?<=^|\s)(\p{L})\s(?=\p{L})/gu, "$1\u00A0")
     .replace(/\s(god\.)/g, "\u00A0$1")
@@ -117,7 +119,7 @@ function WeekRow({ group }: { group: ScheduleGroup }) {
 
 function CalendarIcon() {
   return (
-    <svg className="sched-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <svg className="ui-icon sched-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
       <path d="M3.5 10h17M8 3v4M16 3v4M12 13v5M9.5 15.5h5" />
     </svg>
@@ -126,7 +128,7 @@ function CalendarIcon() {
 
 function ExternalIcon() {
   return (
-    <svg className="sched-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <svg className="ui-icon sched-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M13.5 5.5H18.5V10.5M18.5 5.5 10.5 13.5M16.5 14v4.5h-11v-11H10" />
     </svg>
   );
@@ -135,7 +137,7 @@ function ExternalIcon() {
 /** Same drawing as the page-chrome phone icon (24px grid, 1.75 stroke). */
 function PhoneIcon() {
   return (
-    <svg className="sched-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <svg className="ui-icon sched-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M7 3.5h2.6l1.4 4.1-2.1 1.5a11.5 11.5 0 0 0 6 6l1.5-2.1 4.1 1.4V17a2.5 2.5 0 0 1-2.7 2.5A15.8 15.8 0 0 1 4.5 6.2 2.5 2.5 0 0 1 7 3.5z" />
     </svg>
   );
@@ -143,7 +145,7 @@ function PhoneIcon() {
 
 function PinIcon() {
   return (
-    <svg className="sched-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <svg className="ui-icon sched-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" />
       <circle cx="12" cy="10" r="2.4" />
     </svg>
@@ -186,7 +188,7 @@ function GroupCard({ group, anchor }: { group: ScheduleGroup; anchor: Date }) {
             <div className="sched-cal">
               <a className="sched-cal__link" href={icsHref(group)} type="text/calendar" aria-describedby={titleId}>
                 <CalendarIcon />
-                {T.ics}
+                {typesetSr(T.ics)}
               </a>
               {fixed.map((block) => (
                 <a
@@ -200,21 +202,21 @@ function GroupCard({ group, anchor }: { group: ScheduleGroup; anchor: Date }) {
                 >
                   <ExternalIcon />
                   {T.gcal}
-                  {fixed.length > 1 ? ` · ${formatBlock(block)}` : null}
+                  {fixed.length > 1 ? `\u00A0· ${formatBlock(block)}` : null}
                   <span className="sr-only"> {T.newTab}</span>
                 </a>
               ))}
             </div>
-            {mixed ? <p className="sched-cal__note">{T.fixedOnly(fixed.map((b) => nbsp(formatBlock(b))).join("; "))}</p> : null}
+            {mixed ? <p className="sched-cal__note">{typesetSr(T.fixedOnly(fixed.map((b) => nbsp(formatBlock(b))).join("; ")))}</p> : null}
           </div>
         ) : (
           // No fixed slot (C program, starije): say why there is no calendar link and offer the call instead.
           <div className="sched-card__foot">
-            <p className="sched-cal__note">{T.noFixed}</p>
+            <p className="sched-cal__note">{typesetSr(T.noFixed)}</p>
             <div className="sched-cal">
               <a className="sched-cal__link" href={telHref(PRIMARY_PHONE.e164)}>
                 <PhoneIcon />
-                {HERO.ctaSecondary}
+                {typesetSr(HERO.ctaSecondary)}
               </a>
             </div>
           </div>
@@ -272,14 +274,14 @@ export function DayPanels({ groups }: { groups: readonly ScheduleGroup[] }) {
                     </li>
                   ))}
                 </ul>
-                <p className="sched-day__filtered">{T.filteredEmpty}</p>
+                <p className="sched-day__filtered">{typesetSr(T.filteredEmpty)}</p>
               </>
             ) : (
               <div className="sched-day__empty">
                 <svg className="sched-day__leap" viewBox="0 0 230 150" aria-hidden="true" focusable="false">
                   <use href="#leap" />
                 </svg>
-                <p>{day.iso >= 6 ? SCHEDULE_LOCATION.weekendEmpty : T.filteredEmpty}</p>
+                <p>{typesetSr(day.iso >= 6 ? SCHEDULE_LOCATION.weekendEmpty : T.filteredEmpty)}</p>
               </div>
             )}
           </section>
@@ -297,17 +299,15 @@ export function LocationCard() {
       <h3 id="sched-location-title" className="sched-location__title">
         <KeepHyphenated text={VENUE.name} />
       </h3>
-      <p className="sched-location__nick">
-        {T.nicknamePrefix} {VENUE.nickname}
-      </p>
+      <p className="sched-location__nick">{typesetSr(`${T.nicknamePrefix} ${VENUE.nickname}`)}</p>
       <p className="sched-location__street">
-        {VENUE.street}
+        {typesetSr(VENUE.street)}
         <br />
-        {VENUE.postalCode} {VENUE.city}
+        {typesetSr(`${VENUE.postalCode} ${VENUE.city}`)}
       </p>
       <a className="btn btn-secondary sched-location__maps" href={VENUE.mapsUrl} target="_blank" rel="noopener noreferrer">
         <PinIcon />
-        {T.maps}
+        {typesetSr(T.maps)}
         <span className="sr-only"> {T.newTab}</span>
       </a>
     </div>

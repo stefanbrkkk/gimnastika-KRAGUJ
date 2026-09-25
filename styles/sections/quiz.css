@@ -240,12 +240,11 @@ html:not(.js) .quiz-app {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   /* translate/scale: the global press squash (app/globals.css) eases back like .btn. */
+  /* MI-04: the pressed state swaps instantly; only rotation and the squash ease. */
   transition:
     rotate var(--dur-base) var(--ease-rebound),
     translate var(--dur-slow-squash) var(--ease-rebound),
-    scale var(--dur-slow-squash) var(--ease-rebound),
-    background-color var(--dur-fast) var(--ease-stick),
-    color var(--dur-fast) var(--ease-stick);
+    scale var(--dur-slow-squash) var(--ease-rebound);
 }
 /* Focus: the global outline ring (3px gap + 2px); the chip only straightens. */
 .quiz-chip:focus-visible {
@@ -313,10 +312,20 @@ html:not(.js) .quiz-app {
   gap: 10px;
   max-width: 460px;
 }
+/* Three content-sized tracks (auto → stretched over the free space), so every answer stays on
+   one line: equal thirds wrapped „Treniralo je rekreativno“ at 768–1680. Where the card column
+   is too narrow for that (1024–1279, card in cols 5–12), the answers stack as on a phone.
+   The arrow keys read the column count from the computed grid (QuizApp onChipKeys). */
 @media (min-width: 768px) {
   .quiz-exps {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(3, auto);
     max-width: none;
+  }
+}
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  .quiz-exps {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 460px;
   }
 }
 .quiz-chip--exp {
@@ -330,13 +339,14 @@ html:not(.js) .quiz-app {
   font-weight: 650;
   font-stretch: 104%;
 }
+/* Action glyphs (.ui-icon, non-scaling stroke): 2 CSS px. */
 .quiz-chip__arrow {
   flex: none;
   width: 20px;
   height: 20px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -388,7 +398,7 @@ html:not(.js) .quiz-app {
   height: 18px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }

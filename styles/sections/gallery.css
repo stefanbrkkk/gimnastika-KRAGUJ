@@ -48,7 +48,7 @@ html:not(.js) .gallery .gl-filters {
 .gl-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px; /* icon-to-label gap (✓), as every icon + label on the page; label → count too */
   min-height: 48px;
   padding: 0 16px 0 18px;
   border: 0;
@@ -65,15 +65,17 @@ html:not(.js) .gallery .gl-filters {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   /* translate/scale: the global „doskok“ press squash (app/globals.css) eases back like .btn. */
+  /* MI-04: the pressed state swaps instantly (no colour tween: both chips went blank mid-fade); only the squash eases. */
   transition:
-    background-color var(--dur-fast) var(--ease-stick),
-    color var(--dur-fast) var(--ease-stick),
     translate var(--dur-slow-squash) var(--ease-rebound),
     scale var(--dur-slow-squash) var(--ease-rebound);
 }
 
-.gl-chip:hover {
-  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--fg) 45%, transparent);
+/* Hover only where it exists: Android keeps :hover on a tapped chip. */
+@media (hover: hover) {
+  .gl-chip:hover {
+    box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--fg) 45%, transparent);
+  }
 }
 
 .gl-chip:active {
@@ -98,7 +100,6 @@ html:not(.js) .gallery .gl-filters {
 /* Frame count, like the exposure count on a film box. */
 .gl-chip__count {
   min-width: 1.6em;
-  margin-left: 2px;
   padding: 2px 6px;
   border-radius: var(--radius-full);
   background: var(--color-white);
@@ -252,19 +253,25 @@ html:not(.js) .gallery .gl-filters {
   pointer-events: none;
 }
 
+/* A pictogram (.ui-icon: stroke in CSS px). */
 .gl-zoom svg {
   width: 16px;
   height: 16px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.6;
+  stroke-width: 1.75;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.gl-open:hover .gl-zoom,
 .gl-open:focus-visible .gl-zoom {
   color: var(--accent);
+}
+
+@media (hover: hover) {
+  .gl-open:hover .gl-zoom {
+    color: var(--accent);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -451,8 +458,15 @@ html[data-lightbox-open] body {
     scale var(--dur-slow-squash) var(--ease-rebound);
 }
 
-.lb-btn:hover {
-  background: var(--color-navy-800);
+@media (hover: hover) {
+  .lb-btn:hover {
+    background: var(--color-navy-800);
+  }
+
+  /* A dead end does not light up. */
+  .lb-btn[aria-disabled="true"]:hover {
+    background: rgba(17, 45, 95, 0.72);
+  }
 }
 
 .lb-btn:active {
@@ -465,10 +479,6 @@ html[data-lightbox-open] body {
 }
 
 /* A dead end does not squash. */
-.lb-btn[aria-disabled="true"]:hover {
-  background: rgba(17, 45, 95, 0.72);
-}
-
 .lb-btn[aria-disabled="true"]:active {
   translate: none;
   scale: none;

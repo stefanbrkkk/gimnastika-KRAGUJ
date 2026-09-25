@@ -35,7 +35,7 @@ export function StickyBarBehavior() {
       const visible = stickyBarVisible(s) ? "true" : "false";
       if (bar.dataset.visible === visible) return;
       bar.dataset.visible = visible;
-      if (visible === "true") clearFocusFromBar(bar);
+      if (visible === "true") clearFocusFromBar();
     };
 
     // Hero CTAs: "passed" only once they are ABOVE the viewport (not before we reach them).

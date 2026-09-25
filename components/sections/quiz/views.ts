@@ -6,6 +6,7 @@ import { QUIZ } from "@/content/copy";
 import { programById } from "@/content/programs";
 import { formatDays, formatTimes, groupById, type ScheduleGroup } from "@/content/schedule";
 import { QUIZ_AGES, QUIZ_RULES, buildOutcomeTable, type QuizResultKind } from "@/lib/quiz";
+import { typesetSr } from "@/lib/typeset";
 import { glueDash } from "../programs/model";
 import type { QuizGroupView, QuizResultView, QuizViewModel } from "./types";
 
@@ -39,7 +40,7 @@ export function groupView(id: ScheduleGroup["id"], programName: boolean): QuizGr
   return {
     id,
     name: groupNameDisplay(programName ? program.title : group.name),
-    meta: programName ? program.age : null,
+    meta: programName && program.age ? typesetSr(program.age) : null,
     color: program.color,
     slots: slotsOf(id),
   };
@@ -50,15 +51,17 @@ export function resultView(kind: QuizResultKind): QuizResultView {
   if (!rule) throw new Error(`Unknown quiz result ${kind}`);
   const competitive = kind === "takmicarske";
   const groups = rule.groups.map((id) => groupView(id, !competitive));
-  const heading = competitive ? QUIZ.competitiveTitle : null;
+  // Display strings are typeset (lib/typeset: no-break spaces only); the booking label stays raw.
   return {
-    heading,
+    heading: competitive ? typesetSr(QUIZ.competitiveTitle) : null,
     groups,
-    note: rule.note,
+    note: rule.note ? typesetSr(rule.note) : null,
     // Prefills the booking sheet's „Grupa“ field.
-    booking:
-      heading ??
-      (kind === "obe-pocetne" ? BOTH_BEGINNERS_BOOKING : rule.groups.map((id) => programById(groupById(id).programId).title).join(" / ")),
+    booking: competitive
+      ? QUIZ.competitiveTitle
+      : kind === "obe-pocetne"
+        ? BOTH_BEGINNERS_BOOKING
+        : rule.groups.map((id) => programById(groupById(id).programId).title).join(" / "),
   };
 }
 
@@ -70,12 +73,12 @@ export function buildQuizViewModel(): QuizViewModel {
     table: buildOutcomeTable(),
     views,
     copy: {
-      step1: QUIZ.step1,
-      step2: QUIZ.step2,
+      step1: typesetSr(QUIZ.step1),
+      step2: typesetSr(QUIZ.step2),
       experience: QUIZ.experience,
-      resultCta: QUIZ.resultCta,
-      finalNote: QUIZ.finalNote,
-      aerobicHint: QUIZ.aerobicHint,
+      resultCta: typesetSr(QUIZ.resultCta),
+      finalNote: typesetSr(QUIZ.finalNote),
+      aerobicHint: typesetSr(QUIZ.aerobicHint),
       aerobicColor: programById("aerobik").color,
       back: QUIZ_UI.back,
       restart: QUIZ_UI.restart,

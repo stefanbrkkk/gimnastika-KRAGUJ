@@ -189,8 +189,10 @@
   }
 }
 
-.site-header__link:hover::after {
-  transform: scaleX(1);
+@media (hover: hover) {
+  .site-header__link:hover::after {
+    transform: scaleX(1);
+  }
 }
 
 .site-header__link[aria-current]::after {
@@ -296,7 +298,8 @@
 
 /* --------------------------------------------------------------------------
    Menu sheet — native <dialog>, full screen, darkroom navy. Opens with a
-   shutter (clip-path from the top), rows land in a short stagger (≤ .28s).
+   shutter (clip-path from the top) over the live page, rows land in a short
+   stagger (≤ .28s); "Zatvorite"/Esc/back lift the shutter again (180ms takeoff).
    -------------------------------------------------------------------------- */
 html:has(.menu-sheet[open]) {
   overflow: hidden;
@@ -320,8 +323,10 @@ html:has(.menu-sheet[open]) {
   color: var(--fg);
 }
 
+/* Transparent: the sheet covers the whole viewport itself, so the shutter comes
+   down over the page (a navy backdrop would cut to dark on the first frame). */
 .menu-sheet::backdrop {
-  background: var(--color-navy-950);
+  background: transparent;
 }
 
 .menu-sheet__inner {
@@ -474,6 +479,11 @@ html:has(.menu-sheet[open]) {
     animation: menu-land var(--dur-base) var(--ease-stick) both;
     animation-delay: calc(80ms + var(--i, 0) * 40ms);
   }
+
+  /* Exit (MobileMenu requestClose): the shutter lifts, then close(). */
+  .menu-sheet[open][data-closing] {
+    animation: menu-shutter-out var(--dur-fast) var(--ease-takeoff) both;
+  }
 }
 
 @keyframes menu-shutter {
@@ -482,6 +492,15 @@ html:has(.menu-sheet[open]) {
   }
   to {
     clip-path: inset(0);
+  }
+}
+
+@keyframes menu-shutter-out {
+  from {
+    clip-path: inset(0);
+  }
+  to {
+    clip-path: inset(0 0 100% 0);
   }
 }
 
@@ -552,6 +571,7 @@ html:not(.js) .sticky-bar {
 /* Content-sized pills sharing the spare width equally: every label gets the same
    inner air („Raspored“ is the longest, „SMS“/„Viber“ the shortest). */
 .sticky-bar__list {
+  container: sticky-bar / inline-size; /* for the enlarged-text rule below */
   display: flex;
   gap: 8px;
   max-width: 560px;
@@ -614,6 +634,20 @@ html:not(.js) .sticky-bar {
   .sticky-bar__btn .chrome-icon {
     width: 20px;
     height: 20px;
+  }
+}
+
+/* Enlarged system text (Android font scale, OS page zoom): the three pills no longer
+   fit with icons — drop the icons and tighten the padding. The threshold is in em
+   of the list's own font size, so it follows the text scale; at 320px with normal
+   text the list is 304px > 297.5px and nothing changes (D-chrome-19). */
+@container sticky-bar (max-width: 17.5em) {
+  .sticky-bar__btn .chrome-icon {
+    display: none;
+  }
+
+  .sticky-bar__btn {
+    padding-inline: 6px;
   }
 }
 
@@ -730,8 +764,10 @@ html:not(.js) .sticky-bar {
   -webkit-tap-highlight-color: transparent;
 }
 
-.site-footer__nav-link:hover {
-  text-decoration-color: currentColor;
+@media (hover: hover) {
+  .site-footer__nav-link:hover {
+    text-decoration-color: currentColor;
+  }
 }
 
 .site-footer__actions {
@@ -783,8 +819,10 @@ html:not(.js) .sticky-bar {
   text-underline-offset: 0.24em;
 }
 
-.site-footer__link:hover > span:first-of-type {
-  text-decoration-color: var(--fg);
+@media (hover: hover) {
+  .site-footer__link:hover > span:first-of-type {
+    text-decoration-color: var(--fg);
+  }
 }
 
 .site-footer__arrow {

@@ -1,7 +1,10 @@
 /* ==========================================================================
    S1 HERO — "LET KRAGUJA" signature moment (§4 HERO, §5 S1). Owned by the hero.
    Layout: the leap (art band) above the mat line = the floor; the statement below.
-   Phones: one column. ≥1024: H1 in cols 1–8, sub/CTAs/trust in cols 9–12.
+   Phones and portrait tablets: one column, the compact (high) leap.
+   Landscape ≥640, or ≥1024 with a fine pointer: the wide (long, low) leap; there,
+   from 1024, the H1 sits in cols 1–8 and sub/CTAs/trust in cols 9–12.
+   Portrait touch ≥1024 (large tablets) keeps the one-column tablet poster.
    ========================================================================== */
 
 .hero {
@@ -45,6 +48,19 @@
   aspect-ratio: 713 / 404;
 }
 
+/* Short portrait phones (360×640–700 with the browser toolbar shown): the high
+   leap gives way first — right-aligned and height-capped — so the primary CTA
+   is on the first screen. A continuous svh cap (no height breakpoint), so the
+   art never jumps when the toolbar hides; without svh the cap is dropped and
+   the art stays full width. Tall phones (≥ ~740px) are untouched. */
+@media (max-width: 639.98px) and (orientation: portrait) {
+  .hero-art--compact {
+    width: auto;
+    max-height: max(16svh, calc(100svh - 560px));
+    margin-left: auto;
+  }
+}
+
 .hero-art--wide {
   display: none;
   aspect-ratio: 1650 / 256;
@@ -58,8 +74,15 @@
   }
 }
 
+/* Large portrait touch tablets (1024×1366 …): the same poster, a larger leap. */
+@media (min-width: 1024px) and (orientation: portrait) and (pointer: coarse) {
+  .hero-art--compact {
+    max-width: 720px;
+  }
+}
+
 /* Landscape phones/tablets and desktop: the long, low travelling leap. */
-@media (min-width: 640px) and (orientation: landscape), (min-width: 1024px) {
+@media (min-width: 640px) and (orientation: landscape), (min-width: 1024px) and (pointer: fine) {
   .hero-art--compact {
     display: none;
   }
@@ -154,6 +177,18 @@
   color: var(--fg);
   font-stretch: 105%;
   hyphens: manual;
+  /* WCAG 1.4.12 text spacing: a word that no longer fits breaks instead of
+     running under the aside or out of the clipped hero. No effect at default
+     spacing (every line fits at every width). */
+  overflow-wrap: break-word;
+}
+
+/* Landscape phones (844×390, 740×360, 915×412 …): the H1 is sized by the
+   viewport height so it takes two lines and the CTAs reach the first screen. */
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 1023.98px) {
+  .hero__title {
+    font-size: clamp(2.75rem, 16svh, 5.5rem);
+  }
 }
 
 .hero__sub {
@@ -187,7 +222,7 @@
 .hero__trust li {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 8px;
 }
 
 .hero__tick {
@@ -216,20 +251,25 @@
   }
 }
 
-/* Desktop composition. The H1 keeps the display-xl token but is capped for the
-   hero only (the global token is untouched):
+/* Desktop composition (landscape ≥1024, or any ≥1024 with a fine pointer;
+   portrait touch tablets keep the one-column poster above). The H1 keeps the
+   display-xl token but is capped for the hero only (the global token is untouched):
    · width — it always fits cols 1–8. Col 1–8 = ⅔ of the container's content
-     box − 8px (12 cols, 24px gutters) = 66.667cqi − 8px; the widest line
-     („Kragujevcu“) is 5.8917em at wdth 118% and 6.0031em at 121% (measured;
-     5.91 / 6.02 keep ~.3% of air). Active only at 1024–~1140px.
+     box − 8px (12 cols, 24px gutters) = 66.667cqi − 8px; the widest line is
+     „u Kragujevcu“ (the one-letter preposition is glued to its word, Hero.tsx):
+     6.7311em at wdth 118% and 6.8581em at 121% (measured; 6.75 / 6.87 keep
+     ~.2–.3% of air). It is the binding cap at most desktop sizes (90.5px at
+     1024, 113.7px at 1280×800, 126.9px from 1416 up, where the container
+     stops growing); only short laptops (1280×720, 1366×768) are capped lower,
+     by height.
    · height — the whole H1, descenders included, sits in the first viewport
      with ≥ 14px of air on short laptops (1280×720, 1280×800, 1366×768,
      1536×864): 92 header room + 20 + 16 eyebrow + 12 + 20 bottom + 4 = 164px,
      the art band ≤ 23svh, 4 H1 lines of .88 = 3.52em plus .115em for the
      g/j descenders of „Kragujevcu“ below the last line box
      → font-size ≤ (77svh − 164px) / 3.635, never below 88px.
-     1440×900, 1920×1080 and taller are untouched. */
-@media (min-width: 1024px) {
+     It leaves 1440×900, 1920×1080 and taller untouched. */
+@media (min-width: 1024px) and (orientation: landscape), (min-width: 1024px) and (pointer: fine) {
   .hero__inner {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -238,7 +278,7 @@
     padding-top: 92px;
     padding-bottom: 20px;
     container-type: inline-size;
-    --hero-fit: calc((66.667cqi - 8px) / 5.91);
+    --hero-fit: calc((66.667cqi - 8px) / 6.75);
     --hero-fs: min(var(--hero-fit), max(5.5rem, min(var(--text-display-xl), calc((77svh - 164px) / 3.635))));
   }
   .hero__art,
@@ -281,10 +321,10 @@
 }
 
 /* 121% (inside the §3 desktop range 118–125): 125% overflows cols 1–8 at every
-   width ≥ 1280; 121% fits with 3–12px to spare. */
-@media (min-width: 1280px) {
+   width ≥ 1280; 121% keeps the H1 larger under the same width cap. */
+@media (min-width: 1280px) and (orientation: landscape), (min-width: 1280px) and (pointer: fine) {
   .hero__inner {
-    --hero-fit: calc((66.667cqi - 8px) / 6.02);
+    --hero-fit: calc((66.667cqi - 8px) / 6.87);
   }
   .hero__title {
     font-stretch: 121%;
@@ -365,8 +405,10 @@
     background-color var(--dur-fast) var(--ease-stick);
 }
 
-.hero-egg__close:hover {
-  background-color: color-mix(in oklab, var(--fg) 8%, transparent);
+@media (hover: hover) {
+  .hero-egg__close:hover {
+    background-color: color-mix(in oklab, var(--fg) 8%, transparent);
+  }
 }
 
 .hero-egg__close:active {

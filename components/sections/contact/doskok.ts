@@ -8,9 +8,12 @@
  * pre-animation hidden state is applied by JS only while the CTA is still off-screen;
  * cleanup reverts every inline style (gsap.context).
  *
- * ONE primary motion per viewport (§4): the doskok is S11's landing, so it waits
- * for the section title's own chronophotograph landing to finish (HeadingLandings,
- * styles/ui.css) and then goes through the page-wide queuePrimaryMotion().
+ * ONE primary motion per viewport (§4): the doskok is S11's ONE landing. The S11
+ * title mark is static (SectionHeading land={false}, D-S11-9 rev), so the hop starts
+ * as soon as half of the hop band or of the button is in view, through the page-wide
+ * queuePrimaryMotion() — no title landing to wait for, no empty band at rest.
+ * The flier fades in at the takeoff frame and flies on „hang“ (hold at the apex,
+ * then a fast drop into the squash), like the hero's leap.
  * A live switch to reduced motion reverts to the static composition at once.
  */
 import { DUR, EASE, MQ, gsap, motionAllowed, queuePrimaryMotion, registerMotion } from "@/lib/motion";
@@ -19,33 +22,7 @@ const SQUASH = { scaleX: 1.03, scaleY: 0.94 } as const;
 const SQUASH_DUR = 0.35;
 /** The doskok's length: the hop, then the squash. */
 const DOSKOK_MS = (DUR.reveal + SQUASH_DUR) * 1000;
-/** A section title's landing (styles/ui.css .chrono-solid: 0.2 s delay + 0.6 s). */
-const HEADING_LAND_MS = 800;
 const noop = () => {};
-
-/**
- * How long to wait so the S11 title's landing is over before the doskok starts.
- * Records when the mark lands (HeadingLandings sets data-landed); a mark that is
- * on screen but not landed yet is about to land, so it gets its whole landing.
- */
-function trackHeadingLanding(mark: Element | null): { wait: () => number; stop: () => void } {
-  if (!mark || !mark.hasAttribute("data-land") || mark.hasAttribute("data-landed")) return { wait: () => 0, stop: noop };
-  let landedAt: number | null = null;
-  const mo = new MutationObserver(() => {
-    if (!mark.hasAttribute("data-landed")) return;
-    landedAt = performance.now();
-    mo.disconnect();
-  });
-  mo.observe(mark, { attributes: true, attributeFilter: ["data-landed"] });
-  return {
-    wait: () => {
-      if (landedAt !== null) return Math.max(0, landedAt + HEADING_LAND_MS - performance.now());
-      const r = mark.getBoundingClientRect();
-      return r.bottom > 0 && r.top < window.innerHeight ? HEADING_LAND_MS : 0;
-    },
-    stop: () => mo.disconnect(),
-  };
-}
 
 /** Time (0–1) at which an eased tween reaches `progress` — for dropping ghosts as the leap passes them. */
 function timeAt(ease: (t: number) => number, progress: number): number {
@@ -63,8 +40,9 @@ export function armDoskok(root: HTMLElement): () => void {
   registerMotion();
   const leap = root.querySelector<SVGSVGElement>("[data-doskok-leap]");
   const body = root.querySelector<HTMLElement>("[data-doskok-body]");
+  const arc = root.querySelector<HTMLElement>("[data-doskok-arc]");
   const ghosts = Array.from(root.querySelectorAll<SVGSVGElement>("[data-doskok-ghost]"));
-  if (!leap || !body || ghosts.length === 0) return noop;
+  if (!leap || !body || !arc || ghosts.length === 0) return noop;
 
   // Already on screen (deep link to #kontakt, restored scroll): keep the static final state — no flash.
   const box = root.getBoundingClientRect();
@@ -84,21 +62,23 @@ export function armDoskok(root: HTMLElement): () => void {
     });
     const [start, ...via] = points;
     if (!start) return;
-    const ease = gsap.parseEase(EASE.flight);
+    const ease = gsap.parseEase(EASE.hang);
 
     const tl = gsap.timeline({
       onComplete: () => {
         gsap.set([leap, body, ...ghosts], { clearProps: "transform,opacity,visibility" });
       },
     });
-    tl.set(leap, { x: start.x, y: start.y, rotation: -9, autoAlpha: 1, transformOrigin: "50% 100%" }, 0)
+    // Takeoff: the flier fades in on the first ghost frame (DUR.tap) while the hop starts.
+    tl.set(leap, { x: start.x, y: start.y, rotation: -9, autoAlpha: 0, transformOrigin: "50% 100%" }, 0)
+      .to(leap, { autoAlpha: 1, duration: DUR.tap, ease: "none" }, 0)
       .to(
         leap,
         {
           motionPath: { path: [...via, { x: 0, y: 0 }], curviness: 1.2 },
           rotation: 0,
           duration: DUR.reveal,
-          ease: EASE.flight,
+          ease: EASE.hang,
         },
         0,
       )
@@ -114,15 +94,11 @@ export function armDoskok(root: HTMLElement): () => void {
     });
   };
 
-  const heading = trackHeadingLanding(root.closest("section")?.querySelector(".section-heading .chrono-mark") ?? null);
   let stopped = false;
-  let timer = 0;
   const stop = () => {
     if (stopped) return;
     stopped = true;
-    window.clearTimeout(timer);
     io.disconnect();
-    heading.stop();
     reduce.removeEventListener("change", onReduce);
     ctx.revert(); // back to the static composition (kills a running hop too)
   };
@@ -133,20 +109,24 @@ export function armDoskok(root: HTMLElement): () => void {
     void queuePrimaryMotion(DOSKOK_MS).then(() => {
       if (stopped) return;
       if (!motionAllowed()) return stop();
-      heading.stop();
       ctx.add(play);
     });
   };
 
+  // Play once half of the hop band OR half of the button is in view. Keyed on the band
+  // too, so the pre-state never rests as an empty band above a visible button — e.g.
+  // after the header „Kontakt“ jump on a 1280–1440 laptop, where the display title
+  // leaves the button at the fold. (Scrolling up from below, the button comes first.)
   const io = new IntersectionObserver(
     (entries) => {
-      if (!entries.some((e) => e.isIntersecting)) return;
+      if (!entries.some((e) => e.isIntersecting && e.intersectionRatio >= 0.49)) return;
       io.disconnect();
       if (!motionAllowed()) return stop(); // reduced motion switched on meanwhile
-      timer = window.setTimeout(start, heading.wait());
+      start();
     },
-    { threshold: 0.5, rootMargin: "0px 0px -8% 0px" },
+    { threshold: 0.5 },
   );
+  io.observe(arc);
   io.observe(body);
 
   const reduce = window.matchMedia(MQ.reduce);

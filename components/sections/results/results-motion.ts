@@ -3,8 +3,9 @@
  *
  * One sequence, never overlapping (§4 „Sequence these, never overlap“; ONE primary motion
  * per viewport):
- *   1. the title's SplitText line mask plays WITH the heading's own chrono landing (same
- *      element, same observer line as HeadingLandings): one composite landing;
+ *   1. the title's SplitText line mask plays WITH the heading's own chrono landing: both
+ *      start in ONE queuePrimaryMotion slot (this file sets data-landed on the mark), and
+ *      the split is reverted only after the landing has finished: one composite landing;
  *   2. the LAST digit of each Doto numeral flips once: the static digit folds away and
  *      back (split-flap rotateX). It is never hidden in advance and no other number ever
  *      shows (D-S7-2); no count-up;
@@ -21,14 +22,14 @@
 import type { SplitText as SplitTextInstance } from "gsap/SplitText";
 import { DUR, EASE, MQ, STAGGER, gsap, loadDrawSVG, loadSplitText, queuePrimaryMotion, registerMotion } from "@/lib/motion";
 
-/** The heading's chrono landing: styles/ui.css (.chrono-solid 0.2 s delay + 0.6 s). */
+/** The heading's chrono landing slot: styles/ui.css (the 600 ms hop) in HeadingLandings' 800 ms slot. */
 const HEADING_LANDING_MS = 800;
 /** HeadingLandings' observer line, so the title mask and the chrono landing start together. */
 const HEADING_LINE = "0px 0px -15% 0px";
 /** Steps 2–4 start once their element is this far into the viewport. */
 const STEP_LINE = "0px 0px -18% 0px";
-/** The SplitText DOM is restored once the chrono mark has landed inside the masked line. */
-const UNSPLIT_MS = Math.max(0, HEADING_LANDING_MS - DUR.reveal * 1000) + 150;
+/** The SplitText DOM is restored after the landing (re-inserting the mark earlier would cancel its hop). */
+const UNSPLIT_AFTER_MS = HEADING_LANDING_MS + 150;
 /** Medal marks settle like the §4 badge/squash (--dur-slow-squash, 350 ms, ease rebound). */
 const SETTLE = 0.35;
 /** Dry-brush bristles, same offset as the S6 brush. */
@@ -85,8 +86,9 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
     };
 
     // --- 1 · Title line mask, together with the chrono landing -------------------------
-    // SplitText.revert() rewrites innerHTML, so the chrono mark (observed by HeadingLandings)
-    // is put back as the same node afterwards.
+    // Mask and landing share ONE primary-motion slot: the mark lands (data-landed) as the
+    // lines rise. SplitText.revert() rewrites innerHTML, so the chrono mark (observed by
+    // HeadingLandings) is put back as the same node — only once its hop has finished.
     let split: SplitTextInstance | null = null;
     let unsplitTimer: ReturnType<typeof setTimeout> | undefined;
     const restoreMark = () => {
@@ -105,24 +107,20 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
         (entries) => {
           if (!entries.some((e) => e.isIntersecting) || !split) return;
           titleIo.disconnect();
-          headingEnd = Math.max(headingEnd, performance.now() + HEADING_LANDING_MS);
-          const lines = split.lines;
-          context.add(() => {
-            gsap.to(lines, {
-              yPercent: 0,
-              duration: DUR.reveal,
-              ease: EASE.stick,
-              stagger: STAGGER.lines,
-              onComplete: () => {
-                unsplitTimer = setTimeout(unsplit, UNSPLIT_MS);
-              },
-            });
+          void queuePrimaryMotion(HEADING_LANDING_MS).then(() => {
+            if (!live || !split) return;
+            mark?.setAttribute("data-landed", "");
+            headingEnd = performance.now() + HEADING_LANDING_MS;
+            const lines = split.lines;
+            context.add(() => gsap.to(lines, { yPercent: 0, duration: DUR.reveal, ease: EASE.stick, stagger: STAGGER.lines }));
+            unsplitTimer = setTimeout(unsplit, UNSPLIT_AFTER_MS);
           });
         },
         { rootMargin: HEADING_LINE },
       );
       // The h2 itself: the masked line clips the chrono mark, and a fully clipped element
-      // never intersects. HeadingLandings lands the mark as soon as the rising line shows it.
+      // never intersects (HeadingLandings sees the mark only once the lines rise; by then
+      // it is already landed here).
       titleIo.observe(title);
       observers.push(titleIo);
     }
@@ -165,11 +163,13 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
       });
     }
 
-    // 4 — the brush stroke over photo 01.
+    // 4 — the brush stroke over photo 01. The step fires on the stroke's own box (lower right
+    // of the photo), not the full-photo overlay, so on desktop the podium beside the photo's
+    // top always goes first (D-S7-5 order).
     if (brush && strokes.length && !inView(brush)) {
       gsap.set(strokes, { drawSVG: "0% 0%" });
       steps.push({
-        el: brush,
+        el: strokes[0] ?? brush,
         state: "idle",
         build: () =>
           gsap.to(strokes, {

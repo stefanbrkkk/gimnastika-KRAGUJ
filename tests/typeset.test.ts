@@ -34,3 +34,9 @@ describe("typesetSr", () => {
     expect(typesetSr(src).replaceAll(NB, " ")).toBe(src);
   });
 });
+
+describe("typesetSr — names", () => {
+  it("keeps the school and street names whole", () => {
+    expect(typesetSr("škole „Toza Dragović“, Save Kovačevića 25").replaceAll(" ", "~")).toBe("škole „Toza~Dragović“, Save~Kovačevića~25");
+  });
+});

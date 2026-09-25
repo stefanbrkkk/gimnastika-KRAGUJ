@@ -1,6 +1,7 @@
 import { Leap } from "@/components/brand/Logo";
 import { CTA, NAV, PRIMARY_PHONE } from "@/content/site";
 import { telHref } from "@/lib/links";
+import { typesetSr } from "@/lib/typeset";
 import { HEADER_COPY } from "./header-copy";
 import { LeapTrail } from "./LeapTrail";
 
@@ -28,10 +29,10 @@ export function MenuSheetBody() {
 
       <div className="menu-sheet__actions menu-sheet__item" style={{ ["--i" as string]: NAV.length }}>
         <a href="#kontakt" data-booking="" className="btn btn-primary">
-          {CTA.trial}
+          {typesetSr(CTA.trial)}
         </a>
         <a href={telHref(PRIMARY_PHONE.e164)} className="btn btn-secondary">
-          {`${CTA.call} ${PRIMARY_PHONE.display}`}
+          {typesetSr(`${CTA.call} ${PRIMARY_PHONE.display}`)}
         </a>
       </div>
 

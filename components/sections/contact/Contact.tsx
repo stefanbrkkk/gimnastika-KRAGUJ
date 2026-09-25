@@ -4,6 +4,7 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { BOOKING, CONTACT, HERO } from "@/content/copy";
 import { CTA, EMAIL, FLAGS, PHONES, PRIMARY_PHONE, SOCIAL, VENUE } from "@/content/site";
 import { mailtoHref, smsHref, telHref } from "@/lib/links";
+import { typesetSr } from "@/lib/typeset";
 import { ContactDoskok } from "./ContactDoskok";
 import { ContactIcon, type ContactIconName } from "./ContactIcon";
 
@@ -38,11 +39,12 @@ interface Row {
   value: string;
   href: string;
   external?: boolean;
-  tabular?: boolean;
 }
 
+// Phone numbers use proportional figures, like every other „060 028 7631“ on the page
+// (tabular figures swap in a slab-footed „1“); tabular stays for times and counters.
 const rows: Row[] = [
-  ...PHONES.map<Row>((p) => ({ icon: "phone", label: CONTACT.callLabel, value: p.display, href: telHref(p.e164), tabular: true })),
+  ...PHONES.map<Row>((p) => ({ icon: "phone", label: CONTACT.callLabel, value: p.display, href: telHref(p.e164) })),
   { icon: "mail", label: CONTACT.emailLabel, value: EMAIL, href: mailtoHref(EMAIL) },
   { icon: "instagram", label: CONTACT.instagramLabel, value: SOCIAL.instagramHandle, href: SOCIAL.instagram, external: true },
   ...(FLAGS.SHOW_FACEBOOK
@@ -61,9 +63,12 @@ const NEW_WINDOW = "(otvara se u novom prozoru)";
  */
 const NO_JS_TRIAL_HREF = smsHref(PRIMARY_PHONE.e164, BOOKING.message.intro);
 
-/** Long e-mail / handle values wrap at „@“ and after „_“ on 360px screens, never mid-word. */
+/**
+ * Long e-mail / handle values wrap at „@“ and after „_“ on 360px screens, never mid-word.
+ * Display typesetting (lib/typeset): a phone number never splits between its digit groups.
+ */
 function breakable(value: string) {
-  const parts = value.split(/(?=@)|(?<=_)/);
+  const parts = typesetSr(value).split(/(?=@)|(?<=_)/);
   return parts.map((part, i) => (
     <Fragment key={i}>
       {i > 0 ? <wbr /> : null}
@@ -83,13 +88,17 @@ function breakable(value: string) {
  * are left, so a one-tap call stays in reach at the end of the page.
  * Layout ≥640: the wrapper is a subgrid of .contact__grid so the venue card can sit
  * beside the channels (tablet) or under them (desktop) while staying outside it.
+ *
+ * The finale title is set on the §3 display step (contact.css) and its chronophotograph
+ * mark is static (land={false}): the doskok is S11's one landing (D-S11-9 rev).
+ * Visible copy goes through typesetSr() (display only; content/* stays raw).
  */
 export function Contact() {
   return (
     <Section id="kontakt" theme="dark" labelledBy="kontakt-title" className="contact">
       <div className="container-site contact__grid">
         <div className="contact__block" data-contact-block="">
-          <SectionHeading id="kontakt-title" title={CONTACT.heading} align="right" className="contact__heading" />
+          <SectionHeading id="kontakt-title" title={typesetSr(CONTACT.heading)} align="right" land={false} className="contact__heading" />
 
           {/* Leotard-gradient CTA panel: text only ever sits on the solid navy slab. */}
           <div className="cta-panel">
@@ -97,17 +106,17 @@ export function Contact() {
               <ul className="cta-panel__trust">
                 {HERO.trust.map((item) => (
                   <li key={item}>
-                    <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false">
+                    <svg className="ui-icon" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false">
                       <path d="M4 10.5l4 4 8-9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
-                    <span>{item}</span>
+                    <span>{typesetSr(item)}</span>
                   </li>
                 ))}
               </ul>
 
               <div className="cta-panel__foot">
                 <div className="doskok" data-doskok="">
-                  <div className="doskok__arc" aria-hidden="true">
+                  <div className="doskok__arc" aria-hidden="true" data-doskok-arc="">
                     {HOP.map((f, i) => (
                       <Leap
                         key={i}
@@ -124,11 +133,11 @@ export function Contact() {
                       data-doskok-leap=""
                     />
                     <a href={NO_JS_TRIAL_HREF} data-booking="" className="btn btn-primary doskok__btn">
-                      {CTA.trial}
+                      {typesetSr(CTA.trial)}
                     </a>
                   </div>
                 </div>
-                <p className="cta-panel__privacy">{BOOKING.privacy}</p>
+                <p className="cta-panel__privacy">{typesetSr(BOOKING.privacy)}</p>
               </div>
             </div>
           </div>
@@ -146,8 +155,8 @@ export function Contact() {
                       <ContactIcon name={r.icon} />
                     </span>
                     <span className="contact-row__text">
-                      <span className="contact-row__label label-caps">{r.label}</span>
-                      <span className={["contact-row__value", r.icon === "phone" ? "contact-row__value--phone" : "", r.tabular ? "tabular" : ""].filter(Boolean).join(" ")}>
+                      <span className="contact-row__label label-caps">{typesetSr(r.label)}</span>
+                      <span className={["contact-row__value", r.icon === "phone" ? "contact-row__value--phone" : ""].filter(Boolean).join(" ")}>
                         {breakable(r.value)}
                       </span>
                       {r.external ? <span className="sr-only">{NEW_WINDOW}</span> : null}
@@ -164,17 +173,15 @@ export function Contact() {
 
         {/* The training venue: a place, not contact information — so outside <address>. */}
         <div className="contact-venue">
-          <p className="contact-row__label label-caps">{CONTACT.addressLabel}</p>
-          <p className="contact-venue__name">{VENUE.name}</p>
+          <p className="contact-row__label label-caps">{typesetSr(CONTACT.addressLabel)}</p>
+          <p className="contact-venue__name">{typesetSr(VENUE.name)}</p>
           <p className="contact-venue__street">
-            <span className="whitespace-nowrap">{VENUE.street},</span>{" "}
-            <span className="whitespace-nowrap">
-              {VENUE.postalCode} {VENUE.city}
-            </span>
+            <span className="whitespace-nowrap">{typesetSr(VENUE.street)},</span>{" "}
+            <span className="whitespace-nowrap">{typesetSr(`${VENUE.postalCode} ${VENUE.city}`)}</span>
           </p>
           <a className="btn btn-secondary contact-venue__maps" href={VENUE.mapsUrl} target="_blank" rel="noopener noreferrer">
             <ContactIcon name="pin" />
-            <span>{CONTACT.mapsCta}</span>
+            <span>{typesetSr(CONTACT.mapsCta)}</span>
             <span className="sr-only">{NEW_WINDOW}</span>
           </a>
         </div>

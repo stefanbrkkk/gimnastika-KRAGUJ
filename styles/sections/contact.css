@@ -22,6 +22,25 @@
   margin-top: 28px;
 }
 
+/* The finale title on the §3 display step — the page's closing crescendo, where the
+   leap finally lands on the trial-training CTA. Only this title; every other section
+   title keeps the h2 step. The fallbacks are the pinned §3 values, in case the
+   theme variables are not emitted. The h2 width-axis rules (104% / 120% ≥1024) stay. */
+.contact__heading .section-heading__title {
+  max-width: 14ch;
+  font-size: var(--text-display, clamp(2.25rem, 1rem + 5.4vw, 6rem));
+  line-height: var(--text-display--line-height, 0.92);
+  letter-spacing: var(--text-display--letter-spacing, -0.04em);
+  font-weight: var(--text-display--font-weight, 800);
+  text-wrap: balance;
+}
+
+/* The mark stays in proportion to the display title (1.1em: ≈103px at 1440, where
+   h2 marks are ≈75px) and never smaller than the other titles' phone marks (≈64px). */
+.contact__heading .section-heading__mark {
+  width: max(1.1em, 4rem);
+}
+
 @supports (grid-template-columns: subgrid) {
   @media (min-width: 640px) {
     .contact__grid {
@@ -117,7 +136,7 @@
 .cta-panel__trust li {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 8px;
   padding: 8px 0;
   font-size: 1rem;
   line-height: 1.35;
@@ -349,13 +368,25 @@
     color var(--dur-fast) var(--ease-stick);
 }
 
-.contact-row:hover .contact-row__icon {
-  background: var(--color-navy-800);
+/* Hover only where hover exists: after a tap on a phone, :hover would stick and one
+   number would look selected next to the other. */
+@media (hover: hover) {
+  .contact-row:hover .contact-row__icon {
+    background: var(--color-navy-800);
+  }
+
+  .contact-row:hover .contact-row__go {
+    color: var(--fg);
+    transform: translateX(3px);
+  }
 }
 
-.contact-row:hover .contact-row__go {
-  color: var(--fg);
-  transform: translateX(3px);
+/* Up to 389: the handle and e-mail at 16px, so „@gimnasticki_klub_kraguj“ stays on one
+   line from 340 (at 320 the <wbr> breaks remain the fallback). */
+@media (max-width: 389.98px) {
+  .contact-row__value:not(.contact-row__value--phone) {
+    font-size: 1rem;
+  }
 }
 
 /* 320–359: the e-mail's first part („sladjanakovacevickg“) must fit on one line. */
@@ -395,6 +426,28 @@
 
 .contact-venue__maps {
   margin-top: 14px;
+}
+
+/* The pin at the 20px icon size, the same glyph as in the S4 „Otvorite u mapama“. */
+.contact-venue__maps svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+
+/* 640–719: the venue card is its narrowest (245–281px) beside the channels, so the
+   maps button stays one 52px line and the handle does not break after „_“. */
+@media (min-width: 640px) and (max-width: 719.98px) {
+  .contact-venue {
+    padding-inline: 16px;
+  }
+  .contact-venue__maps {
+    padding-inline: 12px;
+    gap: 6px;
+  }
+  .contact-row__value:not(.contact-row__value--phone) {
+    font-size: 0.9375rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

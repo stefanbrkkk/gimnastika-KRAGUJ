@@ -9,8 +9,15 @@
 import { useEffect, useRef, useState } from "react";
 import { HERO } from "@/content/copy";
 import { DUR } from "@/lib/motion-env";
+import { typesetSr } from "@/lib/typeset";
 
 const CLOSE_LABEL = "Zatvorite";
+/**
+ * Display typesetting (a dash never starts a line, „1976. dobila“ holds). This
+ * lazy chunk is the only place the story is shown, so the helper adds nothing
+ * to the first load.
+ */
+const STORY = typesetSr(HERO.easterEgg.tooltip);
 
 export default function EasterEgg({ onClose }: { onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -61,9 +68,9 @@ export default function EasterEgg({ onClose }: { onClose: () => void }) {
         <span className="hero-egg__face hero-egg__face--from font-dot">{HERO.easterEgg.scoreFrom}</span>
         <span className="hero-egg__face hero-egg__face--to font-dot">{HERO.easterEgg.scoreTo}</span>
       </div>
-      <p className="hero-egg__text">{HERO.easterEgg.tooltip}</p>
+      <p className="hero-egg__text">{STORY}</p>
       <button type="button" className="hero-egg__close" onClick={onClose} aria-label={CLOSE_LABEL}>
-        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <svg className="ui-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
           <path d="M4 4l8 8M12 4l-8 8" />
         </svg>
       </button>

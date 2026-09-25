@@ -6,6 +6,14 @@ import { BeamTiltLoader } from "@/components/notfound/BeamTiltLoader";
 import { HERO, NOT_FOUND } from "@/content/copy";
 import { CLUB, PRIMARY_PHONE } from "@/content/site";
 import { telHref } from "@/lib/links";
+import { typesetSr } from "@/lib/typeset";
+
+/**
+ * The h1, display only (the document title and content/copy.ts keep plain
+ * spaces): „ova stranica“ stays on one line, so the rag never cuts the
+ * demonstrative from its noun („Ups — / ova stranica / je izgubila / ravnotežu.“).
+ */
+const TITLE = typesetSr(NOT_FOUND.title).replace("ova stranica", "ova\u00a0stranica");
 
 /**
  * Custom 404 „Ravnoteža na gredi“ (§4) → out/404.html. Renders inside the root
@@ -31,13 +39,13 @@ export default function NotFound() {
             <p className="nf__code label-caps tabular">
               <span aria-hidden="true">▸ </span>KR-404
             </p>
-            <h1 className="nf__title">{NOT_FOUND.title}</h1>
+            <h1 className="nf__title">{TITLE}</h1>
             <div className="nf__actions">
               <Link className="btn btn-primary" href="/">
-                {NOT_FOUND.cta}
+                {typesetSr(NOT_FOUND.cta)}
               </Link>
               <a className="btn btn-secondary" href={telHref(PRIMARY_PHONE.e164)}>
-                {HERO.ctaSecondary}
+                {typesetSr(HERO.ctaSecondary)}
               </a>
             </div>
           </div>

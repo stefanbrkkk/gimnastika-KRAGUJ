@@ -29,7 +29,7 @@ export type ChipKey = "all" | GalleryCategory;
 export interface GalleryChip {
   key: ChipKey;
   label: string;
-  /** Photos (incl. placeholders) the chip shows. */
+  /** Real photos the chip shows (a MINOR_PHOTOS=false placeholder is not counted). */
   count: number;
 }
 
@@ -77,12 +77,13 @@ export const flipId = (id: PhotoId): string => `gl-${id}`;
  * content/gallery.ts). CSS columns fill top to bottom in DOM order, so the
  * category-grouped order left one column ~430px short at 3 columns. This order
  * spreads the two portraits (05, 11) and the three squares across columns, so
- * the sheet ends almost level at 2 and 3 columns, keeps the near-identical
- * mural frames (12, 14) apart, and every filtered view stays balanced too
- * (Takmičenja 01·08·05, Treninzi 12·04·14·03·15, Kampovi 16·10·11).
+ * the sheet ends almost level at 2 and 3 columns, and every filtered view stays
+ * balanced too (Takmičenja 08·01·05, Treninzi 12·04·14·15·03, Kampovi 16·10·11).
+ * It opens on photos no other section shows: the first row at ≥640px is
+ * KR-16 · KR-12 · KR-15 (01, 03, 04, 05, 10 and 11 already appear in S3–S8).
  * Photos not listed (e.g. 02/09 with CAMP_GROUP_PHOTOS) follow in content order.
  */
-export const SHEET_ORDER: readonly PhotoId[] = ["01", "16", "08", "05", "12", "10", "04", "14", "03", "11", "15"];
+export const SHEET_ORDER: readonly PhotoId[] = ["16", "08", "01", "05", "12", "10", "04", "14", "15", "03", "11"];
 
 export function inSheetOrder<T extends { photoId: PhotoId }>(items: readonly T[]): T[] {
   const rank = (item: T, i: number) => {
@@ -93,4 +94,17 @@ export function inSheetOrder<T extends { photoId: PhotoId }>(items: readonly T[]
     .map((item, i) => ({ item, r: rank(item, i) }))
     .sort((a, b) => a.r - b.r)
     .map(({ item }) => item);
+}
+
+/**
+ * The public variant (MINOR_PHOTOS=false) turns most prints into the same navy
+ * „Fotografija uskoro“ placeholder. Rather than a wall of identical tiles (cf.
+ * D-S8-9 for the camp postcards), the sheet shows the real photos plus ONE
+ * placeholder as the „more to come“ note, and the chips count real photos only.
+ * With MINOR_PHOTOS=true nothing is a placeholder: `shown` and `real` equal `items`.
+ */
+export function publicSheet<T>(items: readonly T[], isPlaceholder: (item: T) => boolean): { shown: T[]; real: T[] } {
+  const real = items.filter((item) => !isPlaceholder(item));
+  const note = items.filter(isPlaceholder).slice(0, 1);
+  return { shown: [...real, ...note], real };
 }

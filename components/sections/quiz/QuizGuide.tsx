@@ -10,12 +10,13 @@ import { QUIZ } from "@/content/copy";
 import { programById } from "@/content/programs";
 import { CTA } from "@/content/site";
 import { QUIZ_RULES } from "@/lib/quiz";
+import { typesetSr } from "@/lib/typeset";
 import { QuizBand } from "./QuizBand";
 import { QuizActions, QuizGroups } from "./QuizGroups";
 import { QUIZ_UI, resultView } from "./views";
 
 const agesLabel = ([from, to]: readonly [number, number]) =>
-  `${from === to ? from : `${from}–${to}`} ${QUIZ_UI.ageUnit}`;
+  typesetSr(`${from === to ? from : `${from}–${to}`} ${QUIZ_UI.ageUnit}`);
 
 export function QuizGuide() {
   return (
@@ -48,9 +49,9 @@ export function QuizGuide() {
         {/* The guide lists every rule, so its CTA names no single group („… za ovu grupu“ is the result card's). */}
         <QuizActions
           booking=""
-          cta={CTA.trial}
-          finalNote={QUIZ.finalNote}
-          aerobicHint={QUIZ.aerobicHint}
+          cta={typesetSr(CTA.trial)}
+          finalNote={typesetSr(QUIZ.finalNote)}
+          aerobicHint={typesetSr(QUIZ.aerobicHint)}
           aerobicColor={programById("aerobik").color}
         />
       </div>

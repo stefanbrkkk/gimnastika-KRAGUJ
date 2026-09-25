@@ -158,3 +158,41 @@ export function obscuredBy(
   const limit = bar.edge - gap;
   return box.bottom > limit ? box.bottom - limit : 0;
 }
+
+/**
+ * How far to scroll so a focused box sits inside the free band between the
+ * fixed bars (`top` = the header's bottom edge or 0, `bottom` = the sticky
+ * bar's top edge or the viewport height), `gap` px clear of both. A box that
+ * cannot fit the band gets its top edge pinned (the rest of it stays reachable
+ * by scrolling). 0 = nothing to do.
+ */
+export function bandDelta(box: { top: number; bottom: number }, top: number, bottom: number, gap = 12): number {
+  if (box.bottom - box.top + 2 * gap > bottom - top) return box.top - (top + gap);
+  return obscuredBy(box, { side: "top", edge: top }, gap) || obscuredBy(box, { side: "bottom", edge: bottom }, gap);
+}
+
+export interface FocusChrome {
+  scrollY: number;
+  viewportHeight: number;
+  /** The header is shown (data-hidden="false"). */
+  headerShown: boolean;
+  /** The header bar's bottom edge at rest, in viewport px. */
+  headerBottom: number;
+  /** The sticky bar's top edge at rest when it is visible, else null. */
+  barTop: number | null;
+}
+
+/**
+ * WCAG 2.4.11 for the page chrome: the scroll that keeps a focused box clear of
+ * the header and the sticky bar. Scrolling up while the header is hidden brings
+ * it back (nextHeaderState: ≥ HEADER_TRAVEL, or back within HEADER_HIDE_AFTER),
+ * so that correction clears the header's resting edge as well — otherwise the
+ * returning header would cover the element just moved under it. On short
+ * viewports the bar then steps aside (stickyBarVisible), freeing the bottom.
+ */
+export function focusScrollDelta(box: { top: number; bottom: number }, c: FocusChrome, gap = 12): number {
+  const bottom = c.barTop ?? c.viewportHeight;
+  const dy = bandDelta(box, c.headerShown ? c.headerBottom : 0, bottom, gap);
+  if (c.headerShown || dy >= 0 || (dy > -HEADER_TRAVEL && c.scrollY + dy > HEADER_HIDE_AFTER)) return dy;
+  return bandDelta(box, c.headerBottom, c.viewportHeight <= SHORT_VIEWPORT_MAX ? c.viewportHeight : bottom, gap);
+}

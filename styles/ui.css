@@ -132,8 +132,8 @@ html.js-motion .chrono-mark .chrono-solid {
   .pg-pager__btn {
     border: 1px solid ButtonText;
   }
-  .pg-chip[aria-pressed="true"],
-  .gl-chip[aria-pressed="true"] {
+  :root .pg-chip[aria-pressed="true"],
+  :root .gl-chip[aria-pressed="true"] {
     forced-color-adjust: none;
     background: Highlight;
     color: HighlightText;
