@@ -1,15 +1,17 @@
 /* 404 „Ravnoteža na gredi“ — owned by the chrome-404 agent. Dark theme tokens (data-theme="dark").
    The scene stands on a gym floor that runs across the whole page (C-16): no box around it,
-   A-frame beam like S8, the judges' board posting 4.04 (C-19), the frame code under the floor. */
+   A-frame beam like S8, the judges' board posting 4.04 (C-19), the frame code under the floor.
+   Below the mat line the floor is a navy-950 plane down to the bottom of the page (CV2-09). */
 
 .nf {
   min-height: 100vh;
   min-height: 100svh;
   display: flex;
   outline: none;
-  /* the floor line is full-bleed (−100vw … +100vw): clip it at the page edges */
-  overflow-x: hidden;
-  overflow-x: clip;
+  /* the floor line and plane are full-bleed (−100vw … +100vw) and the plane runs 100vh
+     down: clip both at the page's edges (the page is at least one viewport tall) */
+  overflow: hidden;
+  overflow: clip;
 }
 
 .nf__inner {
@@ -32,13 +34,35 @@
   height: auto;
 }
 
-/* Start-aligned (not centred): the iOS tilt button appears after mount below the
-   stage, and nothing above it may move (CLS). */
+/* Phones: start-aligned. Tablets and desktop: centred between the logo and the page
+   bottom (below). The iOS tilt button appears after mount in the frame-code row, which
+   is sized for it from the first paint, so nothing moves when it comes (CLS). */
 .nf__body {
+  /* the row under the floor: frame code (+ the tilt button where one can appear) */
+  --nf-foot-gap: 10px;
+  --nf-foot-h: 14px;
   display: grid;
   align-content: start;
   gap: 48px;
   margin-top: clamp(32px, 7vh, 72px);
+}
+
+/* Touch screens (the only place the tilt button can appear): a 48px row from the start. */
+@media (any-pointer: coarse) {
+  .nf__body {
+    --nf-foot-gap: 6px;
+    --nf-foot-h: 48px;
+  }
+}
+
+/* Tablets (CV2-09): the page is composed in the viewport rather than hanging from the top
+   with the lower third empty — the body is centred between the logo and the bottom, like
+   desktop. Only when the viewport is tall enough to hold it (≥700px). */
+@media (min-width: 640px) and (min-height: 700px) {
+  .nf__body {
+    margin-block: auto;
+    padding-block: 32px 48px;
+  }
 }
 
 .nf__title {
@@ -101,6 +125,20 @@
 .nf__stage {
   position: relative;
   container-type: inline-size;
+}
+
+/* The gym floor's plane: navy-950 from the mat line down to the bottom of the page, edge
+   to edge (.nf clips it), so the beam stands on something. Pure fill, never under text
+   other than the frame row, which paints above it (.nf__foot is positioned). */
+.nf__stage::before {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: -100vw;
+  right: -100vw;
+  height: 100vh;
+  background: var(--color-navy-950);
+  pointer-events: none;
 }
 
 /* The gym floor: a steel mat line from edge to edge of the page, level with the beam's feet. */
@@ -167,10 +205,23 @@
   opacity: var(--ghost-3-o);
 }
 
-/* The frame code under the floor, like a photo's frame label (bottom-left). */
+/* The row under the floor: the frame code bottom-left, like a photo's frame label, and the
+   iOS tilt button right-aligned on the same line (CV2-09). The label's line box is the row
+   height, so it never moves when the button arrives, also when a 320px row wraps it. */
+.nf__foot {
+  position: relative; /* above the floor plane */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px; /* label 62 + 12 + button 235 = 309px: one row from 360px up; 320 wraps it */
+  margin-top: var(--nf-foot-gap);
+}
+
 .nf__frame {
-  margin-top: 10px;
+  margin: 0;
   padding-inline: 2px;
+  line-height: var(--nf-foot-h);
 }
 
 /* The judges' board (C-19). Phones: above the scene, right-aligned (the raised hand fills the
@@ -272,9 +323,12 @@
   }
 }
 
-/* iOS only: shown after mount when DeviceOrientation needs a tap to be allowed. */
+/* iOS only: shown after mount when DeviceOrientation needs a tap to be allowed. 48px, the
+   row's height (a 52px .btn would grow the row as it appears). */
 .nf__tilt {
-  margin-top: 20px;
+  min-height: 48px;
+  margin-left: auto;
+  padding: 0.5rem 1.25rem;
 }
 
 @media (min-width: 1024px) {
@@ -286,10 +340,10 @@
     width: 160px;
   }
 
-  /* Centred in the viewport; the iOS button below is out of flow here, so
+  /* Centred in the viewport; the iOS button's row is sized from the first paint, so
      centring never moves anything when it appears (iPad). Copy and beam stand on the
      same floor: both columns end on the grid's bottom edge, the copy 40px above the
-     floor line (the frame label under the floor is 24px: 10px gap + 14px line). */
+     floor line (+ the frame row under the floor: 10 + 14px, or 6 + 48px on touch). */
   .nf__body {
     grid-template-columns: repeat(12, minmax(0, 1fr));
     column-gap: 24px;
@@ -300,7 +354,7 @@
 
   .nf__copy {
     grid-column: 1 / span 5;
-    padding-bottom: 64px;
+    padding-bottom: calc(40px + var(--nf-foot-gap) + var(--nf-foot-h));
   }
 
   /* No stage on the error fallback: the copy takes the reading width it needs. */
@@ -315,13 +369,6 @@
 
   .nf__stage-wrap {
     grid-column: 6 / span 7;
-  }
-
-  .nf__tilt {
-    position: absolute;
-    top: calc(100% + 16px);
-    left: 0;
-    margin-top: 0;
   }
 }
 

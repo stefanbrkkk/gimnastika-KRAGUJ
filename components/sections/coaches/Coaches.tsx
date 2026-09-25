@@ -40,7 +40,8 @@ const EXPOSURES = [
  * licensed judge). Marked only with its frame code (the empty slot of excluded photo 07) —
  * no promise in the UI. The plate carries the dark theme, so the ghosts use the shared
  * dark-section steps (--ghost-1/2/3). Purely decorative, hidden from assistive tech (the name
- * and roles carry the card). coaches-motion.ts exposes the frames one after another.
+ * and roles carry the card). Always the finished plate, with or without JS (AC2-03): the
+ * card's only motion is its stamp press.
  * TODO(klub): request a portrait in club kit (dosije §7, item 7) → then set photoId in content/copy.ts.
  */
 function PortraitPending() {
@@ -62,7 +63,6 @@ function PortraitPending() {
               width={EXPOSURE_W}
               height={r1(EXPOSURE_H)}
               className={e.ghost ? `coach__plate-ghost coach__plate-ghost--${e.ghost}` : "coach__plate-solid"}
-              {...(e.ghost ? { "data-plate-ghost": "" } : { "data-plate-solid": "" })}
             />
           ))}
         </svg>
@@ -110,13 +110,13 @@ function CoachCard({ coach, index }: { coach: Coach; index: number }) {
                 aspect={PORTRAIT_ASPECT}
                 position="50% 30%"
                 className="coach__frame"
-                sizes="(min-width: 640px) 224px, 132px"
+                sizes="(min-width: 1024px) 200px, (min-width: 640px) 224px, 132px"
               />
             ) : (
               <PortraitPending />
             )}
           </div>
-          <LicenceStamp uid={`${index + 1}`} label={COACHES_COPY.badge} />
+          <LicenceStamp uid={`${index + 1}`} label={COACHES_COPY.badge} onPlate={!coach.photoId} />
         </div>
 
         <div className="coach__body">
@@ -180,7 +180,7 @@ function TeamPrint() {
  * annotation (one of the page's two): under the cards on mobile/tablet; on desktop the cards
  * stack in cols 1–7 and the print fills cols 8–12 at the same height (heading top-left →
  * print right). Static markup is the final state; CoachesMotion lazily adds the portrait
- * rise, the Marey plate's exposures, the stamp press and the hand-speed brush.
+ * rise, the stamp presses and the hand-speed brush.
  */
 export function Coaches() {
   return (

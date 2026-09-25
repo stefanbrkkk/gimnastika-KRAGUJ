@@ -20,8 +20,10 @@ export type BandVariant = "flat" | "parter" | "greda" | "skip";
 export type BandApparatus = "parter" | "greda" | "razboj";
 
 export const VB_W = 720;
-export const VB_H = 204;
-export const MAT_Y = 192;
+/** 8 units taller than v2 (204/192): headroom for the 1.5× apparatus (QP2-12), so the leaps onto
+ *  the higher beam and the deeper floor keep the v2 flight heights and stay inside the strip. */
+export const VB_H = 212;
+export const MAT_Y = 200;
 /** Frame centres along the mat: 01 take-off · 02 contact · 03 landing. */
 export const FRAME_X = [130, 360, 590] as const;
 
@@ -35,6 +37,9 @@ const COM_FY = 0.64;
 /** Lowest point (the front foot) — it touches the mat when the figure is level. */
 const FOOT_FX = 0.955;
 const FOOT_FY = 0.977;
+/** Horizontal extremes of the fill (measured): the back toe and the front toe tip. */
+export const BACK_TOE = [0.011, 0.713] as const;
+export const FRONT_TOE = [0.983, 0.963] as const;
 
 /** The silhouette's low points (fractions of its box): front foot, back foot, seat of the split. */
 export const LOW_POINTS: readonly (readonly [fx: number, fy: number])[] = [
@@ -42,16 +47,16 @@ export const LOW_POINTS: readonly (readonly [fx: number, fy: number])[] = [
   [0.02, 0.72],
   [0.5, 0.92],
 ];
+/** Where a point of the silhouette (fractions of its box) is in the strip, for a figure in a pose. */
+export function pointOf(p: Pose, fx: number, fy: number): readonly [x: number, y: number] {
+  const a = (p.r * Math.PI) / 180;
+  const dx = (fx - COM_FX) * FIG_W;
+  const dy = (fy - COM_FY) * FIG_H;
+  return [p.x + dx * Math.cos(a) - dy * Math.sin(a), p.y + dx * Math.sin(a) + dy * Math.cos(a)];
+}
 /** The lowest point of a figure in a pose (user units): nothing may sink below the surface it is on. */
 export function lowestY(p: Pose): number {
-  const a = (p.r * Math.PI) / 180;
-  return Math.max(
-    ...LOW_POINTS.map(([fx, fy]) => {
-      const dx = (fx - COM_FX) * FIG_W;
-      const dy = (fy - COM_FY) * FIG_H;
-      return p.y + dx * Math.sin(a) + dy * Math.cos(a);
-    }),
-  );
+  return Math.max(...LOW_POINTS.map(([fx, fy]) => pointOf(p, fx, fy)[1]));
 }
 
 /** <use> offset so the figure's local origin is its centre of mass. */
@@ -91,34 +96,62 @@ interface ApparatusPlacement {
 }
 
 const [, , X3] = FRAME_X;
-/** ProgramIcon drawings stand on the icon floor y = 42 (tests/quiz.test.ts checks the anchors). */
-const ICON_FLOOR = 42;
-const PARTER_S = 3;
-const GREDA_S = 2.2;
-const RAZBOJ_S = 3.2;
+
+/**
+ * Anchor coordinates in ProgramIcon's 48-unit drawings (tests/quiz.test.ts checks that S3's
+ * drawings still contain them). Every drawing stands on the icon floor y = 42.
+ */
+export const ICON = {
+  floor: 42,
+  /** Carpet in perspective: front edge x 1.5–35 at y 42, back edge x 13–46.5 at y 22. */
+  parter: { back: 22, land: 32, frontLeft: 1.5, frontRight: 35, backLeft: 13, backRight: 46.5 },
+  /** Beam top y 21.5 over x 3.5–44.5. */
+  greda: { top: 21.5, left: 3.5, right: 44.5 },
+  /** High rail y 11.5; the uprights of the high bar stand at x 27.5 and 43. */
+  razboj: { rail: 11.5, post: 43 },
+} as const;
+
+/**
+ * QP2-12: the apparatus is drawn 1.5× its v2 size (parter 3 → 4.5, greda 2.2 → 3.3,
+ * razboj 3.2 → 4.8), so it reads as full-size apparatus beside the realistic silhouette instead
+ * of a pictogram (a beam that looked like a bench). Stroke weight stays constant in strip units
+ * (quiz.css divides by --s).
+ */
+export const APPARATUS_SCALE = 1.5;
+const PARTER_S = 3 * APPARATUS_SCALE;
+const GREDA_S = r1(2.2 * APPARATUS_SCALE);
+const RAZBOJ_S = r1(3.2 * APPARATUS_SCALE);
+/** The landed figure's back toe at frame 03 (level pose). */
+const BACK_TOE_X = X3 + (BACK_TOE[0] - COM_FX) * FIG_W;
 /**
  * parter — the competition floor in perspective (front edge y 42, back edge y 22): its front
- *          edge on the mat; the front foot lands mid-depth (y 32), hips and front leg on it.
+ *          edge on the mat, its back corner 6 units inside the strip's right edge; the front
+ *          foot lands mid-depth (y 32), inside the carpet's right edge.
  * greda  — the beam (top y 21.5, x 3.5–44.5) on its legs: the front foot lands on the beam's
- *          top near its right end — a split leap on the beam.
- * razboj — the uneven bars (high rail y 11.5, right post x 46.5) on the mat between 02 and 03,
- *          the high rail at the chest of the in-flight exposures: she flies off the high bar
- *          and sticks the landing on the mat in front of them.
+ *          top at its right end, the seat of the split over the beam — a split leap on the beam.
+ * razboj — the uneven bars on the mat between 02 and 03, the high rail at the raised hands of
+ *          the in-flight exposures: she flies off the high bar and sticks the landing on the mat
+ *          in front of them, her back toe 10 units clear of the high bar's right upright (x 43).
  */
 export const APPARATUS: Readonly<Record<BandApparatus, ApparatusPlacement>> = {
   parter: {
-    x: r1(X3 - 10 - 7.25 * PARTER_S),
-    y: r1(MAT_Y - ICON_FLOOR * PARTER_S),
+    x: r1(VB_W - 6 - ICON.parter.backRight * PARTER_S),
+    y: r1(MAT_Y - ICON.floor * PARTER_S),
     s: PARTER_S,
-    lift: r1((ICON_FLOOR - 32) * PARTER_S),
+    lift: r1((ICON.floor - ICON.parter.land) * PARTER_S),
   },
   greda: {
-    x: r1(X3 + FOOT.x + 6 - 44.5 * GREDA_S),
-    y: r1(MAT_Y - ICON_FLOOR * GREDA_S),
+    x: r1(X3 + FOOT.x + 6 - ICON.greda.right * GREDA_S),
+    y: r1(MAT_Y - ICON.floor * GREDA_S),
     s: GREDA_S,
-    lift: r1((ICON_FLOOR - 21.5) * GREDA_S),
+    lift: r1((ICON.floor - ICON.greda.top) * GREDA_S),
   },
-  razboj: { x: r1(X3 - 30 - 46.5 * RAZBOJ_S), y: r1(MAT_Y - ICON_FLOOR * RAZBOJ_S), s: RAZBOJ_S, lift: 0 },
+  razboj: {
+    x: r1(BACK_TOE_X - 10 - ICON.razboj.post * RAZBOJ_S),
+    y: r1(MAT_Y - ICON.floor * RAZBOJ_S),
+    s: RAZBOJ_S,
+    lift: 0,
+  },
 };
 
 /** Landing height (above the mat) of each variant. */

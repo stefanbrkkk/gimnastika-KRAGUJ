@@ -6,9 +6,10 @@
  * "Sledeći trening" rule (decision): the chip shows the next training START
  * strictly after "now" (Europe/Belgrade wall clock). A training that is already
  * in progress does not count — at 18:30 on Monday the Po/Sr/Pe 18:00 group shows
- * "u sredu u 18:00". Only fixed slots are ever named; when a slot WITHOUT a fixed
- * time ("08:30–10:30 ili 16:00–18:00") could come before the next fixed slot,
- * no chip is shown, because naming the later fixed slot would be wrong.
+ * "u sredu u 18:00". The card chip names fixed slots only; when a slot WITHOUT a
+ * fixed time ("08:30–10:30 ili 16:00–18:00") could come before the next fixed slot,
+ * no chip is shown, because naming the later fixed slot would be wrong. The section
+ * scoreboard (earliestNext) also names „ili“ slots, always with every option.
  */
 import type { DayCode, ScheduleBlock, ScheduleGroup } from "@/content/schedule";
 import { clockToMinutes, type BelgradeNow } from "./time";
@@ -27,6 +28,8 @@ export interface Slot {
   startMin: number;
   /** false = one of several alternatives ("08:30–10:30 ili 16:00–18:00"). */
   fixed: boolean;
+  /** Index of the block in its group: the options of one „ili“ slot share it. */
+  block: number;
 }
 
 export interface NextTraining {
@@ -41,10 +44,10 @@ export interface NextTraining {
  * `isFixed` from content/schedule) so this module never imports content at runtime.
  */
 export function groupSlots(group: ScheduleGroup, isFixed: (block: ScheduleBlock) => boolean): Slot[] {
-  return group.blocks.flatMap((block) => {
+  return group.blocks.flatMap((block, index) => {
     const fixed = isFixed(block);
     return block.days.flatMap((day) =>
-      block.times.map((t) => ({ iso: ISO_BY_DAY[day], start: t.start, startMin: clockToMinutes(t.start), fixed })),
+      block.times.map((t) => ({ iso: ISO_BY_DAY[day], start: t.start, startMin: clockToMinutes(t.start), fixed, block: index })),
     );
   });
 }
@@ -84,23 +87,57 @@ export function formatNextTraining(next: NextTraining, accusatives: readonly str
   return `${formatNextDay(next, accusatives)} u ${next.start}`;
 }
 
+/** A training as the scoreboard names it: a fixed start, or an „ili“ slot with all its options. */
+export interface BoardNext extends NextTraining {
+  /** The later options of an „ili“ slot ("16:00"), in order; empty = a fixed start. `start` is the first option. */
+  alt: readonly string[];
+  /** Today only: `start` (the first option) has begun; a later option is still ahead. */
+  started: boolean;
+}
+
 /**
- * The „Sledeći trening“ scoreboard: the earliest next training among several groups,
- * each by nextTraining()'s rules (a group whose next start has no fixed time is skipped,
- * never guessed). Ties keep the given (program) order. null = no group has a fixed next start.
+ * A group's next training for the scoreboard: every slot (fixed or „ili“) with a start
+ * strictly after `now`. An „ili“ slot counts while any of its options is still ahead and
+ * sorts by the first such option; `at` = minutes from today's midnight.
+ */
+function nextSession(slots: readonly Slot[], now: BelgradeNow): { at: number; next: BoardNext } | null {
+  for (let offset = 0; offset <= 7; offset++) {
+    const iso = (((now.isoWeekday - 1 + offset) % 7) + 1) as IsoDay;
+    const blocks = new Map<number, Slot[]>();
+    for (const s of slots) if (s.iso === iso) blocks.set(s.block, [...(blocks.get(s.block) ?? []), s]);
+    let best: { at: number; next: BoardNext } | null = null;
+    for (const options of blocks.values()) {
+      options.sort((a, b) => a.startMin - b.startMin);
+      const ahead = options.find((s) => offset > 0 || s.startMin > now.minutes);
+      const first = options[0];
+      if (!ahead || !first) continue;
+      const at = offset * 1440 + ahead.startMin;
+      if (!best || at < best.at) {
+        best = { at, next: { offset, iso, start: first.start, alt: options.slice(1).map((s) => s.start), started: ahead !== first } };
+      }
+    }
+    if (best) return best;
+  }
+  return null;
+}
+
+/**
+ * The „Sledeći trening“ scoreboard: the earliest next training among several groups. An
+ * „ili“ slot is named with all its options („08:30 ili 16:00“), so nothing is guessed; it
+ * counts while one of them is still ahead. Ties keep the given (program) order. null only
+ * when no group has any slot.
  */
 export function earliestNext(
   slotLists: readonly (readonly Slot[])[],
   now: BelgradeNow,
-): { index: number; next: NextTraining } | null {
-  let best: { index: number; next: NextTraining } | null = null;
+): { index: number; next: BoardNext } | null {
+  let best: { index: number; next: BoardNext } | null = null;
   let bestAt = Number.POSITIVE_INFINITY;
   slotLists.forEach((slots, index) => {
-    const next = nextTraining(slots, now);
-    const at = next ? next.offset * 1440 + clockToMinutes(next.start) : bestAt;
-    if (next && at < bestAt) {
-      best = { index, next };
-      bestAt = at;
+    const found = nextSession(slots, now);
+    if (found && found.at < bestAt) {
+      best = { index, next: found.next };
+      bestAt = found.at;
     }
   });
   return best;

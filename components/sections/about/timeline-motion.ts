@@ -1,25 +1,31 @@
 /**
- * „Hronologija“ as a chronophotograph in motion (§5 S5; design review AC-01, MI-AC-1, MD-09).
- * The club's leaping gymnast rides the rail from year to year: a short crouch (take-off),
- * a hop down the rail at a constant running speed (flight: the progress line's head travels
- * with it, a small sideways arc and torso pitch), then a stuck landing on the year (compress
- * and hold, EASE.land). Every year it leaves keeps a ghost exposure, so when the reader
- * reaches 2026 the rail is a finished Marey plate — exactly the static no-JS state.
- * Loaded lazily by AboutMotion — never in the first-load JS.
+ * „Hronologija“ as a chronophotograph in motion (§5 S5; design review AC-01, MI-AC-1, MD-09,
+ * AC2-04, AC2-09). The club's leaping gymnast rides the rail from year to year: a short crouch,
+ * a leap — it rises off the year first (take-off), then drops onto the next one riding the
+ * progress line's head (flight), with a small sideways arc and torso pitch — and a stuck
+ * landing on the year (compress and hold, EASE.land). Every year it leaves keeps a ghost
+ * exposure, so when the reader reaches 2026 the rail is a finished Marey plate — exactly the
+ * static no-JS state. Loaded lazily by AboutMotion — never in the first-load JS.
+ *
+ * Content before decoration (AC2-04): a year lights on its OWN crossing of the trigger line,
+ * never more than 250 ms after it, whether or not the flier has got there; a flier landing in
+ * time lights it with the landing. Only the ghost exposure (data-left) follows the flier.
  *
  * Trigger: IntersectionObserver — a year counts as reached when its node crosses 65 % of the
- * viewport (no scroll listener, no scrub, no rAF loop of its own; same on phones). A fast
- * scroll past several years is ONE longer flight; the ghosts of the years in between appear
- * as the flier passes them (the ease is inverted to find those moments). Years already
- * scrolled past at arm time show reached without animation. The legs are S5's primary motion
- * and go through queuePrimaryMotion(). Leg duration: distance / 1100 px·s⁻¹, clamped
- * .22–.65 s (.9 s for a multi-year flight). A ResizeObserver keeps the stops in sync.
+ * viewport (no scroll listener, no scrub, no rAF loop of its own; same on phones). A new year
+ * reached mid-flight retargets the flight instead of queueing another leg: it carries on at
+ * its current speed to the furthest year wanted (min(remaining + .09 s per extra year, .9 s)),
+ * and a flier touching down with a further year already wanted goes straight on — no landing
+ * squash, no hold. Years already scrolled past at arm time show reached without animation.
+ * A flight from rest is S5's primary motion and goes through queuePrimaryMotion(). Leg
+ * duration: distance / 1100 px·s⁻¹, clamped .22–.65 s (.9 s for a multi-year flight).
+ * A ResizeObserver keeps the stops in sync.
  *
  * Only transform and opacity animate (flier, its body, the line's scaleY); ghost and year
  * states are attributes with CSS transitions. gsap.matchMedia reverts to the static plate
  * when reduced motion is switched on.
  */
-import { DUR, EASE, MQ, gsap, queuePrimaryMotion, registerMotion } from "@/lib/motion";
+import { CustomEase, DUR, EASE, MQ, gsap, queuePrimaryMotion, registerMotion } from "@/lib/motion";
 
 /** Viewport fraction a node must cross (from below) to count as reached. */
 const TRIGGER = 0.65;
@@ -28,12 +34,25 @@ const SPEED = 1100;
 const LEG_MIN = 0.22;
 const LEG_MAX = 0.65;
 const BURST_MAX = 0.9;
+/** Retargeting mid-flight: extra time per further year (s). */
+const PER_YEAR = 0.09;
 /** Take-off crouch (s) and the drop onto the first year (px above it). */
 const CROUCH = 0.08;
 const DROP = 32;
+/** Take-off rise off the year (px) at ≥640 px / on phones, and its share of the leg. */
+const RISE_WIDE = 8;
+const RISE_NARROW = 6;
+const RISE_SHARE = 0.22;
+/** Body pitch (deg): leaning back at take-off, forward at the apex. */
+const PITCH_TAKEOFF = -8;
+const PITCH_APEX = 4;
 /** Sideways hop off the rail (px) at ≥640 px / on phones. */
 const ARC_WIDE = 10;
 const ARC_NARROW = 7;
+/** A year lights at most this long after its own crossing (content is never held behind decoration). */
+const LIT_CAP_MS = 250;
+/** The retarget ease's id (re-created per retarget: its start slope continues the flier's speed). */
+const RETARGET_EASE = "timeline-retarget";
 
 const noop = () => {};
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
@@ -60,11 +79,13 @@ export function armTimeline(root: HTMLElement): () => void {
   if (!line || !flier || !body || items.length === 0 || nodes.some((n) => !n)) return noop;
   const nodeEls = nodes as HTMLElement[];
   const last = nodeEls.length - 1;
-  const flightEase = gsap.parseEase(EASE.flight) as (p: number) => number;
+  const fallEase = gsap.parseEase("power2.in") as (p: number) => number;
+  const dropEase = gsap.parseEase("power2.in") as (p: number) => number;
 
   const mm = gsap.matchMedia();
   mm.add(MQ.noReduce, (context) => {
     let live = true;
+    const wide = () => window.matchMedia("(min-width: 640px)").matches;
 
     // --- Geometry: node centres along the rail, relative to the timeline box ----------
     let centres: number[] = [];
@@ -83,8 +104,29 @@ export function armTimeline(root: HTMLElement): () => void {
     measure();
     /** The flier's y (it is anchored on the first year's node); -1 = waiting above 2007. */
     const yOf = (i: number) => (i < 0 ? -DROP : (centres[i] ?? 0) - (centres[0] ?? 0));
-    /** The line's scaleY with its head on year i. */
-    const stopOf = (i: number) => (i < 0 ? 0 : clamp(((centres[i] ?? 0) - lineTop) / lineH, 0, 1));
+    /** The line's scaleY with its head at flier height y. */
+    const stopAt = (y: number) => clamp(((centres[0] ?? 0) + y - lineTop) / lineH, 0, 1);
+    const stopOf = (i: number) => (i < 0 ? 0 : stopAt(yOf(i)));
+
+    // --- Year states -----------------------------------------------------------------------
+    const litTimers = new Map<number, ReturnType<typeof setTimeout>>();
+    /** Lights year k (once); `landing` also plays the year's small settle with the flier. */
+    const light = (k: number, landing = false) => {
+      const item = items[k];
+      if (!item) return;
+      const t = litTimers.get(k);
+      if (t) clearTimeout(t);
+      litTimers.delete(k);
+      if (!item.hasAttribute("data-lit")) item.setAttribute("data-lit", landing ? "land" : "");
+    };
+    /** The year was crossed (or scrolled past): lit within LIT_CAP_MS, flier or not. */
+    const crossed = (k: number) => {
+      const item = items[k];
+      if (!item || item.hasAttribute("data-lit") || litTimers.has(k)) return;
+      if ((nodeEls[k]?.getBoundingClientRect().bottom ?? 0) < 0) light(k);
+      else litTimers.set(k, setTimeout(() => live && light(k), LIT_CAP_MS));
+    };
+    const leave = (k: number) => items[k]?.setAttribute("data-left", "");
 
     // --- State ---------------------------------------------------------------------------
     // Years already above the trigger line (deep link, restored scroll) count as reached.
@@ -93,14 +135,18 @@ export function armTimeline(root: HTMLElement): () => void {
     nodeEls.forEach((n, i) => {
       if (n.getBoundingClientRect().top < triggerY) reached = i;
     });
+    /** Furthest year crossed; the year the current flight is headed for. */
     let wanted = reached;
-    let flying = false;
-    let queued = false;
+    let target = reached;
+    let phase: "idle" | "queued" | "flying" | "landing" = "idle";
+    let flight: gsap.core.Timeline | null = null;
+    let landingTween: gsap.core.Tween | null = null;
 
-    /** Static placement for the current state (arm, resize, after each leg). */
-    const snap = () => {
+    /** Static placement for the current state (arm, resize, after each landing). */
+    const snap = (withLine = true) => {
       gsap.set(flier, { x: 0, y: yOf(reached), autoAlpha: reached < 0 ? 0 : 1 });
-      gsap.set(line, { scaleY: reached >= last ? 1 : stopOf(reached) });
+      gsap.set(body, { rotation: 0, scaleX: 1, scaleY: 1 });
+      if (withLine) gsap.set(line, { scaleY: reached >= last ? 1 : stopOf(reached) });
     };
     items.forEach((item, i) => {
       item.toggleAttribute("data-left", i < reached);
@@ -111,107 +157,200 @@ export function armTimeline(root: HTMLElement): () => void {
     snap();
     root.setAttribute("data-armed", "");
 
-    // --- One leg: take-off → flight → stuck landing ----------------------------------------
     const legDuration = (from: number, to: number) => {
       const hops = to - Math.max(from, 0);
       return clamp((yOf(to) - yOf(from)) / SPEED, LEG_MIN, hops > 1 ? BURST_MAX : LEG_MAX);
     };
-    const leg = (to: number) => {
+
+    /** Ghosts and years passed on the way: exposed/lit as the flier's y crosses them. */
+    const passEvents = (tl: gsap.core.Timeline, from: number, to: number, yA: number, t0: number, dur: number, ease: (p: number) => number) => {
+      const span = Math.max(1, yOf(to) - yA);
+      for (let k = from + 1; k < to; k++) {
+        const p = (yOf(k) - yA) / span;
+        if (p <= 0) {
+          leave(k);
+          light(k);
+          continue;
+        }
+        tl.call(
+          () => {
+            leave(k);
+            light(k);
+          },
+          undefined,
+          t0 + dur * timeAt(ease, p),
+        );
+      }
+    };
+
+    /** Stuck landing — or, with a further year already wanted, straight on. */
+    const touchdown = () => {
+      flight = null;
+      reached = target;
+      if (!live) return;
+      if (wanted > reached && (nodeEls[wanted]?.getBoundingClientRect().bottom ?? 0) >= 0) {
+        context.add(() => fly(wanted, false));
+        return;
+      }
+      phase = "landing";
+      context.add(() => {
+        if (reached === last) gsap.to(line, { scaleY: 1, duration: DUR.reveal, ease: EASE.stick, delay: DUR.land / 2 });
+        landingTween = gsap.fromTo(
+          body,
+          { scaleY: 0.86, scaleX: 1.08, rotation: 0 },
+          {
+            scaleY: 1,
+            scaleX: 1,
+            duration: DUR.land,
+            ease: EASE.land,
+            onComplete: () => {
+              landingTween = null;
+              phase = "idle";
+              measure();
+              snap(reached < last); // at 2026 the line is still running on past the year
+              kick();
+            },
+          },
+        );
+      });
+    };
+
+    /**
+     * One leg from the year the flier stands on: take-off (a crouch when starting from rest),
+     * a rise off the year, then the drop onto `to` riding the progress head.
+     */
+    const fly = (to: number, fromRest: boolean) => {
       const from = reached;
       const y0 = yOf(from);
       const y1 = yOf(to);
-      const dist = Math.max(1, y1 - y0);
       const dur = legDuration(from, to);
-      const t0 = from >= 0 ? CROUCH : 0;
-      const tLand = t0 + dur;
-      flying = true;
+      const drop = from < 0; // coming in from above the first year (a dismount onto the rail)
+      const t0 = fromRest && !drop ? CROUCH : 0;
+      target = to;
+      phase = "flying";
+      landingTween?.kill();
+      landingTween = null;
 
-      const tl = gsap.timeline({
-        onComplete: () => {
-          flying = false;
-          reached = to;
-          measure();
-          snap();
-          if (to < last) kick();
-        },
-      });
-
-      // The first year alone is a drop from above (gravity); any other flight travels at running speed.
-      const drop = from < 0 && to === 0;
-      const yEase = drop ? "power2.in" : EASE.flight;
-      if (from >= 0) {
-        // Take-off: compress, lean back; the ghost of the year it leaves stays on the plate.
-        const leaving = items[from];
-        tl.to(body, { scaleY: 0.9, scaleX: 1.05, rotation: -6, duration: CROUCH, ease: "power2.out" }, 0)
-          .call(() => leaving?.setAttribute("data-left", ""), undefined, CROUCH)
-          .to(body, { scaleY: 1, scaleX: 1, duration: DUR.fast, ease: "power2.out" }, CROUCH);
+      const tl = gsap.timeline({ onComplete: touchdown });
+      flight = tl;
+      if (drop) {
+        tl.set(body, { rotation: -6 }, 0)
+          .to(flier, { autoAlpha: 1, duration: DUR.fast, ease: "none" }, 0)
+          .to(body, { rotation: 0, duration: dur, ease: "power1.out" }, 0)
+          .to(flier, { y: y1, duration: dur, ease: "power2.in" }, 0)
+          .to(line, { scaleY: stopOf(to), duration: dur, ease: "power2.in" }, 0);
+        passEvents(tl, from, to, y0, 0, dur, dropEase);
       } else {
-        // Coming in from above the first year (a dismount onto the rail).
-        tl.set(body, { rotation: -6 }, 0).to(flier, { autoAlpha: 1, duration: DUR.fast, ease: "none" }, 0);
+        // Take-off: compress and lean back (from rest), or spring straight off a touch-down.
+        if (fromRest) tl.to(body, { scaleY: 0.9, scaleX: 1.05, rotation: PITCH_TAKEOFF, duration: CROUCH, ease: "power2.out" }, 0);
+        else tl.to(body, { rotation: PITCH_TAKEOFF, duration: 0.06, ease: "power2.out" }, 0);
+        tl.call(() => leave(from), undefined, t0).to(body, { scaleY: 1, scaleX: 1, duration: DUR.fast, ease: "power2.out" }, t0);
+        // Flight: rise off the year, then the fall onto the next, riding the progress head.
+        const rise = wide() ? RISE_WIDE : RISE_NARROW;
+        const tUp = dur * RISE_SHARE;
+        const yApex = y0 - rise;
+        tl.to(flier, { y: yApex, duration: tUp, ease: "power2.out" }, t0)
+          .to(flier, { y: y1, duration: dur - tUp, ease: "power2.in" }, t0 + tUp)
+          .to(line, { scaleY: stopOf(to), duration: dur - tUp, ease: "power2.in" }, t0 + tUp)
+          .to(body, { rotation: PITCH_APEX, duration: tUp, ease: "sine.inOut" }, t0 + 0.02)
+          .to(body, { rotation: 0, duration: (dur - tUp) * 0.5, ease: "sine.inOut" }, t0 + dur - (dur - tUp) * 0.5);
+        const arc = wide() ? ARC_WIDE : ARC_NARROW;
+        tl.to(flier, { x: -arc, duration: dur * 0.45, ease: "power1.out" }, t0).to(flier, { x: 0, duration: dur * 0.55, ease: "power1.in" }, t0 + dur * 0.45);
+        passEvents(tl, from, to, yApex, t0 + tUp, dur - tUp, fallEase);
       }
-      if (!drop) {
-        // Flight: a small hop off the rail and back, torso pitching forward.
-        const arc = window.matchMedia("(min-width: 640px)").matches ? ARC_WIDE : ARC_NARROW;
-        tl.to(flier, { x: -arc, duration: dur / 2, ease: "power1.out" }, t0)
-          .to(flier, { x: 0, duration: dur / 2, ease: "power1.in" }, t0 + dur / 2)
-          .to(body, { rotation: 4, duration: dur * 0.8, ease: "sine.inOut" }, t0)
-          .to(body, { rotation: 0, duration: dur * 0.2, ease: "power1.out" }, t0 + dur * 0.8);
-      } else {
-        tl.to(body, { rotation: 0, duration: dur, ease: "power1.out" }, 0);
-      }
-      tl.to(flier, { y: y1, duration: dur, ease: yEase }, t0).to(line, { scaleY: stopOf(to), duration: dur, ease: yEase }, t0);
-      // Years flown over in one go: lit, and their ghost left, as the flier passes them.
-      const yEaseFn = drop ? (gsap.parseEase("power2.in") as (p: number) => number) : flightEase;
-      for (let k = from + 1; k < to; k++) {
-        const item = items[k];
-        const at = t0 + dur * timeAt(yEaseFn, (yOf(k) - y0) / dist);
-        tl.call(
-          () => {
-            item?.setAttribute("data-lit", "");
-            item?.setAttribute("data-left", "");
-          },
-          undefined,
-          at,
-        );
-      }
+      // The year lights as the feet touch (unless its own crossing already lit it).
+      tl.call(() => light(to, true), undefined, Math.max(0, t0 + dur - 0.08));
+    };
 
-      // Stuck landing: compress and hold; the year lights as the feet touch.
-      tl.call(() => items[to]?.setAttribute("data-lit", "land"), undefined, Math.max(0, tLand - 0.08)).fromTo(
-        body,
-        { scaleY: 0.86, scaleX: 1.08 },
-        { scaleY: 1, scaleX: 1, duration: DUR.land, ease: EASE.land, immediateRender: false },
-        tLand,
-      );
-      // 2026: the story goes on — the rail runs on past the last year and fades (about.css).
-      if (to === last) tl.to(line, { scaleY: 1, duration: DUR.reveal, ease: EASE.stick }, tLand + DUR.land / 2);
+    /** A further year wanted mid-flight: carry on to it at the current speed instead of queueing. */
+    const retarget = () => {
+      const tl = flight;
+      if (!tl) return;
+      const n = wanted - target;
+      const to = wanted;
+      const remaining = Math.max(0, tl.duration() - tl.time());
+      let T = Math.min(remaining + PER_YEAR * n, BURST_MAX);
+      // The flier's speed now (px/s), sampled from the running flight without firing its events.
+      const t = tl.time();
+      const yNow = gsap.getProperty(flier, "y") as number;
+      tl.time(Math.min(tl.duration(), t + 1 / 120), true);
+      const yNext = gsap.getProperty(flier, "y") as number;
+      tl.time(t, true);
+      tl.kill();
+      if (!items[reached]?.hasAttribute("data-left") && reached >= 0) leave(reached);
+      const v = Math.max(0, (yNext - yNow) * 120);
+      const D = Math.max(1, yOf(to) - yNow);
+      // Start at the current speed (≤1.2 × the mean), end a little faster: no hitch, no float.
+      let k = (v * T) / D;
+      if (k > 1.2) {
+        T = Math.max(0.12, (1.2 * D) / v);
+        k = 1.2;
+      }
+      const ease = CustomEase.create(RETARGET_EASE, `M0,0 C${(1 / 3).toFixed(3)},${(k / 3).toFixed(3)} 0.667,0.4 1,1`) as (p: number) => number;
+      const fromIdx = reached; // years already passed are settled at once by passEvents
+      target = to;
+      const next = gsap.timeline({ onComplete: touchdown });
+      flight = next;
+      next
+        .to(flier, { y: yOf(to), duration: T, ease: RETARGET_EASE }, 0)
+        .to(line, { scaleY: stopOf(to), duration: T, ease: RETARGET_EASE }, 0)
+        .to(flier, { x: 0, autoAlpha: 1, duration: T, ease: "sine.out" }, 0)
+        .to(body, { scaleX: 1, scaleY: 1, rotation: PITCH_APEX, duration: T * 0.5, ease: "sine.out" }, 0)
+        .to(body, { rotation: 0, duration: T * 0.5, ease: "sine.inOut" }, T * 0.5);
+      passEvents(next, fromIdx, to, yNow, 0, T, ease);
+      next.call(() => light(to, true), undefined, Math.max(0, T - 0.08));
     };
 
     /** Years the reader has already scrolled past: placed at once, no flight off-screen. */
     const jump = (to: number) => {
       for (let k = reached + 1; k <= to; k++) {
         items[k]?.toggleAttribute("data-left", k < to);
-        items[k]?.setAttribute("data-lit", "");
+        light(k);
       }
-      items[reached]?.setAttribute("data-left", "");
+      if (reached >= 0) leave(reached);
       reached = to;
+      target = to;
       snap();
     };
 
-    const kick = () => {
-      if (!live || flying || queued || wanted <= reached) return;
-      if ((nodeEls[wanted]?.getBoundingClientRect().bottom ?? 0) < 0) {
+    const offAbove = (i: number) => (nodeEls[i]?.getBoundingClientRect().bottom ?? 0) < 0;
+    const estimate = (from: number, to: number) => (from >= 0 ? CROUCH : 0) + legDuration(from, to) + DUR.land;
+
+    function kick() {
+      if (!live) return;
+      if (phase === "flying") {
+        if (wanted > target) context.add(retarget);
+        return;
+      }
+      if (phase === "landing") {
+        // Touched down and a further year is already wanted: skip the hold, spring on.
+        if (wanted <= reached) return;
+        context.add(() => {
+          if (!offAbove(wanted)) {
+            fly(wanted, false);
+            return;
+          }
+          landingTween?.kill();
+          landingTween = null;
+          phase = "idle";
+          jump(wanted);
+        });
+        return;
+      }
+      if (phase === "queued" || wanted <= reached) return;
+      if (offAbove(wanted)) {
         context.add(() => jump(wanted));
         return;
       }
-      queued = true;
-      const estimate = (from: number, to: number) => (from >= 0 ? CROUCH : 0) + legDuration(from, to) + DUR.land;
+      phase = "queued";
       void queuePrimaryMotion(estimate(reached, wanted) * 1000).then(() => {
-        queued = false;
-        if (!live || flying || wanted <= reached) return;
-        if ((nodeEls[wanted]?.getBoundingClientRect().bottom ?? 0) < 0) context.add(() => jump(wanted));
-        else context.add(() => leg(wanted));
+        if (!live || phase !== "queued") return;
+        phase = "idle";
+        if (wanted <= reached) return;
+        if (offAbove(wanted)) context.add(() => jump(wanted));
+        else context.add(() => fly(wanted, true));
       });
-    };
+    }
 
     let io: IntersectionObserver | undefined;
     if (reached < last) {
@@ -226,6 +365,8 @@ export function armTimeline(root: HTMLElement): () => void {
           }
           if (max <= wanted) return;
           wanted = max;
+          // Every year up to here lights on its own crossing (≤250 ms), flier or not.
+          for (let k = 0; k <= wanted; k++) crossed(k);
           if (wanted >= last) io?.disconnect();
           kick();
         },
@@ -238,7 +379,7 @@ export function armTimeline(root: HTMLElement): () => void {
     const ro = new ResizeObserver(() => {
       if (!live) return;
       measure();
-      if (!flying) context.add(snap);
+      if (phase === "idle" || phase === "queued") context.add(() => snap());
     });
     ro.observe(root);
 
@@ -246,6 +387,7 @@ export function armTimeline(root: HTMLElement): () => void {
       live = false;
       io?.disconnect();
       ro.disconnect();
+      litTimers.forEach((t) => clearTimeout(t));
       root.removeAttribute("data-armed");
       items.forEach((item) => {
         item.removeAttribute("data-left");

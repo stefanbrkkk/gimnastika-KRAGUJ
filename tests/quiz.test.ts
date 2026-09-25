@@ -234,6 +234,14 @@ describe("quiz — result views (S3 hand-off, plates, strip landing)", () => {
     expect(all("greda")).toMatch(num("42"));
     expect(all("razboj")).toMatch(num("11.5"));
     expect(all("razboj")).toMatch(num("42"));
+    // Every anchor the strip's geometry places the apparatus by is in S3's drawing (the landing
+    // depth `land` is not a drawn coordinate: mid-depth, checked with the floor landing below).
+    const { ICON } = await import("@/components/sections/quiz/geometry");
+    for (const [key, n] of Object.entries(ICON.parter)) {
+      if (key !== "land") expect(all("parter")).toMatch(num(String(n)));
+    }
+    for (const n of Object.values(ICON.greda)) expect(all("greda")).toMatch(num(String(n)));
+    for (const n of Object.values(ICON.razboj)) expect(all("razboj")).toMatch(num(String(n)));
   });
 });
 
@@ -300,6 +308,82 @@ describe("quiz — chronophotograph strip geometry", () => {
         expect(p.x).toBeGreaterThan(0);
         expect(p.x).toBeLessThan(g.VB_W);
       }
+    }
+  });
+
+  it("never leaves the strip in flight: the flier's box top stays ≥ −8 at every instant of every hop", async () => {
+    const g = await import("@/components/sections/quiz/geometry");
+    const [x1, x2, x3] = g.FRAME_X;
+    const hops: import("@/components/sections/quiz/geometry").Hop[] = [
+      { from: [x1, 0], to: [x2, 0], amp: g.HOP },
+      ...(["flat", "parter", "greda"] as const).map((v) => ({ from: [x2, 0], to: [x3, g.LIFT[v]], amp: g.HOP }) as const),
+      { from: [x1, 0], to: [x3, g.LIFT.skip], amp: g.HOP_LONG },
+    ];
+    for (const hop of hops) {
+      for (let i = 0; i <= 100; i++) expect(g.poseAt(hop, i / 100).y + g.USE_Y).toBeGreaterThanOrEqual(-8);
+    }
+  });
+
+  it("draws the apparatus 1.5× its v2 size (QP2-12), standing on the mat inside the strip", async () => {
+    const g = await import("@/components/sections/quiz/geometry");
+    const { parter, greda, razboj } = g.APPARATUS;
+    expect(g.APPARATUS_SCALE).toBe(1.5);
+    expect(parter.s).toBeCloseTo(3 * 1.5, 6);
+    expect(greda.s).toBeCloseTo(2.2 * 1.5, 6);
+    expect(razboj.s).toBeCloseTo(3.2 * 1.5, 6);
+    for (const a of [parter, greda, razboj]) {
+      expect(a.y + g.ICON.floor * a.s).toBeCloseTo(g.MAT_Y, 0);
+      // The widest drawings span icon x 1.5–46.5.
+      expect(a.x + 1.5 * a.s).toBeGreaterThanOrEqual(0);
+      expect(a.x + 46.5 * a.s).toBeLessThanOrEqual(g.VB_W);
+    }
+    expect(razboj.y + g.ICON.razboj.rail * razboj.s).toBeGreaterThan(0);
+    expect(parter.y + g.ICON.parter.back * parter.s).toBeGreaterThan(0);
+  });
+
+  it("the beam landing: front foot on the beam top at its end, the seat of the split over the beam", async () => {
+    const g = await import("@/components/sections/quiz/geometry");
+    const a = g.APPARATUS.greda;
+    const land = g.FLIER.f2.greda;
+    const left = a.x + g.ICON.greda.left * a.s;
+    const right = a.x + g.ICON.greda.right * a.s;
+    const top = a.y + g.ICON.greda.top * a.s;
+    const [footX, footY] = g.pointOf(land, ...g.LOW_POINTS[0]!);
+    expect(footY).toBeCloseTo(top, 0);
+    expect(footX).toBeGreaterThan(left);
+    expect(footX).toBeLessThan(right);
+    const [seatX, seatY] = g.pointOf(land, ...g.LOW_POINTS[2]!);
+    expect(seatX).toBeGreaterThan(left);
+    expect(seatX).toBeLessThan(right);
+    expect(seatY).toBeLessThan(top);
+    // A beam, not a bench: longer than 2/3 of her split from toe to toe (v2: 1/2).
+    const leap = g.pointOf(land, ...g.FRONT_TOE)[0] - g.pointOf(land, ...g.BACK_TOE)[0];
+    expect(right - left).toBeGreaterThan((2 / 3) * leap);
+  });
+
+  it("the bars landing: on the mat in front of the bars, the back toe clear of the high bar's upright", async () => {
+    const g = await import("@/components/sections/quiz/geometry");
+    const a = g.APPARATUS.razboj;
+    const land = g.FLIER.f2.flat;
+    const upright = a.x + g.ICON.razboj.post * a.s;
+    expect(g.pointOf(land, ...g.BACK_TOE)[0] - upright).toBeGreaterThanOrEqual(8);
+    expect(g.lowestY(land)).toBeCloseTo(g.MAT_Y, 0);
+    expect(g.pointOf(land, ...g.FRONT_TOE)[0]).toBeLessThanOrEqual(g.VB_W - 16); // the mat line's end
+  });
+
+  it("the floor landing: the front foot lands mid-depth on the carpet, inside its right edge", async () => {
+    const g = await import("@/components/sections/quiz/geometry");
+    const a = g.APPARATUS.parter;
+    const P = g.ICON.parter;
+    const depth = (g.ICON.floor - P.land) / (g.ICON.floor - P.back);
+    expect(depth).toBe(0.5);
+    const edge = (front: number, back: number) => a.x + (front + depth * (back - front)) * a.s;
+    for (const v of ["parter", "skip"] as const) {
+      const land = g.FLIER.f2[v];
+      const [footX, footY] = g.pointOf(land, ...g.LOW_POINTS[0]!);
+      expect(footY).toBeCloseTo(a.y + P.land * a.s, 0);
+      expect(footX).toBeGreaterThan(edge(P.frontLeft, P.backLeft));
+      expect(g.pointOf(land, ...g.FRONT_TOE)[0]).toBeLessThan(edge(P.frontRight, P.backRight) - 4);
     }
   });
 

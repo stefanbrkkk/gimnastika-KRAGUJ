@@ -75,8 +75,11 @@
   line-height: var(--text-body--line-height);
 }
 
-/* „2007.“ in the history: the founding year as a figure. */
+/* „2007.“ in the history: the founding year, bold in the sentence. Proportional lining
+   figures, not the tabular set (its slashed zero reads like code inside a paragraph, AC2-08);
+   the timeline's years keep tabular figures. */
 .about__year {
+  font-variant-numeric: lining-nums proportional-nums;
   font-weight: 700;
   color: var(--fg);
 }

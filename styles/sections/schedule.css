@@ -1,6 +1,6 @@
 /* S4 "Raspored treninga" — owned by the schedule section. Light theme; clarity first:
    no scroll choreography. Motion (gymnastics vocabulary, schedule-enhance.ts + below):
-   the tab pills travel like a beam walk and stick their landing; filtering dismounts,
+   the tab pills leave fast and stick their landing; filtering dismounts in place,
    glides and sticks (Flip); a card's training days land on the mat line once; the
    „Sledeći trening“ scoreboard posts its numerals row by row like an LED judges' board;
    the location pictogram draws the floor diagonal and drops its pin. Everything is
@@ -13,7 +13,7 @@
    stack (the location card's offset uses the scoreboard's fixed height there).
    No-JS: tabs, pills, scoreboard and card tags are display:none. */
 .sched-board {
-  --sched-score-h: 9.5rem;
+  --sched-score-h: 10rem;
 }
 .sched-score {
   margin-top: 20px;
@@ -56,15 +56,20 @@
     top: 104px;
     margin-top: 32px;
   }
+  /* The bottom margin (the location card's height, set by schedule-enhance.ts) ends the
+     board's sticky travel together with the card's, so the card never slides over the board
+     at the end of the section. It matches the card's margin box: the row height is unchanged. */
   .sched-score {
     height: var(--sched-score-h);
+    margin-bottom: calc(var(--sched-aside-h, 0px) + 16px);
   }
   .sched-aside {
     top: calc(104px + var(--sched-score-h) + 16px);
     margin-top: calc(32px + var(--sched-score-h) + 16px);
   }
-  /* No JS: no scoreboard above the location card. */
-  html:not(.js) .sched-aside {
+  /* No JS (or no next training): no scoreboard above the location card. */
+  html:not(.js) .sched-aside,
+  .sched-score[data-state="none"] ~ .sched-aside {
     top: 104px;
     margin-top: 32px;
   }
@@ -119,8 +124,8 @@ html:not(.js) .sched-next {
   display: none;
 }
 
-/* Sliding pill of both tab systems: travels like a beam walk (flight ease), then sticks its
-   landing (a short squash, schedule-enhance.ts). */
+/* Sliding pill of both tab systems: leaves at once on the fast-out stick ease (it leads the
+   panel, which swaps at t=0), then sticks its landing (a short squash, schedule-enhance.ts). */
 .sched-views__pill,
 .sched-strip__pill {
   position: absolute;
@@ -129,7 +134,7 @@ html:not(.js) .sched-next {
   left: 4px;
   background: var(--color-navy-900);
   box-shadow: var(--shadow-press);
-  transition: transform 320ms var(--ease-flight);
+  transition: transform 320ms var(--ease-stick);
 }
 .sched-views__pill {
   width: calc(50% - 4px);
@@ -164,7 +169,7 @@ html:not(.js) .sched-next {
   display: grid;
   pointer-events: none;
   color: var(--color-white);
-  transition: clip-path 320ms var(--ease-flight);
+  transition: clip-path 320ms var(--ease-stick);
 }
 .sched-views__lit {
   grid-template-columns: 1fr 1fr;
@@ -179,15 +184,18 @@ html:not(.js) .sched-next {
   padding: 0 16px;
 }
 
-/* Only the label under the pill (and, for one slide, the one it leaves) is rendered: the
-   clipped-away white copies must not exist for contrast checkers or forced colours. */
+/* Only the label under the pill is rendered at rest (D-36): the clipped-away white copies
+   must not exist for contrast checkers or forced colours. For one slide, the label it leaves
+   and every day label it passes (data-pass, schedule-enhance.ts) stay rendered, so no label
+   blanks out under the moving pill. */
 .sched-views__lit > span,
 .sched-strip__lit > span {
   visibility: hidden;
   transition: visibility 0s linear 320ms;
 }
 .sched-views__lit > span[data-on],
-.sched-strip__lit > span[data-on] {
+.sched-strip__lit > span[data-on],
+.sched-strip__lit > span[data-pass] {
   visibility: visible;
   transition-delay: 0s;
 }
@@ -339,17 +347,19 @@ html:not(.js) .sched-next {
 
 /* ---------- „Sledeći trening“: the judges' scoreboard ----------
    A dot-matrix display (the S7 window), Doto numerals only here (≥32px, tabular).
-   Phones and the ≥1280 sidebar: label / day over the numerals, the group below a rule;
-   640–1279: one strip. Its height never depends on the time (no shift after mount). */
+   Phones and the ≥1280 sidebar: the label beside the numerals (shared baseline), the day
+   beside the „ili“ line under them, the group below a rule; 640–1279: one strip. The rows
+   exist in every state, so the height never depends on the time or the filter (no shift
+   after mount, none when an „ili“ slot is posted). */
 .sched-score {
   --score-size: 2.5rem;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
     "label time"
-    "when time"
+    "when alt"
     "group group";
-  align-items: end;
+  align-items: baseline;
   column-gap: 16px;
   padding: 16px 18px 14px;
   border-radius: var(--radius-lg);
@@ -360,6 +370,12 @@ html:not(.js) .sched-next {
     inset 0 0 0 1px rgba(255, 255, 255, 0.08),
     var(--shadow-2);
   color: var(--color-ice-50);
+}
+/* After mount there is always a next training (every group trains weekly); if a filter ever
+   had none, the board would go rather than show an empty window. The „––:––“ shell is the
+   pre-mount state only. */
+.sched-score[data-state="none"] {
+  display: none;
 }
 .sched-score__label {
   grid-area: label;
@@ -381,7 +397,7 @@ html:not(.js) .sched-next {
 }
 .sched-score__time {
   grid-area: time;
-  align-self: center;
+  justify-self: end;
   font-size: var(--score-size);
   line-height: 1;
   font-weight: 900;
@@ -420,11 +436,32 @@ html:not(.js) .sched-next {
 .sched-score__colon::after {
   bottom: 0.155em;
 }
-/* No fixed start is next (or the time is not known yet): the board shows dashes, as a
-   scoreboard does before a score is posted. */
-.sched-score:not([data-state="ready"]) .sched-score__time {
+/* The time is not known yet: the board shows dashes, as a scoreboard does before a score is
+   posted. */
+.sched-score:is([data-state="pending"], [data-state="none"]) .sched-score__time {
   color: var(--color-steel-300);
   opacity: 0.8;
+}
+/* „ili 16:00“: the other option of an „ili“ slot, right under the numerals (both named,
+   nothing guessed). Empty (but its row stays) for a fixed start. */
+.sched-score__alt {
+  grid-area: alt;
+  justify-self: end;
+  /* Shorter than the day beside it: its line box never grows the row (same height in every state). */
+  min-height: 1.2em;
+  font-size: var(--text-small);
+  line-height: 1.2;
+  font-weight: 600;
+  white-space: nowrap;
+  color: color-mix(in oklab, var(--color-steel-300) 55%, var(--color-ice-50));
+}
+/* Today, once the first option has begun: it goes quiet (as in „Po danu“) and the later
+   option, still ahead, takes the numerals' colour. */
+.sched-score[data-started] .sched-score__time {
+  color: var(--color-steel-300);
+}
+.sched-score[data-started] .sched-score__alt {
+  color: var(--color-iceblue-200);
 }
 .sched-score__group {
   grid-area: group;
@@ -452,6 +489,7 @@ html:not(.js) .sched-next {
     grid-template-areas:
       "label label"
       "when time"
+      ". alt"
       "group group";
   }
   .sched-score__when {
@@ -463,20 +501,13 @@ html:not(.js) .sched-next {
 }
 @media (min-width: 640px) and (max-width: 1279.98px) {
   .sched-score {
-    --score-size: 3rem;
+    --score-size: 2.75rem;
     grid-template-columns: auto auto minmax(0, 1fr);
     grid-template-areas:
       "label time group"
-      "when time group";
-    align-items: center;
+      "when alt group";
     column-gap: 28px;
     padding: 14px 28px;
-  }
-  .sched-score__label {
-    align-self: end;
-  }
-  .sched-score__when {
-    align-self: start;
   }
   .sched-score__group {
     align-self: stretch;
@@ -540,6 +571,8 @@ html:not(.js) .sched-next {
   position: relative;
   isolation: isolate;
   display: grid;
+  /* The filter holds the list's min-height while cards move: the rows must not stretch into it. */
+  align-content: start;
   gap: 12px;
 }
 /* Cards keep their natural height (ragged bottoms read as intentional; a hole inside a
@@ -751,7 +784,8 @@ html.js-motion .sched-card:not([data-landed]) .sched-week__dot::before {
   55% {
     opacity: 1;
     transform: translateY(0) scale(1.14, 0.8);
-    animation-timing-function: var(--ease-land);
+    /* --ease-land as a literal: a custom property in a keyframe plays linear in Chromium (MD2-02). */
+    animation-timing-function: cubic-bezier(0.22, 1.12, 0.36, 1);
   }
   100% {
     opacity: 1;
@@ -871,8 +905,20 @@ html.js-motion .sched-card:not([data-landed]) .sched-week__dot::before {
     text-underline-offset: 0.2em;
   }
 }
+/* Open on phones: the links hang under the summary's text column, on a hairline guide that
+   drops from the calendar icon, so they read as its children (not two more rows). */
 .sched-cal-d__body {
-  padding-bottom: 12px;
+  position: relative;
+  padding: 0 0 12px 28px;
+}
+.sched-cal-d__body::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  bottom: 24px;
+  left: 9.5px;
+  width: 1px;
+  background: var(--hairline);
 }
 @keyframes sched-drop {
   from {
@@ -902,8 +948,11 @@ html.js-motion .sched-card:not([data-landed]) .sched-week__dot::before {
       display: none;
     }
     .sched-cal-d__body {
-      padding-bottom: 0;
+      padding: 0;
       animation: none !important;
+    }
+    .sched-cal-d__body::before {
+      display: none;
     }
   }
 }
@@ -1154,31 +1203,37 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   display: flex;
   flex-direction: column;
 }
-/* Phones: time(s) over the group, with a gutter for the hanging „ili“. From 640px: two
-   columns, and both alternatives fit on one line. */
+/* Phones: time(s) over the group, flush with the day title and the hairlines (no gutter):
+   „ili“ trails the first range and the second one starts its own line at the same x.
+   From 640px: two columns, and both alternatives fit on one line. */
 .sched-row {
   position: relative;
   display: grid;
   gap: 6px;
-  padding: 16px 0 16px 22px;
+  padding: 16px 0;
   border-top: 1px solid var(--hairline);
 }
 .sched-row[hidden] {
   display: none;
+}
+.sched-row .sched-times[data-alt] .sched-times__range:first-child {
+  display: inline;
+}
+.sched-row .sched-times[data-alt] .sched-times__or {
+  position: static;
+  margin: 0;
+}
+.sched-row .sched-times[data-alt] .sched-times__range ~ .sched-times__range {
+  margin-top: 2px;
 }
 @media (min-width: 640px) {
   .sched-row {
     grid-template-columns: 17.5rem minmax(0, 1fr);
     column-gap: 24px;
     align-items: baseline;
-    padding-left: 0;
   }
   .sched-row .sched-times[data-alt] .sched-times__range {
     display: inline;
-  }
-  .sched-row .sched-times[data-alt] .sched-times__or {
-    position: static;
-    margin: 0;
   }
 }
 .sched-row__group {
@@ -1434,7 +1489,8 @@ html.js-motion .sched-location:not([data-landed]) .sched-pict__pin {
   45% {
     opacity: 1;
     transform: translateY(0) scale(1.12, 0.84);
-    animation-timing-function: var(--ease-land);
+    /* --ease-land as a literal: a custom property in a keyframe plays linear in Chromium (MD2-02). */
+    animation-timing-function: cubic-bezier(0.22, 1.12, 0.36, 1);
   }
   100% {
     opacity: 1;

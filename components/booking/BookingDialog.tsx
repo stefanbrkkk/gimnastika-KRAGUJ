@@ -80,11 +80,12 @@ const withoutError = (errors: BookingErrors, field: keyof BookingValues): Bookin
   return next;
 };
 
-/** Error line under an invalid field: navy text; the „stop“ disc sits inside the control. */
+/** Error line under an invalid field: royal-600 text led by a filled „!“ disc (CSS ::before,
+ *  decorative), so it never reads as the next field's label (CV2-03). */
 function ErrorLine({ id, text }: { id: string; text: string }) {
   return (
     <p id={id} className="booking-field__error">
-      {typesetSr(text)}
+      <span>{typesetSr(text)}</span>
     </p>
   );
 }
@@ -638,43 +639,46 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
           ) : null}
           {status ? <span>{typesetSr(status)}</span> : null}
         </p>
-        <div className="booking__sends">
-          {sendOrder(primary).map((channel, i) => (
-            <a
-              key={channel}
-              ref={i === 0 ? primaryRef : undefined}
-              className={`btn ${i === 0 && !landed ? "btn-primary" : "btn-secondary"} booking__send`}
-              href={hrefs[channel]}
-              onClick={onSend(channel)}
-            >
-              {BOOKING.actions[channel]}
-            </a>
-          ))}
-          {FLAGS.SHOW_VIBER ? (
-            touchFirst ? (
-              <a className="btn btn-secondary booking__send booking__send--wide" href={hrefs.viber} onClick={onViber}>
-                {BOOKING.actions.viber}
+        {/* Sends + call: one row in the short-viewport footer (booking.css, CV2-05). */}
+        <div className="booking__actions">
+          <div className="booking__sends">
+            {sendOrder(primary).map((channel, i) => (
+              <a
+                key={channel}
+                ref={i === 0 ? primaryRef : undefined}
+                className={`btn ${i === 0 && !landed ? "btn-primary" : "btn-secondary"} booking__send`}
+                href={hrefs[channel]}
+                onClick={onSend(channel)}
+              >
+                {BOOKING.actions[channel]}
               </a>
-            ) : (
-              <p className="booking__viber-number">
-                {BOOKING.actions.viber}: <span>{typesetSr(PRIMARY_PHONE.display)}</span>
-              </p>
-            )
-          ) : null}
+            ))}
+            {FLAGS.SHOW_VIBER ? (
+              touchFirst ? (
+                <a className="btn btn-secondary booking__send booking__send--wide" href={hrefs.viber} onClick={onViber}>
+                  {BOOKING.actions.viber}
+                </a>
+              ) : (
+                <p className="booking__viber-number">
+                  {BOOKING.actions.viber}: <span>{typesetSr(PRIMARY_PHONE.display)}</span>
+                </p>
+              )
+            ) : null}
+          </div>
+          <a className="booking__call" href={hrefs.tel}>
+            <svg className="ui-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+              <path
+                d="M6.6 3.5h2.6l1.4 4-2 1.4a11.5 11.5 0 0 0 6.5 6.5l1.4-2 4 1.4v2.6a2 2 0 0 1-2.2 2A16.6 16.6 0 0 1 4.6 5.7a2 2 0 0 1 2-2.2Z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span>{BOOKING.actions.call}</span>
+            <span className="booking__call-number">{typesetSr(PRIMARY_PHONE.display)}</span>
+          </a>
         </div>
-        <a className="booking__call" href={hrefs.tel}>
-          <svg className="ui-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
-            <path
-              d="M6.6 3.5h2.6l1.4 4-2 1.4a11.5 11.5 0 0 0 6.5 6.5l1.4-2 4 1.4v2.6a2 2 0 0 1-2.2 2A16.6 16.6 0 0 1 4.6 5.7a2 2 0 0 1 2-2.2Z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span>{BOOKING.actions.call}</span>
-          <span className="booking__call-number">{typesetSr(PRIMARY_PHONE.display)}</span>
-        </a>
       </div>
     </dialog>
   );

@@ -59,7 +59,9 @@
   vector-effect: non-scaling-stroke;
 }
 
-/* Ghost → ghost → solid, in the shared leotard ghost tokens. */
+/* Ghost → ghost → solid, in the shared leotard ghost tokens. The landing („postaje član
+   kluba“) is the heaviest frame: the same solid navy as the numeral „3“ under it, so figure and
+   number finish together. */
 .en-band__frame[data-frame="takeoff"] {
   color: var(--ghost-1);
   opacity: var(--o);
@@ -69,12 +71,13 @@
   opacity: var(--o);
 }
 .en-band__frame[data-frame="landing"] {
-  color: var(--accent);
+  color: var(--fg);
 }
 
-/* The flier exists only during the leap (leap-motion.ts). */
+/* The flier exists only during the leap (leap-motion.ts); it becomes the landing frame, so it
+   flies in the landing's solid. */
 .en-band__flier {
-  color: var(--accent);
+  color: var(--fg);
   opacity: 0;
 }
 
@@ -308,9 +311,22 @@
   margin: 0 0 12px;
 }
 
-/* Room at the right for the silhouette that lands on the card's edge. */
+/* --kit-pad: the card's inline padding — also where the corner silhouette stands. */
+.en-kit {
+  --kit-pad: 22px;
+}
+
+@media (min-width: 640px) {
+  .en-kit {
+    --kit-pad: 32px;
+  }
+}
+
+/* The title ends where the card ends, and wraps before the corner silhouette (its 40px + 12px
+   air), which stands on the card's top edge beside the title's last line. */
 .en-kit__title {
-  padding-right: 92px;
+  max-width: 520px;
+  padding-right: calc(var(--kit-pad) + 52px);
 }
 
 /* The packing card. */
@@ -318,7 +334,7 @@
   position: relative;
   align-self: start;
   max-width: 520px;
-  padding: 8px 22px 20px;
+  padding: 8px var(--kit-pad) 20px;
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow:
@@ -328,7 +344,7 @@
 
 @media (min-width: 640px) {
   .en-kit__card {
-    padding: 8px 32px 26px;
+    padding-bottom: 26px;
   }
 }
 
@@ -445,54 +461,70 @@
   }
 }
 
-/* A full bag = a stuck landing: the ghost silhouette on the card's top edge hops forward and
-   lands solid (compress and hold). Unticking any item sends it back to rest. CSS :has(); an
-   engine without it simply keeps the ghost at rest. */
+/* The card's top-right corner, at its inner padding (front foot over the end of the rules, feet
+   on the top edge): a ghost frame of the leap (accent at .25). A full bag = a stuck landing: the
+   solid silhouette leaps onto the ghost from one hop back (a 16px arc, fading in on the way up),
+   covers it at touchdown and sticks — compress and hold on the front foot (--ease-land).
+   Unticking any item brings the ghost back. CSS :has(); an engine without it keeps the ghost. */
+.en-kit__ghost,
 .en-kit__flier {
   position: absolute;
-  right: 52px;
+  right: var(--kit-pad);
   bottom: 100%;
   width: 40px;
   height: auto;
   overflow: visible;
   color: var(--accent);
-  opacity: 0.35;
-  transform-origin: 96% 100%;
-  translate: 0 0;
   pointer-events: none;
+}
+
+.en-kit__ghost {
+  opacity: 0.25;
+}
+
+.en-kit__flier {
+  opacity: 0;
+  transform-origin: 96% 100%;
+}
+
+.en-kit__card:not(:has(.en-check__input:not(:checked))) .en-kit__ghost {
+  opacity: 0;
 }
 
 .en-kit__card:not(:has(.en-check__input:not(:checked))) .en-kit__flier {
   opacity: 1;
-  translate: 24px 0;
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  .en-kit__ghost,
   .en-kit__flier {
-    transition:
-      opacity var(--dur-fast) linear,
-      translate var(--dur-fast) var(--ease-stick);
+    transition: opacity var(--dur-fast) linear;
+  }
+  /* The ghost goes at touchdown, under the landing silhouette. */
+  .en-kit__card:not(:has(.en-check__input:not(:checked))) .en-kit__ghost {
+    transition: opacity 0s linear 420ms;
   }
   .en-kit__card:not(:has(.en-check__input:not(:checked))) .en-kit__flier {
+    transition: none;
     animation:
-      en-kit-hop 420ms linear,
+      en-kit-hop 420ms linear both,
       en-kit-stick var(--dur-land) var(--ease-land) 420ms;
   }
 }
 
 @keyframes en-kit-hop {
   0% {
-    translate: 0 0;
-    opacity: 0.35;
+    translate: -24px 0;
+    opacity: 0;
     animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
   }
   50% {
-    translate: 12px -16px;
+    translate: -12px -16px;
     opacity: 1;
     animation-timing-function: cubic-bezier(0.32, 0, 0.67, 0);
   }
   100% {
-    translate: 24px 0;
+    translate: 0 0;
     opacity: 1;
   }
 }

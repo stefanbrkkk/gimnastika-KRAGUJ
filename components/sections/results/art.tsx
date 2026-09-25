@@ -69,38 +69,81 @@ export function Podium() {
 /**
  * The white dry-brush underline under „Medalje“ — one of the page's two brush annotations
  * (§3), echoing the white strokes on the club-jacket sleeves: a coach marking the wins on
- * the result sheet (RC-01). It rises gently left → right along the floor diagonal and flicks
- * up at the end. One band of overlapping strands along a hand-set centreline: solid where
- * the brush is loaded, ragged at the start, splitting into dry streaks towards the end.
+ * the result sheet (RC-01). Drawn by the same hand as the S5 loop around the coaches
+ * (coaches/brush-geometry.ts, AC2-01): a loaded core and four bristle strands offset across
+ * the stroke, the brush pressure breathing along it, and each bristle's dry gaps as a static
+ * dash mask (so DrawSVG still owns the dash).
+ *
+ * Design review RC2-02: the centreline rises only ≈ 8 units over the word (its right end
+ * stays under the „j“ descender) and every strand converges on the core at both ends
+ * (offset × sin(π·x/240)^0.6), landing and lifting 6–14 units inside the core's ends — a
+ * taper, never a stepped slab. At 1440 the body reads ≈ 5 px, the S5 loop's weight.
  * The SVG scales uniformly with the word (no preserveAspectRatio="none"), so the weights
  * stay in proportion and DrawSVG measures true lengths.
  */
-const brushY = (x: number) => 23 - 0.035 * x - 0.00012 * x * x;
-const brushPath = (spans: readonly (readonly [number, number])[], dy: number): string =>
-  spans
-    .map(([x0, x1]) => {
-      const pts: string[] = [];
-      for (let x = x0; x < x1; x += 8) pts.push(`${x} ${(brushY(x) + dy).toFixed(1)}`);
-      pts.push(`${x1} ${(brushY(x1) + dy).toFixed(1)}`);
-      return `M${pts.join("L")}`;
-    })
-    .join("");
+const BRUSH_W = 240;
+const brushY = (x: number) => 23 - 0.02 * x - 0.00005 * x * x;
+const smooth = (a: number, b: number, x: number) => {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+/** The strands meet the core at both ends: a short, pressed landing and a long dry lift. */
+const taper = (x: number) => smooth(-4, 22, x) * Math.pow(smooth(BRUSH_W, 140, x), 0.7);
+/** Brush pressure breathes along the stroke (as in the S5 loop). */
+const pressure = (x: number) => 1 + 0.12 * Math.sin((2 * Math.PI * 1.3 * x) / BRUSH_W + 1);
+const brushPath = (x0: number, x1: number, d: number): string => {
+  const pts: string[] = [];
+  const at = (x: number) => `${x} ${(brushY(x) + d * taper(x) * pressure(x)).toFixed(2)}`;
+  for (let x = x0; x < x1; x += 6) pts.push(at(x));
+  pts.push(at(x1));
+  return `M${pts.join("L")}`;
+};
 
-/** Strands: offset across the band, width, opacity and the spans where the bristle touches. */
-const MEDAL_BRUSH = [
-  { dy: 0, w: 6, o: 1, spans: [[8, 226]] },
-  { dy: -1.4, w: 3, o: 1, spans: [[3, 236]] },
-  { dy: -3.8, w: 4, o: 1, spans: [[14, 194], [202, 222]] },
-  { dy: 3.4, w: 4.2, o: 1, spans: [[6, 184], [193, 213]] },
-  { dy: -6.4, w: 2.2, o: 0.82, spans: [[24, 148], [158, 188], [197, 231]] },
-  { dy: 6.1, w: 2, o: 0.72, spans: [[12, 130], [141, 174], [185, 205]] },
-] as const;
+interface BrushStrand {
+  /** Stroke width (viewBox units; ≈ 0.56 px at 1440). */
+  w: number;
+  /** Offset across the stroke (before taper and pressure). */
+  d: number;
+  /** Where the bristle touches down and lifts (inside the core's ends). */
+  x0: number;
+  x1: number;
+  o: number;
+  /** Static dry gaps (a mask): few while the brush is loaded, more as it runs dry. */
+  gaps?: string;
+}
+
+const MEDAL_BRUSH: readonly BrushStrand[] = [
+  // The loaded core runs the full length; the body forms around it and thins to it at both ends.
+  { w: 3.2, d: 0, x0: 9, x1: 234, o: 1 },
+  { w: 2.8, d: 2.2, x0: 13, x1: 226, o: 1, gaps: "150 2 36 3 20 3 300" },
+  { w: 2.6, d: -2.4, x0: 12, x1: 212, o: 0.95, gaps: "110 3 50 3 26 4 300" },
+  // Dry bristles: a streak along the top that breaks up towards the lift, and a short one
+  // under the loaded start.
+  { w: 1.2, d: 4.8, x0: 28, x1: 230, o: 0.85, gaps: "58 4 34 5 22 6 13 7 8 8 6 9 300" },
+  { w: 1.1, d: -4.6, x0: 20, x1: 150, o: 0.8, gaps: "46 4 30 5 18 6 300" },
+];
 
 export function MedalBrush() {
   return (
-    <svg className="medals__brush" viewBox="0 0 240 32" aria-hidden="true" focusable="false" data-medal-brush="">
+    <svg className="medals__brush" viewBox={`0 0 ${BRUSH_W} 32`} aria-hidden="true" focusable="false" data-medal-brush="">
+      <defs>
+        {MEDAL_BRUSH.map((b, i) =>
+          b.gaps ? (
+            <mask key={i} id={`medal-brush-gaps-${i}`} maskUnits="userSpaceOnUse" x="-8" y="-8" width={BRUSH_W + 16} height="48">
+              <path d={brushPath(b.x0, b.x1, b.d)} fill="none" stroke="#fff" strokeWidth={b.w + 3} strokeDasharray={b.gaps} />
+            </mask>
+          ) : null,
+        )}
+      </defs>
       {MEDAL_BRUSH.map((b, i) => (
-        <path key={i} d={brushPath(b.spans, b.dy)} strokeWidth={b.w} opacity={b.o} data-brush-stroke="" />
+        <path
+          key={i}
+          d={brushPath(b.x0, b.x1, b.d)}
+          strokeWidth={b.w}
+          opacity={b.o}
+          mask={b.gaps ? `url(#medal-brush-gaps-${i})` : undefined}
+          data-brush-stroke=""
+        />
       ))}
     </svg>
   );

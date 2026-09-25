@@ -42,16 +42,26 @@ export interface BandSpec {
   step: number;
   /** Height of the apex frame's hips above the takeoff/landing hips. */
   lift: number;
+  /**
+   * Optional mat ticks for the apex (its hip projection) and the landing (the front sole's
+   * contact), when they must meet other marks; they replace the even `step` spacing.
+   */
+  ticks?: { apex: number; landing: number };
 }
 
-/** ≥640px: frames at the three step columns (column pitch ≈ 408 of 1200 units incl. the gap). */
-export const WIDE: BandSpec = { w: 1200, h: 200, mat: 186, s: 0.54, x0: 58, step: 408, lift: 100 };
+/**
+ * ≥640px: frames over the three step columns. Each mat tick stands under its step numeral's
+ * centre (column left + half the numeral), measured in the DOM: 1440/1920 → 14 · 426 · 834,
+ * 1280 → 14 · 428 · 836, 1024 → 16 · 432 · 844, 768 → 19 · 435 · 846 band units. The chosen
+ * 428 / 837 keep every tick within ≈4px of its numeral on desktop (≤8px at 640).
+ */
+export const WIDE: BandSpec = { w: 1200, h: 200, mat: 186, s: 0.54, x0: 58, step: 408, lift: 100, ticks: { apex: 428, landing: 837 } };
 /** <640px: frames centred on the band's thirds, a compact arc above the step list. */
 export const NARROW: BandSpec = { w: 350, h: 108, mat: 92, s: 0.3, x0: 42, step: 122, lift: 40 };
 
 /** Final opacity of the two ghost frames (the landing is solid); the band's CSS colours them
  *  with the shared leotard ghost tokens (--ghost-1 takeoff, --ghost-2 apex). */
-export const FRAME_OPACITY = { takeoff: 0.42, apex: 0.62 } as const;
+export const FRAME_OPACITY = { takeoff: 0.42, apex: 0.5 } as const;
 
 export type FrameKind = "takeoff" | "apex" | "landing";
 
@@ -99,13 +109,17 @@ function hipOnMat(contact: Pt, pitch: number, s: number, hipX: number, mat: numb
 }
 
 export function buildBand(spec: BandSpec): Band {
-  const { s, x0, step, mat, lift } = spec;
+  const { s, x0, step, mat, lift, ticks } = spec;
   const take = hipOnMat(BACK_SOLE, PITCH.takeoff, s, x0, mat);
-  const land = hipOnMat(FRONT_SOLE, PITCH.landing, s, x0 + 2 * step, mat);
+  // A landing tick fixes the front sole's contact; the hip stands back from it by the pitched sole offset.
+  const landHipX = ticks ? ticks.landing - hipOnMat(FRONT_SOLE, PITCH.landing, s, 0, mat).contactX : x0 + 2 * step;
+  const land = hipOnMat(FRONT_SOLE, PITCH.landing, s, landHipX, mat);
   const p0 = take.hip;
   const p2 = land.hip;
-  // Apex midway in x (x linear in t on a quadratic with evenly spaced x), `lift` above the chord.
-  const apex: Pt = { x: (p0.x + p2.x) / 2, y: (p0.y + p2.y) / 2 - lift };
+  // Apex `lift` above the chord, midway in x unless its tick says otherwise. The quadratic passes
+  // through it at t = .5 (with an off-centre apex x is no longer exactly linear in t; at ±13
+  // units over 716 the horizontal speed varies by a few percent).
+  const apex: Pt = { x: ticks ? ticks.apex : (p0.x + p2.x) / 2, y: (p0.y + p2.y) / 2 - lift };
   const c: Pt = { x: 2 * apex.x - (p0.x + p2.x) / 2, y: 2 * apex.y - (p0.y + p2.y) / 2 };
   const frames: Band["frames"] = [
     { kind: "takeoff", transform: frameTransform(p0, PITCH.takeoff, s), hip: p0, tickX: take.contactX, pitch: PITCH.takeoff },

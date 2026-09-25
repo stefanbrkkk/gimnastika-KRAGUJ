@@ -88,6 +88,9 @@ export function GalleryBrowser({ heading, chips, photos, children }: GalleryBrow
 
     const grid = root.querySelector<HTMLElement>("[data-gallery-grid]");
     const items = Array.from(root.querySelectorAll<HTMLElement>(ITEM));
+    // The filter takes over from the entrance: prints still waiting on their pegs below the
+    // fold (armHang) are simply there, so the Flip never unhides a print that CSS hides.
+    for (const el of items) if (el.getAttribute("data-hang") === "pre") el.removeAttribute("data-hang");
     const shows = (el: HTMLElement) => chip.key === "all" || el.dataset.category === chip.key;
     // gallery.css sizes the strips per view: the full sheet has its feature strip, a filtered
     // view is one even strip set.

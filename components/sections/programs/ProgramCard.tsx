@@ -6,9 +6,12 @@ import { ProgramIcon } from "./ProgramIcon";
 import { ScheduleLines } from "./ScheduleLines";
 
 /**
- * One program "frame" of the contact sheet. The plate is a small apparatus print (QP-06): the
+ * One program "frame" of the contact sheet. The plate is an apparatus print (QP-06): the
  * drawing stands on a mat line over a faint Marey measuring grid, with the program's
  * competitor bib („3–8“, „8+“, „C“, „A·B“) and an ink-outlined + that opens the detail sheet.
+ * The plate takes the row's spare height, so every CTA sits at the same place (QP2-04); from
+ * 160px it is the detail sheet's scene — the drawing scaled up, the club silhouette posed over
+ * it (QP2-05).
  * Body: title, age, description, the week row + days/times, then ONE filled action and a quiet
  * tertiary link (QP-12). Server-rendered and complete without JS; the island
  * (ProgramsBrowser) adds the detail sheet, filtering and the quiz recommendation stamp.
@@ -27,7 +30,7 @@ export function ProgramCard({ program }: { program: Program }) {
       style={programStyle(program)}
     >
       <div className="pc-plate">
-        <ProgramIcon icon={program.icon} label={program.iconLabel} className="pc-icon" />
+        <ProgramIcon icon={program.icon} label={program.iconLabel} className="pc-icon" scene="card" />
         {bib ? (
           <span className="pc-bib" aria-hidden="true">
             {bib}

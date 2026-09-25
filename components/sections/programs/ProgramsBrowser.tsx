@@ -13,6 +13,7 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import { motionAllowed, prefersLessMotion, whenNear } from "@/lib/motion-env";
+import { pagerTarget } from "./pager";
 
 /**
  * Programs island (initial bundle — keep it small: no gsap, no motion code here).
@@ -24,7 +25,7 @@ import { motionAllowed, prefersLessMotion, whenNear } from "@/lib/motion-env";
  *   colour, the club silhouette hopping onto it) · next. Native scrolling stays the primary input.
  * - Quiz hand-off (QP-10): on „kraguj:recommend“ the recommended cards get a stamp and, while
  *   the row is off-screen, the phone row opens on the first of them.
- * - Motion (icon draw + perform, seam line, stamp-in, filter Flip) lives in ./programs-motion,
+ * - Motion (icon draw + perform or scene mount, seam line, stamp-in, filter Flip) lives in ./programs-motion,
  *   loaded when the section is ≤1 viewport away and motion is allowed.
  * Without JS: chips, rail and + buttons are hidden by CSS; every card is visible and drawn.
  */
@@ -302,15 +303,15 @@ export function ProgramsBrowser({ heading, chips, dots, filtersLabel, pager, sta
     });
   };
 
+  /* One frame back / forward. The photo is first on screen but last in the DOM: pagerTarget
+     sorts the starts (QP2-01). */
   const go = (dir: 1 | -1) => {
     const strip = stripRef.current;
     if (!strip) return;
-    const items = visibleItems(strip);
     const pad = padStart(strip);
-    const x = strip.scrollLeft;
-    const starts = items.map((el) => el.offsetLeft - pad);
-    const target = dir > 0 ? starts.find((s) => s > x + 4) : [...starts].reverse().find((s) => s < x - 4);
-    strip.scrollTo({ left: target ?? (dir > 0 ? strip.scrollWidth : 0), behavior: prefersLessMotion() ? "instant" : "smooth" });
+    const starts = visibleItems(strip).map((el) => el.offsetLeft - pad);
+    const left = pagerTarget(starts, strip.scrollLeft, dir, strip.scrollWidth - strip.clientWidth);
+    strip.scrollTo({ left, behavior: prefersLessMotion() ? "instant" : "smooth" });
   };
 
   return (

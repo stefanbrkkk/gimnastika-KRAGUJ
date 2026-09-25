@@ -41,13 +41,24 @@
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-2);
   }
+  /* QP2-07: the card spans the heading and the strip (both rows) and stretches, so its white
+     face ends level with the strip instead of stair-stepping above it; a taller card (the 4 × 4
+     keypad at 1024, a long result) grows the strip's row as before. On the two questions the
+     question sits in the middle of the card; the result starts at the top and grows with its
+     content. No height animation: the card simply re-lays out on a step change. */
   .quiz-layout .quiz-body {
     grid-area: card;
+    align-self: stretch;
     border-radius: var(--radius-lg);
     background: var(--surface);
     box-shadow:
       0 0 0 1px var(--hairline),
       var(--shadow-2);
+  }
+  .quiz-app:is([data-step="0"], [data-step="1"]) .quiz-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 }
 
@@ -233,24 +244,26 @@ html:not(.js) .quiz-app {
   opacity: 0.6;
 }
 
-/* The recommended program's apparatus under frame 03 (S3's ProgramIcon drawings). */
+/* The recommended program's apparatus under frame 03 (S3's ProgramIcon drawings, 1.5× their
+   v2 size — QP2-12). One stroke weight in strip units at every apparatus scale: the widths are
+   divided by the drawing's own scale (--s, inline from geometry.ts), as S3 keeps ≈2.8px. */
 .qb-app {
   opacity: 0;
 }
 .qb-app path {
   fill: none;
   stroke: var(--color-steel-300);
-  stroke-width: 1.15;
+  stroke-width: calc(3.4px / var(--s, 3));
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-dasharray: 1 2;
   stroke-dashoffset: 1.02;
 }
 .qb-app path[data-k="rail"] {
-  stroke-width: 1.5;
+  stroke-width: calc(4.6px / var(--s, 3));
 }
 .qb-app path[data-k="thin"] {
-  stroke-width: 0.8;
+  stroke-width: calc(2.4px / var(--s, 3));
   stroke-opacity: 0.7;
 }
 .quiz-band[data-app="parter"] .qb-app--parter,
@@ -790,6 +803,12 @@ html:not(.js) .quiz-app {
   fill: currentColor;
   stroke: none;
 }
+
+/* The aerobik print is the club silhouette itself (QP2-06): filled, not stroked. */
+.quiz-plate path[data-k="solid"] {
+  fill: currentColor;
+  stroke: none;
+}
 .quiz-groups:is([data-count="2"], [data-count="3"]) .quiz-plate {
   width: 32px;
   height: 32px;
@@ -805,8 +824,8 @@ html:not(.js) .quiz-app {
   border-radius: 6px;
 }
 .quiz-plate--hint svg {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
 }
 .quiz-plate--hint path {
   stroke-width: 1.5;
@@ -839,6 +858,27 @@ html:not(.js) .quiz-app {
   line-height: 1.3;
   letter-spacing: 0;
   font-weight: 700;
+}
+/* QP2-08: the two-group result (8 + „Tek počinje“) on the 7/12 pane. The names take the h4 step
+   (as at 768) and wrap evenly; the plate hangs on the first line instead of floating beside a
+   2–3 line block. Below 1360 the two groups stack (as the experience answers do, D-Q17): two
+   columns fit the names on one line only from there (at 1280 each needs 244px of a 234px column). */
+@media (min-width: 1024px) {
+  .quiz-app .quiz-groups[data-count="2"] .quiz-group {
+    align-items: start;
+  }
+  .quiz-app .quiz-groups[data-count="2"] .quiz-group > .quiz-plate {
+    margin-top: 0.1em;
+  }
+  .quiz-app .quiz-groups[data-count="2"] .quiz-group__name {
+    font-size: clamp(1.125rem, 1rem + 0.4vw, 1.375rem);
+    text-wrap: pretty;
+  }
+}
+@media (min-width: 1024px) and (max-width: 1359.98px) {
+  .quiz-app .quiz-groups[data-count="2"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .quiz-group__meta {
   grid-column: 2;

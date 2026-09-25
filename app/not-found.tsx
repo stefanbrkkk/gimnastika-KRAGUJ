@@ -18,7 +18,8 @@ const TITLE = typesetSr(NOT_FOUND.title).replace("ova stranica", "ova\u00a0stran
 /**
  * Custom 404 „Ravnoteža na gredi“ (§4) → out/404.html. Renders inside the root
  * layout (lang, skip link → #sadrzaj, sprite) but none of the home sections.
- * The beam scene stands on a page-wide gym floor; the judges' board posts 4.04.
+ * The beam scene stands on a page-wide gym floor (a mat line over a darker floor
+ * plane that runs to the bottom of the page); the judges' board posts 4.04.
  * Next adds <meta name="robots" content="noindex"> itself; the canonical is
  * dropped so a missing URL never claims to be the home page.
  */
@@ -52,11 +53,14 @@ export default function NotFound() {
               <ScorePlate />
               <BeamScene />
             </div>
-            {/* The contact-sheet frame code, under the floor like the photos' frame labels. */}
-            <p className="nf__frame frame-label" aria-hidden="true">
-              KR-404
-            </p>
-            <BeamTiltLoader label={NOT_FOUND.enableTilt} />
+            {/* Under the floor, one row: the contact-sheet frame code (like the photos' frame
+                labels) and, on iOS, the motion-sensor button right-aligned beside it. */}
+            <div className="nf__foot">
+              <p className="nf__frame frame-label" aria-hidden="true">
+                KR-404
+              </p>
+              <BeamTiltLoader label={NOT_FOUND.enableTilt} />
+            </div>
           </div>
         </div>
       </div>

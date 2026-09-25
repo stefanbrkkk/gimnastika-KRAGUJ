@@ -156,15 +156,24 @@ describe("DST edges (Europe/Belgrade)", () => {
   });
 });
 
-describe("„Sledeći trening“ scoreboard — earliest next start across the visible groups", () => {
+describe("„Sledeći trening“ scoreboard — earliest next training across the visible groups", () => {
   /** Board order = the S3/S4 program order (Mlađa, Starija, C starije, C mlađe, A i B, Aerobna). */
   const BOARD: readonly ScheduleGroup["id"][] = ["mladja", "starija", "c-starije", "c-mladje", "ab", "aerobik"];
+  const C: readonly ScheduleGroup["id"][] = ["c-starije", "c-mladje"];
+  const AB: readonly ScheduleGroup["id"][] = ["ab"];
+  /**
+   * "group · day · start[ ili alt]"; a start that has already begun today (an „ili“ slot whose
+   * later option is still ahead) is marked with "*".
+   */
   function board(ids: readonly ScheduleGroup["id"][] = BOARD): string | null {
     const best = earliestNext(ids.map((id) => groupSlots(group(id), isFixed)), belgradeNow());
-    return best ? `${ids[best.index]} · ${formatNextDay(best.next, ACC)} · ${best.next.start}` : null;
+    if (!best) return null;
+    const { next } = best;
+    const alt = next.alt.length ? ` ili ${next.alt.join(" ili ")}` : "";
+    return `${ids[best.index]} · ${formatNextDay(next, ACC)} · ${next.start}${next.started ? "*" : ""}${alt}`;
   }
 
-  it("Monday 17:00 → Mlađa „danas“ 18:00 (A i B's 16:00 option is never named)", () => {
+  it("Monday 17:00 → Mlađa „danas“ 18:00 (both options of the „ili“ slot have started)", () => {
     at("2026-09-28T17:00:00+02:00");
     expect(board()).toBe("mladja · danas · 18:00");
   });
@@ -174,16 +183,50 @@ describe("„Sledeći trening“ scoreboard — earliest next start across the v
     expect(board()).toBe("ab · sutra · 17:30");
   });
 
-  it("Friday evening → Mlađa „u ponedeljak“ 18:00 (A i B's Monday is an „ili“ slot → skipped)", () => {
+  it("Friday evening → Monday's „ili“ slot, both options named (the earliest training of the week)", () => {
     at("2026-09-25T21:00:00+02:00");
-    expect(board()).toBe("mladja · u ponedeljak · 18:00");
+    expect(board()).toBe("c-starije · u ponedeljak · 08:30 ili 16:00");
   });
 
-  it("respects the filter: C program on Thursday night has no fixed next start → null", () => {
-    at("2026-10-01T21:00:00+02:00");
-    expect(board(["c-starije", "c-mladje"])).toBeNull();
-    at("2026-09-28T20:30:00+02:00");
-    expect(board(["c-starije", "c-mladje"])).toBe("c-mladje · sutra · 19:30");
+  it("an „ili“ slot today whose first option has begun still counts while the later one is ahead", () => {
+    at("2026-09-28T12:00:00+02:00"); // Mon noon: 08:30 is over, 16:00 is ahead (earlier than Mlađa 18:00)
+    expect(board()).toBe("c-starije · danas · 08:30* ili 16:00");
+    at("2026-09-28T09:00:00+02:00"); // Mon 09:00: the 08:30 option is in progress
+    expect(board()).toBe("c-starije · danas · 08:30* ili 16:00");
+    at("2026-09-28T16:00:00+02:00"); // Mon 16:00: the last option has started → the next fixed start
+    expect(board()).toBe("mladja · danas · 18:00");
+  });
+
+  it("C program: never empty and never past Monday (Fri 14:40, Thu evening, Saturday, Monday evening)", () => {
+    at("2026-09-25T14:40:00+02:00"); // Fri: C starije and C mlađe both train 08:30 or 16:00 today
+    expect(board(C)).toBe("c-starije · danas · 08:30* ili 16:00");
+    at("2026-10-01T21:00:00+02:00"); // Thu night: C mlađe's 19:30 has started → Friday („ili“)
+    expect(board(C)).toBe("c-starije · sutra · 08:30 ili 16:00");
+    at("2026-09-26T10:00:00+02:00"); // Sat: Monday („Vidimo se u ponedeljak!“), not Tuesday 19:30
+    expect(board(C)).toBe("c-starije · u ponedeljak · 08:30 ili 16:00");
+    at("2026-09-28T20:30:00+02:00"); // Mon evening: C mlađe Tuesday 19:30 comes before Wednesday
+    expect(board(C)).toBe("c-mladje · sutra · 19:30");
+  });
+
+  it("A i B program: the „ili“ days and the fixed Ut/Če 17:30", () => {
+    at("2026-09-26T10:00:00+02:00"); // Saturday
+    expect(board(AB)).toBe("ab · u ponedeljak · 08:30 ili 16:00");
+    at("2026-09-28T07:00:00+02:00"); // Mon 07:00
+    expect(board(AB)).toBe("ab · danas · 08:30 ili 16:00");
+    at("2026-09-28T17:00:00+02:00"); // Mon 17:00: both options have started → Tue 17:30
+    expect(board(AB)).toBe("ab · sutra · 17:30");
+    at("2026-09-29T18:00:00+02:00"); // Tue 18:00: 17:30 has started → Wednesday („ili“)
+    expect(board(AB)).toBe("ab · sutra · 08:30 ili 16:00");
+    at("2026-09-25T14:40:00+02:00"); // Fri 14:40
+    expect(board(AB)).toBe("ab · danas · 08:30* ili 16:00");
+  });
+
+  it("every filter has a next training at every quarter hour of the week (the board is never empty)", () => {
+    const filters: readonly (readonly ScheduleGroup["id"][])[] = [BOARD, C, AB, ["mladja"], ["starija"], ["aerobik"]];
+    for (let q = 0; q < 7 * 96; q++) {
+      at(new Date(Date.parse("2026-09-28T00:00:00+02:00") + q * 15 * 60_000).toISOString());
+      for (const ids of filters) expect(board(ids), `${ids.join("+")} at +${q * 15} min`).not.toBeNull();
+    }
   });
 
   it("formatNextDay gives the day part of every chip form", () => {

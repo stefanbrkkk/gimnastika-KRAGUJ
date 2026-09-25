@@ -1,11 +1,13 @@
 /**
  * Geometry of the finale flight („Poslednji skok“) — pure math, no DOM, no GSAP.
  *
- * The silhouette takes off from the S11 title's mark, rises a little, and drops into a
- * back-salto dismount through the three static ghost frames onto the button. The path
- * is a centripetal Catmull-Rom spline through those points (it never loops or cusps),
- * sampled into a polyline so a position can be looked up by arc length; the timing is
- * ballistic: a decelerating rise to the apex, then an accelerating fall into the landing.
+ * The silhouette takes off from the S11 title's mark with a short hop (a parabola: up to
+ * the apex, then straight down past the mark until it is clear of the title's glyphs),
+ * and drops into a back-salto dismount through the three static ghost frames onto the
+ * button. The dismount is a centripetal Catmull-Rom spline through those points (it never
+ * loops or cusps); hop and spline are sampled into one polyline so a position can be
+ * looked up by arc length. The timing is ballistic: a decelerating rise to the apex, then
+ * an accelerating fall into the landing.
  */
 export interface Pt {
   x: number;
@@ -40,31 +42,16 @@ function catmull(p0: Pt, p1: Pt, p2: Pt, p3: Pt, t: number): Pt {
   return lerp(b1, b2, (tt - t1) / (t2 - t1));
 }
 
-export function buildPath(points: readonly Pt[], samplesPerSegment = 32): FlightPath {
-  const n = points.length;
-  if (n < 2) throw new Error("buildPath: needs two points");
-  const first = points[0]!;
-  const last = points[n - 1]!;
-  // Mirrored end tangents.
-  const ext = [lerp(points[1]!, first, 2), ...points, lerp(points[n - 2]!, last, 2)];
-  const xs: number[] = [first.x];
-  const ys: number[] = [first.y];
+/** A polyline looked up by arc length; `anchorAt` are sample indices of the key points. */
+function polylinePath(pts: readonly Pt[], anchorAt: readonly number[]): FlightPath {
+  const xs = pts.map((p) => p.x);
+  const ys = pts.map((p) => p.y);
   const lens: number[] = [0];
-  const anchors: number[] = [0];
-  for (let i = 1; i < n; i++) {
-    for (let j = 1; j <= samplesPerSegment; j++) {
-      const p = catmull(ext[i - 1]!, ext[i]!, ext[i + 1]!, ext[i + 2]!, j / samplesPerSegment);
-      const k = xs.length - 1;
-      lens.push(lens[k]! + Math.hypot(p.x - xs[k]!, p.y - ys[k]!));
-      xs.push(p.x);
-      ys.push(p.y);
-    }
-    anchors.push(lens[lens.length - 1]!);
-  }
+  for (let i = 1; i < pts.length; i++) lens.push(lens[i - 1]! + Math.hypot(xs[i]! - xs[i - 1]!, ys[i]! - ys[i - 1]!));
   const length = lens[lens.length - 1]!;
   return {
     length,
-    anchors,
+    anchors: anchorAt.map((i) => lens[Math.min(i, lens.length - 1)]!),
     at(s: number): Pt {
       const v = Math.min(Math.max(s, 0), length);
       let lo = 0;
@@ -79,6 +66,62 @@ export function buildPath(points: readonly Pt[], samplesPerSegment = 32): Flight
       return { x: xs[lo]! + (xs[hi]! - xs[lo]!) * t, y: ys[lo]! + (ys[hi]! - ys[lo]!) * t };
     },
   };
+}
+
+/** Samples of a centripetal Catmull-Rom spline through `points` (mirrored end tangents). */
+function splineSamples(points: readonly Pt[], samplesPerSegment: number): { pts: Pt[]; anchorAt: number[] } {
+  const n = points.length;
+  const first = points[0]!;
+  const last = points[n - 1]!;
+  const ext = [lerp(points[1]!, first, 2), ...points, lerp(points[n - 2]!, last, 2)];
+  const pts: Pt[] = [first];
+  const anchorAt = [0];
+  for (let i = 1; i < n; i++) {
+    for (let j = 1; j <= samplesPerSegment; j++) pts.push(catmull(ext[i - 1]!, ext[i]!, ext[i + 1]!, ext[i + 2]!, j / samplesPerSegment));
+    anchorAt.push(pts.length - 1);
+  }
+  return { pts, anchorAt };
+}
+
+export function buildPath(points: readonly Pt[], samplesPerSegment = 32): FlightPath {
+  if (points.length < 2) throw new Error("buildPath: needs two points");
+  const { pts, anchorAt } = splineSamples(points, samplesPerSegment);
+  return polylinePath(pts, anchorAt);
+}
+
+/**
+ * The finale's flight: a hop off the take-off point P0 — a parabola whose top is `rise` px
+ * above P0, drifting linearly to `drop` (straight under the mark, clear of the title) — and
+ * then the spline from `drop` through `through` (the ghost frames and the landing).
+ * Anchors: [P0, apex, drop, ...through]. With rise 0 the apex is P0 (no rise).
+ */
+export function buildFlight(p0: Pt, rise: number, drop: Pt, through: readonly Pt[], samplesPerSegment = 32): FlightPath {
+  const h = Math.max(0, rise);
+  const fall = drop.y - p0.y + h; // apex → drop, px (> 0: the drop point is below the apex)
+  // Parabola y(u) = p0.y − 4·h·u·(1 − u)… generalised to unequal ends: up h, down `fall`.
+  // Split the hop at the apex in proportion to √height (ballistic: time ∝ √height).
+  const uA = h > 0 ? Math.sqrt(h) / (Math.sqrt(h) + Math.sqrt(Math.max(fall, 1))) : 0;
+  const N = 24;
+  const hop: Pt[] = [];
+  let apexAt = 0;
+  for (let i = 0; i <= N; i++) {
+    const u = i / N;
+    const x = p0.x + (drop.x - p0.x) * u;
+    let y: number;
+    if (u <= uA && uA > 0) {
+      const v = u / uA; // 0 → 1: decelerating rise
+      y = p0.y - h * (1 - (1 - v) * (1 - v));
+    } else {
+      const v = uA < 1 ? (u - uA) / (1 - uA) : 1; // 0 → 1: accelerating fall
+      y = p0.y - h + fall * v * v;
+    }
+    if (u <= uA) apexAt = i;
+    hop.push({ x, y });
+  }
+  const spline = splineSamples([drop, ...through], samplesPerSegment);
+  const pts = [...hop, ...spline.pts.slice(1)];
+  const anchorAt = [0, apexAt, N, ...spline.anchorAt.slice(1).map((i) => i + N)];
+  return polylinePath(pts, anchorAt);
 }
 
 /**
@@ -106,7 +149,7 @@ const decelInv = (v: number) => 1 - accelInv(1 - v);
 
 export function flightTiming(path: FlightPath, apexIndex: number, drop: number, rise: number, total: number): FlightTiming {
   // Ballistic split: time up ∝ √rise height, time down ∝ √(rise + drop).
-  const up = Math.sqrt(Math.max(rise, 1));
+  const up = rise > 0 ? Math.sqrt(Math.max(rise, 1)) : 0;
   const down = Math.sqrt(Math.max(rise + drop, 1));
   // A little quicker off the mark than pure ballistics: the take-off is a spring, not a float.
   const riseTime = (0.8 * total * up) / (up + down);

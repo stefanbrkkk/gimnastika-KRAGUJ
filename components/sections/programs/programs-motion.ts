@@ -7,11 +7,16 @@
  *    in view (0.6s stick, stagger .06s ≤ .24s), through queuePrimaryMotion (one primary motion
  *    per viewport). Plates are observed, not cards, so a desktop row draws as one batch and the
  *    off-screen cards of the phone row never draw unseen.
- *  - Perform (MD-06/MI-02): right after its draw every apparatus performs once — the beam
- *    wobbles and settles, the bars swing under a giant-swing orbit, the springboard compresses
- *    under a vault flight, a tumbling pass hops along the floor diagonal, the aerobic figure
- *    jumps and sticks. Phones: the card that snaps fully into view performs again (≥4s apart),
- *    so only one card per viewport moves. Hover devices: on pointer enter / keyboard focus.
+ *  - Perform (MD-06/MI-02, QP2-11): right after its draw every apparatus performs once with its
+ *    own physics only — the beam flexes down and balances out, the rails flex under a swing, the
+ *    springboard compresses and the table takes the hands, the floor gives, the aerobic
+ *    silhouette crouches, jumps and sticks. No trails on the cards (at 84–132px a body-less arc
+ *    reads as a scratch); they live in the detail sheet, beside the posed silhouette.
+ *    Phones: the card that snaps fully into view performs again (≥4s apart), so only one card
+ *    per viewport moves. Hover devices: on pointer enter / keyboard focus.
+ *  - Mount (QP2-05): a plate tall enough for the scene (≥160px: the posed silhouette is shown by
+ *    CSS) plays the detail sheet's mount instead of that first perform — the drawing traces
+ *    itself, then the silhouette hops onto her pose and sticks it. Once per card.
  *  - Seam (MI-07): on desktop the floor-diagonal mat line of the section's cut draws from
  *    bottom-left to top-right (clip-path wipe, 0.9s flight) as the cut crosses 80% of the view.
  *  - Filter (MI-06): leaving cards take off (up, smaller, gone in 0.18s); staying cards glide
@@ -30,8 +35,10 @@ import { DUR, EASE, MQ, OFFSET, STAGGER, motionAllowed, queuePrimaryMotion } fro
 const CARD = "[data-program-card]";
 const PLATE = ".pc-plate";
 const DRAW_MS = DUR.reveal * 1000;
-/** Longest perform (bars: 0.85s swing after a 0.12s pull) — programs.css. */
-const PERFORM_MS = 1000;
+/** Longest perform (bars: the low rail's 0.97s flex, 80ms after the high one) — programs.css. */
+const PERFORM_MS = 1100;
+/** Card mount after the draw starts: hop from +450ms (0.5s), stick from +950ms (0.35s). */
+const MOUNT_MS = 1300;
 /** Phones: a card performs again only after this long. */
 const REARM_MS = 4000;
 /** Draw / perform stagger: .06s per plate, ≤ .24s in total (QP-14). */
@@ -54,8 +61,14 @@ export function armPrograms(root: HTMLElement, strip: HTMLElement): () => void {
   const lastPerform = new WeakMap<HTMLElement, number>();
   let disposed = false;
 
+  /** The plate shows the posed silhouette (CSS container query: plate ≥160px tall). */
+  const isScene = (card: HTMLElement) => {
+    const fig = card.querySelector(".pc-icon .pi-fig-x");
+    return !!fig && getComputedStyle(fig).display !== "none";
+  };
+
   const perform = (card: HTMLElement, delay = 0) => {
-    if (disposed || !motionAllowed() || !card.hasAttribute("data-drawn") || card.hasAttribute("data-perform")) return;
+    if (disposed || !motionAllowed() || !card.hasAttribute("data-drawn") || card.matches("[data-perform], [data-mount]")) return;
     card.style.setProperty("--perform-delay", `${delay}s`);
     card.setAttribute("data-perform", "");
     lastPerform.set(card, performance.now() + delay * 1000);
@@ -76,18 +89,32 @@ export function armPrograms(root: HTMLElement, strip: HTMLElement): () => void {
       }
       if (waiting) return;
       waiting = true;
-      const total = DRAW_MS + staggerOf(pending.length - 1) * 1000 + PERFORM_MS;
+      const total = staggerOf(pending.length - 1) * 1000 + Math.max(DRAW_MS + PERFORM_MS, MOUNT_MS);
       void queuePrimaryMotion(total).then(() => {
         const batch = pending;
         pending = [];
         waiting = false;
         if (disposed) return;
+        const scenes = batch.map(isScene);
         batch.forEach((card, k) => {
           card.style.setProperty("--draw-delay", `${staggerOf(k)}s`);
+          // A scene plate mounts: the silhouette hops on as the line completes (CSS, data-mount).
+          if (scenes[k]) {
+            card.setAttribute("data-mount", "");
+            lastPerform.set(card, performance.now());
+          }
           card.setAttribute("data-drawn", "");
         });
-        // The apparatus comes alive the moment its line is complete.
-        later(() => batch.forEach((card, k) => perform(card, staggerOf(k))), DRAW_MS);
+        // The apparatus comes alive the moment its line is complete (plain plates).
+        later(
+          () =>
+            batch.forEach((card, k) => {
+              if (!scenes[k]) perform(card, staggerOf(k));
+            }),
+          DRAW_MS,
+        );
+        // The mount ends on the final pose: dropping the attribute changes nothing on screen.
+        later(() => batch.forEach((card) => card.removeAttribute("data-mount")), MOUNT_MS + staggerOf(batch.length - 1) * 1000);
       });
     },
     { threshold: 0.6 },
@@ -160,6 +187,7 @@ export function armPrograms(root: HTMLElement, strip: HTMLElement): () => void {
       card.removeEventListener("pointerenter", onPointerEnter);
       card.removeEventListener("focusin", onFocusIn);
       card.removeAttribute("data-perform");
+      card.removeAttribute("data-mount");
     }
     if (section?.getAttribute("data-seam") === "wait") section.removeAttribute("data-seam");
   };
@@ -201,13 +229,24 @@ interface FlipFilterOptions {
   done: () => void;
 }
 
+/** Stacking during the Flip (QP2-09): the leaving frames go absolute for their take-off and would
+ *  paint over the frames that stay; stayers and arrivals are lifted above them until it ends.
+ *  Leaving = filtered out (data-out) or dropped by the sheet's count rule (the photo, CSS
+ *  display:none) — read before Flip puts its own inline display on them. */
+const lift = (items: readonly HTMLElement[], on: boolean) => {
+  const leaving = on ? items.map((el) => el.hasAttribute("data-out") || getComputedStyle(el).display === "none") : [];
+  items.forEach((el, k) => (el.style.zIndex = on ? (leaving[k] ? "0" : "1") : ""));
+};
+
 export async function flipFilter({ items, apply, commit, done }: FlipFilterOptions): Promise<void> {
   const { gsap, loadFlip } = await loadMotion();
   const Flip = await loadFlip();
+  lift(items, false);
   // getState() completes a Flip still running from a previous chip.
   const state = Flip.getState(items as HTMLElement[]);
   apply();
   commit();
+  lift(items, true);
   const drop = window.matchMedia("(min-width: 1024px)").matches ? OFFSET.desktop : OFFSET.mobile;
   Flip.from(state, {
     duration: DUR.base,
@@ -233,6 +272,9 @@ export async function flipFilter({ items, apply, commit, done }: FlipFilterOptio
         .timeline()
         .to(els, { opacity: 0, duration: DUR.fast, ease: "none" }, 0)
         .to(els, { y: -8, scale: 0.97, duration: DUR.fast, ease: EASE.takeoff }, 0),
-    onComplete: done,
+    onComplete: () => {
+      lift(items, false);
+      done();
+    },
   });
 }

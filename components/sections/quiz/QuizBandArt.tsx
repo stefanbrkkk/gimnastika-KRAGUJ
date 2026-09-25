@@ -62,7 +62,12 @@ export function QuizBandArt() {
           const a = APPARATUS[id];
           const art = iconArt(id);
           return (
-            <g key={id} className={`qb-app qb-app--${id}`} transform={`translate(${a.x} ${a.y}) scale(${a.s})`}>
+            <g
+              key={id}
+              className={`qb-app qb-app--${id}`}
+              transform={`translate(${a.x} ${a.y}) scale(${a.s})`}
+              style={{ "--s": a.s } as Vars}
+            >
               {art.paths.map(({ d, k }) => (
                 <path key={d} d={d} pathLength={1} data-k={k} />
               ))}

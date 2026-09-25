@@ -107,8 +107,9 @@ function roving<K>(e: KeyboardEvent, keys: readonly K[], current: K, pick: (k: K
 /**
  * Schedule island: segmented control [Po grupi] · [Po danu] and the day strip, both with
  * a sliding pill; program filter pills with a polite status line; the „Sledeći trening“
- * scoreboard (earliest fixed start of the shown groups, after mount, every minute); the
- * day strip's after-mount today selection (Europe/Belgrade); and the cross-section filter
+ * scoreboard (earliest training of the shown groups, an „ili“ slot with both options; after
+ * mount, every minute); the day strip's after-mount today selection (Europe/Belgrade); and
+ * the cross-section filter
  * contract ([data-schedule-program] clicks and SCHEDULE_FILTER_EVENT). All content is
  * server-rendered; without JS the controls are hidden and the "Po grupi" view is the
  * complete schedule. Motion, today's marks, the Google Calendar date refresh and the
@@ -274,10 +275,12 @@ export function ScheduleBoard({ heading, programs, days, groups, byGroup, byDay,
   const focusDay: DayCode = selectedDay ?? dayCodes[0] ?? "po";
   const dayIndex = selectedDay ? dayCodes.indexOf(selectedDay) : -1;
 
-  // „Sledeći trening“: the earliest fixed start among the groups the filter shows.
+  // „Sledeći trening“: the earliest training among the groups the filter shows; an „ili“ slot
+  // posts its first option and lists the other one under the numerals („ili 16:00“).
   const shownGroups = groups.filter((g) => filter === "all" || g.programId === filter);
   const best = now ? earliestNext(shownGroups.map((g) => g.slots), now) : null;
   const bestGroup = best ? shownGroups[best.index] : undefined;
+  const alt = best?.next.alt.length ? `ili ${best.next.alt.join(" ili ")}` : "";
 
   const check = (
     <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" className="ui-icon sched-pill__check">
@@ -360,8 +363,13 @@ export function ScheduleBoard({ heading, programs, days, groups, byGroup, byDay,
       </p>
 
       {/* The judges' scoreboard: time-dependent, so SSR renders the dark shell („––:––“).
-          Each numeral is its own cell so only the digits that change post again (CSS). */}
-      <div className="sched-score" data-state={now ? (best ? "ready" : "none") : "pending"}>
+          Each numeral is its own cell so only the digits that change post again (CSS).
+          data-started: today's first „ili“ option has begun (muted), the later one is ahead. */}
+      <div
+        className="sched-score"
+        data-state={now ? (best ? (alt ? "alt" : "ready") : "none") : "pending"}
+        data-started={best?.next.started ? "" : undefined}
+      >
         <p className="sched-score__label" aria-hidden="true">
           {T.next}
         </p>
@@ -380,6 +388,9 @@ export function ScheduleBoard({ heading, programs, days, groups, byGroup, byDay,
             </span>
           ))}
         </p>
+        <p className="sched-score__alt" aria-hidden="true">
+          {alt}
+        </p>
         <p className="sched-score__group" aria-hidden="true">
           {bestGroup ? (
             <>
@@ -388,7 +399,7 @@ export function ScheduleBoard({ heading, programs, days, groups, byGroup, byDay,
             </>
           ) : null}
         </p>
-        <p className="sr-only">{best && bestGroup ? `${T.next}: ${formatNextTraining(best.next, accusatives)}, ${bestGroup.name}` : null}</p>
+        <p className="sr-only">{best && bestGroup ? `${T.next}: ${formatNextTraining(best.next, accusatives)}${alt ? ` ${alt}` : ""}, ${bestGroup.name}` : null}</p>
       </div>
 
       <div role="tabpanel" id="sched-panel-group" aria-labelledby="sched-tab-group" className="sched-panel" hidden={view !== "group"}>

@@ -23,12 +23,12 @@
  * render(t) touches only transform, opacity, clip-path and stroke-dashoffset;
  * restore() puts every attribute back as the server rendered it, and the
  * last frame equals that composition.
- * Desktop: pin +=80%, scrub .5 — scrub.ts, a separate chunk loaded with
+ * Desktop: pin +=50%, scrub .5 — scrub.ts, a separate chunk loaded with
  * ScrollTrigger after the intro.
  */
 import { useEffect } from "react";
 import { EASE, MQ, gsap, loadScrollTrigger, queuePrimaryMotion, registerMotion } from "@/lib/motion";
-import { GHOST_OPACITY } from "./constants";
+import { ghostOpacity } from "./constants";
 import {
   COMPACT_PASS,
   HIP_BACK,
@@ -155,7 +155,7 @@ function floorPass(art: SVGSVGElement, decor: HTMLElement) {
     if (flexD !== null) flex.setAttribute("d", flexD);
   };
   const put = writer();
-  const tickTo = ticks.map((_, i) => GHOST_OPACITY[i]! * 2.4);
+  const tickTo = ticks.map((_, i) => ghostOpacity(i, ticks.length) * 2.4);
   // The floor's give is measured just before the touchdown (a resize or a turn
   // of the phone during the intro never leaves it misplaced).
   let flexGeo: ReturnType<typeof flexGeometry> | undefined;
@@ -183,7 +183,7 @@ function floorPass(art: SVGSVGElement, decor: HTMLElement) {
     // overshoot, then it settles to its resting value
     spec.ghosts.forEach((at, i) => {
       const since = t - at;
-      const rest = GHOST_OPACITY[i]!;
+      const rest = ghostOpacity(i, spec.ghosts.length);
       const peak = rest + PASS.develop;
       let o = 0;
       if (since >= PASS.developRise) o = rest + (peak - rest) * (1 - easeOut(clamp01((since - PASS.developRise) / PASS.developSettle)));
@@ -271,7 +271,7 @@ export default function HeroMotion() {
     });
 
     // ---- Desktop only: pin + scrub after the intro ----
-    // The pin inserts 80vh of spacing after the hero. It is created only while
+    // The pin inserts 50vh of spacing after the hero. It is created only while
     // the page rests at the top, so it never shifts a scrolled viewport, never
     // cuts off a smooth hash scroll (deep link /#raspored, a nav click during
     // the intro) and never snaps back a visitor who scrolled during the intro.

@@ -97,7 +97,8 @@
   }
 
   /* Desktop 5/7: the panel stands in the right 7 columns under the right-aligned title
-     (title → panel → button in one column); channels, then the venue, on the left. */
+     (title → panel → button in one column); channels, then the venue, on the left.
+     The panel hugs its content (CV2-08): no stretched slab with dead navy in it. */
   @media (min-width: 1024px) {
     .contact__grid {
       grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -106,14 +107,34 @@
     .cta-panel {
       grid-column: 6 / -1;
       grid-row: 2 / 4;
+      align-self: start;
+    }
+    /* CV2-08: the channels rise so the „Pozovite“ row stands level with the title's
+       second line (16px under its line box, so the list never meets line 1's glyphs);
+       the venue card sits on the slab's floor line. */
+    .contact__grid {
+      --title-lh: calc(var(--text-display, clamp(2.25rem, 1rem + 5.4vw, 6rem)) * var(--text-display--line-height, 0.92));
+      --heading-gap: 64px;
+    }
+    .contact__heading {
+      margin-bottom: var(--heading-gap);
     }
     .contact-channels {
       grid-column: 1 / span 5;
       grid-row: 2;
-      margin-top: 0;
+      margin-top: calc(16px - var(--heading-gap) - var(--title-lh));
     }
     .contact-venue {
       grid-column: 1 / span 5;
+      align-self: end;
+    }
+  }
+
+  /* Short laptops (1366×768, 1280×800): a tighter title → panel step keeps the whole
+     doskok button in view after the „Kontakt“ jump (CV2-02). */
+  @media (min-width: 1024px) and (max-height: 820px) {
+    .contact__grid {
+      --heading-gap: 24px;
     }
   }
 }
@@ -194,6 +215,21 @@
   margin-top: var(--trail-h);
 }
 
+/* Phones (CV2-01): the trust list steps under the privacy line, so the finale flight
+   falls from the title's mark through empty navy onto the button (never across the
+   list's words), and the button sits ~110px nearer the thumb. */
+@media (max-width: 639.98px) {
+  .cta-panel__trust {
+    order: 3;
+    margin-top: 20px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(141, 169, 198, 0.2);
+  }
+  .cta-panel__trust li:first-child {
+    padding-top: 8px;
+  }
+}
+
 .cta-panel__privacy {
   max-width: 44ch;
   margin: 12px auto 0;
@@ -245,6 +281,12 @@
 }
 
 @media (min-width: 1024px) {
+  /* CV2-02: the header „Kontakt“ jump (and every href="#kontakt") skips the decorative
+     diagonal and the section's top padding: the title lands 16px under the 88px header
+     line, so the doskok button is in full view on laptops (1024×768 … 1440×900). */
+  .contact {
+    scroll-margin-top: calc(-128px - var(--cut, 0px));
+  }
   .cta-panel__slab {
     --leap-w: 96px;
     padding: 44px 44px 36px;
@@ -253,15 +295,19 @@
     --sash-w: 260px;
     --sash-band: 88px;
   }
-  /* The slab stretches to the left column's height: the trust list stays on top and
-     the landing (button + privacy) sits on the slab's floor, so the trail sits below the
-     trust rows and the column can widen (fewer two-line points in the 7/12 panel). */
+  /* The trust list stays on top and the landing (button + privacy) under it; the trail
+     keeps its room beside the list and under the sash. The column can widen (fewer
+     two-line points in the 7/12 panel). */
   .doskok {
-    margin-top: auto;
+    margin-top: 0;
     padding-top: 28px;
   }
+  /* The trail's room also clears the sash: ghost 1 (tilted +30°) stays under its lower
+     edge now that the slab hugs its content. */
   .cta-panel__trust {
     max-width: 62%;
+    min-height: calc(var(--trail-h) + 64px);
+    align-content: start;
   }
 }
 
@@ -492,6 +538,24 @@
   transition: text-decoration-color var(--dur-fast) var(--ease-stick);
 }
 
+/* Focus (CV2-11): a rounded ring with a background gap, like every other ring on the site
+   (buttons, rows) — not a hard square on the digits. 4px of padding keeps it off the „0“;
+   the negative margin keeps the digits aligned with the label. (The transparent outline
+   is what forced-colours mode draws.) */
+.contact-phone {
+  border-radius: 8px;
+  padding-inline: 4px;
+  margin-inline: -4px;
+}
+
+.contact-phone:focus-visible {
+  outline: 2px solid transparent;
+  outline-offset: 3px;
+  box-shadow:
+    0 0 0 3px var(--bg),
+    0 0 0 5px var(--focus);
+}
+
 .contact-phone--primary {
   font-size: 1.75rem;
   font-weight: 700;
@@ -503,17 +567,18 @@
     flex-direction: row;
     align-items: center;
   }
-  /* The hairline sits between the links, outside both (focus rings hug the numbers). */
+  /* The hairline sits between the links, outside both boxes and their focus rings: 20px
+     from each number (37px margin + the 4px padding = the 41px step between the digits). */
   .contact-phone + .contact-phone {
     position: relative;
-    margin-left: 41px;
+    margin-left: 37px;
   }
   .contact-phone + .contact-phone::before {
     content: "";
     position: absolute;
     top: 6px;
     bottom: 6px;
-    left: -21px;
+    left: -17px;
     width: 1px;
     background: var(--hairline);
   }

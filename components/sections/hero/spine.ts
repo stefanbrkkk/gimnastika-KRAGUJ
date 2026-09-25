@@ -12,11 +12,18 @@
  * eyebrow, the H1, the subline, the CTAs or the trust strip. It slips past
  * the ragged right edge of the trust list and under the H1's last line.
  *
+ * With `runner` (the second exposure standing on the line), the diagonal also
+ * starts low enough that her whole figure clears the text: she runs the
+ * diagonal under the trust strip, never over it.
+ *
  * With `next` (the next section's title mark), the route runs on into that
  * section: the diagonal continues to a level floor in the empty band above
- * the section's content, runs along it to a lane beside the title, drops
+ * the section's content, runs along it to a lane beside the title — right of
+ * every title line it passes, not just the mark's line (nextLeg) — drops
  * down the lane to the title's baseline and ends at the mark — the second
- * exposure travels it and hands over to the mark's own landing.
+ * exposure travels it and hands over to the mark's own landing. routeClear()
+ * is the runtime guard: a route that would still touch a title line is not
+ * drawn into the section.
  */
 
 export type Pt = readonly [number, number];
@@ -56,6 +63,26 @@ export interface SpineInput {
   minRun?: number;
   /** Where the route runs on to (the next section's title mark). */
   next?: SpineNext;
+  /**
+   * The figure that runs the diagonal standing on it (px): half its width and
+   * its height above the line. The diagonal starts low enough that the whole
+   * figure clears every obstacle, not only the line.
+   */
+  runner?: { half: number; height: number };
+}
+
+/** The next section's title as it sits right under the hero (hero-section coordinates, px). */
+export interface NextTitle {
+  /** The hero's bottom edge. */
+  bottom: number;
+  /** The title mark's box (its svg; the mark stands on the title's last line). */
+  mark: SpineRect;
+  /** x of the mark's takeoff point (the front toe of its first frame). */
+  endX: number;
+  /** The title's text line boxes (not inflated). */
+  lines: readonly SpineRect[];
+  /** Everything else in the section that reads or paints (inflated by the caller). */
+  others: readonly SpineRect[];
 }
 
 /** 28° below horizontal — the pitch of the leotard gradient (118deg), mirrored toward the left. */
@@ -74,10 +101,18 @@ function crosses(r: SpineRect, turn: number, y0: number, bottom: number, slope: 
   return xAtEnd <= r.right && xAtTop >= r.left;
 }
 
-/** Start of the diagonal on the drop: the highest y0 from which the diagonal clears every obstacle. */
+/**
+ * Start of the diagonal on the drop: the highest y0 from which the diagonal
+ * clears every obstacle — and, with a runner, from which the figure standing
+ * on it clears them too (each obstacle grown by the figure: half its width
+ * to either side, its height below).
+ */
 export function diagonalStart(input: SpineInput): number {
-  const { matY, turn, bottom, obstacles } = input;
+  const { matY, turn, bottom, runner } = input;
   const slope = input.slope ?? SPINE_SLOPE;
+  const obstacles = runner
+    ? input.obstacles.map((r) => ({ left: r.left - runner.half, top: r.top, right: r.right + runner.half, bottom: r.bottom + runner.height }))
+    : input.obstacles;
   let y0 = matY;
   // Each push only moves y0 down (to pass right of the obstacle at its bottom), so this converges.
   for (let pass = 0; pass <= obstacles.length; pass++) {
@@ -130,6 +165,46 @@ export function spineRoute(input: SpineInput): Pt[] {
   route.push([dropX, end[1]], end);
   // drop repeated points
   return route.filter((p, i) => i === 0 || Math.hypot(p[0] - route[i - 1]![0], p[1] - route[i - 1]![1]) > 0.25);
+}
+
+/**
+ * The route's run into the next section: the level floor in the empty band
+ * above the section's content, the lane beside the title and the end at the
+ * mark. The lane runs right of every title line it passes on the way down to
+ * the baseline — a first line wider than the mark's line („Koji program“ over
+ * „dete?“ + mark) pushes it out — and keeps 12–32 px of air on both sides,
+ * less than half the gap to whatever comes next at that level (the quiz card).
+ * The last leg then runs left along the baseline under the mark's line to the
+ * mark's takeoff point.
+ */
+export function nextLeg(t: NextTitle): SpineNext {
+  const { bottom, mark, lines, others } = t;
+  // the mark's viewBox is 208 high; its frames stand on 206
+  const baseline = mark.top + (mark.bottom - mark.top) * (206 / 208);
+  const contentTop = Math.min(mark.top, ...lines.map((r) => r.top), ...others.map((r) => r.top));
+  const floorY = bottom + Math.max(20, Math.min(72, (contentTop - bottom) / 2));
+  const passed = lines.filter((r) => r.top < baseline && r.bottom > floorY);
+  const titleRight = Math.max(mark.right, ...passed.map((r) => r.right));
+  const beside = others.filter((r) => r.left >= titleRight - 1 && r.top < baseline && r.bottom > floorY);
+  const wall = Math.min(titleRight + 80, ...beside.map((r) => r.left));
+  const dropX = titleRight + Math.max(12, Math.min(32, (wall - titleRight) / 2));
+  return { floorY, dropX, end: [t.endX, baseline] };
+}
+
+const inside = (x: number, y: number, r: SpineRect) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+
+/**
+ * The runtime guard: does the route, as drawn (sampled every `step` px of arc
+ * length, corners included), stay out of every box? A route that would still
+ * touch a title line is not drawn into the next section.
+ */
+export function routeClear(pts: readonly Pt[], boxes: readonly SpineRect[], step = 1): boolean {
+  const m = measure(pts);
+  for (let s = 0; s <= m.length + step / 2; s += step) {
+    const q = m.point(s);
+    if (boxes.some((r) => inside(q.x, q.y, r))) return false;
+  }
+  return true;
 }
 
 /**

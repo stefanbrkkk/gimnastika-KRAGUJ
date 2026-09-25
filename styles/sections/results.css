@@ -145,6 +145,16 @@
   pointer-events: none;
 }
 
+/* Phones: every window is the same piece of hardware (RC2-03). A fixed 72px face, centred
+   beside its caption; a long label only makes the row taller, never the window. */
+@media (max-width: 639.98px) {
+  .stat__value {
+    align-self: center;
+    height: 72px;
+    min-height: 0;
+  }
+}
+
 /* Narrow phones: a slimmer window so the long labels keep to ≤3 lines at 360 (the numerals
    stay ≥32px Doto and „2007“ still fits its window down to 320, the WCAG reflow width). */
 @media (max-width: 389.98px) {
@@ -160,12 +170,22 @@
   }
 }
 
+/* 320: a 92px window (Doto stays 32px; „2007“ fits with 6px side padding) and a 14px
+   caption, so the two long labels take 4 lines instead of 5 (RC2-03). */
 @media (max-width: 359.98px) {
   .stat {
-    --win: 100px;
+    --win: 92px;
+    column-gap: 12px;
+  }
+  .stat__value {
+    padding-inline: 6px;
   }
   .stat__num {
     font-size: 2rem;
+  }
+  .stat__label {
+    font-size: 14px;
+    line-height: 1.32;
   }
 }
 
@@ -188,7 +208,10 @@
   .stat__num {
     font-size: clamp(2.5rem, 1.35rem + 4.4vw, 5.25rem);
   }
+  /* The caption plate sits at the foot of every tile (RC2-04): labels of any length end on
+     one shared line and every „izvor“ on one row, like a scoreboard's name plates. */
   .stat__label {
+    margin-top: auto;
     padding-inline: 2px;
   }
   /* A footnote 6px under the label (RC-03); the 48px target overlaps the label's box. */
@@ -217,10 +240,21 @@
     top: 10px;
     left: 12px;
   }
+  /* The caption uses the tile's full width (RC2-04): two lines at 1440/1920, so the short
+     tiles no longer end in empty floors. */
   .stat__label {
-    max-width: 24ch;
+    max-width: none;
     font-size: 1.0625rem;
     line-height: 1.38;
+  }
+}
+
+/* 1024–1279: narrower tiles — a 16px caption with balanced lines (never a lone
+   „registrovane“ / „takmičarke“ on its own line). */
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  .stat__label {
+    font-size: 1rem;
+    text-wrap: balance;
   }
 }
 
@@ -366,8 +400,8 @@
 
 .medals__title {
   margin: 0 0 4px;
-  /* Room for the brush underline. */
-  padding-bottom: 12px;
+  /* Room for the brush underline, clear of the descenders (RC2-02). */
+  padding-bottom: 18px;
 }
 
 /* The word carries the white dry-brush underline (the S7 brush annotation, RC-01). */
@@ -379,7 +413,8 @@
 .medals__brush {
   position: absolute;
   left: -6px;
-  bottom: -12px;
+  /* In em of the title: the stroke runs under the „j“ descender at every size (RC2-02). */
+  bottom: -0.68em;
   width: calc(100% + 16px);
   height: auto;
   overflow: visible;
@@ -597,5 +632,15 @@
     grid-row: 2;
     justify-content: flex-start;
     margin-top: 24px;
+  }
+}
+
+/* Phone landscape (RC2-06): photo 01 is seen whole under the header — its column is capped by
+   the viewport height (same crop; the figure keeps its inline native/2 cap from Picture). */
+@media (orientation: landscape) and (max-height: 540px) {
+  .results__photo {
+    width: 100%;
+    max-width: calc((100svh - 110px) * 1.33);
+    margin-inline: auto;
   }
 }

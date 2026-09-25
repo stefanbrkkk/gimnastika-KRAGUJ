@@ -59,11 +59,17 @@ function CampNote() {
 }
 
 /**
- * Display lead: a short preposition never ends a line („na / gimnastičkom“) and the last
- * word never stands alone („kampu.“).
+ * Display lead (presentation only; the copy in content/ is unchanged): a short preposition
+ * never ends a line („na / gimnastičkom“), a coordinated pair is one idea and never splits
+ * („treninzi i druženje“, RC2-05), and the last word never stands alone („kampu.“). The lead
+ * then breaks only after „Leto“, after „ekipom:“ and before „na“. typesetSr has already glued
+ * „i“ to the next word, so the pair's second space may be a no-break one (\S never matches it).
  */
 const keepPrepositions = (text: string): string =>
-  text.replace(/(?<=^|\s)(na|sa|za|od|do|po|iz) /g, "$1\u00A0").replace(/ (\S+)$/, "\u00A0$1");
+  text
+    .replace(/(?<=^|\s)(na|sa|za|od|do|po|iz) /g, "$1\u00A0")
+    .replace(/(\S+) i[ \u00A0](\S+)/g, "$1\u00A0i\u00A0$2")
+    .replace(/ (\S+)$/, "\u00A0$1");
 
 function Arrow({ dir }: { dir: "prev" | "next" }) {
   return (

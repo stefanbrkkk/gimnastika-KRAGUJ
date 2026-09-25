@@ -22,17 +22,20 @@
 }
 
 @media (min-width: 1024px) {
-  /* Chips centred on the heading, as in S3 „Programi“. */
+  /* Chips centred on the heading, as in S3 „Programi“. The chip group takes its content width,
+     so the four chips stay on one row beside the title (at 1024 too: the gap narrows like S3's,
+     clamp 24 → 48px). Should they ever not fit (large text), the whole group wraps under the
+     title as one row — a lone chip never wraps on its own. */
   .gallery .gl-head {
     flex-direction: row-reverse;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 48px;
+    gap: 20px clamp(24px, 4.5vw - 16px, 48px);
     margin-bottom: 56px;
   }
   .gallery .gl-filters {
-    flex: 1 1 auto;
-    max-width: 640px;
+    flex: 0 1 auto;
   }
 }
 
@@ -159,7 +162,8 @@ html:not(.js) .gallery .gl-filters {
   --rf1: var(--r1);
   --x: calc(var(--W) * 0.7);
   position: relative; /* Flip: leaving prints go absolute inside while they fade */
-  container-type: inline-size;
+  /* The sheet decides the frame feet (one rule per sheet, see .frame-caption below). */
+  container: gl-sheet / inline-size;
   display: flex;
   flex-wrap: wrap;
   column-gap: var(--g);
@@ -276,6 +280,21 @@ html:not(.js) .gallery .gl-filters {
       linear-gradient(var(--rule), var(--rule)) right top / 1px 100% no-repeat;
     pointer-events: none;
   }
+  /* A filter Flip moves and scales the prints: the rule would ride the transform through the
+     photos. It steps out while the prints glide (gallery-flip.ts sets data-flipping) and is
+     drawn again under the landed strips. */
+  .gl-grid[data-flipping] .gl-item::after {
+    opacity: 0;
+  }
+}
+
+@media (min-width: 640px) and (prefers-reduced-motion: no-preference) {
+  .gl-item::after {
+    transition: opacity var(--dur-fast) linear;
+  }
+  .gl-grid[data-flipping] .gl-item::after {
+    transition: none;
+  }
 }
 
 /* The white paper mount (data-theme="light" tokens) on the darkroom sheet: a hairline of
@@ -293,13 +312,34 @@ html:not(.js) .gallery .gl-filters {
 }
 
 /* A print. The frame keeps its native/2 cap (inline max-width from <Picture>); the strip
-   maths gives it exactly that width or less. */
+   maths gives it exactly that width or less. The strip (a flex line) stretches its prints to
+   one height and the frame fills it, foot at the bottom: aspect-ratio heights can differ by a
+   64th of a pixel and round apart (KR-03 at 1024 painted 1px low), a stretched frame cannot. */
+.gl-open,
+.gl-mount {
+  height: 100%;
+}
+
 .gl-print.frame {
+  display: flex;
+  flex-direction: column;
   width: 100%;
+  height: 100%;
   margin: 0;
 }
 
+.gl-print > .photo {
+  flex: none;
+}
+
+/* A fixed foot (the captioned height): every frame in a strip ends on the same line, with or
+   without the category note. */
 .gl-print .frame-foot {
+  flex: none;
+  align-items: center;
+  height: 31px;
+  margin-top: auto;
+  padding-block: 0;
   padding-right: 28px; /* room for the zoom mark */
 }
 
@@ -312,15 +352,18 @@ html:not(.js) .gallery .gl-filters {
   text-align: center;
 }
 
-/* Narrow prints (a portrait in a strip): the category note would crowd the frame number and
-   the zoom mark. Phones drop it on every print, so a strip never mixes feet. */
-@container gl-print (max-width: 200px) {
+/* The category note is decided per sheet, so no strip mixes feet: only the full-width sheet
+   (≥1316px, from a 1412px viewport) has every print wide enough (the narrowest, KR-11, is
+   ≥200px there) for „▸ KR-xx“ + category + zoom mark. Narrower sheets show the frame number
+   alone on every print. */
+@container gl-sheet (width < 1316px) {
   .gl-print .frame-caption {
     display: none;
   }
 }
 
-@media (max-width: 479px) {
+/* Guard for other sheets (e.g. CAMP_GROUP_PHOTOS): a print this narrow never crowds its foot. */
+@container gl-print (max-width: 200px) {
   .gl-print .frame-caption {
     display: none;
   }
@@ -394,37 +437,49 @@ html:not(.js) .gallery .gl-filters {
   }
 }
 
-/* Hung prints (S9's primary motion; armHang in the lazy lightbox chunk sets data-hang on the
-   prints in view): each print swings in from a peg 8px above its frame — ±3° pendulum on the
-   uneven-bars swing ease — drops 10px and fades in; the strip's rule stays level. Stagger
-   50ms (≤ .30s). The hidden start exists only while the animation runs (fill: backwards). */
-@media (prefers-reduced-motion: no-preference) {
+/* Hung prints (S9's primary motion; armHang in the lazy lightbox chunk). A print arrives on the
+   line, it is never taken off it: only prints still below the fold at arm time wait on their
+   pegs (data-hang="pre": hidden, tilted ±3° about a peg 8px above the frame, 10px up — nothing
+   on screen changes). When a print's top edge is 12% into the viewport it plays
+   (data-hang="play"): the pendulum settles on the uneven-bars swing ease, the print drops onto
+   the line and fades in; the strip's rule (on the item) stays level. Stagger 50ms (≤ .30s).
+   The keyframes hold end states only, so each one starts from the pre-state itself (fill:
+   both covers the stagger delay). Screen only: a printed page shows every print. */
+@media screen and (prefers-reduced-motion: no-preference) {
   html.js-motion .gl-item[data-hang] {
-    animation: gl-fade 160ms linear calc(var(--k, 0) * 50ms) backwards;
+    opacity: 0;
   }
   html.js-motion .gl-item[data-hang] > * {
-    transform-origin: 50% -8px;
-    animation:
-      gl-swing var(--dur-swing) var(--ease-swing) calc(var(--k, 0) * 50ms) backwards,
-      gl-drop 400ms var(--ease-stick) calc(var(--k, 0) * 50ms) backwards;
-  }
-}
-
-@keyframes gl-swing {
-  from {
     rotate: var(--sw, -3deg);
-  }
-}
-
-@keyframes gl-drop {
-  from {
     translate: 0 -10px;
+    transform-origin: 50% -8px;
+    transition: none;
+  }
+  html.js-motion .gl-item[data-hang="play"] {
+    animation: gl-show 160ms linear calc(var(--k, 0) * 50ms) both;
+  }
+  html.js-motion .gl-item[data-hang="play"] > * {
+    animation:
+      gl-settle var(--dur-swing) var(--ease-swing) calc(var(--k, 0) * 50ms) both,
+      gl-land 400ms var(--ease-stick) calc(var(--k, 0) * 50ms) both;
   }
 }
 
-@keyframes gl-fade {
-  from {
-    opacity: 0;
+@keyframes gl-settle {
+  to {
+    rotate: 0deg;
+  }
+}
+
+@keyframes gl-land {
+  to {
+    translate: 0 0;
+  }
+}
+
+@keyframes gl-show {
+  to {
+    opacity: 1;
   }
 }
 
@@ -533,6 +588,8 @@ html[data-lightbox-open] body {
 /* The print: never wider than native/2 CSS px (--cap), never taller than the stage minus its
    foot; native aspect (never cropped). The foot has the photo's width. */
 .lb-print {
+  /* A size container: the foot drops the category when the print is too narrow for it. */
+  container: lb-print / inline-size;
   width: min(100%, var(--cap), calc((100svh - var(--lb-top) - var(--lb-bottom) - var(--lb-foot)) * var(--r)));
 }
 
@@ -577,6 +634,7 @@ html[data-lightbox-open] body {
 }
 
 .lb-foot__frame {
+  white-space: nowrap;
   font-size: 11px;
   line-height: 14px;
   letter-spacing: 0.12em;
@@ -588,6 +646,15 @@ html[data-lightbox-open] body {
 .lb-foot__frame::before {
   content: "▸ ";
   font-size: 9px;
+}
+
+/* „▸ KR-01 · Takmičenja“ + 16px + „11 / 11“ need ≈207px (measured): a narrower print (a portrait
+   on a phone on its side, 183px at 844×390) keeps frame number and counter on one line and lets
+   the category go. */
+@container lb-print (width < 212px) {
+  .lb-foot__cat {
+    display: none;
+  }
 }
 
 .lb-foot__count {
@@ -758,18 +825,28 @@ html[data-lightbox-open] body {
     top: 0;
     padding: 0 28px;
   }
+}
+
+/* Desktop: the rule is the current print's own measuring rule — exactly its width, 24px under
+   its foot (GalleryLightbox placeRule() writes the geometry; it glides to the next print). */
+@media (min-width: 1024px) and (min-height: 561px) {
   .lb-rule {
-    bottom: 32px;
-    width: min(40vw, 480px);
+    top: var(--rule-y, auto);
+    bottom: auto;
+    left: var(--rule-x, 50%);
+    width: var(--rule-w, min(40vw, 480px));
+    translate: none;
+    transform-origin: 0 50%;
   }
 }
 
 /* Short landscape screens (phones on their side): arrows at the edges, the rule at the
-   bottom, the caption folded away so the photo keeps the height. */
+   bottom, the caption folded away so the photo keeps the height. The stage keeps ≥12px
+   between the foot and the rule's marker. */
 @media (max-height: 560px) and (orientation: landscape) {
   .lightbox {
     --lb-top: 64px;
-    --lb-bottom: 44px;
+    --lb-bottom: 48px;
     --lb-foot: 34px;
   }
   .lb-slide {
@@ -783,7 +860,7 @@ html[data-lightbox-open] body {
     padding: 0 16px;
   }
   .lb-rule {
-    bottom: 20px;
+    bottom: 18px;
     width: min(40vw, 360px);
   }
 }

@@ -73,8 +73,10 @@ function DayNames({ days }: { days: readonly DayCode[] }) {
 /**
  * "08:30–10:30 ili 16:00–18:00" in tabular numerals; each range never breaks. With two
  * ranges the alternative starts a new line in the cards and „ili“ hangs in the gutter to
- * its left, so both ranges share one left edge (CSS: .sched-times[data-alt]). `stamp` adds
- * each range's start/end minutes for the „Po danu“ today marks (finished / next).
+ * its left, so both ranges share one left edge (CSS: .sched-times[data-alt]). The „Po danu“
+ * rows (`stamp`) have no gutter: „ili“ trails the first range („08:30–10:30 ili“) and the
+ * second range starts its own line at the same x on phones (one line from 640px). `stamp`
+ * also adds each range's start/end minutes for the today marks (finished / next).
  * The text (incl. the SHOW_SHIFT_NOTE suffix) comes from formatTimes().
  */
 function Times({ block, stamp = false }: { block: ScheduleBlock; stamp?: boolean }) {
@@ -86,12 +88,19 @@ function Times({ block, stamp = false }: { block: ScheduleBlock; stamp?: boolean
     <span className="sched-times tabular" data-alt={ranges.length > 1 ? "" : undefined}>
       {block.times.map((t, i) => (
         <Fragment key={i}>
-          {i > 0 ? " " : null}
+          {i > 0 && stamp ? (
+            <>
+              {" "}
+              <span className="sched-times__or">ili</span>{" "}
+            </>
+          ) : i > 0 ? (
+            " "
+          ) : null}
           <span
             className="sched-times__range"
             {...(stamp ? { "data-s": clockToMinutes(t.start), "data-e": clockToMinutes(t.end) } : {})}
           >
-            {i > 0 ? <span className="sched-times__or">ili </span> : null}
+            {i > 0 && !stamp ? <span className="sched-times__or">ili </span> : null}
             {ranges[i]}
           </span>
         </Fragment>
@@ -136,6 +145,15 @@ function CalendarIcon() {
     <svg className="ui-icon sched-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
       <path d="M3.5 10h17M8 3v4M16 3v4M12 13v5M9.5 15.5h5" />
+    </svg>
+  );
+}
+
+/** The .ics file: a download (the summary row keeps the calendar icon). */
+function DownloadIcon() {
+  return (
+    <svg className="ui-icon sched-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 15.5v3a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5v-3" />
     </svg>
   );
 }
@@ -242,7 +260,7 @@ function GroupCard({ group, anchor }: { group: ScheduleGroup; anchor: Date }) {
               <div className="sched-cal-d__body">
                 <div className="sched-cal">
                   <a className="sched-cal__link" href={icsHref(group)} type="text/calendar" aria-describedby={titleId}>
-                    <CalendarIcon />
+                    <DownloadIcon />
                     {typesetSr(T.ics)}
                   </a>
                   {fixed.map((block) => (

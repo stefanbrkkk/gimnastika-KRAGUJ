@@ -3,7 +3,8 @@
  * tap, prefetched when the sheet is near), so gsap may be imported here.
  *
  * The strips re-flow under Flip (≤280ms, stick): prints glide and scale (a
- * transform, never width/height). Leavers dismount — a small drop (takeoff ease)
+ * transform, never width/height); the Marey rules under the strips step out
+ * meanwhile and are drawn again under the landed strips. Leavers dismount — a small drop (takeoff ease)
  * while they fade (linear), so a leaving print is already half gone while the
  * others glide past it. Newcomers are hung on the line: a pendulum swing from a
  * peg above the print (±3°, alternating, uneven-bars swing ease), a short drop
@@ -45,6 +46,10 @@ export async function flipFilter({ items, shows, setView, isCurrent, previous }:
   const Flip = await loadFlip();
   if (!isCurrent()) return null;
   previous?.progress(1);
+  // The strip rules step out while the prints glide (gallery.css): a rule under a moving,
+  // scaling print would be drawn through the photos. Back on complete (and on interrupt).
+  const grid = items[0]?.parentElement ?? null;
+  grid?.setAttribute("data-flipping", "");
   const before = items.filter((el) => !el.hidden);
   const state = Flip.getState(before);
   // Leaving prints fade out where they stood. They are marked with data-leaving (display:none
@@ -62,6 +67,7 @@ export async function flipFilter({ items, shows, setView, isCurrent, previous }:
     }
     reset(leaving);
     reset(staying);
+    grid?.removeAttribute("data-flipping");
   };
   const drop = window.matchMedia("(min-width: 640px)").matches ? 10 : 8;
   const flip = Flip.from(state, {

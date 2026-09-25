@@ -9,10 +9,10 @@ const SHORT = `(max-height: ${SHORT_VIEWPORT_MAX}px)`;
 
 /**
  * Sticky bar visibility (renders nothing). IntersectionObservers on the hero
- * CTAs, the S11 contact block and the S10 action row, visualViewport for the
- * on-screen keyboard, focusin/out for form fields, and — on short viewports —
- * the header's data-hidden (the bar yields while the header is shown). No
- * scroll handler.
+ * CTAs, the S11 contact block, the S10 action row and the S3 progress rail,
+ * visualViewport for the on-screen keyboard, focusin/out for form fields, and —
+ * on short viewports — the header's data-hidden (the bar yields while the header
+ * is shown). No scroll handler.
  *
  * The same observers drive the header's data-cta: its „Zakažite probni trening“
  * pill steps aside while the hero CTAs or the S11 finale are on screen
@@ -100,6 +100,21 @@ export function StickyBarBehavior() {
     );
     if (enrollActions) actionsIO.observe(enrollActions);
 
+    // The S3 progress rail (prev/next + dots, under the card strip below 1024): on phones
+    // it sits in the dock's zone whenever the whole card is in view, so with half of it
+    // on screen the dock steps aside (same rule and motion as the S10 action row).
+    // [hidden] (one page of cards) = display:none = not intersecting.
+    const railIO = new IntersectionObserver(
+      ([e]) => {
+        if (!e) return;
+        s.programsRailVisible = e.isIntersecting && e.intersectionRatio >= 0.5;
+        render();
+      },
+      { threshold: [0, 0.5] },
+    );
+    const rail = document.querySelector(".pg-rail");
+    if (rail) railIO.observe(rail);
+
     const onViewport = () => {
       if (!vv) return;
       s.keyboardOpen = isKeyboardOpen(window.innerHeight, vv.height, vv.scale);
@@ -142,6 +157,7 @@ export function StickyBarBehavior() {
       heroViewIO.disconnect();
       contactIO.disconnect();
       actionsIO.disconnect();
+      railIO.disconnect();
       headerMO.disconnect();
       mobile.removeEventListener("change", onMobile);
       short.removeEventListener("change", onMobile);

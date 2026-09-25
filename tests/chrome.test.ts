@@ -111,6 +111,14 @@ describe("sticky bottom bar visibility", () => {
     expect(stickyBarVisible({ ...base, enrollActionsVisible: false })).toBe(true);
   });
 
+  it("steps aside while the S3 progress rail (prev/next + dots) is half in view", () => {
+    expect(stickyBarVisible({ ...base, programsRailVisible: true })).toBe(false);
+    expect(stickyBarVisible({ ...base, programsRailVisible: false })).toBe(true);
+    // it only ever hides the bar: never shows it where another rule keeps it away
+    expect(stickyBarVisible({ ...base, heroCtasPassed: false, programsRailVisible: false })).toBe(false);
+    expect(stickyBarVisible({ ...base, contactVisible: true, programsRailVisible: false })).toBe(false);
+  });
+
   it("detects the on-screen keyboard from the visual viewport", () => {
     expect(isKeyboardOpen(800, 800)).toBe(false);
     expect(isKeyboardOpen(800, 720)).toBe(false); // URL bar / small changes

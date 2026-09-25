@@ -1,10 +1,17 @@
 /**
  * „Licenca GSS“ stamp: a round rubber-stamp impression (double ring, „LICENCA“ set on the
- * upper arc, „GSS“ in the centre), inked rather than badged — no drop shadow, a thin
- * surface-tinted disc the print shows through, the ink multiplied into the paper on light
- * sections and a static speckle mask for uneven coverage (a different impression per card).
- * Two layers so the motion can press both while the ink keeps blending with the print:
- * `__base` (the disc) and `__ink` (rings + letters + the one-off ink ring of the press).
+ * upper arc, „GSS“ in the centre), inked rather than badged — no drop shadow, a faint
+ * surface-tinted disc the print shows through (AC2-07: 20 %, so it never frosts the photo),
+ * the ink multiplied into the paper on light sections and a static speckle mask for uneven
+ * coverage (a different impression per card). Layers, so the motion can press them together
+ * while the ink keeps blending with the print: `__base` (the disc) and `__ink` (rings +
+ * letters + the one-off ink ring of the press).
+ *
+ * `onPlate` (the KR-07 Marey plate): ink cannot lighten a dark print, and a pale disc over it
+ * turns grey. So that card has no disc, and where the impression crosses the navy plate it
+ * shows in the plate's own dark-theme accent (lav-200, ≥7:1 on navy) — the same impression,
+ * clipped to the plate by a static wrapper (coaches.css), so „GSS“ stays legible across the
+ * edge while the rest stays blue ink on paper.
  * The visual text lives in the SVG; assistive tech reads the plain-text label once.
  * No club or GSS logo, so it can never pass as an official GSS seal.
  */
@@ -38,16 +45,32 @@ function speckle(seed: string) {
   return { dots, soft };
 }
 
-export function LicenceStamp({ uid, label }: { uid: string; label: string }) {
+export function LicenceStamp({ uid, label, onPlate = false }: { uid: string; label: string; onPlate?: boolean }) {
   const arcId = `licenca-arc-${uid}`;
   const maskId = `licenca-ink-${uid}`;
   const [word = label, mark = ""] = label.split(" ");
   const { dots, soft } = speckle(`kraguj-stamp-${uid}`);
+  const impression = (
+    <>
+      <circle className="licence-stamp__ring" cx="50" cy="50" r="46.5" strokeWidth="2.6" />
+      <circle className="licence-stamp__ring" cx="50" cy="50" r="41" strokeWidth="1.1" />
+      <text className="licence-stamp__arc">
+        <textPath href={`#${arcId}`} startOffset="50%" textAnchor="middle">
+          {word.toUpperCase()}
+        </textPath>
+      </text>
+      <text className="licence-stamp__mark" x="50" y="65" textAnchor="middle">
+        {mark.toUpperCase()}
+      </text>
+    </>
+  );
   return (
-    <span className="licence-stamp" data-coach-stamp="">
-      <svg viewBox="0 0 100 100" className="licence-stamp__layer licence-stamp__base" aria-hidden="true" focusable="false">
-        <circle className="licence-stamp__disc" cx="50" cy="50" r="47" />
-      </svg>
+    <span className={onPlate ? "licence-stamp licence-stamp--plate" : "licence-stamp"} data-coach-stamp="">
+      {onPlate ? null : (
+        <svg viewBox="0 0 100 100" className="licence-stamp__layer licence-stamp__base" aria-hidden="true" focusable="false">
+          <circle className="licence-stamp__disc" cx="50" cy="50" r="47" />
+        </svg>
+      )}
       <svg viewBox="0 0 100 100" className="licence-stamp__layer licence-stamp__ink" aria-hidden="true" focusable="false">
         <defs>
           <path id={arcId} d="M 21.5 50 A 28.5 28.5 0 0 1 78.5 50" />
@@ -60,20 +83,20 @@ export function LicenceStamp({ uid, label }: { uid: string; label: string }) {
           </mask>
         </defs>
         <g className="licence-stamp__print" mask={`url(#${maskId})`}>
-          <circle className="licence-stamp__ring" cx="50" cy="50" r="46.5" strokeWidth="2.6" />
-          <circle className="licence-stamp__ring" cx="50" cy="50" r="41" strokeWidth="1.1" />
-          <text className="licence-stamp__arc">
-            <textPath href={`#${arcId}`} startOffset="50%" textAnchor="middle">
-              {word.toUpperCase()}
-            </textPath>
-          </text>
-          <text className="licence-stamp__mark" x="50" y="65" textAnchor="middle">
-            {mark.toUpperCase()}
-          </text>
+          {impression}
         </g>
         {/* The press: a one-off ink ring spreading from the rim (motion only, invisible at rest). */}
         <circle className="licence-stamp__splash" cx="50" cy="50" r="47" data-stamp-splash="" />
       </svg>
+      {onPlate ? (
+        <span className="licence-stamp__over-plate" aria-hidden="true">
+          <svg viewBox="0 0 100 100" className="licence-stamp__layer licence-stamp__ink" focusable="false">
+            <g className="licence-stamp__print" mask={`url(#${maskId})`}>
+              {impression}
+            </g>
+          </svg>
+        </span>
+      ) : null}
       <span className="sr-only">{label}</span>
     </span>
   );

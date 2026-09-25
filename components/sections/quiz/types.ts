@@ -10,7 +10,8 @@ export type QuizBandVariant = "flat" | "parter" | "greda" | "skip";
 
 /** An apparatus drawing of S3's ProgramIcon (48-unit box): stroked paths (+ stroke weight) and solid dots. */
 export interface QuizIconArt {
-  paths: readonly { d: string; k?: "thin" | "rail" | "post" }[];
+  /** Stroked paths, or a filled silhouette when k = "solid" (the aerobik print). */
+  paths: readonly { d: string; k?: "thin" | "rail" | "post" | "solid" }[];
   dots: readonly { cx: number; cy: number; r: number }[];
 }
 

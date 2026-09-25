@@ -37,7 +37,7 @@ function walk(node: ReactNode, visit: (type: unknown, props: Props) => boolean |
 }
 
 const classOf = (props: Props): string => (typeof props.className === "string" ? props.className : "");
-const STROKES = ["thin", "rail", "post"] as const;
+const STROKES = ["thin", "rail", "post", "solid"] as const;
 
 /**
  * The apparatus drawing of S3's ProgramIcon (48-unit box), read from the component itself so

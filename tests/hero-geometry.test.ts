@@ -31,7 +31,7 @@ import {
   type Pose,
   type Pt,
 } from "@/components/sections/hero/pass";
-import { SPINE_SLOPE, measure, roundRoute, spinePath, spineRoute, type SpineRect } from "@/components/sections/hero/spine";
+import { SPINE_SLOPE, measure, nextLeg, roundRoute, routeClear, spinePath, spineRoute, type SpineRect } from "@/components/sections/hero/spine";
 import { OG_SPEC } from "@/components/seo/art";
 
 /**
@@ -229,7 +229,9 @@ describe.each([
   });
 
   it("server-renders each ghost frame as the gymnast at its shutter time", () => {
-    expect(variant.ghosts).toHaveLength(6);
+    // six on the wide plate; five on the phones' plate (three in flight, so the apex never knots)
+    expect(variant.ghosts).toHaveLength(name === "compact" ? 5 : 6);
+    expect(variant.ghosts).toHaveLength(spec.ghosts.length);
     variant.ghosts.forEach((g, i) => {
       const p = pass.pose(spec.ghosts[i]!);
       expect(g.transform).toBe(matrixAttr(p.m));
@@ -254,6 +256,19 @@ describe.each([
     // left to right, evenly enough to read one by one (the torsos never overlap)
     const xs = frames.map(({ p }) => COM_OF(p)[0]);
     xs.slice(1).forEach((x, i) => expect(x - xs[i]!).toBeGreaterThan(name === "compact" ? 70 : 100));
+    if (name === "compact") {
+      // phones: from the takeoff on, each exposure stands ≥ .7 of the figure's width from the next
+      // (the wider of the two, measured on the rigged outline), so the apex frames never knot together
+      const width = (p: Pose) => {
+        const x = outline(p).map(([px]) => px);
+        return Math.max(...x) - Math.min(...x);
+      };
+      const from = frames.indexOf(onMat[0]!);
+      for (let i = from + 1; i < frames.length; i++) {
+        expect(xs[i]! - xs[i - 1]!).toBeGreaterThanOrEqual(0.7 * Math.max(width(frames[i]!.p), width(frames[i - 1]!.p)));
+      }
+      expect(air).toHaveLength(3);
+    }
     // the legs open to the full split by the last frame
     expect(Math.abs(air.at(-1)!.p.back)).toBeLessThan(2);
   });
@@ -359,22 +374,36 @@ describe("share image parabola (geometry.ts, components/seo/art.ts)", () => {
 /**
  * The desktop scrub's floor diagonal (spine.ts). Fixtures are the hero's real
  * text boxes (Range client rects of eyebrow, H1, sub and trust items + the CTA
- * buttons), section-relative, measured in Chromium at 1440×900 and 1024×768
- * (H1 „Sportska / gimnastika / za decu / u Kragujevcu“, capped at 126.9 / 90.5px).
+ * buttons), section-relative, and the next section's title („Koji program /
+ * je za vaše / dete?“ — its first line is the widest), its mark and its cards
+ * (the quiz card beside the title, the band card under it) as they sit right
+ * under the hero after the pin, measured in Chromium at the four desktop sizes
+ * (fine pointer). artK = px per art unit of the wide plate (the landed size).
  */
 const SPINE_FIXTURES = {
-  "1440x900": {
-    matY: 341, matEnd: 1380, w: 1440, h: 900, left: 60,
-    boxes: [[60, 359, 433, 377], [433, 359, 438, 377], [438, 359, 545, 377], [545, 359, 549, 377], [549, 359, 615, 377], [60, 355, 666, 534], [60, 467, 808, 646], [60, 578, 579, 757], [60, 690, 930, 869], [956, 403, 1370, 427], [956, 429, 1357, 453], [956, 455, 1345, 479], [956, 653, 972, 669], [980, 651, 1215, 672], [956, 686, 972, 702], [980, 683, 1165, 704], [956, 718, 972, 734], [980, 716, 1147, 737], [956, 509, 1380, 561], [956, 573, 1380, 625]],
-    // the next section's title „Koji / program / je za vaše / dete?“ and its mark, as they sit under the hero
-    mark: [260, 1238, 426, 1298], stage: [508, 1044, 1380, 1531],
-    title: [[60, 1041, 185, 1130], [60, 1102, 350, 1191], [60, 1162, 391, 1251], [60, 1228, 247, 1317]],
-  },
   "1024x768": {
-    matY: 269, matEnd: 976, w: 1024, h: 768, left: 48,
-    boxes: [[48, 287, 421, 305], [421, 287, 426, 305], [426, 287, 533, 305], [533, 287, 537, 305], [537, 287, 603, 305], [48, 292, 472, 420], [48, 371, 572, 499], [48, 451, 411, 579], [48, 530, 657, 658], [683, 327, 924, 351], [683, 353, 950, 377], [683, 379, 934, 403], [683, 406, 938, 430], [683, 432, 862, 456], [683, 630, 699, 646], [707, 627, 942, 648], [683, 663, 699, 679], [707, 660, 892, 681], [683, 695, 699, 711], [707, 692, 874, 713], [683, 485, 976, 537], [683, 549, 976, 601]],
-    mark: [206, 1068, 337, 1115], stage: [365, 912, 976, 1369],
-    title: [[48, 912, 147, 983], [48, 960, 277, 1031], [48, 1008, 309, 1079], [48, 1059, 196, 1130]],
+    matY: 269, matEnd: 976, w: 1024, h: 768, left: 48, artK: 0.5624,
+    boxes: [[48, 287, 421, 305], [426, 287, 533, 305], [537, 287, 603, 305], [48, 292, 472, 420], [48, 371, 572, 499], [48, 451, 411, 579], [48, 530, 657, 658], [683, 327, 924, 351], [683, 353, 950, 377], [683, 379, 934, 403], [683, 406, 938, 430], [683, 432, 862, 456], [737, 500, 922, 522], [739, 564, 919, 586], [707, 627, 942, 648], [707, 660, 892, 681], [707, 692, 874, 713], [683, 485, 976, 537], [683, 549, 976, 601]],
+    mark: [206, 1008, 337, 1055], cards: [[48, 1091, 421, 1257], [453, 912, 976, 1301]],
+    title: [[48, 900, 388, 971], [48, 948, 309, 1019], [48, 999, 196, 1070]],
+  },
+  "1280x800": {
+    matY: 304, matEnd: 1232, w: 1280, h: 800, left: 48, artK: 0.7175,
+    boxes: [[48, 322, 421, 340], [426, 322, 533, 340], [537, 322, 603, 340], [48, 321, 591, 481], [48, 422, 718, 582], [48, 522, 513, 682], [48, 622, 828, 782], [853, 364, 1187, 388], [853, 390, 1223, 414], [853, 417, 1214, 441], [853, 443, 989, 467], [950, 511, 1135, 533], [953, 575, 1133, 597], [877, 638, 1113, 659], [877, 671, 1063, 692], [877, 703, 1045, 724], [853, 496, 1232, 548], [853, 560, 1232, 612]],
+    mark: [232, 1055, 384, 1111], cards: [[48, 1147, 528, 1344], [560, 944, 1232, 1344]],
+    title: [[48, 930, 443, 1013], [48, 986, 352, 1069], [48, 1046, 220, 1129]],
+  },
+  "1440x900": {
+    matY: 341, matEnd: 1380, w: 1440, h: 900, left: 60, artK: 0.8,
+    boxes: [[60, 359, 433, 377], [438, 359, 545, 377], [549, 359, 615, 377], [60, 355, 666, 534], [60, 467, 808, 646], [60, 578, 579, 757], [60, 690, 930, 869], [956, 403, 1370, 427], [956, 429, 1357, 453], [956, 455, 1345, 479], [1075, 523, 1261, 545], [1078, 587, 1258, 609], [980, 651, 1215, 672], [980, 683, 1165, 704], [980, 716, 1147, 737], [956, 509, 1380, 561], [956, 573, 1380, 625]],
+    mark: [260, 1165, 426, 1225], cards: [[60, 1263, 597, 1476], [629, 1044, 1380, 1476]],
+    title: [[60, 1029, 490, 1118], [60, 1090, 391, 1179], [60, 1155, 247, 1244]],
+  },
+  "1920x1080": {
+    matY: 431, matEnd: 1620, w: 1920, h: 1080, left: 300, artK: 0.8,
+    boxes: [[300, 449, 673, 467], [678, 449, 785, 467], [789, 449, 855, 467], [300, 445, 906, 624], [300, 557, 1048, 736], [300, 668, 819, 847], [300, 780, 1170, 959], [1196, 493, 1610, 517], [1196, 519, 1597, 543], [1196, 545, 1585, 569], [1315, 613, 1501, 635], [1318, 677, 1498, 699], [1220, 741, 1455, 762], [1220, 773, 1405, 794], [1220, 806, 1387, 827], [1196, 599, 1620, 651], [1196, 663, 1620, 715]],
+    mark: [514, 1353, 690, 1418], cards: [[300, 1455, 837, 1668], [869, 1224, 1620, 1668]],
+    title: [[300, 1208, 759, 1304], [300, 1273, 653, 1369], [300, 1342, 500, 1438]],
   },
 } as const;
 
@@ -390,18 +419,25 @@ function parseSpine(d: string) {
 }
 
 const inRect = (x: number, y: number, r: SpineRect) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+const rect = ([l, t, r, b]: readonly number[]): SpineRect => ({ left: l!, top: t!, right: r!, bottom: b! });
 
 describe.each(Object.entries(SPINE_FIXTURES))("hero floor diagonal — %s", (_size, f) => {
   const obstacles = f.boxes.map((b) => inflate(b));
   const turnX = f.matEnd + Math.min(32, (f.w - f.matEnd) / 2);
-  const d = spinePath({ matY: f.matY, matEnd: f.matEnd, turn: turnX, bottom: f.h, left: f.left, obstacles });
-  const p = parseSpine(d);
+  // the second exposure runs at ≥ .45 of the landed size (scrub.ts): her figure standing on the line
+  const [ml, , mr, mb] = f.mark;
+  const kMark = (mr - ml) / 570;
+  const laneK = Math.max(0.12, (2 * Math.min(turnX - f.matEnd, f.w - turnX) - 8) / 230);
+  const kRun = Math.max(Math.min(laneK, kMark), 0.45 * f.artK);
+  const runner = { half: 114 * kRun, height: 160 * kRun };
+  const base = { matY: f.matY, matEnd: f.matEnd, turn: turnX, bottom: f.h, left: f.left, obstacles, runner };
+  const p = parseSpine(spinePath(base));
 
   it("extends the mat line to the right margin and drops down it", () => {
     expect(p.x0).toBe(f.matEnd);
     expect(p.y).toBe(f.matY);
     expect(p.turn).toBeGreaterThan(f.matEnd);
-    expect(p.turn).toBeLessThanOrEqual(f.w);
+    expect(p.turn).toBeLessThanOrEqual(f.w - 8);
     expect(p.drop).toBeGreaterThan(f.matY);
   });
 
@@ -422,23 +458,74 @@ describe.each(Object.entries(SPINE_FIXTURES))("hero floor diagonal — %s", (_si
     }
   });
 
-  it("runs on to the next section's title mark — level above its content, down beside the title, never through text or the card", () => {
-    const [ml, mt, mr, mb] = f.mark;
-    const k = (mr - ml) / 570;
-    const floorY = f.h + Math.min(72, (Math.min(f.stage[1], ...f.title.map((t) => t[1])) - f.h) / 2);
-    const dropX = mr + Math.min(32, (f.stage[0] - mr) / 2);
-    const end: Pt = [ml + 222.7 * k, mt + (mb - mt) * (206 / 208)];
-    const route = roundRoute(spineRoute({ matY: f.matY, matEnd: f.matEnd, turn: turnX, bottom: f.h, left: f.left, obstacles, next: { floorY, dropX, end } }), 14);
+  it("starts the diagonal low enough that she runs it whole, clear of every text box", () => {
+    // her figure standing on the diagonal: [x ± half] × [y − height, y], at ≥ .45 of the landed size
+    expect(kRun).toBeGreaterThanOrEqual(0.45 * f.artK);
+    const text = f.boxes.map((b) => inflate(b, 4));
+    for (let y = p.drop; y <= f.h; y += 1) {
+      const x = p.turn - (y - p.drop) / SPINE_SLOPE;
+      const fig = { left: x - runner.half, right: x + runner.half, top: y - runner.height, bottom: y };
+      text.forEach((r) => expect(fig.left < r.right && fig.right > r.left && fig.top < r.bottom && fig.bottom > r.top).toBe(false));
+    }
+  });
+
+  it("runs on to the next section's title mark — level above its content, down beside the title, never through a title line or a card", () => {
+    const title = f.title.map(rect);
+    const cards = f.cards.map(rect);
+    const next = nextLeg({ bottom: f.h, mark: rect(f.mark), endX: ml + 222.7 * kMark, lines: title, others: cards });
+    const route = roundRoute(spineRoute({ ...base, next }), 14);
     const path = measure(route);
-    expect(route.at(-1)).toEqual(end);
-    const s2 = [...f.title.map((b) => inflate(b, 4)), inflate(f.stage, 0)];
+    expect(route.at(-1)).toEqual(next.end);
+    // the lane passes right of every title line above the baseline (the first, widest one included) with air
+    expect(next.dropX).toBeGreaterThanOrEqual(Math.max(...title.map((r) => r.right)) + 12);
+    // … and left of the quiz card beside the title
+    cards.filter((c) => c.left > ml).forEach((c) => expect(next.dropX).toBeLessThanOrEqual(c.left - 12));
+    // the runtime guard agrees: the route stays out of every line (+2 px) and card
+    expect(routeClear(route, [...title.map((r) => inflate([r.left, r.top, r.right, r.bottom], 2)), ...cards])).toBe(true);
     for (let s = 0; s <= path.length; s += 1) {
       const q = path.point(s);
       if (q.y <= f.h) obstacles.forEach((r) => expect(inRect(q.x, q.y, r)).toBe(false));
-      else s2.forEach((r) => expect(inRect(q.x, q.y, r)).toBe(false));
+      else [...title, ...cards].forEach((r) => expect(inRect(q.x, q.y, r)).toBe(false));
     }
     // it reaches the title's baseline beside the mark and ends under the mark's first frame
-    expect(Math.abs(end[1] - mb)).toBeLessThan(1);
+    expect(Math.abs(next.end[1] - mb)).toBeLessThan(1);
+  });
+});
+
+describe("hero floor diagonal — the lane beside a title whose first line is the widest", () => {
+  // „Koji program / je za vaše / dete?“ + mark: line 1 reaches x 490, the mark's line only 426
+  const lines: SpineRect[] = [
+    { left: 60, top: 1029, right: 490, bottom: 1118 },
+    { left: 60, top: 1090, right: 391, bottom: 1179 },
+    { left: 60, top: 1155, right: 247, bottom: 1244 },
+  ];
+  const mark: SpineRect = { left: 260, top: 1165, right: 426, bottom: 1225 };
+  const card: SpineRect = { left: 629, top: 1044, right: 1380, bottom: 1476 };
+  const k = (mark.right - mark.left) / 570;
+  const input = { matY: 341, matEnd: 1380, turn: 1410, bottom: 900, left: 60, obstacles: [] };
+  const next = nextLeg({ bottom: 900, mark, endX: mark.left + 222.7 * k, lines, others: [card] });
+
+  it("drops right of the widest line it passes, not just right of the mark", () => {
+    expect(next.dropX).toBeGreaterThanOrEqual(490 + 12);
+    expect(next.dropX).toBeLessThanOrEqual(490 + 32);
+    expect(next.dropX).toBeLessThanOrEqual(card.left - 12);
+  });
+
+  it("never enters a title line, and the guard confirms it", () => {
+    const route = roundRoute(spineRoute({ ...input, next }), 14);
+    expect(routeClear(route, [...lines, card])).toBe(true);
+  });
+
+  it("the guard catches a lane beside the mark only (the old route through „program“)", () => {
+    const old = { ...next, dropX: mark.right + 32 };
+    const route = roundRoute(spineRoute({ ...input, next: old }), 14);
+    expect(routeClear(route, lines)).toBe(false);
+  });
+
+  it("keeps air on both sides when the next box is close", () => {
+    const tight = nextLeg({ bottom: 900, mark, endX: mark.left + 222.7 * k, lines, others: [{ ...card, left: 520 }] });
+    expect(tight.dropX - 490).toBeGreaterThanOrEqual(12);
+    expect(520 - tight.dropX).toBeGreaterThanOrEqual(12);
   });
 });
 

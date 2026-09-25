@@ -3,20 +3,24 @@
  * CoachesMotion — never in the first-load JS.
  *  - Portrait „from a crouch“: the whole print (paper included) rises out of the card —
  *    clip-path inset(100% 0 0 0) → inset(0), y 12 → 0, the image 1.08 → 1 — .6 s ease stick.
- *  - KR-07 Marey plate (no portrait yet): the ghost exposures of the leap appear one after
- *    another across the navy plate and the solid frame drops onto the mat with a stuck
- *    landing (compress and hold, EASE.land).
+ *  - KR-07 Marey plate (no portrait yet): always the finished static plate, like the
+ *    timeline's (AC2-03) — the card's only motion is the stamp press, 120 ms after it starts.
  *  - „Licenca GSS“ stamp press: ≤120 ms after the print lands the stamp comes down fast
  *    (scale 1.35 → .94, rotate −8° → 0, EASE.takeoff), settles (.94 → 1, EASE.land), a one-off
  *    ink ring spreads from the rim and the print under it gives 1.5 px.
- *  - Brush annotation over photo 05, drawn at hand speed with DrawSVG: the loaded core first,
- *    the bristle strands lagging and flicking off the paper at the end (≤.9 s).
+ *  - Brush annotation over photo 05, drawn at hand speed with DrawSVG (MI-AC-4): the loaded
+ *    core 0 → 100 % in .72 s, the four bristles +.04–.12 s behind it, each lifting off the
+ *    paper along its own flick (≤.92 s in all).
  *
  * Content is never held back behind decoration: a card starts when 20 % of it is in view,
  * through queuePrimaryMotion() (≤250 ms wait) — no wait for the section title's landing (an
  * accent). Safety net: a pre-hidden card ≥50 % in view for 300 ms without having started is
- * shown in its final state at once. The brush is decoration: once half of the print is in
- * view it is committed to play, after the card reveals still running (≤1.2 s).
+ * shown in its final state at once. The brush is decoration: it is committed to play when the
+ * reader pauses on the print (half in view, no scroll for 300 ms; or 1.4 s in view), after the
+ * card reveals still running (≤1.2 s).
+ * It takes a primary-motion slot for its draw, and — being decoration — it waits for a
+ * primary motion already running (another section's, e.g. the S7 score scan) instead of
+ * overlapping it; content arriving while it draws queues behind it (≤250 ms, RC2-08).
  *
  * Hidden pre-states are set by JS only for elements still off-screen (deep links and restored
  * scroll keep the static final state). gsap.matchMedia reverts everything if reduced motion is
@@ -27,8 +31,10 @@ import { DUR, EASE, MQ, gsap, loadDrawSVG, queuePrimaryMotion, registerMotion } 
 const REVEAL_THRESHOLD = 0.2;
 const SAFETY_THRESHOLD = 0.5;
 const SAFETY_MS = 300;
-/** The stamp comes down this long after the print has landed (≤120 ms). */
+/** The stamp comes down this long after the print has landed (≤120 ms)… */
 const STAMP_GAP = 0.08;
+/** …or, on the static KR-07 plate, this long after the card starts (AC2-03). */
+const PLATE_STAMP_GAP = 0.12;
 /** Stamp downstroke / ink ring. */
 const PRESS = 0.14;
 /** Minimum gap between two cards' stamp presses (ms). */
@@ -39,12 +45,30 @@ const CLIP_BLEED = 40;
 const BRUSH_WAIT_FOR_CARDS_MS = 1200;
 /** A pending card whose top is within this fraction of a viewport below the fold counts as „about to start“. */
 const JOIN_BELOW = 0.35;
+/** The hand starts when the reader pauses on the print: half in view and no scroll for this long… */
+const BRUSH_DWELL_MS = 300;
+/** …or once it has been in view this long, however they scroll. */
+const BRUSH_VIEW_MAX_MS = 1400;
+/** Brush draw (s): the core, the bristles' lag behind it, and its primary-motion slot. */
+const CORE_DRAW = 0.72;
+const BRISTLE_LAG = [0.04, 0.06, 0.09, 0.12] as const;
+const BRUSH_MS = 920;
+/** Decoration yields: the longest the brush waits for a primary motion already running… */
+const BRUSH_YIELD_MS = 1600;
+/** …and the pause it leaves after one. */
+const BRUSH_BREATH_MS = 220;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 const inView = (el: Element): boolean => {
   const r = el.getBoundingClientRect();
   return r.bottom > 0 && r.top < window.innerHeight;
+};
+
+/** Share of the element's height inside the viewport. */
+const shownShare = (el: Element): number => {
+  const r = el.getBoundingClientRect();
+  return r.height ? Math.max(0, Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0)) / r.height : 0;
 };
 
 type State = "pending" | "playing" | "done";
@@ -76,30 +100,22 @@ export function armCoaches(root: HTMLElement): () => void {
       const splash = stamp?.querySelector<SVGElement>("[data-stamp-splash]");
       if (!frame || !stamp || layers.length === 0 || !splash) return;
 
+      // The KR-07 plate is always the finished static plate: that card's motion is the stamp alone.
       const plate = el.querySelector<HTMLElement>("[data-coach-plate]");
-      const ghosts = plate ? Array.from(plate.querySelectorAll<SVGElement>("[data-plate-ghost]")) : [];
-      const solid = plate?.querySelector<SVGElement>("[data-plate-solid]") ?? null;
       const img = plate ? null : frame.querySelector<HTMLElement>("img");
-      if (plate ? !solid || ghosts.length === 0 : !img) return;
-
-      // Final opacities of the exposures (CSS: shared ghost steps), read before hiding them.
-      const ghostTo = ghosts.map((g) => parseFloat(getComputedStyle(g).opacity) || 0.3);
-      const solidTo = solid ? parseFloat(getComputedStyle(solid).opacity) || 1 : 1;
-      const cleared = [frame, stamp, ...layers, splash, ...ghosts, ...(solid ? [solid] : []), ...(img ? [img] : [])];
+      if (!plate && !img) return;
+      const cleared = [frame, stamp, ...layers, splash, ...(img ? [img] : [])];
 
       // --- Pre-states -------------------------------------------------------------------
-      if (plate && solid) {
-        gsap.set(ghosts, { opacity: 0, x: -3 });
-        gsap.set(solid, { opacity: 0, y: -8, transformOrigin: "50% 100%" });
-      } else if (img) {
+      if (img) {
         gsap.set(frame, { clipPath: `inset(${frame.offsetHeight}px -${CLIP_BLEED}px 0px -${CLIP_BLEED}px)`, y: 12 });
         gsap.set(img, { scale: 1.08, transformOrigin: "50% 100%" });
       }
       gsap.set(layers, { autoAlpha: 0, scale: 1.35, rotation: -8, y: -10, transformOrigin: "50% 50%" });
 
-      /** When the print has landed (s). */
-      const landed = plate ? 0.27 + 0.24 + DUR.land : DUR.reveal;
-      const duration = landed + STAMP_GAP + PRESS + DUR.base;
+      /** When the stamp comes down (s from the card's start). */
+      const pressAtStart = img ? DUR.reveal + STAMP_GAP : PLATE_STAMP_GAP;
+      const duration = pressAtStart + PRESS + Math.max(DUR.base, DUR.land);
 
       const card: Card = {
         el,
@@ -107,7 +123,7 @@ export function armCoaches(root: HTMLElement): () => void {
         duration,
         play: (onDone) => {
           // Two cards revealing together press their stamps one after the other, never as one thud.
-          let press = landed + STAMP_GAP;
+          let press = pressAtStart;
           const pressAt = performance.now() + press * 1000;
           if (Math.abs(pressAt - lastPress) < STAMP_STAGGER_MS) press += (lastPress + STAMP_STAGGER_MS - pressAt) / 1000;
           lastPress = performance.now() + press * 1000;
@@ -117,13 +133,7 @@ export function armCoaches(root: HTMLElement): () => void {
               onDone();
             },
           });
-          if (plate && solid) {
-            // Exposures of one leap: take-off, flight, descent… then the solid frame sticks the landing.
-            tl.to(ghosts, { opacity: (i: number) => ghostTo[i] ?? 0.3, x: 0, duration: 0.18, ease: EASE.stick, stagger: 0.09 }, 0)
-              .to(solid, { opacity: solidTo, duration: DUR.tap, ease: "none" }, 0.27)
-              .to(solid, { y: 0, duration: 0.24, ease: "power2.in" }, 0.27)
-              .fromTo(solid, { scaleY: 0.88, scaleX: 1.06 }, { scaleY: 1, scaleX: 1, duration: DUR.land, ease: EASE.land, immediateRender: false }, 0.51);
-          } else if (img) {
+          if (img) {
             tl.to(frame, { clipPath: `inset(-${CLIP_BLEED}px -${CLIP_BLEED}px -${CLIP_BLEED}px -${CLIP_BLEED}px)`, y: 0, duration: DUR.reveal, ease: EASE.stick }, 0)
               .to(img, { scale: 1, duration: DUR.reveal, ease: EASE.stick }, 0);
           }
@@ -207,33 +217,35 @@ export function armCoaches(root: HTMLElement): () => void {
         const r = c.el.getBoundingClientRect(); // desktop: a card beside the print, about to start
         return r.bottom > 0 && r.top < window.innerHeight * (1 + JOIN_BELOW);
       });
+    let dwell: ReturnType<typeof setTimeout> | undefined;
+    let unwatchBrush: (() => void) | undefined;
     if (brush && !inView(brush)) {
       loadDrawSVG()
         .then(() => {
           if (disposed || !live || inView(brush)) return; // scrolled in while loading → keep it static
-          const cores = Array.from(brush.querySelectorAll<SVGPathElement>('[data-brush-path="core"]'));
-          const strands = Array.from(brush.querySelectorAll<SVGPathElement>('[data-brush-path="strand"]'));
-          const core = cores[1] ?? cores[0];
-          const strand = strands[0];
-          if (!core || !strand) return;
-          // Share of each strand that follows the loop; the rest is the flick.
-          const loop = Math.min(0.99, core.getTotalLength() / (strand.getTotalLength() || 1));
+          const paths = Array.from(brush.querySelectorAll<SVGPathElement>("[data-brush-path]"));
+          const shadow = paths.filter((p) => p.dataset.brushPath === "shadow");
+          const core = paths.filter((p) => p.dataset.brushPath === "core");
+          const bristles = paths.filter((p) => p.dataset.brushPath === "strand");
+          if (core.length === 0) return;
+          const showStatic = () => gsap.set([brush, ...paths], { clearProps: "opacity,visibility,strokeDasharray,strokeDashoffset" });
           context.add(() => {
             gsap.set(brush, { autoAlpha: 0 });
-            gsap.set([...cores, ...strands], { drawSVG: "0%" });
+            gsap.set(paths, { drawSVG: "0%" });
           });
           const draw = () =>
             context.add(() => {
-              const tl = gsap.timeline({
-                onComplete: () => gsap.set([...cores, ...strands], { clearProps: "strokeDasharray,strokeDashoffset" }),
-              });
-              tl.set(brush, { autoAlpha: 1 }).to(cores, { drawSVG: "100%", duration: 0.72, ease: EASE.flight }, 0);
-              strands.forEach((path, i) => {
-                const at = 0.06 * (i + 1);
-                const body = 0.7 - 0.04 * i;
+              const tl = gsap.timeline({ onComplete: showStatic });
+              // The loaded core (and its navy under-stroke over the pale wall) at hand speed…
+              tl.set(brush, { autoAlpha: 1 }).to([...core, ...shadow], { drawSVG: "100%", duration: CORE_DRAW, ease: EASE.flight }, 0);
+              // …each bristle a little behind it along the loop, then off the paper along its flick.
+              bristles.forEach((path, i) => {
+                const at = BRISTLE_LAG[Math.min(i, BRISTLE_LAG.length - 1)] ?? 0.12;
+                const loop = Math.min(0.995, parseFloat(path.dataset.loop ?? "") || 0.95);
+                const body = CORE_DRAW - 0.02 - at / 2;
                 tl.to(path, { drawSVG: `${loop * 100}%`, duration: body, ease: EASE.flight }, at).to(
                   path,
-                  { drawSVG: "100%", duration: 0.12, ease: EASE.takeoff }, // the hand leaves the paper
+                  { drawSVG: "100%", duration: 0.04 + (1 - loop) * 1.6, ease: EASE.takeoff }, // the hand leaves the paper
                   at + body,
                 );
               });
@@ -242,17 +254,48 @@ export function armCoaches(root: HTMLElement): () => void {
             const until = performance.now() + BRUSH_WAIT_FOR_CARDS_MS;
             while (live && cardsBusy() && performance.now() < until) await sleep(100);
             if (!live) return;
-            await queuePrimaryMotion(900);
-            if (live) draw();
+            // Decoration yields to a primary motion already running (plus a breath for its settle,
+            // e.g. the S7 board's blink), then holds the slot for its draw.
+            const asked = performance.now();
+            await queuePrimaryMotion(BRUSH_MS + BRUSH_BREATH_MS, BRUSH_YIELD_MS);
+            if (performance.now() - asked > 30) await sleep(BRUSH_BREATH_MS);
+            if (!live) return;
+            if (shownShare(brush) >= 0.15) draw();
+            else context.add(showStatic); // the reader has moved on: no draw off-screen
           };
+          // Committed once the reader pauses on the print: half in view and no scrolling for
+          // BRUSH_DWELL_MS (a reader flicking on into S7 lets the score scan go first), or in
+          // view for BRUSH_VIEW_MAX_MS however they scroll.
+          let ratio = 0;
+          let seenAt = 0;
+          const arm = () => {
+            if (dwell) clearTimeout(dwell);
+            dwell = undefined;
+            if (ratio < 0.15) return;
+            const now = performance.now();
+            const pause = ratio >= 0.5 ? BRUSH_DWELL_MS : BRUSH_DWELL_MS * 4;
+            const wait = Math.max(0, Math.min(pause, seenAt + BRUSH_VIEW_MAX_MS - now));
+            dwell = setTimeout(() => {
+              stopWatch();
+              void play();
+            }, wait);
+          };
+          const onScroll = () => arm();
+          const stopWatch = () => {
+            brushIo?.disconnect();
+            window.removeEventListener("scroll", onScroll);
+          };
+          unwatchBrush = stopWatch;
           brushIo = new IntersectionObserver(
             (entries) => {
-              if (!entries.some((e) => e.isIntersecting)) return;
-              brushIo?.disconnect();
-              void play();
+              ratio = entries[entries.length - 1]?.intersectionRatio ?? 0;
+              if (ratio >= 0.15 && !seenAt) seenAt = performance.now();
+              if (ratio < 0.15) seenAt = 0;
+              arm();
             },
-            { threshold: 0.5 },
+            { threshold: [0, 0.15, 0.5] },
           );
+          window.addEventListener("scroll", onScroll, { passive: true });
           brushIo.observe(brush);
         })
         .catch(() => {
@@ -265,6 +308,8 @@ export function armCoaches(root: HTMLElement): () => void {
       revealIo.disconnect();
       safetyIo.disconnect();
       timers.forEach((t) => clearTimeout(t));
+      if (dwell) clearTimeout(dwell);
+      unwatchBrush?.();
       brushIo?.disconnect();
     };
   });

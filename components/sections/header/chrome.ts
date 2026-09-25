@@ -95,12 +95,18 @@ export interface StickyBarInputs {
   headerShown?: boolean;
   /** At least half of the S10 action row (.en-actions: trial CTA + call) is in the viewport. */
   enrollActionsVisible?: boolean;
+  /**
+   * At least half of the S3 progress rail (.pg-rail: prev/next + dots, under the card
+   * strip on phones and tablets) is in the viewport. The dock would cover it there.
+   */
+  programsRailVisible?: boolean;
 }
 
 /**
  * The bar is mobile-only, appears once the hero CTAs are passed, and steps
  * aside over the contact block and the S10 action row (their own call/booking
- * buttons are on screen), for the keyboard and for form fields. On short
+ * buttons are on screen), over the S3 progress rail (it would cover the pager
+ * the thumb is using), for the keyboard and for form fields. On short
  * viewports it also yields to the header, so the two fixed bars never cover
  * the same screen together (they swap on scroll direction).
  */
@@ -109,6 +115,7 @@ export const stickyBarVisible = (s: StickyBarInputs): boolean =>
   s.heroCtasPassed &&
   !s.contactVisible &&
   !s.enrollActionsVisible &&
+  !s.programsRailVisible &&
   !s.keyboardOpen &&
   !s.fieldFocused &&
   !(s.shortViewport && s.headerShown);

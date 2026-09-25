@@ -15,14 +15,19 @@
  *        medals drop onto their steps bronze → silver → gold and stick the landing, then the
  *        white brush underline sweeps under „Medalje“.
  *   A step starts when its element crosses the −18% line and the running step has finished,
- *   through queuePrimaryMotion (≤250 ms). A step that would wait more than 600 ms in the
- *   sequence shows its static final state instead (RC-10).
+ *   through queuePrimaryMotion (≤250 ms). Nothing ever pops (design review v2, RC2-01/MD2-06):
+ *     · an off-screen step never blocks a visible one — a running step whose element has left
+ *       the viewport completes invisibly the moment another step is waiting, and a step whose
+ *       element is off-screen when its turn comes is finished without animating;
+ *     · a visible step that has been ≥50% in view for more than 600 ms by its turn plays a
+ *       compressed version instead (the scan and the shutter at 2.5× speed, the ceremony as a
+ *       ≤700 ms short form) — never a jump cut from ghost to final state.
  *
  * Hidden pre-states (title lines, photo slit, podium parts, brush) are set by JS only for
  * elements still off-screen at arm time. Safety net (MD-02): a pre-hidden element that has
- * been ≥50% in view for 300 ms without its trigger plays now (or, if it cannot start in time,
- * shows statically). Under gsap.matchMedia(MQ.noReduce): a live switch to reduced motion
- * reverts every inline state and the split at once. Only transform, opacity, clip-path and
+ * been ≥50% in view for 300 ms without its trigger joins the sequence now. Under
+ * gsap.matchMedia(MQ.noReduce): a live switch to reduced motion reverts every inline state
+ * and the split at once. Only transform, opacity, clip-path and
  * stroke-dashoffset/-dasharray change.
  */
 import type { SplitText as SplitTextInstance } from "gsap/SplitText";
@@ -32,8 +37,10 @@ import { DUR, EASE, MQ, STAGGER, gsap, loadDrawSVG, loadSplitText, queuePrimaryM
 const TITLE_LINE = "0px 0px -15% 0px";
 /** Primary steps start once their element is this far into the viewport. */
 const STEP_LINE = "0px 0px -18% 0px";
-/** RC-10: longer than this in the sequence → static final state instead of a lingering ghost. */
+/** RC2-01: ≥50% in view for longer than this by its turn → the step plays compressed. */
 const MAX_SEQUENCE_WAIT_MS = 600;
+/** The compressed scan and shutter run this much faster (the shutter ≈ 240 ms). */
+const FAST = 2.5;
 /** MD-02 safety net: ≥50% in view for this long without playing → play now / show. */
 const SAFETY_MS = 300;
 /** The chrono mark's hop in styles/ui.css (520 ms flight + 260 ms stick) plus a margin. */
@@ -64,18 +71,29 @@ const MEDALS_AT = DUR.reveal * 0.95;
 const MEDAL_GAP = 0.14;
 const MEDAL_FALL = 0.24;
 const MEDAL_DROP = -28;
+/* The compressed ceremony (MD2-06, ≤700 ms): blocks rise together with the outline, the medals
+   drop a short way 40 ms apart and stick the landing, the brush draws in 300 ms. */
+const SHORT_RISE = 0.24;
+const SHORT_MEDALS_AT = 0.16;
+const SHORT_MEDAL_GAP = 0.04;
+const SHORT_MEDAL_FALL = 0.18;
+const SHORT_MEDAL_DROP = -16;
+const SHORT_BRUSH = 0.3;
 
 interface Step {
   el: Element;
   /** JS pre-hid something (the safety net applies). */
   hidden: boolean;
-  /** Seconds the sequence stays blocked once the step starts. */
+  /** Seconds the sequence stays blocked once the step starts (normal · compressed). */
   block: number;
-  build: () => gsap.core.Animation;
-  /** The static final state (skip, safety net). */
+  fastBlock: number;
+  /** The step's timeline; `fast` = the compressed version (RC2-01/MD2-06). */
+  build: (fast: boolean) => gsap.core.Animation;
+  /** The static final state — only ever applied while the element is off-screen. */
   finish: () => void;
   state: "idle" | "ready" | "running" | "done";
-  readyAt: number;
+  /** performance.now() since the element is ≥50% in view (0 = not now). */
+  seenAt: number;
 }
 
 const inView = (el: Element): boolean => {
@@ -187,13 +205,15 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
     if (scoreboard && scores.length && !inView(scoreboard)) {
       const n = scores.length;
       const blinkAt = (n - 1) * SCAN_STAGGER + SCAN + 0.07;
+      const block = (n - 1) * SCAN_STAGGER + SCAN;
       steps.push({
         el: scoreboard,
         hidden: false,
-        block: (n - 1) * SCAN_STAGGER + SCAN,
+        block,
+        fastBlock: block / FAST,
         state: "idle",
-        readyAt: 0,
-        build: () => {
+        seenAt: 0,
+        build: (fast) => {
           const tl = gsap.timeline({ onComplete: () => void gsap.set(scores, { clearProps: "clipPath,opacity" }) });
           scores.forEach((score, i) => {
             const at = i * SCAN_STAGGER;
@@ -202,7 +222,7 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
           // The score holds: one blink of the whole board (a single flash, far below 3/s).
           tl.to(scores, { opacity: 0.55, duration: BLINK_DIM, ease: "none" }, blinkAt);
           tl.to(scores, { opacity: 1, duration: BLINK_BACK, ease: "none" }, blinkAt + BLINK_DIM);
-          return tl;
+          return fast ? tl.timeScale(FAST) : tl;
         },
         finish: () => void gsap.set(scores, { clearProps: "clipPath,opacity" }),
       });
@@ -219,13 +239,14 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
         el: photo,
         hidden: true,
         block: DUR.reveal,
+        fastBlock: DUR.reveal / FAST,
         state: "idle",
-        readyAt: 0,
-        build: () => {
+        seenAt: 0,
+        build: (fast) => {
           const tl = gsap.timeline({ onComplete: () => void gsap.set(targets, { clearProps: "clipPath,opacity" }) });
           tl.to(shutterBox, { clipPath: "inset(0% 0% 0% 0%)", duration: DUR.reveal, ease: EASE.stick }, 0);
           if (frameLabel) tl.to(frameLabel, { opacity: 1, duration: DUR.fast, ease: "none" }, DUR.reveal * 0.6);
-          return tl;
+          return fast ? tl.timeScale(FAST) : tl;
         },
         finish: () => void gsap.set(targets, { clearProps: "clipPath,opacity" }),
       });
@@ -241,13 +262,37 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
       gsap.set(medals, { opacity: 0, y: MEDAL_DROP, transformOrigin: "50% 100%" });
       if (strokes.length) gsap.set(strokes, { drawSVG: "0% 0%" });
       const goldTouch = MEDALS_AT + (ceremony.length - 1) * MEDAL_GAP + MEDAL_FALL;
+      const shortGoldTouch = SHORT_MEDALS_AT + (ceremony.length - 1) * SHORT_MEDAL_GAP + SHORT_MEDAL_FALL;
+      /** MD2-06: the short form — the same ceremony, every part still moving, ≤700 ms. */
+      const buildShort = () => {
+        const tl = gsap.timeline({ onComplete: () => void gsap.set(parts, { clearProps: "all" }) });
+        tl.to(podiumLine, { drawSVG: "0% 100%", duration: SHORT_RISE, ease: EASE.stick }, 0);
+        tl.to(blocks, { scaleY: 1, duration: SHORT_RISE, ease: EASE.stick }, 0);
+        ceremony.forEach((medal, i) => {
+          const at = SHORT_MEDALS_AT + i * SHORT_MEDAL_GAP;
+          tl.fromTo(medal, { y: SHORT_MEDAL_DROP }, { y: 0, duration: SHORT_MEDAL_FALL, ease: "power2.in", immediateRender: false }, at);
+          tl.to(medal, { opacity: 1, duration: DUR.tap * 0.6, ease: "none" }, at);
+          tl.fromTo(
+            medal,
+            { scaleX: 1.08, scaleY: 0.88 },
+            { scaleX: 1, scaleY: 1, duration: DUR.land, ease: EASE.land, immediateRender: false },
+            at + SHORT_MEDAL_FALL,
+          );
+        });
+        if (strokes.length) {
+          tl.to(strokes, { drawSVG: "0% 100%", duration: SHORT_BRUSH, ease: EASE.stick }, shortGoldTouch - 0.02);
+        }
+        return tl;
+      };
       steps.push({
         el: band,
         hidden: true,
         block: goldTouch + DUR.land,
+        fastBlock: shortGoldTouch + DUR.land,
         state: "idle",
-        readyAt: 0,
-        build: () => {
+        seenAt: 0,
+        build: (fast) => {
+          if (fast) return buildShort();
           const tl = gsap.timeline({ onComplete: () => void gsap.set(parts, { clearProps: "all" }) });
           // The outline draws; at 60% the solid blocks rise out of the panel (2nd · 1st · 3rd).
           tl.to(podiumLine, { drawSVG: "0% 100%", duration: DUR.reveal, ease: EASE.stick }, 0);
@@ -275,35 +320,78 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
     }
 
     // --- Sequencer ------------------------------------------------------------------------
-    let running = false;
-    const pump = (): void => {
-      if (running || !live) return;
-      const step = steps.find((s) => s.state === "ready");
-      if (!step) return;
-      if (performance.now() - step.readyAt > MAX_SEQUENCE_WAIT_MS) {
-        // Waited too long behind another step: show it, never a lingering ghost.
+    /** The running step: its timeline once built, and the timer that frees the sequence. */
+    interface Run {
+      step: Step;
+      tl?: gsap.core.Animation;
+      timer?: ReturnType<typeof setTimeout>;
+      over: boolean;
+    }
+    let current: Run | null = null;
+    /** A released step's own busy time must not hold up the next step in the shared queue. */
+    let afterRelease = false;
+
+    const settle = (step: Step) => {
+      step.state = "done";
+      current = null;
+      pump();
+    };
+
+    /** The running step's element has left the viewport: complete it where nobody sees it. */
+    const release = () => {
+      const run = current;
+      if (!run) return;
+      run.over = true;
+      if (run.timer) {
+        clearTimeout(run.timer);
+        timers.delete(run.timer);
+      }
+      run.tl?.progress(1).kill();
+      run.step.finish();
+      afterRelease = true;
+      settle(run.step);
+    };
+
+    function pump(): void {
+      if (!live) return;
+      const waiting = steps.find((s) => s.state === "ready");
+      if (current) {
+        // An off-screen step never blocks a visible one (RC2-01).
+        if (waiting && !inView(current.step.el)) release();
+        return;
+      }
+      if (!waiting) return;
+      const step = waiting;
+      if (!inView(step.el)) {
+        // Scrolled past (or back above) before its turn: final state, off-screen — no pop.
         step.state = "done";
         step.finish();
         pump();
         return;
       }
-      running = true;
+      // Seen for a while already (a fast flick or jump): the compressed version, never a snap.
+      const fast = step.seenAt > 0 && performance.now() - step.seenAt > MAX_SEQUENCE_WAIT_MS;
+      const block = (fast ? step.fastBlock : step.block) * 1000;
+      const run: Run = { step, over: false };
+      current = run;
       step.state = "running";
-      const block = step.block * 1000;
-      void queuePrimaryMotion(block).then(() => {
-        if (!live) return;
-        context.add(() => step.build());
-        later(() => {
-          step.state = "done";
-          running = false;
-          pump();
+      const maxWait = fast || afterRelease ? 0 : undefined;
+      afterRelease = false;
+      void queuePrimaryMotion(block, maxWait).then(() => {
+        if (!live || run.over) return;
+        context.add(() => {
+          run.tl = step.build(fast);
+        });
+        run.timer = later(() => {
+          run.over = true;
+          settle(step);
         }, block);
       });
-    };
+    }
+
     const makeReady = (step: Step) => {
       if (step.state !== "idle") return;
       step.state = "ready";
-      step.readyAt = performance.now();
       pump();
     };
 
@@ -318,11 +406,30 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
       },
       { rootMargin: STEP_LINE },
     );
+    // How long each step has been ≥50% in view, and whether a running step has left the
+    // viewport (then it must not hold up the next one).
+    const seenIo = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const step = steps.find((s) => s.el === entry.target);
+          if (!step) continue;
+          if (step.state === "done") {
+            seenIo.unobserve(entry.target);
+            continue;
+          }
+          if (shareInView(entry) >= 0.5) step.seenAt ||= performance.now();
+          else step.seenAt = 0;
+          if (!entry.isIntersecting && current?.step === step) pump();
+        }
+      },
+      { threshold: [0, 0.5, 1] },
+    );
     for (const step of steps) {
       stepIo.observe(step.el);
+      seenIo.observe(step.el);
       if (step.hidden) guard(step.el, () => step.state === "idle", () => makeReady(step));
     }
-    observers.push(stepIo);
+    observers.push(stepIo, seenIo);
 
     /** MD-02 safety net: ≥50% in view for 300 ms while still waiting for its trigger. */
     function guard(el: Element, waiting: () => boolean, go: () => void) {

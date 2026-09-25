@@ -28,8 +28,10 @@ import { counterLabel, flipId, GALLERY_UI, lightboxSizes, nativeHalf, srcSet, ty
  *   arc, and the print on the sheet absorbs the landing. Reduced motion: 150ms
  *   crossfade, no Flip, no arc.
  * - Each photo has a print foot: „▸ KR-15 · Treninzi“, „9 / 11“ and the alt text as
- *   a visible caption (aria-hidden: the image already carries it). Under the stage a
- *   Marey measuring rule has one tick per frame; its marker hops to the current one.
+ *   a visible caption (aria-hidden: the image already carries it). A Marey measuring
+ *   rule has one tick per frame; its marker hops to the current one. On desktop it is
+ *   the current print's own rule (its width, under its foot); on phones it sits
+ *   between the arrows.
  * - Native horizontal scroll-snap between photos (touch-action: pan-x), prev/next
  *   buttons, ←/→/Home/End, an „n / total“ status (aria-live, screen readers).
  * - Swipe down to close: Observer (vertical axis only) + distance/velocity threshold.
@@ -48,53 +50,145 @@ export async function prepareLightbox(withFlip: boolean): Promise<void> {
   observer = o;
 }
 
+/** A waiting print arrives once its top edge is this far into the viewport. */
+const HANG_LINE = "0px 0px -12% 0px";
+/** At most this many prints wait on their pegs (the sheet's first screenful). */
+const HANG_MAX = 6;
+/** Safety net (MD-02): a waiting print ≥50% in view for this long plays at once. */
+const HANG_SAFETY_MS = 300;
+const HANG_STAGGER_MS = 50;
+
 /**
- * S9's primary motion, armed by the gallery island once this chunk is warm: when
- * the sheet enters the reading zone, the prints then in view (max 6) swing in
- * from a peg above them like prints hung on a line — ±3° pendulum (--ease-swing,
- * uneven bars), a 10px drop and a quick fade (CSS keyframes on [data-hang],
- * gallery.css). Only when the sheet is still below the fold at arm time; prints
- * further down are never hidden. Reduced motion / Save-Data: nothing.
+ * S9's primary motion, armed by the gallery island once this chunk is warm: prints
+ * arrive like prints hung on a line — each swings in from a peg above it (±3°
+ * pendulum on --ease-swing, uneven bars), drops 10px onto the line and fades in
+ * (gallery.css [data-hang]).
+ *
+ * The swing is an arrival, never something done to a print already on screen. So
+ * only when the sheet is still below the fold at arm time are the prints of its
+ * first screenful (max 6) put on their pegs (data-hang="pre": hidden, tilted,
+ * raised) — nothing visible changes. Each one plays (data-hang="play") when its top
+ * edge is 12% into the viewport; prints entering together share one batch with a
+ * 50ms stagger, and the first batch takes the page's primary-motion slot (≤250ms
+ * wait). Safety net: a waiting print ≥50% in view for 300ms plays at once. The CSS
+ * keyframes only hold end states, so every swing starts from the pre-state itself.
+ * Prints further down are never hidden. Reduced motion / Save-Data: nothing.
+ * Cleanup (unmount) puts every still-waiting print back to its static final state.
  */
 export function armHang(grid: HTMLElement | null): () => void {
   if (!grid || !motionAllowed() || prefersLessMotion() || typeof IntersectionObserver === "undefined") return () => {};
-  if (grid.getBoundingClientRect().top < window.innerHeight) return () => {};
+  const vh = window.innerHeight;
+  const gridTop = grid.getBoundingClientRect().top;
+  if (gridTop < vh) return () => {};
+  // Whole strips only (a strip is never half hung, half shown), while the count stays ≤ HANG_MAX.
+  const strips = new Map<number, HTMLElement[]>();
+  for (const li of grid.querySelectorAll<HTMLElement>(":scope > li:not([hidden])")) {
+    const top = Math.round(li.getBoundingClientRect().top - gridTop);
+    if (top >= vh) break;
+    strips.set(top, [...(strips.get(top) ?? []), li]);
+  }
+  const waiting: HTMLElement[] = [];
+  for (const strip of strips.values()) {
+    if (waiting.length + strip.length > HANG_MAX) break;
+    waiting.push(...strip);
+  }
+  if (!waiting.length) return () => {};
+
   let live = true;
+  let firstBatch = true;
+  const safety = new Map<Element, number>();
+  const isWaiting = (li: Element) => li.getAttribute("data-hang") === "pre";
+  const settle = (li: HTMLElement) => {
+    li.removeAttribute("data-hang");
+    li.style.removeProperty("--k");
+    li.style.removeProperty("--sw");
+  };
+  const unwatch = (li: Element) => {
+    io.unobserve(li);
+    guard.unobserve(li);
+    const t = safety.get(li);
+    if (t !== undefined) window.clearTimeout(t);
+    safety.delete(li);
+  };
+
+  const play = (batch: HTMLElement[]) => {
+    // Left to right, top to bottom: the stagger runs along the strip.
+    const list = batch
+      .filter(isWaiting)
+      .map((li) => ({ li, r: li.getBoundingClientRect() }))
+      .sort((a, b) => a.r.top - b.r.top || a.r.left - b.r.left)
+      .map(({ li }) => li);
+    list.forEach((li, k) => {
+      li.style.setProperty("--k", String(k));
+      li.setAttribute("data-hang", "play");
+      // Ends — or is cancelled (a filter hides the print mid-swing): the static print, for good.
+      const end = (e: AnimationEvent) => {
+        if (e.target !== li.firstElementChild || e.animationName !== "gl-settle") return;
+        li.removeEventListener("animationend", end);
+        li.removeEventListener("animationcancel", end);
+        settle(li);
+      };
+      li.addEventListener("animationend", end);
+      li.addEventListener("animationcancel", end);
+    });
+  };
+
+  const release = (batch: HTMLElement[]) => {
+    const list = batch.filter(isWaiting);
+    if (!list.length) return;
+    list.forEach(unwatch);
+    const ms = DUR.swing * 1000 + (list.length - 1) * HANG_STAGGER_MS;
+    if (firstBatch) {
+      firstBatch = false;
+      void queuePrimaryMotion(ms).then(() => live && play(list));
+    } else {
+      // The same arrival continuing down the sheet: hold the slot, never wait on itself.
+      void queuePrimaryMotion(ms, 0);
+      play(list);
+    }
+  };
+
   const io = new IntersectionObserver(
-    (entries) => {
-      if (!entries.some((e) => e.isIntersecting)) return;
-      io.disconnect();
-      const vh = window.innerHeight;
-      const batch = Array.from(grid.querySelectorAll<HTMLElement>(":scope > li:not([hidden])"))
-        .filter((li) => li.getBoundingClientRect().top < vh)
-        .slice(0, 6);
-      if (!batch.length) return;
-      void queuePrimaryMotion(DUR.swing * 1000 + (batch.length - 1) * 50).then(() => {
-        if (!live) return;
-        batch.forEach((li, k) => {
-          li.style.setProperty("--k", String(k));
-          li.style.setProperty("--sw", k % 2 ? "3deg" : "-3deg");
-          li.setAttribute("data-hang", "");
-          // Ends — or is cancelled (a filter hides the print mid-swing): never swing again on unhide.
-          const end = (e: AnimationEvent) => {
-            if (e.animationName !== "gl-swing") return;
-            li.removeEventListener("animationend", end);
-            li.removeEventListener("animationcancel", end);
-            li.removeAttribute("data-hang");
-            li.style.removeProperty("--k");
-            li.style.removeProperty("--sw");
-          };
-          li.addEventListener("animationend", end);
-          li.addEventListener("animationcancel", end);
-        });
-      });
-    },
-    { rootMargin: "0px 0px -30% 0px" },
+    (entries) => release(entries.filter((e) => e.isIntersecting).map((e) => e.target as HTMLElement)),
+    { rootMargin: HANG_LINE },
   );
-  io.observe(grid);
+  const guard = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        const li = e.target as HTMLElement;
+        if (!isWaiting(li)) {
+          unwatch(li);
+          continue;
+        }
+        const view = e.rootBounds?.height ?? window.innerHeight;
+        const share = e.intersectionRect.height / Math.max(1, Math.min(e.boundingClientRect.height, view));
+        if (share >= 0.5) {
+          if (!safety.has(li)) safety.set(li, window.setTimeout(() => (safety.delete(li), live && release([li])), HANG_SAFETY_MS));
+        } else {
+          const t = safety.get(li);
+          if (t !== undefined) window.clearTimeout(t);
+          safety.delete(li);
+        }
+      }
+    },
+    { threshold: [0, 0.25, 0.5, 0.75, 1] },
+  );
+
+  // On their pegs: all below the fold, so hiding them changes nothing on screen.
+  waiting.forEach((li, k) => {
+    li.style.setProperty("--sw", k % 2 ? "3deg" : "-3deg");
+    li.setAttribute("data-hang", "pre");
+    io.observe(li);
+    guard.observe(li);
+  });
+
   return () => {
     live = false;
     io.disconnect();
+    guard.disconnect();
+    safety.forEach((t) => window.clearTimeout(t));
+    safety.clear();
+    waiting.filter(isWaiting).forEach(settle);
   };
 }
 
@@ -102,6 +196,10 @@ export function armHang(grid: HTMLElement | null): () => void {
 const CLOSE_DISTANCE = 110;
 const CLOSE_VELOCITY = 900;
 const CROSSFADE_MS = 150;
+/** Desktop: the Marey rule stands this far under the current print's foot (the marker rises 14.5px above it). */
+const RULE_GAP = 24;
+/** Where gallery.css anchors the rule to the print (elsewhere it sits between the arrows). */
+const RULE_ANCHORED = "(min-width: 1024px) and (min-height: 561px)";
 
 const clamp = (i: number, n: number) => Math.min(Math.max(i, 0), n - 1);
 
@@ -145,6 +243,7 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
   const markRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const mediaRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const printRefs = useRef<(HTMLDivElement | null)[]>([]);
   const indexRef = useRef(start);
   const closing = useRef(false);
   const finalized = useRef(false);
@@ -329,6 +428,46 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
   );
 
   /* ------------------------------------------------------ Marey rule hop -- */
+  // Desktop (gallery.css, ≥1024 × ≥561): the rule is the current print's own measuring rule —
+  // its width, RULE_GAP under its foot. The geometry goes into CSS vars from the print's layout
+  // in its slide (where it will rest once the track has snapped). On a slide change the rule
+  // glides and stretches to the next print (a FLIP transform); on open and resize it is placed
+  // without motion. Phones and short landscape screens keep it between the arrows (CSS ignores
+  // the vars there).
+  const placeRule = useCallback((glide: boolean) => {
+    const rule = ruleRef.current;
+    const print = printRefs.current[indexRef.current];
+    const slide = print?.parentElement;
+    if (!rule || !print || !slide) return;
+    const before = rule.getBoundingClientRect();
+    // A glide still running (quick ←/→) is replaced from where it is now.
+    rule.getAnimations().forEach((a) => a.cancel());
+    const p = print.getBoundingClientRect();
+    const x = p.left - slide.getBoundingClientRect().left;
+    rule.style.setProperty("--rule-x", `${x.toFixed(1)}px`);
+    rule.style.setProperty("--rule-y", `${(p.bottom + RULE_GAP).toFixed(1)}px`);
+    rule.style.setProperty("--rule-w", `${p.width.toFixed(1)}px`);
+    if (!glide || prefersLessMotion() || typeof rule.animate !== "function" || !window.matchMedia(RULE_ANCHORED).matches) return;
+    const after = rule.getBoundingClientRect();
+    if (!after.width || !before.width) return;
+    const dx = before.left - after.left;
+    const dy = before.top - after.top;
+    const sx = before.width / after.width;
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(sx - 1) < 0.002) return;
+    const ease = getComputedStyle(document.documentElement).getPropertyValue("--ease-flight").trim() || "ease-out";
+    rule.animate([{ transform: `translate(${dx}px, ${dy}px) scaleX(${sx})` }, { transform: "none" }], {
+      duration: DUR.base * 1000,
+      easing: ease,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    placeRule(false);
+    const onResize = () => placeRule(false);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [placeRule]);
+
   // The carriage slides to the current tick (CSS transition, ease flight); the marker hops over
   // the rule on the way (0 → −5 → 0px), like a gymnast crossing the floor. Placed without motion
   // on open; instant under reduced motion.
@@ -336,13 +475,14 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
   useEffect(() => {
     if (index === shownIndex.current) return;
     shownIndex.current = index;
+    placeRule(true);
     const mark = markRef.current;
     if (!mark || prefersLessMotion() || typeof mark.animate !== "function") return;
     mark.animate([{ translate: "0 0" }, { translate: "0 -5px", easing: "cubic-bezier(.33,1,.68,1)" }, { translate: "0 0", easing: "cubic-bezier(.32,0,.67,0)" }], {
       duration: DUR.base * 1000,
       easing: "linear",
     });
-  }, [index]);
+  }, [index, placeRule]);
 
   /* ---------------------------------------------------------- navigation -- */
   const onTrackScroll = () => {
@@ -428,7 +568,13 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
           } as CSSProperties;
           return (
             <li key={p.id} className="lb-slide" aria-hidden={i === index ? undefined : true}>
-              <div className="lb-print" style={style}>
+              <div
+                ref={(el) => {
+                  printRefs.current[i] = el;
+                }}
+                className="lb-print"
+                style={style}
+              >
                 <div className="lb-hop">
                   <div
                     ref={(el) => {
@@ -461,7 +607,8 @@ export function GalleryLightbox({ photos, start, thumbs, onClosed }: GalleryLigh
                   <p className="lb-foot__row">
                     <span className="lb-foot__frame">
                       {p.frame}
-                      {p.category ? ` · ${p.category}` : ""}
+                      {/* A print too narrow for it (a portrait on a phone on its side) drops the category. */}
+                      {p.category ? <span className="lb-foot__cat">{` · ${p.category}`}</span> : null}
                     </span>
                     <span className="lb-foot__count tabular">
                       {i + 1} / {n}

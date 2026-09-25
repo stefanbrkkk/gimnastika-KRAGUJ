@@ -189,8 +189,8 @@ export interface PassSpec {
   hang: number;
   /** Pitch with the flight path (share of the path's slope, 0–1). */
   pitch: number;
-  /** The six shutter times of the ghost frames. */
-  ghosts: readonly [number, number, number, number, number, number];
+  /** The shutter times of the ghost frames (oldest first). */
+  ghosts: readonly number[];
 }
 
 /**
@@ -237,6 +237,10 @@ export const STICK = { sx: 1.03, sy: 0.94 } as const;
  * bound starts whole inside the frame (never a fragment at the viewport
  * edge); the apex keeps its raised hand ≥ 37 units (≥ 16 px) below the art's
  * top, clear of the floating header's shadow. Container 350 px → 1 unit ≈ .44 px.
+ * Five frames: the bound, the takeoff and three in flight — the rise, the
+ * apex and the descent — each ≥ .7 of the figure's width from the next by x,
+ * so the exposures read one by one at phone size (four in flight knotted
+ * together around the apex).
  */
 export const COMPACT_PASS: PassSpec = {
   width: 800,
@@ -258,7 +262,7 @@ export const COMPACT_PASS: PassSpec = {
   lift: 230,
   hang: 0.22,
   pitch: 0.2,
-  ghosts: [0.05, 0.252, 0.372, 0.527, 0.723, 0.893],
+  ghosts: [0.05, 0.24, 0.385, 0.62, 0.935],
 };
 
 /**

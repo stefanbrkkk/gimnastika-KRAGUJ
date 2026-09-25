@@ -227,7 +227,9 @@ html.js .postcards[data-armed] .postcard[data-slot="0"] {
   width: 100vw;
   max-width: none;
   height: 56px;
-  margin-top: -47px;
+  /* Room between the postcards' lower edges and the beam for the routine's 34px flier and its
+     leap (MD2-08); the wave still sits close under the pile. */
+  margin-top: -22px;
   margin-inline-start: calc(50% - 50vw);
   overflow: visible;
   pointer-events: none;
@@ -349,7 +351,7 @@ html:not(.js) .postcards__controls {
   }
   .camp__horizon {
     height: 64px;
-    margin-top: -58px;
+    margin-top: -40px;
   }
 }
 
@@ -379,11 +381,11 @@ html:not(.js) .postcards__controls {
     font-stretch: 112%;
     letter-spacing: -0.018em;
   }
-  /* Just above the horizon, level with the stack's base — with clear air over the beam for
-     the routine's leap. */
+  /* Near the base of the column, above the horizon — with ≥ 90px of clear air over the beam
+     for the routine's 48px flier and its leap (MD2-08). */
   .camp__note {
     margin-top: auto;
-    margin-bottom: 112px;
+    margin-bottom: 146px;
   }
   .postcards {
     /* No-JS row: both postcards fit side by side in the 7-column slot. */
@@ -407,6 +409,33 @@ html:not(.js) .postcards__controls {
     grid-row: 3;
     height: 80px;
     margin-top: -72px;
+  }
+}
+
+/* Phone landscape (RC2-06): a whole postcard, its caption strip and the prev/next controls
+   share one screen. The stack (and the no-JS row's cards) are capped by the viewport height
+   minus the header and the controls. */
+@media (orientation: landscape) and (max-height: 540px) {
+  .postcards {
+    --land: min(84vw, 520px, calc((100svh - 130px) * 1.33));
+  }
+  html.js .postcards {
+    width: min(70vw, calc((100svh - 160px) * 1.3));
+    margin-inline: auto;
+  }
+}
+
+/* Phones only: the pager closer to the sea (still clear of the lower echo), so it clears the
+   sticky bottom bar. */
+@media (orientation: landscape) and (max-height: 540px) and (max-width: 1023.98px) {
+  .postcards__controls {
+    margin-top: -40px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 540px) and (min-width: 1024px) {
+  .postcards {
+    --land: min(440px, calc((100svh - 130px) * 1.33));
   }
 }
 

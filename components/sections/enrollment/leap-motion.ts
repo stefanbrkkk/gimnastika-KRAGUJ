@@ -19,54 +19,35 @@ import { buildBand, FRAME_OPACITY, frameTransform, NARROW, pitchAt, pointAt, WID
 const FLIGHT = 0.9;
 /** Length of the whole timeline: flight + landing + the twelve month lamps. */
 const LEAP_MS = 1460;
-/** The section title's own landing (styles/ui.css: 520ms flight + 260ms stick). */
-const TITLE_LANDING_MS = 800;
 
 /**
- * Watches the armed band (LeapBandPlayer). When it is well inside the viewport,
- * the title's chrono mark finishes its own landing first (one leap at a time),
- * then the leap takes the page-wide primary-motion slot and plays. A failsafe
- * lands the final state if anything stalls. Returns the cleanup.
+ * Watches the armed band (LeapBandPlayer). As soon as it is well inside the
+ * viewport, the leap takes the page-wide primary-motion slot (≤250ms wait) and
+ * plays — it no longer waits for the section title's mark to land: the mark is an
+ * accent and may overlap, while the band would sit empty (design review v2, MD2-07).
+ * A failsafe lands the final state if anything stalls. Returns the cleanup.
  */
 export function armLeap(root: HTMLElement): () => void {
   let live = true;
-  const timers: number[] = [];
+  let failsafe = 0;
   const finish = () => root.setAttribute("data-leap", "done");
-
-  // When did the title's mark start its landing? (HeadingLandings sets data-landed.)
-  const mark = root.closest("section")?.querySelector(".chrono-mark[data-land]") ?? null;
-  let markAt = 0;
-  const mo =
-    mark && !mark.hasAttribute("data-landed")
-      ? new MutationObserver(() => {
-          if (mark.hasAttribute("data-landed")) {
-            markAt = performance.now();
-            mo?.disconnect();
-          }
-        })
-      : null;
-  if (mark && mo) mo.observe(mark, { attributes: true, attributeFilter: ["data-landed"] });
 
   const bands = Array.from(root.querySelectorAll<SVGSVGElement>(".en-band"));
   const io = new IntersectionObserver(
     (entries) => {
       if (!entries.some((e) => e.isIntersecting)) return;
       io.disconnect();
-      const wait = markAt ? Math.max(0, markAt + TITLE_LANDING_MS - performance.now()) : 0;
-      timers.push(window.setTimeout(finish, wait + LEAP_MS + 3000)); // never stuck hidden
-      timers.push(
-        window.setTimeout(() => {
-          void queuePrimaryMotion(LEAP_MS)
-            .then(() => {
-              if (!live) return;
-              return playLeap(
-                root,
-                bands.find((svg) => svg.getBoundingClientRect().width > 0),
-              );
-            })
-            .catch(finish);
-        }, wait),
-      );
+      failsafe = window.setTimeout(finish, LEAP_MS + 3000); // never stuck hidden
+      void queuePrimaryMotion(LEAP_MS)
+        .then(() => {
+          // Unmounted, or the failsafe already landed the final state: never hide it again.
+          if (!live || root.getAttribute("data-leap") === "done") return;
+          return playLeap(
+            root,
+            bands.find((svg) => svg.getBoundingClientRect().width > 0),
+          );
+        })
+        .catch(finish);
     },
     { rootMargin: "0px 0px -25% 0px", threshold: 0.5 },
   );
@@ -75,8 +56,7 @@ export function armLeap(root: HTMLElement): () => void {
   return () => {
     live = false;
     io.disconnect();
-    mo?.disconnect();
-    timers.forEach((t) => clearTimeout(t));
+    window.clearTimeout(failsafe);
   };
 }
 
@@ -84,6 +64,7 @@ async function playLeap(root: HTMLElement, svg: SVGSVGElement | undefined): Prom
   const done = () => root.setAttribute("data-leap", "done");
   if (!svg) return done();
   const { gsap, DUR, EASE } = await loadMotion();
+  if (root.getAttribute("data-leap") === "done") return; // the failsafe landed it meanwhile
   const band = buildBand(svg.dataset.variant === "narrow" ? NARROW : WIDE);
   const $ = <T extends Element>(sel: string) => svg.querySelector<T>(sel);
   const flier = $<SVGGElement>(".en-band__flier");

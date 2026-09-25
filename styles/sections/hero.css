@@ -122,10 +122,18 @@
   .hero-art--wide {
     display: block;
   }
-  /* the wide art: its right 34 % (560 of 1650 units), centred on the landing */
+  /* the wide art: its right 34 % (560 of 1650 units), centred between the „j“
+     and the landing so that both masks reach 0 before the field's right edge —
+     a printed halftone fades out, it never ends on a hard vertical cut */
   .hero__art {
     --dots-w: 2.19;
-    --dots-at: 79% 88%;
+    --dots-at: 70% 86%;
+  }
+  .hero__art::before {
+    mask-image: radial-gradient(40% 58% at var(--dots-at), #000 0%, rgb(0 0 0 / 0.45) 42%, transparent 74%);
+  }
+  .hero__art::after {
+    mask-image: radial-gradient(38% 78% at var(--dots-at), transparent 30%, #000 50%, transparent 78%);
   }
 }
 
@@ -211,11 +219,21 @@
   stroke-linejoin: round;
   stroke-dasharray: 1 1;
   stroke-dashoffset: 1;
+  transition: opacity var(--dur-reveal) var(--ease-stick);
 }
 
+/* After the hand-off the line has done its job: it fades out (opacity only, on
+   a clock, not the scroll) and is back as soon as the scrub runs back up. */
+.hero-spine[data-handed] .hero-spine__line {
+  opacity: 0;
+}
+
+/* The second exposure fades out where her figure cannot fit (the right margin,
+   the lane beside the next title) and back in where it can. */
 .hero-spine__x {
   color: var(--color-white);
   opacity: 0;
+  transition: opacity 120ms linear;
 }
 
 /* ---- Statement ---- */
@@ -314,6 +332,32 @@
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* The smallest phones (320 px wide, 568–640 tall): the primary CTA must still be
+   on the first screen. Every block gives a little — the eyebrow fits two lines,
+   the H1 is 40 px, the subline takes the small step, the gaps tighten and the
+   high leap gives way first (never under 12svh) — so the CTA's bottom is ≥ 8 px
+   above the fold at 320×568 and 320×640. 360 px and up are untouched. */
+@media (max-width: 359.98px) and (orientation: portrait) {
+  .hero__eyebrow {
+    margin-top: 18px;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+  .hero__ctas {
+    margin-top: 22px;
+  }
+  .hero__title {
+    font-size: 2.5rem;
+  }
+  .hero-art--compact {
+    max-height: max(12svh, calc(100svh - 600px));
+  }
+  .hero__sub {
+    font-size: var(--text-small);
+    line-height: var(--text-small--line-height);
+  }
 }
 
 @media (min-width: 640px) {

@@ -330,7 +330,7 @@ html:not(.js) .programs .pc-open {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .pg-strip:is([data-count="2"], [data-count="4"]) > .pg-photo {
-    display: block;
+    display: flex; /* its own column box (.pg-photo), so the paper still stretches (QP2-10) */
   }
   /* Three columns: a multiple of three fills its rows without the photo. */
   .pg-strip:is([data-count="3"], [data-count="6"]) > .pg-photo {
@@ -388,11 +388,25 @@ html.js .program-card {
   --mat: calc(var(--pad-b) + var(--icon) / 8);
   --grid: color-mix(in oklab, var(--pc-ink) 10%, transparent);
   position: relative;
+  isolation: isolate; /* the grid layer (z-index −1) stays inside the plate */
   display: flex;
   align-items: flex-end;
   padding: 0 var(--pad-x) var(--pad-b);
   border-radius: var(--radius-md);
   background-color: var(--pc);
+  color: var(--pc-ink);
+  overflow: hidden;
+}
+
+/* The grid is a layer behind the drawing, not the plate's own background: on a card the icon
+   size is a container unit of the plate (QP2-05), which only the plate's descendants — this
+   pseudo-element included — resolve against the plate. */
+.pc-plate::after,
+.ps-plate::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   background-image:
     linear-gradient(to right, var(--grid) 1px, transparent 1px),
     linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
@@ -400,8 +414,7 @@ html.js .program-card {
   background-position:
     var(--pad-x) 0,
     0 calc(100% - var(--mat) + 1px);
-  color: var(--pc-ink);
-  overflow: hidden;
+  pointer-events: none;
 }
 
 /* The mat line (1px, ink at 35%). */
@@ -417,26 +430,36 @@ html.js .program-card {
   pointer-events: none;
 }
 
+/* Every frame of a row has the row's height and its CTAs sit at the same place; the spare
+   height of a shorter card goes into its plate at every width (QP-07, QP2-04), never into a
+   white band above the CTAs. The plate is a size container: the apparatus grows with it
+   (84/96px → 132px at 64% of the plate's height) and from 160px it becomes the detail sheet's
+   scene, with the club silhouette posed over the apparatus (QP2-05). */
 .pc-plate {
-  --icon: 84px;
-  flex: none;
-  min-height: calc(var(--icon) + 32px);
+  --icon-min: 84px;
+  --icon: clamp(var(--icon-min), 64cqh, 132px); /* resolved by the plate's descendants */
+  flex: 1000 0 auto;
+  min-height: calc(var(--icon-min) + 32px);
+  container-type: size;
 }
 
 @media (min-width: 640px) {
   .pc-plate {
-    --icon: 96px;
+    --icon-min: 96px;
     --pad-x: 14px;
-    min-height: calc(var(--icon) + 28px);
+    min-height: calc(var(--icon-min) + 28px);
   }
 }
 
-/* Below 1024 the plate takes the row's spare height (up to 196px), so a shorter card gets a
-   taller apparatus print instead of a white band above its CTAs (QP-07). */
-@media (max-width: 1023.98px) {
-  .program-card .pc-plate {
-    flex: 1000 0 auto;
-    max-height: 196px;
+/* The posed silhouette only where the plate has room for a scene: a plate ≥160px tall (the
+   container is its content box, 10px of bottom padding less). */
+.pc-icon .pi-fig-x {
+  display: none;
+}
+
+@container (min-height: 150px) {
+  .pc-icon .pi-fig-x {
+    display: inline;
   }
 }
 
@@ -585,7 +608,8 @@ html.js .program-card {
    -------------------------------------------------------------------------- */
 .pi {
   /* In user units (px = 1/48 of the drawing): ≈2.8 CSS px at 84px; every size keeps that
-     weight. Lengths, not bare numbers, so calc() works in every engine. */
+     weight. Lengths, not bare numbers, so calc() works in every engine. (Non-scaling strokes
+     would break the pathLength=1 draw in Chromium.) */
   --sw: 1.6px;
   position: relative;
   display: block;
@@ -610,23 +634,57 @@ html.js .program-card {
   stroke-width: calc(var(--sw) * 1.4);
 }
 
-.pi .pi-head {
+/* The aerobic drawing is the club silhouette itself: filled, never stroked (QP2-06). */
+.pi .pi-solid {
   fill: currentColor;
   stroke: none;
 }
 
+/* The card drawing grows with its plate (84/96 → 132px): the user-unit stroke steps down with
+   it, so the line stays 2.6–3.0 CSS px (sw × icon / 48; icon = 64% of the container height). */
+@media (min-width: 640px) {
+  .pc-icon {
+    --sw: 1.4px;
+  }
+}
+
+@container (min-height: 140px) {
+  .pc-icon {
+    --sw: 1.45px;
+  }
+}
+
+@container (min-height: 150px) {
+  .pc-icon {
+    --sw: 1.35px;
+  }
+}
+
+@container (min-height: 166px) {
+  .pc-icon {
+    --sw: 1.2px;
+  }
+}
+
+@container (min-height: 185px) {
+  .pc-icon {
+    --sw: 1.07px;
+  }
+}
+
+@container (min-height: 206px) {
+  .pc-icon {
+    --sw: 1.02px;
+  }
+}
+
 .pc-icon {
+  --fig-hop: -10px; /* mount hop, in drawing units (ps-fig-x) */
   width: var(--icon);
   height: var(--icon);
   /* Press (MI-04): the apparatus takes the weight — compresses onto its floor (y = 42/48). */
   transform-origin: 50% 87.5%;
   transition: scale var(--dur-slow-squash) var(--ease-rebound);
-}
-
-@media (min-width: 640px) {
-  .pc-icon {
-    --sw: 1.4px;
-  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -664,12 +722,28 @@ html.js .program-card {
   html.js-motion .program-card .pc-icon [data-draw] {
     transition: stroke-dashoffset var(--dur-reveal) var(--ease-stick) var(--draw-delay, 0s);
   }
-  /* The aerobic figure's head is a solid dot: it appears as the line completes. */
-  html.js-motion .program-card:not([data-drawn]) .pc-icon [data-head] {
+  /* The aerobic silhouette has no line to trace: it is revealed from the floor up (QP2-06). */
+  html.js-motion .program-card .pc-icon [data-leap] {
+    clip-path: inset(-10%);
+    transition: clip-path var(--dur-reveal) var(--ease-stick) var(--draw-delay, 0s);
+  }
+  html.js-motion .program-card:not([data-drawn]) .pc-icon [data-leap] {
+    clip-path: inset(100% -10% -10% -10%);
+  }
+  /* The posed silhouette waits for its mount (QP2-05). */
+  html.js-motion .program-card:not([data-drawn]) .pc-icon .pi-fig-x {
     opacity: 0;
   }
-  html.js-motion .program-card .pc-icon [data-head] {
-    transition: opacity var(--dur-fast) linear calc(var(--draw-delay, 0s) + 420ms);
+  /* Mount (the detail sheet's MI-08, on a scene plate): she hops on as the line completes and
+     sticks the landing. data-mount is set by programs-motion with data-drawn. */
+  html.js-motion .program-card[data-mount] .pc-icon .pi-fig-x {
+    animation: ps-fig-x 500ms var(--ease-flight) calc(var(--draw-delay, 0s) + 450ms) both;
+  }
+  html.js-motion .program-card[data-mount] .pc-icon .pi-fig-y {
+    animation: ps-fig-y 500ms linear calc(var(--draw-delay, 0s) + 450ms) both;
+  }
+  html.js-motion .program-card[data-mount] .pc-icon .pi-fig {
+    animation: ps-fig-stick 350ms var(--ease-land) calc(var(--draw-delay, 0s) + 950ms);
   }
 }
 
@@ -679,11 +753,7 @@ html.js .program-card {
   transform-origin: 50% 100%;
 }
 
-.pi [data-part="beam"] {
-  transform-origin: 50% 50%;
-}
-
-/* Motion trails exist only while performing: invisible at rest (the dash sits off the path). */
+/* The gymnast's path (detail sheet only): invisible at rest (the dash sits off the path). */
 .pi-fx path {
   stroke-width: calc(var(--sw) * 0.8);
   stroke-dasharray: 0.3 1.6;
@@ -695,47 +765,50 @@ html.js .program-card {
   stroke-dashoffset: 1.05;
 }
 
-/* Perform (MD-06): set by programs-motion (data-perform, --perform-delay). */
+/* Perform (MD-06, QP2-11): set by programs-motion (data-perform, --perform-delay). Only the
+   apparatus's own physics — no trails on the cards. Easings inside @keyframes are literal
+   (MD2-01): Chromium plays a var() keyframe easing as linear. The linear() lists are
+   styles/motion-tokens.css --ease-wobble / --ease-swing (tests/programs.test.ts keeps them
+   identical), each after a rebound cubic-bezier for engines without linear(). */
 @media (prefers-reduced-motion: no-preference) {
   html.js-motion .program-card[data-perform] .pi {
     --d: var(--perform-delay, 0s);
   }
 
-  /* Beam: the gymnast lands on one end — the beam dips, then balances out and settles. */
+  /* Beam: she lands on it — the beam flexes down on its legs, then balances out and settles
+     (no rotation). The legs shorten by exactly the beam's dip, so the two stay joined. */
   html.js-motion [data-perform] [data-part="beam"] {
     animation: pi-beam calc(var(--dur-wobble) + 100ms) linear var(--d) both;
   }
+  html.js-motion [data-perform] [data-part="legs"] {
+    animation: pi-beam-legs calc(var(--dur-wobble) + 100ms) linear var(--d) both;
+  }
 
-  /* Bars: both rails flex under a giant swing, the high one first, while the swing's orbit
-     laps the high rail once. */
+  /* Bars: each rail flexes down on its uprights under a swing and springs back, the high
+     rail first. */
   html.js-motion [data-perform] [data-part="high"] {
+    --flex: 0.94;
     animation: pi-bars calc(var(--dur-swing) + 120ms) linear var(--d) both;
   }
   html.js-motion [data-perform] [data-part="low"] {
-    --bars-tilt: -0.8deg;
+    --flex: 0.92;
     animation: pi-bars calc(var(--dur-swing) + 120ms) linear calc(var(--d) + 80ms) both;
   }
-  html.js-motion [data-perform] .pi[data-icon="razboj"] .pi-fx path {
-    animation: pi-trail 600ms var(--ease-flight) var(--d) both;
-  }
 
-  /* Vault: the board compresses and springs, the hands press the table, the flight goes over. */
+  /* Vault: the board compresses and springs, then the table takes the hands. */
   html.js-motion [data-perform] [data-part="board"] {
     animation: pi-board calc(var(--dur-spring) + 80ms) linear var(--d) both;
   }
   html.js-motion [data-perform] [data-part="table"] {
     animation: pi-table var(--dur-spring) linear calc(var(--d) + 220ms) both;
   }
-  html.js-motion [data-perform] .pi[data-icon="preskok"] .pi-fx path {
-    animation: pi-trail 560ms var(--ease-flight) calc(var(--d) + 90ms) both;
+
+  /* Floor: the sprung floor gives under a landing and comes back. */
+  html.js-motion [data-perform] [data-icon="parter"] .pi-part {
+    animation: pi-floor 520ms linear var(--d) both;
   }
 
-  /* Floor: a tumbling pass — three hops along the diagonal, each drawn and gone. */
-  html.js-motion [data-perform] .pi[data-icon="parter"] .pi-fx path {
-    animation: pi-hop 360ms linear calc(var(--d) + var(--k) * 110ms) both;
-  }
-
-  /* Aerobic: crouch, jump, stick the landing. */
+  /* Aerobic: the silhouette crouches, jumps and sticks the landing. */
   html.js-motion [data-perform] [data-part="fig"] {
     animation: pi-jump 620ms linear var(--d) both;
   }
@@ -743,38 +816,47 @@ html.js .program-card {
 
 @keyframes pi-beam {
   0% {
-    transform: rotate(0deg);
+    transform: translateY(0);
     animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
   }
   12% {
-    transform: rotate(-4deg);
-    animation-timing-function: var(--ease-wobble);
+    transform: translateY(1.2px);
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation-timing-function: linear(0, 0.3193, 0.64, 0.9233, 1.1448, 1.2934, 1.3696, 1.3824, 1.3461, 1.2776, 1.1929, 1.1064, 1.0289, 0.9673, 0.9251, 0.9025, 0.8972, 0.9055, 0.9231, 0.9455, 0.9688, 0.99, 1.007, 1.019, 1.0257, 1.0276, 1.0257, 1.0213, 1.0154, 1.0091, 1.0033, 0.9986, 0.9952, 0.9933, 0.9926, 0.993, 0.9941, 0.9957, 0.9974, 0.9989, 1.0002, 1.0012, 1.0018, 1.002, 1.0019, 1.0016, 1.0012, 1.0008, 1);
   }
   100% {
-    transform: rotate(0deg);
+    transform: translateY(0);
+  }
+}
+
+/* Legs 25.5 → 42 (16.5 units): scaleY(1 − 1.2 / 16.5) about their feet. */
+@keyframes pi-beam-legs {
+  0% {
+    transform: scaleY(1);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
+  }
+  12% {
+    transform: scaleY(0.927);
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation-timing-function: linear(0, 0.3193, 0.64, 0.9233, 1.1448, 1.2934, 1.3696, 1.3824, 1.3461, 1.2776, 1.1929, 1.1064, 1.0289, 0.9673, 0.9251, 0.9025, 0.8972, 0.9055, 0.9231, 0.9455, 0.9688, 0.99, 1.007, 1.019, 1.0257, 1.0276, 1.0257, 1.0213, 1.0154, 1.0091, 1.0033, 0.9986, 0.9952, 0.9933, 0.9926, 0.993, 0.9941, 0.9957, 0.9974, 0.9989, 1.0002, 1.0012, 1.0018, 1.002, 1.0019, 1.0016, 1.0012, 1.0008, 1);
+  }
+  100% {
+    transform: scaleY(1);
   }
 }
 
 @keyframes pi-bars {
   0% {
-    transform: rotate(0deg);
+    transform: scaleY(1);
     animation-timing-function: cubic-bezier(0.3, 0.6, 0.4, 1);
   }
   13% {
-    transform: rotate(var(--bars-tilt, 1.5deg));
-    animation-timing-function: var(--ease-swing);
+    transform: scaleY(var(--flex, 0.92));
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation-timing-function: linear(0, 0.1589, 0.3341, 0.51, 0.6745, 0.8195, 0.9402, 1.0346, 1.103, 1.1474, 1.1708, 1.1769, 1.1696, 1.1528, 1.13, 1.1043, 1.078, 1.0531, 1.0309, 1.0122, 0.9974, 0.9864, 0.9791, 0.9751, 0.9737, 0.9744, 0.9767, 0.9799, 0.9837, 0.9876, 0.9914, 0.9948, 0.9977, 1, 1.0017, 1.0029, 1.0036, 1.0039, 1.0038, 1.0035, 1.0031, 1.0025, 1.002, 1.0014, 1.0009, 1.0004, 1.0001, 0.9998, 1);
   }
   100% {
-    transform: rotate(0deg);
-  }
-}
-
-@keyframes pi-trail {
-  from {
-    stroke-dashoffset: 0.36;
-  }
-  to {
-    stroke-dashoffset: -1.02;
+    transform: scaleY(1);
   }
 }
 
@@ -785,7 +867,7 @@ html.js .program-card {
   }
   16% {
     transform: scaleY(0.62);
-    animation-timing-function: var(--ease-spring);
+    animation-timing-function: cubic-bezier(0.34, 1.8, 0.5, 1); /* --ease-spring */
   }
   100% {
     transform: scaleY(1);
@@ -799,10 +881,57 @@ html.js .program-card {
   }
   20% {
     transform: scaleY(0.9);
-    animation-timing-function: var(--ease-spring);
+    animation-timing-function: cubic-bezier(0.34, 1.8, 0.5, 1); /* --ease-spring */
   }
   100% {
     transform: scaleY(1);
+  }
+}
+
+/* 0.8 units ≈ 1.5 CSS px at 84–96px. */
+@keyframes pi-floor {
+  0% {
+    transform: none;
+    animation-timing-function: cubic-bezier(0.5, 0, 0.8, 0.4);
+  }
+  22% {
+    transform: translateY(0.8px) scaleX(1.01);
+    animation-timing-function: cubic-bezier(0.22, 1.12, 0.36, 1); /* --ease-land */
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes pi-jump {
+  0% {
+    transform: none;
+    animation-timing-function: cubic-bezier(0.3, 0, 0.6, 1);
+  }
+  16% {
+    transform: scale(1.05, 0.92);
+    animation-timing-function: cubic-bezier(0.25, 0.6, 0.45, 1);
+  }
+  50% {
+    transform: translateY(-4.5px) scale(0.97, 1.04);
+    animation-timing-function: cubic-bezier(0.55, 0, 0.8, 0.45);
+  }
+  78% {
+    transform: scale(1.06, 0.9);
+    animation-timing-function: cubic-bezier(0.22, 1.12, 0.36, 1); /* --ease-land */
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* The gymnast's path in the detail sheet (dash along a pathLength=1 path). */
+@keyframes pi-trail {
+  from {
+    stroke-dashoffset: 0.36;
+  }
+  to {
+    stroke-dashoffset: -1.02;
   }
 }
 
@@ -825,42 +954,14 @@ html.js .program-card {
   }
 }
 
-@keyframes pi-jump {
-  0% {
-    transform: none;
-    animation-timing-function: cubic-bezier(0.3, 0, 0.6, 1);
-  }
-  16% {
-    transform: scale(1.05, 0.92);
-    animation-timing-function: cubic-bezier(0.25, 0.6, 0.45, 1);
-  }
-  50% {
-    transform: translateY(-4.5px) scale(0.97, 1.04);
-    animation-timing-function: cubic-bezier(0.55, 0, 0.8, 0.45);
-  }
-  78% {
-    transform: scale(1.06, 0.9);
-    animation-timing-function: var(--ease-land);
-  }
-  100% {
-    transform: none;
-  }
-}
-
 /* --------------------------------------------------------------------------
    Card body
    -------------------------------------------------------------------------- */
 .pc-body {
   display: flex;
   flex-direction: column;
-  flex: 1 0 auto;
+  flex: none; /* the plate takes the row's spare height (QP2-04) */
   padding: 18px 14px 12px;
-}
-
-@media (min-width: 1024px) {
-  .pc-body {
-    flex: 1 1 auto;
-  }
 }
 
 /* .pc-title keeps the global h3 width axis (104% mobile, 118% desktop): measured at
@@ -1182,6 +1283,14 @@ html.js .program-card {
   .pg-photo__trail {
     display: none;
   }
+  /* The print keeps its cap; the paper stretches to the row like every frame of the sheet, and
+     the KR-04 label sits at the foot of its white margin, as on a contact print (QP2-10). */
+  .programs .pg-photo .frame {
+    max-height: none;
+  }
+  .programs .pg-photo .frame-foot {
+    margin-top: auto;
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -1429,7 +1538,7 @@ html.js .program-card {
 }
 
 .ps-icon {
-  --sw: 1.06px; /* ≈2.9 CSS px at 132px */
+  --sw: 1.02px; /* ≈2.8 CSS px at 132px */
   width: var(--icon);
   height: var(--icon);
 }
@@ -1485,8 +1594,16 @@ html.js .program-card {
   html.js-motion .program-sheet[data-scene] .ps-icon [data-draw] {
     animation: pi-draw 500ms var(--ease-stick) 300ms both;
   }
-  html.js-motion .program-sheet[data-scene] .ps-icon [data-head] {
-    animation: pi-fade var(--dur-fast) linear 720ms both;
+  html.js-motion .program-sheet[data-scene] .ps-icon [data-leap] {
+    animation: pi-reveal 500ms var(--ease-stick) 300ms both;
+  }
+  /* Her path (QP2-11): the swing, the vault flight or the tumbling hops trace just before she
+     lands in her pose — at 132px, next to the silhouette, it reads as her path. */
+  html.js-motion .program-sheet[data-scene] .ps-icon .pi-fx path {
+    animation: pi-trail 560ms var(--ease-flight) 560ms both;
+  }
+  html.js-motion .program-sheet[data-scene] .ps-icon[data-icon="parter"] .pi-fx path {
+    animation: pi-hop 360ms linear calc(560ms + var(--k) * 110ms) both;
   }
   html.js-motion .program-sheet[data-scene] .pi-fig-x {
     animation: ps-fig-x 500ms var(--ease-flight) 650ms both;
@@ -1508,16 +1625,21 @@ html.js .program-card {
   }
 }
 
-@keyframes pi-fade {
+@keyframes pi-reveal {
   from {
-    opacity: 0;
+    clip-path: inset(100% -10% -10% -10%);
+  }
+  to {
+    clip-path: inset(-10%);
   }
 }
 
 /* Units are the drawing's (48 = 132px): −14.5 ≈ −40px, 8.7 ≈ 24px, −10 ≈ −28px. */
+/* --fig-dir: −1 on a mirrored figure (aerobik's partner hops in from the right); --fig-hop is
+   shorter on a card, whose plate edge is closer to the pose (her back foot stays on the print). */
 @keyframes ps-fig-x {
   0% {
-    transform: translateX(-14.5px);
+    transform: translateX(calc(var(--fig-dir, 1) * var(--fig-hop, -14.5px)));
     opacity: 0;
   }
   24% {
@@ -1637,11 +1759,12 @@ html.js .program-card {
     --icon: 40px;
     --pad-b: 8px;
     height: 72px;
-    background-image: none;
   }
   .ps-plate::before,
+  .ps-plate::after,
   .ps-plate .pc-bib,
-  .ps-icon .pi-fig-x {
+  .ps-icon .pi-fig-x,
+  .ps-icon .pi-fx {
     display: none;
   }
   .ps-icon {

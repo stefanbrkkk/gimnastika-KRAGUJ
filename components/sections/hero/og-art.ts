@@ -25,6 +25,8 @@ export const OG_PASS: PassSpec = {
   depth: [0.54, 0.62],
   // a lower arc: the raised hands stay clear of the eyebrow at the top of the card
   lift: 185,
+  // the share image keeps its six frames (the phones' plate has five)
+  ghosts: [0.05, 0.252, 0.372, 0.527, 0.723, 0.893],
 };
 
 /** Ghost opacities: the hero's .10 → .28 ramp, lifted to survive a phone thumbnail. */

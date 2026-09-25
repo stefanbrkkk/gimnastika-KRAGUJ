@@ -39,6 +39,8 @@
 
 /* Compact (phones): portrait beside the name, roles across the card. */
 .coach__inner {
+  /* Frame bottom → the „▸ KR-0x“ label's baseline: the foot's 7 px padding + the label's descent. */
+  --coach-foot-baseline: 11px;
   display: grid;
   grid-template-columns: min(132px, 42%) minmax(0, 1fr);
   grid-template-areas:
@@ -179,12 +181,16 @@
    into the print underneath (it still paints above the frame: later in the DOM).
    -------------------------------------------------------------------------- */
 .licence-stamp {
+  /* Size and overhang past the print's lower-right corner (per card size, below). */
+  --stamp: 64px;
+  --stamp-r: 18px;
+  --stamp-b: 10px;
   position: absolute;
-  right: -18px;
-  bottom: -10px;
+  right: calc(-1 * var(--stamp-r));
+  bottom: calc(-1 * var(--stamp-b));
   display: block;
-  width: 64px;
-  height: 64px;
+  width: var(--stamp);
+  height: var(--stamp);
   color: var(--accent);
 }
 
@@ -197,8 +203,9 @@
   overflow: visible;
 }
 
+/* Faint: the print shows through, never a frosted sticker (AC2-07). */
 .licence-stamp__disc {
-  fill: color-mix(in oklab, var(--surface) 55%, transparent);
+  fill: color-mix(in oklab, var(--surface) 20%, transparent);
 }
 
 .licence-stamp__print {
@@ -241,32 +248,72 @@
   opacity: 0;
 }
 
-/* Wide card (tablet, desktop column): portrait left, name + roles right. */
+/* KR-07: where the impression crosses the navy plate it shows in the plate's accent, so
+   „GSS“ stays legible across the edge. The wrapper is static (only the layer inside is
+   pressed) and clipped to the plate's box inside the stamp: the frame's 6 px side padding
+   and its 28 px foot (globals.css .frame / .frame-foot). */
+.licence-stamp__over-plate {
+  position: absolute;
+  inset: 0;
+  clip-path: inset(0 calc(var(--stamp-r) + 6px) calc(var(--stamp-b) + 28px) 0);
+  pointer-events: none;
+}
+
+.licence-stamp__over-plate .licence-stamp__ink {
+  color: var(--color-lav-200);
+  mix-blend-mode: normal;
+}
+
+/* The smallest phones (320 px): a smaller stamp further out, clear of the frame code (AC2-06). */
+@container coach (max-width: 300px) {
+  .licence-stamp {
+    --stamp: 52px;
+    --stamp-r: 22px;
+    --stamp-b: 14px;
+  }
+  .coach__media .frame-foot {
+    padding-right: 34px;
+  }
+}
+
+/* Wide card (tablet, desktop column): portrait left, name + roles right — an index card:
+   the name level with the top of the print, the roles standing on the print's foot, so the
+   room between them is headroom rather than a hole (AC2-02). */
 @container coach (min-width: 520px) {
   .coach__inner {
     grid-template-columns: 168px minmax(0, 1fr);
     grid-template-areas: "media body";
     column-gap: 44px;
-    align-items: start;
+    align-items: stretch;
     padding: 24px;
   }
+  .coach__media {
+    align-self: start;
+  }
   .coach__body {
-    display: block;
+    display: flex;
+    flex-direction: column;
     grid-area: body;
     padding-top: 6px;
+    padding-bottom: var(--coach-foot-baseline);
   }
   .coach__name {
-    margin: 0 0 14px;
+    align-self: stretch;
+    margin: 0 0 auto;
     font-size: var(--text-h3);
+  }
+  .coach__roles {
+    margin-top: 24px;
   }
   .coach__role:last-child {
     border-bottom: 1px solid var(--hairline);
   }
+  /* „GSS“ always sits on the print's foot, below the image: ink on paper, ≥3:1 whatever
+     the photo does under the ring (AC2-07). */
   .licence-stamp {
-    width: 76px;
-    height: 76px;
-    right: -26px;
-    bottom: -12px;
+    --stamp: 76px;
+    --stamp-r: 26px;
+    --stamp-b: 16px;
   }
 }
 
@@ -276,9 +323,19 @@
     column-gap: 52px;
   }
   .licence-stamp {
-    width: 86px;
-    height: 86px;
-    right: -30px;
+    --stamp: 86px;
+    --stamp-r: 30px;
+    --stamp-b: 21px;
+  }
+}
+
+/* Desktop: a 200 px print keeps the stacked cards — and so the KR-05 column beside them —
+   about 30 px shorter, with less headroom to fill. */
+@media (min-width: 1024px) {
+  @container coach (min-width: 620px) {
+    .coach__inner {
+      grid-template-columns: 200px minmax(0, 1fr);
+    }
   }
 }
 
@@ -351,17 +408,10 @@
   stroke: var(--color-white);
 }
 
-.brush__strand--mid {
-  opacity: 0.72;
-}
-
-.brush__strand--thin {
-  opacity: 0.55;
-}
-
+/* Only over the pale wall at the upper right (masked in BrushStroke.tsx). */
 .brush__shadow {
   stroke: var(--color-navy-900);
-  opacity: 0.28;
+  opacity: 0.18;
 }
 
 /* --------------------------------------------------------------------------

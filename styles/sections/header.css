@@ -294,7 +294,9 @@
 }
 
 /* 0–61% = the 280ms flight (rise ease-out, fall ease-in: a parabola), then the line
-   sticks the landing: it thickens and settles (compress and hold, no bounce). */
+   sticks the landing: it thickens and settles (compress and hold, no bounce).
+   Easings inside @keyframes are literal: Chromium plays a keyframe-level var() as linear
+   (MD2-02), so --ease-land / --ease-spring are spelled out with the token named beside. */
 @keyframes spy-hop-a {
   0% {
     transform: translateY(0);
@@ -306,7 +308,7 @@
   }
   61% {
     transform: translateY(0) scaleY(1.7);
-    animation-timing-function: var(--ease-land);
+    animation-timing-function: cubic-bezier(0.22, 1.12, 0.36, 1); /* = --ease-land */
   }
   100% {
     transform: none;
@@ -324,7 +326,7 @@
   }
   61% {
     transform: translateY(0) scaleY(1.7);
-    animation-timing-function: var(--ease-land);
+    animation-timing-function: cubic-bezier(0.22, 1.12, 0.36, 1); /* = --ease-land */
   }
   100% {
     transform: none;
@@ -712,28 +714,32 @@ html:has(.menu-sheet[open]) {
      passes it: the chronophotograph at the scale of the navigation. */
   html.js-motion .menu-sheet[open] .menu-sheet__link[aria-current] {
     --hop-at: calc(200ms + var(--i, 0) * 40ms);
+    --hop-dur: 380ms;
   }
 
   html.js-motion .menu-sheet[open] .menu-sheet__link[aria-current] .here-fly {
-    animation: here-fly 380ms linear var(--hop-at) both;
+    animation: here-fly var(--hop-dur) linear var(--hop-at) both;
   }
 
   html.js-motion .menu-sheet[open] .menu-sheet__link[aria-current] .here-arc {
-    animation: here-arc 380ms linear var(--hop-at) both;
+    animation: here-arc var(--hop-dur) linear var(--hop-at) both;
   }
 
   html.js-motion .menu-sheet[open] .menu-sheet__link[aria-current] .here-pitch {
     animation:
-      here-pitch 380ms linear var(--hop-at) both,
-      here-stick var(--dur-land) var(--ease-land) calc(var(--hop-at) + 380ms);
+      here-pitch var(--hop-dur) linear var(--hop-at) both,
+      here-stick var(--dur-land) var(--ease-land) calc(var(--hop-at) + var(--hop-dur));
   }
 
+  /* CV2-10: the frames develop in the air, one behind her — the take-off frame at 45% of
+     the flight (she is at the apex), the apex frame at 75% — each a 120ms fade, so both
+     are there as she sticks the landing (never popping in after it). */
   html.js-motion .menu-sheet[open] .menu-sheet__link[aria-current] .here-ghost--1 {
-    animation: here-expose var(--dur-tap) linear calc(var(--hop-at) + 40ms) both;
+    animation: here-expose 120ms linear calc(var(--hop-at) + var(--hop-dur) * 0.45) both;
   }
 
   html.js-motion .menu-sheet[open] .menu-sheet__link[aria-current] .here-ghost--2 {
-    animation: here-expose var(--dur-tap) linear calc(var(--hop-at) + 190ms) both;
+    animation: here-expose 120ms linear calc(var(--hop-at) + var(--hop-dur) * 0.75) both;
   }
 }
 
@@ -823,6 +829,12 @@ html:has(.menu-sheet[open]) {
    -------------------------------------------------------------------------- */
 .sticky-bar {
   --dock-gap: 8px;
+  /* The dock's own spring (MD2-09): ≈6.6% overshoot, 5.5px over its 84px travel (the
+     shared --ease-spring, kept for the small apparatus parts, overshoots 18%: 15px here). */
+  --ease-dock: cubic-bezier(0.34, 1.45, 0.5, 1);
+  /* CV2-10: the first pill rises when the capsule has covered 40% of its travel on
+     --ease-dock (43ms of 420), so the content arrives with its container. */
+  --pill-at: 44ms;
   position: fixed;
   inset: auto var(--dock-gap) calc(var(--dock-gap) + env(safe-area-inset-bottom));
   z-index: 40;
@@ -847,7 +859,7 @@ html:not(.js) .sticky-bar {
   transform: none;
   visibility: visible;
   transition:
-    transform var(--dur-spring) var(--ease-spring),
+    transform var(--dur-spring) var(--ease-dock),
     visibility 0s linear 0s;
 }
 
@@ -866,8 +878,8 @@ html.js-motion .sticky-bar:not([data-visible="true"]) .sticky-bar__list > li {
 
 html.js-motion .sticky-bar[data-visible="true"] .sticky-bar__list > li {
   transition:
-    opacity var(--dur-fast) linear calc(90ms + var(--i, 0) * 40ms),
-    transform var(--dur-fast) var(--ease-stick) calc(90ms + var(--i, 0) * 40ms);
+    opacity var(--dur-fast) linear calc(var(--pill-at) + var(--i, 0) * 40ms),
+    transform var(--dur-fast) var(--ease-stick) calc(var(--pill-at) + var(--i, 0) * 40ms);
 }
 
 /* No JS + scroll timelines: stay out of the hero's way, appear after ~one screen. */
@@ -1101,7 +1113,7 @@ html.js-motion .sticky-bar[data-visible="true"] .sticky-bar__list > li {
   }
   30% {
     scale: 1.03 0.92;
-    animation-timing-function: var(--ease-spring);
+    animation-timing-function: cubic-bezier(0.34, 1.8, 0.5, 1); /* = --ease-spring (literal: MD2-02) */
   }
   100% {
     scale: 1 1;

@@ -236,7 +236,7 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
       <div ref={panelRef} className="ps-panel">
         <div className="ps-inner">
           <div className="ps-plate">
-            <ProgramIcon icon={program.icon} label={program.iconLabel} className="ps-icon" figure />
+            <ProgramIcon icon={program.icon} label={program.iconLabel} className="ps-icon" scene="sheet" />
             {bib ? (
               <span className="pc-bib" aria-hidden="true">
                 {bib}

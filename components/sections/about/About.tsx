@@ -24,7 +24,7 @@ function Mission({ text }: { text: string }) {
   );
 }
 
-/** The history's founding year („2007.“) set as a tabular figure — display-only, same characters. */
+/** The history's founding year („2007.“) set bold in the sentence — display-only, same characters. */
 function History({ text }: { text: string }) {
   const m = text.match(/\b\d{4}\./);
   if (m?.index === undefined) return <>{text}</>;
@@ -32,7 +32,7 @@ function History({ text }: { text: string }) {
   return (
     <>
       {text.slice(0, m.index)}
-      <span className="about__year tabular">{m[0]}</span>
+      <span className="about__year">{m[0]}</span>
       {text.slice(end)}
     </>
   );
