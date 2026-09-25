@@ -65,23 +65,44 @@
 .chrono-solid {
   color: var(--accent);
 }
+/* On chalk/ice the steel ghosts nearly vanish (≈1.1:1): use the royal family there. */
+[data-theme="light"] .chrono-ghost,
+[data-theme="ice"] .chrono-ghost {
+  color: var(--color-royal-500);
+  opacity: calc(var(--o) * 1.15);
+}
+/* Phones: the mark stays readable at 26px titles (§1 "lands on section titles"). */
+@media (max-width: 639.98px) {
+  .section-heading__mark {
+    width: 2.5em;
+    margin-left: 0.22em;
+  }
+}
 
-/* Landing (HeadingLandings island adds data-landed). No-JS / reduced motion: static final state. */
+/* Landing (HeadingLandings adds data-landed). A real hop: X linear, Y a parabola (one
+   out-of-range cubic-bezier on translateY: takeoff at ghost 1, apex over ghost 2, touchdown),
+   each ghost appearing as the flier passes it (0/208/416 ms). Units are the mark's viewBox.
+   No-JS / reduced motion: static final state. */
 html.js-motion .chrono-mark:not([data-landed]) .chrono-ghost {
   opacity: 0;
 }
+html.js-motion .chrono-mark:not([data-landed]) .chrono-fly {
+  transform: translateX(-340px);
+}
 html.js-motion .chrono-mark:not([data-landed]) .chrono-solid {
   opacity: 0;
-  transform: translate(-40%, -45%);
+  transform: translateY(-6px);
 }
 html.js-motion .chrono-mark .chrono-ghost {
-  transition: opacity 0.28s linear calc(var(--i) * 0.08s);
+  transition: opacity var(--dur-fast) linear calc(var(--i) * 208ms);
+}
+html.js-motion .chrono-mark .chrono-fly {
+  transition: transform var(--dur-reveal) linear;
 }
 html.js-motion .chrono-mark .chrono-solid {
-  transform-box: fill-box;
   transition:
-    opacity 0.18s linear 0.2s,
-    transform 0.6s var(--ease-stick) 0.2s;
+    opacity var(--dur-tap) linear,
+    transform var(--dur-reveal) cubic-bezier(0.33, -10.45, 0.67, -10.45);
 }
 
 /* Source link "izvor ↗" */

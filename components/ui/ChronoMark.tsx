@@ -14,16 +14,19 @@ const LANDED = { x: 340, y: 58 } as const;
 /**
  * Chronophotograph mark: ghost frames of the club silhouette along a leap arc,
  * landing as the solid silhouette on the section title. Static by default;
- * components/ui/HeadingLandings.tsx plays the landing once on enter.
+ * components/ui/HeadingLandings.tsx plays the landing once on enter: the flier
+ * takes off from the first ghost, peaks over the second and lands (600 ms), and
+ * each ghost appears as it passes. `land={false}` renders the landed state only
+ * (a section whose own motion is its landing, e.g. the S11 doskok).
  */
-export function ChronoMark({ className }: { className?: string }) {
+export function ChronoMark({ className, land = true }: { className?: string; land?: boolean }) {
   return (
     <svg
       className={["chrono-mark", className].filter(Boolean).join(" ")}
       viewBox={`0 0 ${LANDED.x + W} ${LANDED.y + H}`}
       aria-hidden="true"
       focusable="false"
-      data-land=""
+      {...(land ? { "data-land": "" } : { "data-landed": "" })}
     >
       {GHOSTS.map((g, i) => (
         <use
@@ -37,7 +40,10 @@ export function ChronoMark({ className }: { className?: string }) {
           style={{ ["--o" as string]: g.o, ["--i" as string]: i }}
         />
       ))}
-      <use href="#leap" className="chrono-solid" x={LANDED.x} y={LANDED.y} width={W} height={H} />
+      {/* The flier: X travels linearly (.chrono-fly), Y follows the leap's parabola (.chrono-solid). */}
+      <g className="chrono-fly">
+        <use href="#leap" className="chrono-solid" x={LANDED.x} y={LANDED.y} width={W} height={H} />
+      </g>
     </svg>
   );
 }

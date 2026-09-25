@@ -307,7 +307,7 @@ await runScript("content", { target: OUT }, async (report) => {
         home: [...document.querySelectorAll("a")].find((a) => /Nazad na početnu/.test(a.textContent ?? ""))?.getAttribute("href") ?? null,
         h1: document.querySelectorAll("h1").length,
       }));
-      report.check("404.copy", nf.text.includes("Ups — ova stranica je izgubila ravnotežu."), "404 shows „Ups — ova stranica je izgubila ravnotežu.“");
+      report.check("404.copy", nf.text.replace(/\s+/g, " ").includes("Ups — ova stranica je izgubila ravnotežu."), "404 shows „Ups — ova stranica je izgubila ravnotežu.“");
       report.check("404.home", nf.home === "/", `„Nazad na početnu“ → ${nf.home}`);
       report.check("404.h1", nf.h1 === 1, `404 has ${nf.h1} <h1>`);
     }
