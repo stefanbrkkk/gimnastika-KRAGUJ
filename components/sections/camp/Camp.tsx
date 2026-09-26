@@ -84,9 +84,10 @@ function Arrow({ dir }: { dir: "prev" | "next" }) {
  * - Postcards: a scroll-snap row without JS; with JS (html.js, set before first paint)
  *   a stack that can be flicked sideways (Draggable x + Inertia, loaded when near)
  *   plus prev/next buttons (WCAG 2.5.7). Vertical page scroll stays native.
- * - Horizon: the season's last beam routine — a leap lands on the beam, the gymnast finds
- *   her balance, then the beam lets go and becomes the summer sea (a one-shot on every
- *   device when motion is allowed; camp-beam.ts). The static state is the wave + its echoes.
+ * - Horizon: the season's last beam routine — a straddle jump lands on the beam, the gymnast
+ *   finds her balance in a scale, then the beam lets go and becomes the summer sea (a one-shot
+ *   on every device when motion is allowed; camp-beam.ts). The static state is the wave + its
+ *   echoes.
  * - Camp note: rendered while the BUILD date ≤ CAMP_NOTE_UNTIL and hidden after mount
  *   when the visitor's Europe/Belgrade date is past it (DECISIONS D-19).
  */

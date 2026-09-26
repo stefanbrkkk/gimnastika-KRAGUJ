@@ -21,7 +21,7 @@ export function Quiz() {
       <div className="container-site quiz-layout">
         <SectionHeading id="kviz-title" title={typesetSr(QUIZ.heading)} align="left" className="quiz-heading" />
         <div className="quiz-stage">
-          <QuizApp vm={vm} art={<QuizBandArt occlude />} />
+          <QuizApp vm={vm} art={<QuizBandArt />} />
           <QuizGuide />
         </div>
       </div>

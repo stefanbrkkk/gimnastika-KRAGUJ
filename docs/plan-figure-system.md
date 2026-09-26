@@ -117,8 +117,10 @@ postcard layout leaves no lane for it).
   - favicon, OG image and app icons.
   - `data-figure` values: `brand:logo`, `brand:hero`, `brand:mark`, `brand:quiz`, `brand:doskok`, `brand:booking`.
 - **R2 Pose family.** Every other figure is a pose from §4. It appears only where it stands for a
-  program, an action or a state. The same pose appears at most once per page, except program pose
-  reuse inside the program detail sheet and the quiz result, which show that same program.
+  program, an action or a state. The same pose appears at most once per page **at rest**. Exceptions:
+  - the program detail sheet and the quiz result reuse the program's own pose;
+  - a motion-only moment may reuse a pose, e.g. the camp routine lands in the scale that the coach plate shows at rest;
+  - the 404 is a separate page.
 - **R3 Trails show phases.** A ghost trail always shows different phases of one movement. Static
   trails stay only in the hero (existing phases), the enrollment band (cartwheel) and the contact
   doskok (existing). Title-mark ghosts exist only during the hop.

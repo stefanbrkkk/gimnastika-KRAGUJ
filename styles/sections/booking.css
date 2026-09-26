@@ -550,8 +550,9 @@ html[data-booking-open] body {
   box-shadow: inset 0 0 0 1px var(--hairline);
 }
 
-/* The „landed“ card (C-05): the message is on its way — the silhouette stands in the
-   first column and the card is outlined in royal on white, the funnel's stuck landing. */
+/* The „landed“ card (C-05): the message is on its way — the salute (the pose family's
+   finish, §5.13) stands in the first column and the card is outlined in royal on white,
+   the funnel's stuck landing. */
 .booking__status[data-landed] {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr);
@@ -562,12 +563,19 @@ html[data-booking-open] body {
   box-shadow: inset 0 0 0 1.5px var(--color-royal-600);
 }
 
-.booking__status-leap {
-  width: 40px;
-  height: auto;
+/* 36px tall = the logo figure's body size at the card's old 40px silhouette. */
+.booking__status-pose {
+  justify-self: center;
+  width: auto;
+  height: 36px;
   overflow: visible;
   color: var(--color-navy-900);
   transform-origin: 50% 100%;
+}
+
+/* The message keeps its column also in the moment before the pose chunk has arrived. */
+.booking__status[data-landed] > span {
+  grid-column: 2;
 }
 
 .booking__sends {
@@ -782,14 +790,14 @@ html[data-booking-open] body {
   }
 
   /* M-02: the card stamps in (clip from the top, only the clip animates; its height is
-     set in the same frame), the silhouette drops in and sticks the landing. ≤600 ms. */
+     set in the same frame), the salute drops in and sticks the landing. ≤600 ms. */
   .booking__status[data-landed] {
     animation: booking-stamp var(--dur-base) var(--ease-stick) both;
   }
-  .booking__status[data-landed] .booking__status-leap {
+  .booking__status[data-landed] .booking__status-pose {
     animation:
-      booking-leap-drop 360ms var(--ease-flight) both,
-      booking-leap-stick var(--dur-land) var(--ease-land) 360ms both;
+      booking-pose-drop 360ms var(--ease-flight) both,
+      booking-pose-stick var(--dur-land) var(--ease-land) 360ms both;
   }
 
   /* M-03: one „balance check“ per send attempt — the invalid control is pushed off its
@@ -825,7 +833,7 @@ html[data-booking-open] body {
     clip-path: inset(0 0 0 0 round var(--radius-md));
   }
 }
-@keyframes booking-leap-drop {
+@keyframes booking-pose-drop {
   from {
     translate: 0 -28px;
     rotate: -10deg;
@@ -840,7 +848,7 @@ html[data-booking-open] body {
     opacity: 1;
   }
 }
-@keyframes booking-leap-stick {
+@keyframes booking-pose-stick {
   from {
     scale: 1.06 0.86;
   }

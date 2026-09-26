@@ -1,7 +1,8 @@
 /**
  * The quiz's darkroom strip: a Marey chronophotograph of one tumbling pass. Each answer is
- * one hop of the club silhouette — take-off (01), contact (02), stuck landing (03) — and the
- * print develops frame by frame behind it. The picture (`art`, QuizBandArt) is server-rendered
+ * one hop of the club silhouette — take-off (01), contact (02), touchdown (03), where she becomes
+ * the recommended program's pose on its apparatus — and the print develops frame by frame
+ * behind it. The picture (`art`, QuizBandArt) is server-rendered
  * once; this wrapper only states where the pass is (data attributes) and prints the edge
  * caption and frame numbers, so the island carries no geometry. Purely decorative (aria-hidden).
  * Reduced motion / Save-Data: the same states without transitions. No-JS guide: `still`.

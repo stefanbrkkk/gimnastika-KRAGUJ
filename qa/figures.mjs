@@ -5,9 +5,8 @@
 // WHAT COUNTS AS ONE FIGURE (visible to a visitor — see "Visible" below):
 //   - a <use> whose href ends in "#leap" (the logo split leap, components/brand/Sprite.tsx).
 //     Several clipped <use> that draw ONE body are one figure: the hero rig
-//     ([data-hero-ghost], [data-hero-leap]: torso + back leg + front leg), the hero's
-//     scroll runner (.hero-spine: two clip halves) and the 404 beam figure
-//     (.nf-scene__figure: legs + torso) — see GROUPS;
+//     ([data-hero-ghost], [data-hero-leap]: torso + back leg + front leg) and the hero's
+//     scroll runner (.hero-spine: two clip halves) — see GROUPS;
 //   - an <svg data-figure="pose:<id>"> (a pose from the plan's §4 family), whatever it draws.
 //     A #leap inside a pose svg is not counted twice (the pose is the figure).
 //
@@ -40,8 +39,8 @@
 // Visible = non-zero box, not display:none, visibility visible, effective opacity
 // (opacity of every ancestor × colour alpha × fill-opacity) > MIN_OPACITY, not
 // clipped away by an overflow ancestor, a rect clip-path or the page bounds, and not
-// painted in the colour of its nearest opaque background (contrast < 1.1: e.g. the quiz
-// band's navy-on-navy occluder copies, which hide apparatus lines, are not figures).
+// painted in the colour of its nearest opaque background (contrast < 1.1: a same-colour copy
+// used to hide lines under a figure is not a figure).
 // Not measured: interaction-only states (menu sheet, booking sheet, quiz steps,
 // schedule "Po danu", carousel swipes). The inventory these thresholds come from is
 // in docs/plan-figure-system.md §1 (live 1440 today: 93 static, 18 on one screen).
@@ -60,7 +59,7 @@ const ON_SCREEN = 0.5;
 /** A figure seen at least this much inside the viewport while scrolling was seen by the visitor. */
 const SEEN = 0.15;
 /** Groups of clipped #leap uses that draw one body. */
-const GROUPS = "[data-hero-ghost], [data-hero-leap], .hero-spine, .nf-scene__figure";
+const GROUPS = "[data-hero-ghost], [data-hero-leap], .hero-spine";
 const SIZES = ["390x844", "1440x900"];
 
 // ── in-page collector (installed with addInitScript; ids are stable per page) ──────

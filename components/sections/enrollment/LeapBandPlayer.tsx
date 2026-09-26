@@ -4,14 +4,13 @@ import { useEffect } from "react";
 import { motionAllowed, whenNear } from "@/lib/motion-env";
 
 /**
- * Arms S10's primary motion — „Jedan skok, tri kadra“ (initial bundle: tiny, no
- * gsap here). Only when the leap is still below the fold at hydration, it marks
- * the band data-leap="armed" (CSS pre-state under html.js-motion: the decorative
- * frames wait) and, one viewport before it, loads the lazy chunk
- * (leap-motion.ts), which watches for the band (in view for 350ms: a layout jump
- * is not an arrival), takes the primary-motion slot (≤250ms wait) and flies the
- * leap. A failed chunk or an
- * unmount always lands on the final state (data-leap="done").
+ * Arms S10's primary motion — the cartwheel band (initial bundle: tiny, no gsap here). Only when
+ * the band is still below the fold at hydration, it marks it data-leap="armed" (CSS pre-state
+ * under html.js-motion: the decorative figures and ticks wait, the numerals and lamps dim) and,
+ * one viewport before it, loads the lazy chunk (leap-motion.ts), which watches for the band (in
+ * view for 350ms: a layout jump is not an arrival), takes the primary-motion slot (≤250ms wait)
+ * and plays the sequence: the three cartwheel phases develop left to right, the salute sticks
+ * its landing. A failed chunk or an unmount always lands on the final state (data-leap="done").
  * Reduced motion / Save-Data / no JS: the static chronophotograph, untouched.
  */
 export function LeapBandPlayer({ rootId }: { rootId: string }) {

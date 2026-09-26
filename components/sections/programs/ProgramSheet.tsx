@@ -24,7 +24,7 @@ import { ScheduleLines } from "./ScheduleLines";
  * takeoff, fully opaque); the card reappears in the frame the sheet closes, so the
  * two are never printed over each other. Reduced motion: 150ms crossfade.
  * The plate is the apparatus scene (QP-21): a large drawing on the mat line and Marey grid with
- * the club silhouette posed over it; with motion it performs the mount (MI-08, ≤1.5s).
+ * the program's pose on it (plan §5.4); with motion it performs the mount (MI-08, ≤1.5s).
  * The sheet is a light print even though it lives inside the dark S3 section
  * (data-theme="light" on the dialog; .ps-panel sets its own tokens).
  * Links inside (booking / schedule) close the sheet synchronously and let the
@@ -150,8 +150,8 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
         if (cancelled) return;
         gsap = m.gsap;
         show();
-        // The scene (MI-08): the apparatus draws on the plate as the window opens, then the club
-        // silhouette hops onto its pose over it and sticks the landing (programs.css).
+        // The scene (MI-08): the apparatus draws on the plate as the window opens, then the
+        // program's pose drops onto it and sticks the landing (programs.css).
         dialog.setAttribute("data-scene", "");
         const from = onCard();
         card.style.setProperty("visibility", "hidden");

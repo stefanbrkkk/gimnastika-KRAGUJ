@@ -291,8 +291,9 @@ html.js .postcards[data-armed] .postcard[data-slot="0"] {
   vector-effect: non-scaling-stroke;
 }
 
-/* The routine's flier + ghost frames (created by camp-beam.ts, plain px, never stretched):
-   behind the postcards, like the beam she lands on. */
+/* The routine's figures (created by camp-beam.ts, plain px, never stretched): behind the
+   postcards, like the beam she lands on. The star in the air is a faint exposure, its phase
+   ghost at the apex fainter still; the scale she lands in is solid. */
 .camp__routine {
   position: absolute;
   inset: 0;
@@ -307,19 +308,14 @@ html.js .postcards[data-armed] .postcard[data-slot="0"] {
   color: var(--accent);
 }
 
-.camp__routine-ghost--1 {
-  color: var(--ghost-1);
-  opacity: var(--ghost-1-o);
-}
-
-.camp__routine-ghost--2 {
-  color: var(--ghost-2);
-  opacity: var(--ghost-2-o);
-}
-
-.camp__routine-ghost--3 {
+.camp__routine-star {
   color: var(--ghost-3);
   opacity: var(--ghost-3-o);
+}
+
+.camp__routine-ghost {
+  color: var(--ghost-2);
+  opacity: var(--ghost-2-o);
 }
 
 /* --- Controls (JS only) ---------------------------------------------------- */

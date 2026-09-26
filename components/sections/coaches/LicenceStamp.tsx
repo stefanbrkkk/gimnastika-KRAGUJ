@@ -7,7 +7,7 @@
  * while the ink keeps blending with the print: `__base` (the disc) and `__ink` (rings +
  * letters + the one-off ink ring of the press).
  *
- * `onPlate` (the KR-07 Marey plate): ink cannot lighten a dark print, and a pale disc over it
+ * `onPlate` (the KR-07 plate, no portrait yet): ink cannot lighten a dark print, and a pale disc over it
  * turns grey. So that card has no disc, and where the impression crosses the navy plate it
  * shows in the plate's own dark-theme accent (lav-200, ≥7:1 on navy) — the same impression,
  * clipped to the plate by a static wrapper (coaches.css), so „GSS“ stays legible across the

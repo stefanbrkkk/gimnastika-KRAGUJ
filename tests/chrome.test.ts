@@ -30,7 +30,24 @@ import {
   HEADER_Y_KEY,
   headerYKey,
 } from "@/components/sections/header/header-tone";
-import { POINTER_TILT, SETTLE_KICK, createBalance, isSettled, pointerTarget, stepBalance } from "@/components/notfound/tilt";
+import { BeamScene } from "@/components/notfound/BeamScene";
+import {
+  ANKLE,
+  BEAM,
+  BEAM_TOP,
+  FIGURE,
+  FOOT_CONTACT,
+  LEG_COLUMN,
+  LEGS,
+  POSE,
+  STAND,
+  SUPPORT_CUT,
+  SWAY_CUT,
+  VIEW,
+  swayAt,
+} from "@/components/notfound/scene";
+import { MAX_TILT, POINTER_TILT, SETTLE_KICK, createBalance, isSettled, pointerTarget, stepBalance } from "@/components/notfound/tilt";
+import { POSES } from "@/components/brand/poses.generated";
 import { titlePhrases } from "@/components/notfound/title";
 import { NOT_FOUND, PHOTO_PLACEHOLDER } from "@/content/copy";
 import type { PhotoId } from "@/content/photos";
@@ -306,6 +323,10 @@ describe("404 balance: the load catch reads, then holds", () => {
     expect(settled).toBe(true);
   });
 
+  it("the phone's counter-rotation is clamped above the pointer's lean", () => {
+    expect(POINTER_TILT).toBeLessThan(MAX_TILT);
+  });
+
   it("desktop pointer: leans toward the pointer, clamped", () => {
     expect(pointerTarget(500, 0, 1000)).toBe(0);
     expect(pointerTarget(600, 0, 1000)).toBeCloseTo(3, 6);
@@ -313,6 +334,59 @@ describe("404 balance: the load catch reads, then holds", () => {
     expect(pointerTarget(5000, 0, 1000)).toBe(POINTER_TILT);
     expect(pointerTarget(300, 0, 0)).toBe(0);
     expect(pointerTarget(Number.NaN, 0, 1000)).toBe(0);
+  });
+});
+
+/**
+ * The 404 gymnast is the pose family's scale (docs/plan-figure-system.md §5.11): one figure, her
+ * support foot on the beam's padded top, swaying about that foot's ankle.
+ */
+describe("404 scene: one scale pose standing on the beam", () => {
+  const count = (html: string, re: RegExp) => html.match(re)?.length ?? 0;
+
+  it("is the scale pose at the logo figure's body size", () => {
+    expect(POSE).toBe(POSES.scale);
+    expect(FIGURE.width).toBe(POSES.scale.viewBox.width);
+    expect(FIGURE.height).toBe(POSES.scale.viewBox.height);
+    expect(FOOT_CONTACT).toEqual(POSES.scale.contacts.foot);
+  });
+
+  it("stands with the support foot exactly on the beam's padded top, between the A-frames", () => {
+    expect(FIGURE.x + FOOT_CONTACT[0]).toBeCloseTo(STAND.x, 9);
+    expect(FIGURE.y + FOOT_CONTACT[1]).toBeCloseTo(BEAM.y, 9);
+    expect(POSES.scale.floor).toBe(FOOT_CONTACT[1]); // the contact is her lowest ink: nothing sinks into the beam
+    expect(BEAM_TOP).toBeGreaterThan(0);
+    expect(STAND.x).toBeGreaterThan(LEGS[0]);
+    expect(STAND.x).toBeLessThan(LEGS[1]);
+    // her box stays in the view (and in the phones' centre crop, x 110…610) at rest
+    expect(FIGURE.y).toBeGreaterThanOrEqual(VIEW.y);
+    expect(FIGURE.x).toBeGreaterThanOrEqual(110);
+    expect(FIGURE.x + FIGURE.width).toBeLessThanOrEqual(610);
+  });
+
+  it("sways about the ankle of the support foot, the foot staying on the beam", () => {
+    // the ankle is right above the heel contact, inside the support leg's column
+    expect(Math.abs(ANKLE.x - FOOT_CONTACT[0])).toBeLessThanOrEqual(4);
+    expect(FOOT_CONTACT[1] - ANKLE.y).toBeGreaterThan(0);
+    expect(FOOT_CONTACT[1] - ANKLE.y).toBeLessThanOrEqual(12);
+    expect(ANKLE.x).toBeGreaterThan(LEG_COLUMN.left);
+    expect(ANKLE.x).toBeLessThan(LEG_COLUMN.right);
+    // the swaying part and the foot overlap across the ankle (no gap at any lean)
+    expect(SUPPORT_CUT).toBeLessThan(ANKLE.y);
+    expect(SWAY_CUT).toBeGreaterThan(ANKLE.y);
+    expect(SWAY_CUT - SUPPORT_CUT).toBeGreaterThanOrEqual(4);
+    expect(swayAt(-12.3456)).toBe(`rotate(-12.35 ${ANKLE.x} ${ANKLE.y})`);
+  });
+
+  it("renders one pose svg, upright (the no-JS and reduced-motion state), with no ghost clones", () => {
+    const html = renderToStaticMarkup(createElement(BeamScene));
+    expect(count(html, /data-figure="pose:scale"/g)).toBe(1);
+    expect(html).toMatch(/<svg class="nf-scene__figure" data-figure="pose:scale"/);
+    expect(html).not.toContain("#leap");
+    expect(count(html, /data-nf-figure=""/g)).toBe(1);
+    expect(html).toContain(`transform="${swayAt(0)}" data-nf-figure=""`);
+    expect(html).not.toContain("data-nf-ghost");
+    expect(html).toContain(`d="${POSES.scale.d}"`);
   });
 });
 

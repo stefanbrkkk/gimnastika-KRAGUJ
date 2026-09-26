@@ -207,11 +207,28 @@ describe("quiz — result views (S3 hand-off, plates, strip landing)", () => {
     }
     expect(resultView("mladja").band.apparatus).toBe("parter");
     expect(resultView("starija").band).toEqual({ variant: "greda", apparatus: "greda" });
-    expect(resultView("takmicarske").band).toEqual({ variant: "flat", apparatus: "razboj" });
+    expect(resultView("takmicarske").band).toEqual({ variant: "flat", apparatus: "preskok" });
   });
 
-  it("every plate carries S3's apparatus drawing and colour for its program", async () => {
+  it("she lands in the pose of the result's primary program (its first), on that program's apparatus", async () => {
+    const { resultView } = await import("@/components/sections/quiz/views");
+    const { programById } = await import("@/content/programs");
+    const { PROGRAM_POSE } = await import("@/components/sections/programs/pose-scene");
+    const { LANDING } = await import("@/components/sections/quiz/geometry");
+    for (const rule of QUIZ_RULES) {
+      const view = resultView(rule.kind);
+      const primary = programById(view.programs[0] as Parameters<typeof programById>[0]);
+      expect(view.band.apparatus, rule.kind).toBe(primary.icon);
+      expect(LANDING[view.band.apparatus].id, rule.kind).toBe(PROGRAM_POSE[primary.icon].id);
+    }
+    // Multi-program results: the beginners' pair lands as Mlađa (star), the competitive one as A i B.
+    expect(LANDING[resultView("obe-pocetne").band.apparatus].id).toBe("star");
+    expect(LANDING[resultView("takmicarske").band.apparatus].id).toBe("vault");
+  });
+
+  it("every plate carries S3's apparatus drawing, its pose and colour for its program", async () => {
     const { isValidElement } = await import("react");
+    const { PROGRAM_POSE } = await import("@/components/sections/programs/pose-scene");
     const { resultView, iconArt } = await import("@/components/sections/quiz/views");
     const { programById } = await import("@/content/programs");
     const { groupById } = await import("@/content/schedule");
@@ -223,20 +240,22 @@ describe("quiz — result views (S3 hand-off, plates, strip landing)", () => {
         expect(props.color).toBe(program.color);
         expect(props.art).toEqual(iconArt(program.icon));
         expect(props.art.paths.length).toBeGreaterThan(0);
+        expect(props.art.pose.id).toBe(PROGRAM_POSE[program.icon].id);
       }
     }
   });
 
-  it("the strip's apparatus anchors still match S3's drawings (floor y 42, beam top 21.5, high rail 11.5)", async () => {
+  it("the strip's apparatus anchors still match S3's drawings (floor y 42, beam top 21.5, table top 14)", async () => {
     const { iconArt } = await import("@/components/sections/quiz/views");
-    const all = (icon: "parter" | "greda" | "razboj") => iconArt(icon).paths.map((p) => p.d).join(" ");
+    // The apparatus paths only (the print's pose is returned apart and never matched here).
+    const all = (icon: "parter" | "greda" | "preskok") => iconArt(icon).paths.map((p) => p.d).join(" ");
     const num = (n: string) => new RegExp(`(?<![\\d.])${n.replace(".", "\\.")}(?![\\d.])`);
     expect(all("parter")).toMatch(num("42"));
     expect(all("parter")).toMatch(num("22"));
     expect(all("greda")).toMatch(num("21.5"));
     expect(all("greda")).toMatch(num("42"));
-    expect(all("razboj")).toMatch(num("11.5"));
-    expect(all("razboj")).toMatch(num("42"));
+    expect(all("preskok")).toMatch(num("14"));
+    expect(all("preskok")).toMatch(num("42"));
     // Every anchor the strip's geometry places the apparatus by is in S3's drawing (the landing
     // depth `land` is not a drawn coordinate: mid-depth, checked with the floor landing below).
     const { ICON } = await import("@/components/sections/quiz/geometry");
@@ -244,7 +263,7 @@ describe("quiz — result views (S3 hand-off, plates, strip landing)", () => {
       if (key !== "land") expect(all("parter")).toMatch(num(String(n)));
     }
     for (const n of Object.values(ICON.greda)) expect(all("greda")).toMatch(num(String(n)));
-    for (const n of Object.values(ICON.razboj)) expect(all("razboj")).toMatch(num(String(n)));
+    for (const n of Object.values(ICON.preskok)) expect(all("preskok")).toMatch(num(String(n)));
   });
 });
 
@@ -368,21 +387,102 @@ describe("quiz — chronophotograph strip geometry", () => {
     }
   });
 
-  it("draws the apparatus 1.5× its v2 size (QP2-12), standing on the mat inside the strip", async () => {
+  it("draws every landing scene at one scale, the card's proportions, standing on the mat inside the strip", async () => {
     const g = await import("@/components/sections/quiz/geometry");
-    const { parter, greda, razboj } = g.APPARATUS;
-    expect(g.APPARATUS_SCALE).toBe(1.5);
-    expect(parter.s).toBeCloseTo(3 * 1.5, 6);
-    expect(greda.s).toBeCloseTo(2.2 * 1.5, 6);
-    expect(razboj.s).toBeCloseTo(3.2 * 1.5, 6);
-    for (const a of [parter, greda, razboj]) {
-      expect(a.y + g.ICON.floor * a.s).toBeCloseTo(g.MAT_Y, 0);
-      // The widest drawings span icon x 1.5–46.5.
-      expect(a.x + 1.5 * a.s).toBeGreaterThanOrEqual(0);
-      expect(a.x + 46.5 * a.s).toBeLessThanOrEqual(g.VB_W);
+    const { SCENE_K } = await import("@/components/sections/programs/pose-scene");
+    for (const id of ["parter", "greda", "preskok"] as const) {
+      const a = g.APPARATUS[id];
+      const l = g.LANDING[id];
+      expect(a.s, id).toBe(g.SCENE_S);
+      expect(l.scale, id).toBeCloseTo(SCENE_K * g.SCENE_S, 9); // pose : apparatus as on the card
+      expect(a.y + g.ICON.floor * a.s, id).toBeCloseTo(g.MAT_Y, 0);
+      // The widest drawings span icon x 1–47.
+      expect(a.x + 1 * a.s, id).toBeGreaterThanOrEqual(0);
+      expect(a.x + 47 * a.s, id).toBeLessThanOrEqual(g.VB_W);
+      // The pose stays inside the strip, as the flier does (her arm tips ≥ −8).
+      expect(l.y, id).toBeGreaterThanOrEqual(-8);
+      expect(l.x, id).toBeGreaterThan(0);
+      expect(l.x + l.width, id).toBeLessThanOrEqual(g.VB_W);
+      // Every scene is at 03: its pose right of 02 and over the frame's third of the strip.
+      expect(l.x, id).toBeGreaterThan(g.FRAME_X[1]);
     }
-    expect(razboj.y + g.ICON.razboj.rail * razboj.s).toBeGreaterThan(0);
-    expect(parter.y + g.ICON.parter.back * parter.s).toBeGreaterThan(0);
+    // The largest scale at which the handspring still fits (≤ 1 % below the limit).
+    const v = g.LANDING.preskok;
+    expect(v.y).toBeLessThan(-8 + 1.5);
+    expect(g.APPARATUS.parter.y + g.ICON.parter.back * g.APPARATUS.parter.s).toBeGreaterThan(0);
+  });
+
+  it("each landing pose puts its contact on its apparatus, and no ink below its surface or the mat", async () => {
+    const g = await import("@/components/sections/quiz/geometry");
+    const { POSES } = await import("@/components/brand/poses.generated");
+    const { SW_REF } = await import("@/components/sections/programs/pose-scene");
+    /** A pose's outline in strip units (the family uses M/L/H/V/Z only). */
+    const ink = (id: "parter" | "greda" | "preskok") => {
+      const l = g.LANDING[id];
+      const t = POSES[l.id].d.match(/[a-zA-Z]|-?(?:\d+\.?\d*|\.\d+)/g) ?? [];
+      const out: [number, number][] = [];
+      let [x, y, sx, sy, i, cmd] = [0, 0, 0, 0, 0, ""];
+      const num = () => parseFloat(t[i++] ?? "0");
+      while (i < t.length) {
+        if (/[a-zA-Z]/.test(t[i] ?? "")) cmd = t[i++] ?? "";
+        const rel = cmd === cmd.toLowerCase();
+        const C = cmd.toUpperCase();
+        if (C === "Z") {
+          [x, y] = [sx, sy];
+          continue;
+        }
+        if (C === "M" || C === "L") {
+          [x, y] = rel ? [x + num(), y + num()] : [num(), num()];
+          if (C === "M") [sx, sy, cmd] = [x, y, rel ? "l" : "L"];
+        } else if (C === "H") x = rel ? x + num() : num();
+        else if (C === "V") y = rel ? y + num() : num();
+        else throw new Error(`path command ${cmd}`);
+        out.push([l.x + x * l.scale, l.y + y * l.scale]);
+      }
+      return out;
+    };
+    const low = (id: "parter" | "greda" | "preskok") => Math.max(...ink(id).map((p) => p[1]));
+    const edge = (id: "greda" | "preskok", top: number) => g.APPARATUS[id].y + (top - SW_REF / 2) * g.APPARATUS[id].s;
+    // Cartwheel: hands on the beam top (±0.5 strip units), inside the beam; nothing below it.
+    const b = g.APPARATUS.greda;
+    expect(g.LANDING.greda.at[1]).toBeCloseTo(edge("greda", g.ICON.greda.top), 0);
+    expect(g.LANDING.greda.at[0]).toBeGreaterThan(b.x + g.ICON.greda.left * b.s);
+    expect(g.LANDING.greda.at[0]).toBeLessThan(b.x + g.ICON.greda.right * b.s);
+    for (const h of [POSES.cartwheel.contacts.handL, POSES.cartwheel.contacts.handR]) {
+      const hx = g.LANDING.greda.x + h[0] * g.LANDING.greda.scale;
+      const hy = g.LANDING.greda.y + h[1] * g.LANDING.greda.scale;
+      expect(Math.abs(hy - edge("greda", g.ICON.greda.top))).toBeLessThan(0.5);
+      expect(hx).toBeGreaterThan(b.x + g.ICON.greda.left * b.s);
+      expect(hx).toBeLessThan(b.x + g.ICON.greda.right * b.s);
+    }
+    expect(low("greda")).toBeLessThanOrEqual(edge("greda", g.ICON.greda.top) + 0.5);
+    // Handspring: the hand on the table top, inside the table; nothing below it.
+    const v = g.APPARATUS.preskok;
+    const [hx, hy] = [g.LANDING.preskok.x + POSES.vault.contacts.hand[0] * g.LANDING.preskok.scale, g.LANDING.preskok.y + POSES.vault.contacts.hand[1] * g.LANDING.preskok.scale];
+    expect(Math.abs(hy - edge("preskok", g.ICON.preskok.top))).toBeLessThan(0.5);
+    expect(hx).toBeGreaterThan(v.x + g.ICON.preskok.left * v.s);
+    expect(hx).toBeLessThan(v.x + g.ICON.preskok.right * v.s);
+    expect(g.LANDING.preskok.at).toEqual([expect.closeTo(hx, 0), expect.closeTo(hy, 0)]);
+    expect(low("preskok")).toBeLessThanOrEqual(edge("preskok", g.ICON.preskok.top) + 0.5);
+    // Star: in the air over the carpet — her feet above its back edge, never on or below it.
+    const p = g.APPARATUS.parter;
+    expect(low("parter")).toBeLessThan(p.y + g.ICON.parter.back * p.s);
+    expect(low("parter")).toBeGreaterThan(p.y + g.ICON.parter.back * p.s - 4 * p.s);
+    // No ink below the mat, anywhere.
+    for (const id of ["parter", "greda", "preskok"] as const) expect(low(id), id).toBeLessThan(g.MAT_Y);
+  });
+
+  it("the vault: the leap sticks on the mat at 03 and the handspring is centred over 03 (its table out of her reach)", async () => {
+    const g = await import("@/components/sections/quiz/geometry");
+    expect(g.APPARATUS.preskok.lift).toBe(0);
+    const land = g.FLIER.f2.flat;
+    expect(land.x).toBe(g.FRAME_X[2]);
+    expect(g.lowestY(land)).toBeCloseTo(g.MAT_Y, 0);
+    const l = g.LANDING.preskok;
+    expect(l.x + l.width / 2).toBeCloseTo(g.FRAME_X[2], 0);
+    // Landing on the table top would lift her box past the strip's top: the vault is a cut.
+    const tableLift = g.MAT_Y - (g.APPARATUS.preskok.y + g.ICON.preskok.top * g.APPARATUS.preskok.s);
+    expect(g.REST_Y - tableLift + g.USE_Y).toBeLessThan(-8);
   });
 
   it("the beam landing: front foot on the beam top at its end, the seat of the split over the beam", async () => {
@@ -403,16 +503,6 @@ describe("quiz — chronophotograph strip geometry", () => {
     // A beam, not a bench: longer than 2/3 of her split from toe to toe (v2: 1/2).
     const leap = g.pointOf(land, ...g.FRONT_TOE)[0] - g.pointOf(land, ...g.BACK_TOE)[0];
     expect(right - left).toBeGreaterThan((2 / 3) * leap);
-  });
-
-  it("the bars landing: on the mat in front of the bars, the back toe clear of the high bar's upright", async () => {
-    const g = await import("@/components/sections/quiz/geometry");
-    const a = g.APPARATUS.razboj;
-    const land = g.FLIER.f2.flat;
-    const upright = a.x + g.ICON.razboj.post * a.s;
-    expect(g.pointOf(land, ...g.BACK_TOE)[0] - upright).toBeGreaterThanOrEqual(8);
-    expect(g.lowestY(land)).toBeCloseTo(g.MAT_Y, 0);
-    expect(g.pointOf(land, ...g.FRONT_TOE)[0]).toBeLessThanOrEqual(g.VB_W - 16); // the mat line's end
   });
 
   it("the floor landing: the front foot lands mid-depth on the carpet, inside its right edge", async () => {
@@ -438,63 +528,84 @@ describe("quiz — chronophotograph strip geometry", () => {
   });
 });
 
-describe("quiz — strip print: exposures over the scene (QP3-05)", () => {
+describe("quiz — strip print: the flight, then her program's pose (plan §5.3)", () => {
   const exposureTags = (html: string) => html.match(/<g class="qf qf--\w+"[^>]*>/g) ?? [];
+  const css = readFileSync(new URL("../styles/sections/quiz.css", import.meta.url), "utf8");
 
-  it("paints apparatus → occluder → grid and mat → exposures → flier", async () => {
+  it("paints apparatus → grid and mat → exposures → flier → landing poses, with no occluder", async () => {
     const { QuizBandArt } = await import("@/components/sections/quiz/QuizBandArt");
-    const html = renderToStaticMarkup(createElement(QuizBandArt, { occlude: true }));
-    const order = ["qb-apps", "qb-occlude", "qb-grid", "qb-mat", "qb-latent", "qb-fly"].map((c) =>
+    const html = renderToStaticMarkup(createElement(QuizBandArt));
+    const order = ["qb-apps", "qb-grid", "qb-mat", "qb-latent", "qb-fly", "qb-land qb-land--parter"].map((c) =>
       html.indexOf(`class="${c}"`),
     );
     for (const i of order) expect(i).toBeGreaterThan(-1);
     expect(order).toEqual([...order].sort((a, b) => a - b));
-  });
-
-  it("the occluder is an exact copy of the two exposures (same classes, poses and delays)", async () => {
-    const { QuizBandArt } = await import("@/components/sections/quiz/QuizBandArt");
-    const tags = exposureTags(renderToStaticMarkup(createElement(QuizBandArt, { occlude: true })));
-    expect(tags).toHaveLength(4);
-    expect(tags.slice(0, 2)).toEqual(tags.slice(2));
-    expect(tags.slice(0, 2).map((t) => t.match(/qf--(\w+)/)?.[1])).toEqual(["takeoff", "apex"]);
-  });
-
-  it("the no-JS guide's still print (no apparatus shown) carries no occluder, and the same two exposures", async () => {
-    const { QuizBandArt } = await import("@/components/sections/quiz/QuizBandArt");
-    const html = renderToStaticMarkup(createElement(QuizBandArt, {}));
     expect(html).not.toContain("qb-occlude");
+    expect(css).not.toContain("qb-occlude");
     expect(exposureTags(html)).toHaveLength(2);
+  });
+
+  it("needs no occluder: no exposure, on any variant, reaches a landing apparatus", async () => {
+    const g = await import("@/components/sections/quiz/geometry");
+    // An exposure's reach to the right: its front toe (the fill's right extreme) at any pitch.
+    const right = Math.max(
+      ...g.EXPOSURES.flatMap((e) => Object.values(e.pose).map((p) => g.pointOf(p, ...g.FRONT_TOE)[0] + 4)),
+    );
+    for (const id of ["parter", "greda", "preskok"] as const) {
+      const a = g.APPARATUS[id];
+      const left = Math.min(a.x + (id === "preskok" ? g.ICON.preskok.run : id === "greda" ? g.ICON.greda.left : g.ICON.parter.frontLeft) * a.s, g.LANDING[id].x);
+      expect(right, id).toBeLessThan(left);
+    }
+  });
+
+  it("the brand figure (flier + two exposures) and each landing pose: poses are their own <svg data-figure=\"pose:…\">", async () => {
+    const { QuizBandArt } = await import("@/components/sections/quiz/QuizBandArt");
+    const html = renderToStaticMarkup(createElement(QuizBandArt));
+    expect(html).toMatch(/^<svg class="quiz-band__svg"[^>]*data-figure="brand:quiz"/);
+    expect(html.match(/href="#leap"/g)).toHaveLength(3);
+    expect([...html.matchAll(/<svg data-figure="pose:(\w+)"/g)].map((m) => m[1])).toEqual(["star", "cartwheel", "vault"]);
+  });
+
+  it("the no-JS guide's still print: the same flight, the leap on the mat, no landing shown", async () => {
+    const { QuizBandArt } = await import("@/components/sections/quiz/QuizBandArt");
+    const html = renderToStaticMarkup(createElement(QuizBandArt));
     const { QuizGuide } = await import("@/components/sections/quiz/QuizGuide");
     const guide = renderToStaticMarkup(createElement(QuizGuide));
     expect(exposureTags(guide)).toEqual(exposureTags(html));
-    // One flier plus the two exposures: three silhouettes in the guide's print.
+    // One flier plus the two exposures: three silhouettes in the guide's print; no data-app, so
+    // the landing poses stay hidden (CSS keys them on data-app) and the leap keeps the mat.
     expect(guide.match(/href="#leap"/g)).toHaveLength(3);
+    expect(guide).not.toMatch(/class="quiz-band"[^>]*data-app=/);
+    expect(css).toMatch(/\.quiz-band\[data-app\] \.qb-body \{\s*opacity: 0;/);
+    expect(css).toMatch(/\.qb-land \{\s*color: var\(--color-white\);\s*opacity: 0;/);
   });
 
-  it("the occluder is off while no apparatus is drawn, and leaves with the apparatus on a rewind", () => {
-    const css = readFileSync(new URL("../styles/sections/quiz.css", import.meta.url), "utf8");
-    expect(css).toMatch(/\.quiz-band:not\(\[data-app\]\) \.qb-occlude \{\s*visibility: hidden;\s*\}/);
-    const BACK = '.quiz-app:not([data-lite]) .quiz-band[data-dir="back"]';
-    const rule = (selector: string) => {
-      const at = css.indexOf(`${selector} {`);
-      expect(at, selector).toBeGreaterThan(-1);
-      return css.slice(at, css.indexOf("}", at));
-    };
-    const hideApp = rule(`${BACK} .qb-app`).match(/opacity 0s linear (\d+)ms/)?.[1];
-    const hideOcc = rule(`${BACK} .qb-occlude`).match(/visibility 0s linear (\d+)ms/)?.[1];
-    expect(hideApp).toBeDefined();
-    expect(hideOcc).toBe(hideApp);
+  it("touchdown at 03: a ≤120ms crossfade from the leap to the pose, then the pose sticks about its contact", () => {
+    const FWD = '.quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"]';
+    const body = css.match(new RegExp(`${FWD.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\[data-app\\] \\.qb-body \\{\\s*transition: opacity (\\d+)ms linear var\\(--qb-fly\\);`))?.[1];
+    expect(Number(body)).toBeLessThanOrEqual(120);
+    for (const id of ["parter", "greda", "preskok"]) {
+      const sel = `${FWD}[data-app="${id}"] .qb-land--${id}`;
+      const at = css.indexOf(sel);
+      expect(at, id).toBeGreaterThan(-1);
+      const decl = css.slice(css.indexOf("{", at), css.indexOf("}", at));
+      expect(decl, id).toMatch(new RegExp(`transition: opacity ${body}ms linear var\\(--qb-fly\\);`));
+    }
+    // The stick starts as the crossfade ends, held compressed while the pose fades in.
+    expect(css).toMatch(new RegExp(`animation: qb-pose-stick var\\(--dur-land\\) var\\(--ease-land\\) calc\\(var\\(--qb-fly\\) \\+ ${body}ms\\) backwards;`));
+    expect(css).toMatch(/\.qb-land,\s*\.qb-land-stick \{\s*transform-box: view-box;\s*transform-origin: var\(--at\);/);
+    // …and the flier's own step-2 stick and puff are gone (she is the pose by then).
+    expect(css).not.toMatch(/qb-stick-b|qb-puff-b/);
   });
 
-  it("the occluder is the strip's own navy, solid where a ghost is developed", () => {
-    const css = readFileSync(new URL("../styles/sections/quiz.css", import.meta.url), "utf8");
-    const band = css.match(/\.quiz-band \{[^}]*background: ([^;]+);/)?.[1];
-    const occ = css.match(/\.qb-occlude \{([^}]*)\}/)?.[1] ?? "";
-    expect(band).toBe("var(--color-navy-900)");
-    expect(occ).toContain(`--ghost-1: ${band};`);
-    expect(occ).toContain(`--ghost-2: ${band};`);
-    expect(occ).toMatch(/--ghost-1-o: 1;/);
-    expect(occ).toMatch(/--ghost-2-o: 1;/);
+  it("the pose's contact (--at) is its landing contact, in strip units", async () => {
+    const g = await import("@/components/sections/quiz/geometry");
+    const { QuizBandArt } = await import("@/components/sections/quiz/QuizBandArt");
+    const html = renderToStaticMarkup(createElement(QuizBandArt));
+    for (const id of ["parter", "greda", "preskok"] as const) {
+      const [x, y] = g.LANDING[id].at;
+      expect(html).toContain(`class="qb-land qb-land--${id}" style="--at:${x}px ${y}px"`);
+    }
   });
 });
 

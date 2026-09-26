@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Picture, isPhotoVisible } from "@/components/ui/Picture";
 import { QuietBoundary } from "@/components/ui/QuietBoundary";
 import { Section } from "@/components/ui/Section";
@@ -6,7 +6,8 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { SourceLink } from "@/components/ui/SourceLink";
 import { COACHES, COACHES_COPY, type Coach } from "@/content/copy";
 import { PHOTOS } from "@/content/photos";
-import { LEAP_VIEWBOX } from "@/components/brand/sprite-paths.generated";
+import { Pose } from "@/components/brand/Pose";
+import { POSES } from "@/components/brand/poses.generated";
 import { typesetSr } from "@/lib/typeset";
 import { BrushStroke } from "./BrushStroke";
 import { CoachesMotion } from "./CoachesMotion";
@@ -19,53 +20,30 @@ const PORTRAIT_ASPECT = 4 / 5;
 const TEAM_PHOTO = "05" as const;
 const TEAM_ASPECT = 3 / 2;
 
-/** The plate's space (4:5, like the portraits) and one exposure of the leap in it. */
-const PLATE = { w: 100, h: 125 } as const;
-const EXPOSURE_W = 34;
-const EXPOSURE_H = (EXPOSURE_W * LEAP_VIEWBOX.height) / LEAP_VIEWBOX.width;
-/** The mat line the leap takes off from and sticks on. */
-const MAT_Y = 86;
-/** Four exposures of one leap on a parabola (take-off → flight → landing); the last is solid. */
-const EXPOSURES = [
-  { x: 3, y: MAT_Y - EXPOSURE_H - 3.5, ghost: 1 },
-  { x: 22, y: 42, ghost: 2 },
-  { x: 42, y: 39, ghost: 3 },
-  { x: 62, y: MAT_Y - EXPOSURE_H, ghost: 0 },
-] as const;
+/** The plate's pose: the scale (vaga, plan-figure-system P7) — balance suits a judge. */
+const PLATE_POSE = POSES.scale;
+/** Share of the pose box below its lowest ink (its standing foot): the figure sinks by it onto the mat line. */
+const POSE_SINK = 1 - (PLATE_POSE.floor ?? PLATE_POSE.viewBox.height) / PLATE_POSE.viewBox.height;
 
 /**
- * No portrait of Slađana Kovačević exists yet: her frame is a Marey plate instead of an empty
- * slot — four exposures of the club's leaping gymnast across the navy plate, from take-off
- * to a stuck landing on the mat line (a small reprise of the hero; she is also the club's
- * licensed judge). Marked only with its frame code (the empty slot of excluded photo 07) —
- * no promise in the UI. The plate carries the dark theme, so the ghosts use the shared
- * dark-section steps (--ghost-1/2/3). Purely decorative, hidden from assistive tech (the name
- * and roles carry the card). Always the finished plate, with or without JS (AC2-03): the
- * card's only motion is its stamp press.
+ * No portrait of Slađana Kovačević exists yet: her frame is a navy plate instead of an empty
+ * slot — one gymnast in a scale (vaga), standing on a thin mat line like a portrait subject
+ * (she is also the club's licensed judge). When the club sends her portrait, the photo
+ * replaces it. Marked only with its frame code (the empty slot of excluded photo 07) — no
+ * promise in the UI. Purely decorative, hidden from assistive tech (the name and roles carry
+ * the card). Static and complete without JS; coaches-motion.ts develops the figure once
+ * (opacity + a small rise) before the stamp press.
  * TODO(klub): request a portrait in club kit (dosije §7, item 7) → then set photoId in content/copy.ts.
  */
 function PortraitPending() {
-  const r1 = (n: number) => Math.round(n * 10) / 10;
+  const sink: CSSProperties = { ["--pose-sink" as string]: `${Math.round(POSE_SINK * 10000) / 100}%` };
   return (
     <div className="frame coach__frame" aria-hidden="true">
       <div className="photo photo-placeholder coach__plate" data-theme="dark" style={{ aspectRatio: String(PORTRAIT_ASPECT) }} data-coach-plate="">
-        <svg viewBox={`0 0 ${PLATE.w} ${PLATE.h}`} className="coach__plate-art" focusable="false">
-          <line className="coach__plate-mat" x1="4" y1={MAT_Y} x2="96" y2={MAT_Y} />
-          {EXPOSURES.map((e) => (
-            <line key={`tick-${e.x}`} className="coach__plate-tick" x1={r1(e.x + EXPOSURE_W / 2)} y1={MAT_Y + 1.5} x2={r1(e.x + EXPOSURE_W / 2)} y2={MAT_Y + 4.5} />
-          ))}
-          {EXPOSURES.map((e) => (
-            <use
-              key={`leap-${e.x}`}
-              href="#leap"
-              x={r1(e.x)}
-              y={r1(e.y)}
-              width={EXPOSURE_W}
-              height={r1(EXPOSURE_H)}
-              className={e.ghost ? `coach__plate-ghost coach__plate-ghost--${e.ghost}` : "coach__plate-solid"}
-            />
-          ))}
-        </svg>
+        <span className="coach__plate-mat" />
+        <span className="coach__plate-subject" style={sink} data-coach-pose="">
+          <Pose id="scale" className="coach__plate-pose" />
+        </span>
       </div>
       <div className="frame-foot">
         <span className="frame-label">{COACHES_COPY.portraitFrame}</span>

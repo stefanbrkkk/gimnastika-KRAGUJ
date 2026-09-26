@@ -1,12 +1,12 @@
 /* enrollment section styles — owned by the enrollment section (S10 „Upis i prvi trening“).
-   „Jedan skok, tri kadra“: one chronophotograph band (takeoff · apex · stuck landing on
-   step 3) over the three steps, a year strip of twelve month lamps, the „Šta poneti“
-   packing list (real checkboxes; ticks draw on tap; a full bag lands a silhouette on the
-   card) and the FAQ (<details>, + → ×, 0fr → 1fr in 280ms, the answer settles in).
+   „Jedna zvezda, tri koraka“: one chronophotograph band (three cartwheel phases and the salute
+   over step 3, plan §5.9) above the three steps, a year strip of twelve month lamps, the „Šta
+   poneti“ packing list (real checkboxes; ticks draw on tap; a full bag underlines the heading)
+   and the FAQ (<details>, + → ×, 0fr → 1fr in 280ms, the answer settles in).
    Motion: transform, opacity, stroke-dashoffset (+ grid rows for details). */
 
 /* --------------------------------------------------------------------------
-   The leap band (LeapBand.tsx). The static state is the final chronophotograph.
+   The cartwheel band (LeapBand.tsx). The static state is the final chronophotograph.
    -------------------------------------------------------------------------- */
 .en-band {
   display: block;
@@ -28,7 +28,7 @@
   }
 }
 
-/* Mat line and Marey ticks: the floor the leap is measured on. */
+/* Mat line and Marey ticks: the floor the routine is measured on (one tick per step numeral). */
 .en-band__mat,
 .en-band__tick {
   stroke: var(--color-steel-300);
@@ -40,7 +40,7 @@
   stroke-opacity: 0.6;
 }
 
-/* Frame numbers under the narrow band's ticks (the steps are a list below it). */
+/* Step numbers under the narrow band's ticks (the steps are a list below it). */
 .en-band__num {
   font-size: 10px;
   font-weight: 650;
@@ -49,43 +49,30 @@
   fill: var(--muted);
 }
 
-/* The trajectory of the hips: dotted, like the timing marks on a Marey plate. */
-.en-band__path {
-  fill: none;
-  stroke: var(--color-steel-300);
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  stroke-dasharray: 0 8;
-  vector-effect: non-scaling-stroke;
-}
-
-/* Ghost → ghost → solid, in the shared leotard ghost tokens. The landing („postaje član
-   kluba“) is the heaviest frame: the same solid navy as the numeral „3“ under it, so figure and
-   number finish together. */
-.en-band__frame[data-frame="takeoff"] {
+/* Three cartwheel phases in the shared ghost tokens (oldest faintest), the salute in the solid
+   accent — the same solid as the title marks' landed flier. Each figure is a nested pose <svg>;
+   its <g> carries the colour, the ghost opacity and the motion's transforms. */
+.en-band__frame[data-frame="cart1"] {
   color: var(--ghost-1);
-  opacity: var(--o);
+  opacity: var(--ghost-1-o);
 }
-.en-band__frame[data-frame="apex"] {
+.en-band__frame[data-frame="cart2"] {
   color: var(--ghost-2);
-  opacity: var(--o);
+  opacity: var(--ghost-2-o);
 }
-.en-band__frame[data-frame="landing"] {
-  color: var(--fg);
+.en-band__frame[data-frame="cart3"] {
+  color: var(--ghost-3);
+  opacity: var(--ghost-3-o);
 }
-
-/* The flier exists only during the leap (leap-motion.ts); it becomes the landing frame, so it
-   flies in the landing's solid. */
-.en-band__flier {
-  color: var(--fg);
-  opacity: 0;
+.en-band__frame[data-frame="salute"] {
+  color: var(--accent);
 }
 
-/* Pre-state while the leap waits below the fold (LeapBandPlayer sets data-leap="armed"; the
-   motion keeps "play" until it lands, then "done"). Decoration only — every step text, the
-   year line and the actions stay visible; numerals wait at .35. Reduced motion: never. */
+/* Pre-state while the band waits below the fold (LeapBandPlayer sets data-leap="armed"; the
+   motion keeps "play" until the salute sticks, then "done"). Decoration only — every step text,
+   the year line and the actions stay visible; numerals wait at .35. Reduced motion: never. */
 @media (prefers-reduced-motion: no-preference) {
-  html.js-motion .en-leap:is([data-leap="armed"], [data-leap="play"]) :is(.en-band__frame, .en-band__path, .en-band__tick) {
+  html.js-motion .en-leap:is([data-leap="armed"], [data-leap="play"]) :is(.en-band__frame, .en-band__tick) {
     opacity: 0;
   }
   html.js-motion .en-leap:is([data-leap="armed"], [data-leap="play"]) :is(.en-step__num, .en-band__num) {
@@ -99,8 +86,8 @@
 
 /* --------------------------------------------------------------------------
    Steps: a compact numbered list on phones, three columns under the frames from 640.
-   Numerals follow the frames' ghost → solid progression in one blue ramp (royal at 45% →
-   78% → solid navy); the frames carry the leotard colours. The ghosting is in the colour,
+   Numerals follow the band's ghost → solid progression in one blue ramp (royal at 45% →
+   78% → solid navy); the figures carry the leotard colours. The ghosting is in the colour,
    so the element's opacity stays free for the motion.
    -------------------------------------------------------------------------- */
 .en-steps {
@@ -128,23 +115,23 @@
   font-variant-numeric: lining-nums proportional-nums;
 }
 
-.en-step[data-frame="takeoff"] .en-step__num {
+.en-step[data-step="1"] .en-step__num {
   color: color-mix(in oklab, var(--color-royal-500) 45%, transparent);
 }
-.en-step[data-frame="apex"] .en-step__num {
+.en-step[data-step="2"] .en-step__num {
   color: color-mix(in oklab, var(--color-royal-500) 78%, transparent);
 }
-.en-step[data-frame="landing"] .en-step__num {
+.en-step[data-step="3"] .en-step__num {
   color: var(--fg);
 }
 
-.en-band__num[data-frame="takeoff"] {
+.en-band__num[data-step="1"] {
   fill: color-mix(in oklab, var(--color-royal-500) 70%, transparent);
 }
-.en-band__num[data-frame="apex"] {
+.en-band__num[data-step="2"] {
   fill: var(--color-royal-500);
 }
-.en-band__num[data-frame="landing"] {
+.en-band__num[data-step="3"] {
   fill: var(--fg);
 }
 

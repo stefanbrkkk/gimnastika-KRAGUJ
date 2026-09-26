@@ -7,16 +7,17 @@
  *    in view (0.6s stick, stagger .06s ≤ .24s), through queuePrimaryMotion (one primary motion
  *    per viewport). Plates are observed, not cards, so a desktop row draws as one batch and the
  *    off-screen cards of the phone row never draw unseen.
- *  - Perform (MD-06/MI-02, QP2-11): right after its draw every apparatus performs once with its
- *    own physics only — the beam flexes down and balances out, the rails flex under a swing, the
- *    springboard compresses and the table takes the hands, the floor gives, the aerobic
- *    silhouette crouches, jumps and sticks. No trails on the cards (at 84–132px a body-less arc
- *    reads as a scratch); they live in the detail sheet, beside the posed silhouette.
+ *  - Perform (MD-06/MI-02, QP2-11): a drawn apparatus performs with its own physics, and the
+ *    program's pose rides what she holds (plan §5.4) — the beam dips under the cartwheel's hands,
+ *    the high rail flexes under the handstand, the springboard compresses and the table gives
+ *    under the handspring, the floor gives and bounces the star, the high kick crouches, springs
+ *    and sticks. No trails on the cards (at 84–132px a body-less arc reads as a scratch); they
+ *    live in the detail sheet, leading into the pose.
  *    Phones: the card that snaps fully into view performs again (≥4s apart), so only one card
  *    per viewport moves. Hover devices: on pointer enter / keyboard focus.
- *  - Mount (QP2-05, QP3-02): every plate is a scene (the posed silhouette scales with it), so
- *    the first draw plays the detail sheet's mount instead of a perform — the drawing traces
- *    itself, then the silhouette hops onto her pose and sticks it. Once per card.
+ *  - Mount (QP2-05, QP3-02): every plate is a scene (the pose scales with it), so the first draw
+ *    plays the detail sheet's mount instead of a perform — the drawing traces itself, then the
+ *    pose drops onto the apparatus and sticks it on EASE.land. Once per card.
  *  - Seam (MI-07): on desktop the floor-diagonal mat line of the section's cut draws from
  *    bottom-left to top-right (clip-path wipe, 0.9s flight) as the cut crosses 80% of the view.
  *  - Filter (MI-06): leaving cards take off (up, smaller, gone in 0.18s); staying cards glide
@@ -46,8 +47,9 @@ const PLATE = ".pc-plate";
 const DRAW_MS = DUR.reveal * 1000;
 /** Longest perform (bars: the low rail's 0.97s flex, 80ms after the high one) — programs.css. */
 const PERFORM_MS = 1100;
-/** Card mount after the draw starts: hop from +450ms (0.5s), stick from +950ms (0.35s). */
-const MOUNT_MS = 1300;
+/** Card mount after the draw starts: drop from +450ms (0.32s), stick from +770ms (--dur-land
+ *  0.26s) — programs.css. */
+const MOUNT_MS = 1100;
 /** Phones: a card performs again only after this long. */
 const REARM_MS = 4000;
 /** Draw / perform stagger: .06s per plate, ≤ .24s in total (QP-14). */
@@ -75,8 +77,8 @@ export function armPrograms(root: HTMLElement, strip: HTMLElement): () => void {
   const lastPerform = new WeakMap<HTMLElement, number>();
   let disposed = false;
 
-  /** The plate is a scene: the posed silhouette is part of its drawing (every card, QP3-02). */
-  const isScene = (card: HTMLElement) => !!card.querySelector(".pc-icon .pi-fig-x");
+  /** The plate is a scene: the program's pose is part of its drawing (every card, QP3-02). */
+  const isScene = (card: HTMLElement) => !!card.querySelector(".pc-icon .pi-pose");
 
   const perform = (card: HTMLElement, delay = 0) => {
     if (disposed || !motionAllowed() || !card.hasAttribute("data-drawn") || card.matches("[data-perform], [data-mount]")) return;
@@ -116,7 +118,7 @@ export function armPrograms(root: HTMLElement, strip: HTMLElement): () => void {
       const scenes = batch.map(isScene);
       batch.forEach((card, k) => {
         card.style.setProperty("--draw-delay", `${staggerOf(k)}s`);
-        // A scene plate mounts: the silhouette hops on as the line completes (CSS, data-mount).
+        // A scene plate mounts: the pose drops on as the line completes (CSS, data-mount).
         if (scenes[k]) {
           card.setAttribute("data-mount", "");
           lastPerform.set(card, performance.now());

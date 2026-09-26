@@ -1,34 +1,17 @@
-import {
-  BASE_ANGLE,
-  BEAM,
-  BEAM_TOP,
-  FOOT_HALF,
-  FOOT_Y,
-  GHOSTS,
-  LEAP_SIZE,
-  LEG_SPLAY,
-  LEGS,
-  LEGS_CLIP,
-  PIVOT,
-  SCORE_CELLS,
-  TORSO_CLIP,
-  USE_AT,
-  VIEW,
-  rotateAbout,
-  swayAt,
-} from "./scene";
+import { BEAM, BEAM_TOP, FIGURE, FOOT_HALF, FOOT_Y, LEG_SPLAY, LEGS, POSE, SCORE_CELLS, SUPPORT_CLIP, SWAY_CLIP, VIEW, swayAt } from "./scene";
 
 /**
- * „Ravnoteža na gredi“: the club silhouette in a split on a balance beam, with
- * three ghost frames of the sway she has just caught. Decorative (aria-hidden);
- * this server-rendered state is the complete final composition (no JS, reduced
- * motion). BeamTilt rotates the upper-body groups [data-nf-figure] / [data-nf-ghost].
- * The beam stands on A-frames like the S8 camp beam; the floor under it is the
- * page-wide CSS line of .nf__stage.
+ * „Ravnoteža na gredi“: one gymnast in a scale („vaga“, the pose family's P7) on a balance
+ * beam, her support foot on its padded top. Decorative (aria-hidden); this server-rendered
+ * state is the complete final composition (no JS, reduced motion: still and upright).
+ * BeamTiltMotion rotates [data-nf-figure] — everything above the ankle — about the ankle;
+ * the foot stays on the beam. The pose is its own <svg data-figure="pose:scale"> (the figure
+ * contract, qa/figures.mjs); it does not clip, so a sway may leave its box. The beam stands
+ * on A-frames like the S8 camp beam; the floor under it is the page-wide CSS line of .nf__stage.
  */
 export function BeamScene() {
-  const leap = { href: "#leap", ...USE_AT, ...LEAP_SIZE };
   const underside = BEAM.y + BEAM.height;
+  const { viewBox } = POSE;
   return (
     <svg
       className="nf-scene"
@@ -37,14 +20,6 @@ export function BeamScene() {
       aria-hidden="true"
       focusable="false"
     >
-      <defs>
-        <clipPath id="nf-torso">
-          <polygon points={TORSO_CLIP} />
-        </clipPath>
-        <clipPath id="nf-legs">
-          <polygon points={LEGS_CLIP} />
-        </clipPath>
-      </defs>
       <g className="nf-scene__beam">
         {LEGS.map((x) => (
           <path
@@ -56,25 +31,32 @@ export function BeamScene() {
         <rect className="nf-scene__body" x={BEAM.x} y={BEAM.y} width={BEAM.width} height={BEAM.height} rx={BEAM.radius} />
         <rect className="nf-scene__pad" x={BEAM.x + 1} y={BEAM.y} width={BEAM.width - 2} height={BEAM_TOP} rx={BEAM_TOP / 2} />
       </g>
-      <g transform={rotateAbout(BASE_ANGLE, PIVOT)}>
-        {GHOSTS.map((g, i) => (
-          <g key={i} transform={swayAt(g.fan)} className={`nf-ghost nf-ghost--${i + 1}`} data-nf-ghost={i}>
-            <g clipPath="url(#nf-torso)">
-              <use {...leap} />
-            </g>
-          </g>
-        ))}
-        <g className="nf-scene__figure">
-          <g clipPath="url(#nf-legs)">
-            <use {...leap} />
-          </g>
-          <g transform={swayAt(0)} data-nf-figure="">
-            <g clipPath="url(#nf-torso)">
-              <use {...leap} />
-            </g>
-          </g>
+      <svg
+        className="nf-scene__figure"
+        data-figure="pose:scale"
+        x={FIGURE.x}
+        y={FIGURE.y}
+        width={FIGURE.width}
+        height={FIGURE.height}
+        viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
+        overflow="visible"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <defs>
+          <path id="nf-pose" d={POSE.d} />
+          <clipPath id="nf-support">
+            <polygon points={SUPPORT_CLIP} />
+          </clipPath>
+          <clipPath id="nf-sway">
+            <polygon points={SWAY_CLIP} />
+          </clipPath>
+        </defs>
+        <use href="#nf-pose" clipPath="url(#nf-support)" />
+        <g transform={swayAt(0)} data-nf-figure="">
+          <use href="#nf-pose" clipPath="url(#nf-sway)" />
         </g>
-      </g>
+      </svg>
     </svg>
   );
 }

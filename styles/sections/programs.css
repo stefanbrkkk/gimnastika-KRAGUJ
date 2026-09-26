@@ -433,44 +433,79 @@ html.js .program-card {
 /* Every frame of a row has the row's height and its CTAs sit at the same place; the spare
    height of a shorter card goes into its plate at every width (QP-07, QP2-04), never into a
    white band above the CTAs. The plate is a size container and every plate is the detail
-   sheet's scene: the apparatus with the club silhouette posed over it (QP3-02). The whole
-   scene scales with the plate — 64% of its height, within the width its pose needs (--fit),
-   84/96px → 176px (the sheet's scene size) — instead of switching at a threshold. */
+   sheet's scene: the program's pose on its apparatus (QP3-02, plan §5.4). The whole scene scales
+   with the plate — 64% of its height, within the width it needs (--fit), 84/96px → 176px (the
+   sheet's scene size) — instead of switching at a threshold.
+   Headroom (--head, icon units, components/sections/programs/pose-scene.ts headroom()): the
+   handstand on the high rail and the handspring on the table rise 22.4 and 18.4 units above the
+   48-unit drawing, the cartwheel 7.5, the star 1.7. The drawing never grows past what leaves
+   the pose --top clear of the plate's top edge, and a plate is never shorter than its smallest
+   drawing plus its headroom, so no pose is ever cut. */
+.pc-plate,
+.ps-plate {
+  --head: 0;
+  --top: 6px;
+}
+
+.pc-plate[data-apparatus="parter"],
+.ps-plate[data-apparatus="parter"] {
+  --head: 2;
+}
+
+.pc-plate[data-apparatus="greda"],
+.ps-plate[data-apparatus="greda"] {
+  --head: 8;
+}
+
+.pc-plate[data-apparatus="razboj"],
+.ps-plate[data-apparatus="razboj"] {
+  --head: 23;
+}
+
+.pc-plate[data-apparatus="preskok"],
+.ps-plate[data-apparatus="preskok"] {
+  --head: 19;
+}
+
 .pc-plate {
   --icon-min: 84px;
-  /* Width budget of the scene (--fit, per apparatus) keeps the pose ≥8px clear of the bib and
-     the + at every width. Bars: she dismounts to the right of the high bar (to 81.5 of the 48
-     drawing units); the C plate is the row's shortest, so this rarely binds. */
-  --fit: 42cqw;
-  --icon: clamp(var(--icon-min), min(64cqh, var(--fit)), 176px); /* resolved by the plate's descendants */
+  /* Width budget (--fit): in the bib's band (the lowest 17 units at the smallest drawing) the
+     apparatus stays ≥8px clear of the bib — (content width − bib − 8px) × 48 / the drawing's
+     reach in that band. Per apparatus below; aerobik has no bib and the pose ends at 33 units. */
+  --fit: 100cqw;
+  --icon: clamp(
+    var(--icon-min),
+    min(64cqh, var(--fit), (100cqh - var(--pad-b) - var(--top)) * 48 / (48 + var(--head))),
+    176px
+  ); /* resolved by the plate's descendants */
   flex: 1000 0 auto;
-  min-height: calc(var(--icon-min) + 32px);
+  min-height: max(calc(var(--icon-min) + 32px), calc(var(--icon-min) * (48 + var(--head)) / 48 + var(--pad-b) + var(--top)));
   container-type: size;
 }
 
-/* Vault: her post-flight reaches 83.5 units, over the „A·B“ bib. From a 111px drawing she
-   flies ≥8px above it, and wider plates keep smaller drawings beside it. Only 320–360px
-   phones with an 89–110px drawing would bring her closer; there the A·B card always shares
-   its row with the taller C card, so its plate is ≥197px and its drawing ≥120px. */
+/* Reach in the bib's band: the carpet's right edge 44.8 units („3–8“ 74px), the beam's end 44.5
+   („8+“ 58px), the high bar's foot plate 46 („C“ 42px), the table's base 45 („A·B“ 69px). */
+.pc-plate[data-apparatus="parter"] {
+  --fit: calc((100cqw - 82px) * 48 / 44.8);
+}
+
+.pc-plate[data-apparatus="greda"] {
+  --fit: calc((100cqw - 66px) * 48 / 44.5);
+}
+
+.pc-plate[data-apparatus="razboj"] {
+  --fit: calc((100cqw - 50px) * 48 / 46);
+}
+
 .pc-plate[data-apparatus="preskok"] {
-  --fit: 55cqw;
-}
-
-/* Floor and beam pose her above the apparatus; the aerobic partner stands 30 units to the
-   right (78 units in all, no bib). */
-.pc-plate:is([data-apparatus="parter"], [data-apparatus="greda"]) {
-  --fit: 60cqw;
-}
-
-.pc-plate[data-apparatus="aerobik"] {
-  --fit: 58cqw;
+  --fit: calc((100cqw - 77px) * 48 / 45);
 }
 
 @media (min-width: 640px) {
   .pc-plate {
     --icon-min: 96px;
     --pad-x: 14px;
-    min-height: calc(var(--icon-min) + 28px);
+    min-height: max(calc(var(--icon-min) + 28px), calc(var(--icon-min) * (48 + var(--head)) / 48 + var(--pad-b) + var(--top)));
   }
 }
 
@@ -656,10 +691,25 @@ html.js .program-card {
   stroke-width: calc(var(--sw) * 1.4);
 }
 
-/* The aerobic drawing is the club silhouette itself: filled, never stroked (QP2-06). */
-.pi .pi-solid {
+/* The pose (and its latent print): filled, never stroked. */
+.pi .pi-solid,
+.pi-pose path {
   fill: currentColor;
   stroke: none;
+}
+
+/* The pose's three groups move about its contact on the drawing (--at, icon units, set inline):
+   the mount drops .pi-pose in, a perform moves .pi-ride with its apparatus, the landing squash
+   scales .pi-stick. */
+.pi-pose,
+.pi-ride,
+.pi-stick {
+  transform-box: view-box;
+  transform-origin: var(--at, 50% 87.5%);
+}
+
+.pi-pose svg {
+  opacity: 0.9;
 }
 
 /* The card drawing scales with its plate (84 → 176px): the user-unit stroke steps down with
@@ -713,11 +763,9 @@ html.js .program-card {
 }
 
 .pc-icon {
-  --fig-hop: -10px; /* mount hop, in drawing units (ps-fig-x) */
-  /* …and its apex (ps-fig-y): a card plate can be as short as 116px, where her pose is 10px
-     under its top edge; a −10 apex would lift her hands off the print (the plate clips), −3
-     keeps them ≥4px inside. */
-  --fig-rise: -3px;
+  /* Mount drop, in drawing units (pi-drop): short on a card, whose pose may stand 6px under the
+     plate's top edge (the headroom rule); the sheet drops her from higher. */
+  --drop: -5px;
   width: 100%;
   height: 100%;
   /* Press (MI-04): the apparatus takes the weight — compresses onto its floor (y = 42/48). */
@@ -760,28 +808,18 @@ html.js .program-card {
   html.js-motion .program-card .pc-icon [data-draw] {
     transition: stroke-dashoffset var(--dur-reveal) var(--ease-stick) var(--draw-delay, 0s);
   }
-  /* The aerobic silhouette has no line to trace: it is revealed from the floor up (QP2-06). */
-  html.js-motion .program-card .pc-icon [data-leap] {
-    clip-path: inset(-10%);
-    transition: clip-path var(--dur-reveal) var(--ease-stick) var(--draw-delay, 0s);
-  }
-  html.js-motion .program-card:not([data-drawn]) .pc-icon [data-leap] {
-    clip-path: inset(100% -10% -10% -10%);
-  }
-  /* The posed silhouette waits for its mount (QP2-05). */
-  html.js-motion .program-card:not([data-drawn]) .pc-icon .pi-fig-x {
+  /* The pose waits for its mount (QP2-05). */
+  html.js-motion .program-card:not([data-drawn]) .pc-icon .pi-pose {
     opacity: 0;
   }
-  /* Mount (the detail sheet's MI-08, on a scene plate): she hops on as the line completes and
-     sticks the landing. data-mount is set by programs-motion with data-drawn. */
-  html.js-motion .program-card[data-mount] .pc-icon .pi-fig-x {
-    animation: ps-fig-x 500ms var(--ease-flight) calc(var(--draw-delay, 0s) + 450ms) both;
+  /* Mount (the detail sheet's MI-08, on a scene plate): as the line completes she drops onto her
+     apparatus and sticks it — compress about the contact and hold (--ease-land). No split-leap
+     hop: the pose is already the movement. data-mount is set by programs-motion with data-drawn. */
+  html.js-motion .program-card[data-mount] .pc-icon .pi-pose {
+    animation: pi-drop 320ms cubic-bezier(0.5, 0, 0.75, 0.3) calc(var(--draw-delay, 0s) + 450ms) both;
   }
-  html.js-motion .program-card[data-mount] .pc-icon .pi-fig-y {
-    animation: ps-fig-y 500ms linear calc(var(--draw-delay, 0s) + 450ms) both;
-  }
-  html.js-motion .program-card[data-mount] .pc-icon .pi-fig {
-    animation: ps-fig-stick 350ms var(--ease-land) calc(var(--draw-delay, 0s) + 950ms);
+  html.js-motion .program-card[data-mount] .pc-icon .pi-stick {
+    animation: pi-stick var(--dur-land) var(--ease-land) calc(var(--draw-delay, 0s) + 770ms);
   }
 }
 
@@ -803,51 +841,65 @@ html.js .program-card {
   stroke-dashoffset: 1.05;
 }
 
-/* Perform (MD-06, QP2-11): set by programs-motion (data-perform, --perform-delay). Only the
-   apparatus's own physics — no trails on the cards. Easings inside @keyframes are literal
-   (MD2-01): Chromium plays a var() keyframe easing as linear. The linear() lists are
-   styles/motion-tokens.css --ease-wobble / --ease-swing (tests/programs.test.ts keeps them
-   identical), each after a rebound cubic-bezier for engines without linear(). */
+/* Perform (MD-06, QP2-11): set by programs-motion (data-perform, --perform-delay). The
+   apparatus's own physics, and the pose rides what she holds (plan §5.4): the beam dips under
+   her hands, the high rail flexes under the handstand, the table gives under the handspring,
+   the sprung floor gives and bounces the star; the high kick crouches, springs and sticks. No
+   trails on the cards. Easings inside @keyframes are literal (MD2-01): Chromium plays a var()
+   keyframe easing as linear. The linear() lists are styles/motion-tokens.css --ease-wobble /
+   --ease-swing (tests/programs.test.ts keeps them identical), each after a rebound cubic-bezier
+   for engines without linear(). */
 @media (prefers-reduced-motion: no-preference) {
   html.js-motion .program-card[data-perform] .pi {
     --d: var(--perform-delay, 0s);
   }
 
-  /* Beam: she lands on it — the beam flexes down on its legs, then balances out and settles
-     (no rotation). The legs shorten by exactly the beam's dip, so the two stay joined. */
-  html.js-motion [data-perform] [data-part="beam"] {
+  /* Beam: the beam flexes down on its legs, then balances out and settles (no rotation). The
+     legs shorten by exactly the beam's dip, so the two stay joined; her hands ride the top. */
+  html.js-motion [data-perform] [data-part="beam"],
+  html.js-motion [data-perform] .pi[data-icon="greda"] .pi-ride {
     animation: pi-beam calc(var(--dur-wobble) + 100ms) linear var(--d) both;
   }
   html.js-motion [data-perform] [data-part="legs"] {
     animation: pi-beam-legs calc(var(--dur-wobble) + 100ms) linear var(--d) both;
   }
 
-  /* Bars: each rail flexes down on its uprights under a swing and springs back, the high
-     rail first. */
+  /* Bars: each rail flexes down on its uprights and springs back, the high rail first — her
+     handstand rides it (the rail at y 11.5 dips (42 − 11.5) × (1 − 0.94) = 1.83 units). */
   html.js-motion [data-perform] [data-part="high"] {
     --flex: 0.94;
     animation: pi-bars calc(var(--dur-swing) + 120ms) linear var(--d) both;
+  }
+  html.js-motion [data-perform] .pi[data-icon="razboj"] .pi-ride {
+    animation: pi-rail-ride calc(var(--dur-swing) + 120ms) linear var(--d) both;
   }
   html.js-motion [data-perform] [data-part="low"] {
     --flex: 0.92;
     animation: pi-bars calc(var(--dur-swing) + 120ms) linear calc(var(--d) + 80ms) both;
   }
 
-  /* Vault: the board compresses and springs, then the table takes the hands. */
+  /* Vault: the board compresses and springs, then the table takes her hands — the table top
+     (y 14) gives (42 − 14) × (1 − 0.9) = 2.8 units and she rides it. */
   html.js-motion [data-perform] [data-part="board"] {
     animation: pi-board calc(var(--dur-spring) + 80ms) linear var(--d) both;
   }
   html.js-motion [data-perform] [data-part="table"] {
     animation: pi-table var(--dur-spring) linear calc(var(--d) + 220ms) both;
   }
+  html.js-motion [data-perform] .pi[data-icon="preskok"] .pi-ride {
+    animation: pi-table-ride var(--dur-spring) linear calc(var(--d) + 220ms) both;
+  }
 
-  /* Floor: the sprung floor gives under a landing and comes back. */
+  /* Floor: the sprung floor gives and comes back; the star rides the give and springs higher. */
   html.js-motion [data-perform] [data-icon="parter"] .pi-part {
     animation: pi-floor 520ms linear var(--d) both;
   }
+  html.js-motion [data-perform] .pi[data-icon="parter"] .pi-ride {
+    animation: pi-star 520ms linear var(--d) both;
+  }
 
-  /* Aerobic: the silhouette crouches, jumps and sticks the landing. */
-  html.js-motion [data-perform] [data-part="fig"] {
+  /* Aerobic: the high kick crouches, springs off her standing foot and sticks the landing. */
+  html.js-motion [data-perform] .pi[data-icon="aerobik"] .pi-ride {
     animation: pi-jump 620ms linear var(--d) both;
   }
 }
@@ -867,7 +919,6 @@ html.js .program-card {
   }
 }
 
-/* Legs 25.5 → 42 (16.5 units): scaleY(1 − 1.2 / 16.5) about their feet. */
 @keyframes pi-beam-legs {
   0% {
     transform: scaleY(1);
@@ -895,6 +946,22 @@ html.js .program-card {
   }
   100% {
     transform: scaleY(1);
+  }
+}
+
+/* The handstand on the high rail: the rail's dip as a translation (pi-bars at --flex 0.94). */
+@keyframes pi-rail-ride {
+  0% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.3, 0.6, 0.4, 1);
+  }
+  13% {
+    transform: translateY(1.83px);
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation-timing-function: linear(0, 0.1589, 0.3341, 0.51, 0.6745, 0.8195, 0.9402, 1.0346, 1.103, 1.1474, 1.1708, 1.1769, 1.1696, 1.1528, 1.13, 1.1043, 1.078, 1.0531, 1.0309, 1.0122, 0.9974, 0.9864, 0.9791, 0.9751, 0.9737, 0.9744, 0.9767, 0.9799, 0.9837, 0.9876, 0.9914, 0.9948, 0.9977, 1, 1.0017, 1.0029, 1.0036, 1.0039, 1.0038, 1.0035, 1.0031, 1.0025, 1.002, 1.0014, 1.0009, 1.0004, 1.0001, 0.9998, 1);
+  }
+  100% {
+    transform: translateY(0);
   }
 }
 
@@ -926,7 +993,21 @@ html.js .program-card {
   }
 }
 
-/* 0.8 units ≈ 1.5 CSS px at 84–96px. */
+/* The handspring on the table: the table top's give as a translation (pi-table). */
+@keyframes pi-table-ride {
+  0% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.3, 0.6, 0.4, 1);
+  }
+  20% {
+    transform: translateY(2.8px);
+    animation-timing-function: cubic-bezier(0.34, 1.8, 0.5, 1); /* --ease-spring */
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
 @keyframes pi-floor {
   0% {
     transform: none;
@@ -938,6 +1019,26 @@ html.js .program-card {
   }
   100% {
     transform: none;
+  }
+}
+
+/* The star rides the floor's give (pi-floor, 0.8 units at 22%), is sprung 2.4 units higher by
+   its rebound and floats back to her pose. */
+@keyframes pi-star {
+  0% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.8, 0.4);
+  }
+  22% {
+    transform: translateY(0.8px);
+    animation-timing-function: cubic-bezier(0.25, 0.6, 0.45, 1);
+  }
+  58% {
+    transform: translateY(-2.4px);
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); /* --ease-flight */
+  }
+  100% {
+    transform: translateY(0);
   }
 }
 
@@ -1530,12 +1631,13 @@ html.js .program-card {
   }
 }
 
-/* The scene (QP-21): a large apparatus print with the club silhouette posed over it. */
+/* The scene (QP-21): a large apparatus print with the program's pose on it. The plate grows by
+   the pose's headroom (--head: the handstand and the handspring rise above the drawing). */
 .ps-plate {
   --icon: 132px;
   --pad-x: 20px;
   --pad-b: 12px;
-  height: 176px;
+  height: max(176px, calc(var(--icon) * (48 + var(--head)) / 48 + var(--pad-b) + var(--top)));
   border-radius: calc(var(--radius-xl) - 6px);
 }
 
@@ -1550,21 +1652,9 @@ html.js .program-card {
 
 .ps-icon {
   --sw: 1.02px; /* ≈2.8 CSS px at 132px */
+  --drop: -9px; /* mount drop, in drawing units (≈25px at 132px) */
   width: 100%;
   height: 100%;
-}
-
-.pi-fig {
-  fill: currentColor;
-  stroke: none;
-  opacity: 0.9;
-  transform-box: fill-box;
-  transform-origin: 50% 100%;
-}
-
-.pi-fig-x,
-.pi-fig-y {
-  transform-box: view-box;
 }
 
 /* Close (QP4-03): the panel's first child, sticky in its scroller, so it stays in view while
@@ -1604,32 +1694,25 @@ html.js .program-card {
     0 0 0 5px var(--color-violet-600);
 }
 
-/* The mount (MI-08): the drawing traces itself as the window opens, the silhouette hops in
-   from the left onto its pose and sticks it (compress and hold). ≤1.5s; only with motion
-   (data-scene is set by the sheet's motion branch). */
+/* The mount (MI-08): the drawing traces itself as the window opens, her path (the swing up, the
+   pre-flight, the tumbling hops) traces into her pose, and she drops onto the apparatus and
+   sticks it — compress about the contact and hold (--ease-land). No split-leap hop. ≤1.5s; only
+   with motion (data-scene is set by the sheet's motion branch). */
 @media (prefers-reduced-motion: no-preference) {
   html.js-motion .program-sheet[data-scene] .ps-icon [data-draw] {
     animation: pi-draw 500ms var(--ease-stick) 300ms both;
   }
-  html.js-motion .program-sheet[data-scene] .ps-icon [data-leap] {
-    animation: pi-reveal 500ms var(--ease-stick) 300ms both;
-  }
-  /* Her path (QP2-11): the swing, the vault flight or the tumbling hops trace just before she
-     lands in her pose — at 132px, next to the silhouette, it reads as her path. */
   html.js-motion .program-sheet[data-scene] .ps-icon .pi-fx path {
     animation: pi-trail 560ms var(--ease-flight) 560ms both;
   }
   html.js-motion .program-sheet[data-scene] .ps-icon[data-icon="parter"] .pi-fx path {
     animation: pi-hop 360ms linear calc(560ms + var(--k) * 110ms) both;
   }
-  html.js-motion .program-sheet[data-scene] .pi-fig-x {
-    animation: ps-fig-x 500ms var(--ease-flight) 650ms both;
+  html.js-motion .program-sheet[data-scene] .pi-pose {
+    animation: pi-drop 320ms cubic-bezier(0.5, 0, 0.75, 0.3) 800ms both;
   }
-  html.js-motion .program-sheet[data-scene] .pi-fig-y {
-    animation: ps-fig-y 500ms linear 650ms both;
-  }
-  html.js-motion .program-sheet[data-scene] .pi-fig {
-    animation: ps-fig-stick 350ms var(--ease-land) 1150ms;
+  html.js-motion .program-sheet[data-scene] .pi-stick {
+    animation: pi-stick var(--dur-land) var(--ease-land) 1120ms;
   }
 }
 
@@ -1642,25 +1725,13 @@ html.js .program-card {
   }
 }
 
-@keyframes pi-reveal {
-  from {
-    clip-path: inset(100% -10% -10% -10%);
-  }
-  to {
-    clip-path: inset(-10%);
-  }
-}
-
-/* Units are the drawing's (48 = 132px): −14.5 ≈ −40px, 8.7 ≈ 24px, −10 ≈ −28px (--fig-rise;
-   cards use −3). */
-/* --fig-dir: −1 on a mirrored figure (aerobik's partner hops in from the right); --fig-hop is
-   shorter on a card, whose plate edge is closer to the pose (her back foot stays on the print). */
-@keyframes ps-fig-x {
+/* The mount's drop (--drop: drawing units above her pose), fading in over its first third. */
+@keyframes pi-drop {
   0% {
-    transform: translateX(calc(var(--fig-dir, 1) * var(--fig-hop, -14.5px)));
+    transform: translateY(var(--drop, -6px));
     opacity: 0;
   }
-  24% {
+  30% {
     opacity: 1;
   }
   100% {
@@ -1669,21 +1740,8 @@ html.js .program-card {
   }
 }
 
-@keyframes ps-fig-y {
-  0% {
-    transform: translateY(8.7px);
-    animation-timing-function: cubic-bezier(0.25, 0.6, 0.45, 1);
-  }
-  50% {
-    transform: translateY(var(--fig-rise, -10px));
-    animation-timing-function: cubic-bezier(0.55, 0, 0.75, 0.4);
-  }
-  100% {
-    transform: none;
-  }
-}
-
-@keyframes ps-fig-stick {
+/* The stuck landing: compress about the contact and hold (the pose's --at). */
+@keyframes pi-stick {
   0% {
     transform: scale(1.05, 0.9);
   }
@@ -1772,7 +1830,8 @@ html.js .program-card {
 }
 
 /* Short and narrow (400% zoom): a compact plate leaves room to read; the scene keeps only the
-   drawing, and the stacked CTAs follow the text instead of covering it. */
+   drawing (the aerobic plate keeps its pose: it is the drawing), and the stacked CTAs follow
+   the text instead of covering it. */
 @media (max-height: 480px) and (max-width: 639.98px) {
   .ps-plate {
     --icon: 40px;
@@ -1782,7 +1841,7 @@ html.js .program-card {
   .ps-plate::before,
   .ps-plate::after,
   .ps-plate .pc-bib,
-  .ps-icon .pi-fig-x,
+  .ps-plate:not([data-apparatus="aerobik"]) .ps-icon .pi-pose,
   .ps-icon .pi-fx {
     display: none;
   }
@@ -1824,30 +1883,30 @@ html.js .program-card {
       "actions body";
     min-height: 0;
   }
-  /* The plate is a size container: the scene is 60% of its height, within the width its pose
-     needs, so she never leaves the print and nothing touches the bib. --fit = the drawing's
-     reach in units from the content box's left edge (cq units are the plate's content box):
-     the pose may run into the 20px right pad up to 8px from the edge; in the bib's band (the
-     lowest ≈10 units) the apparatus stays ≥8px clear of the bib. */
+  /* The plate is a size container: the scene is 60% of its height, within the width it needs
+     and under its pose's headroom (--head), so she never leaves the print and nothing touches
+     the bib. --fit (cq units are the plate's content box): in the bib's band the apparatus stays
+     ≥8px clear of the bib — the cards' reach per apparatus (44.8 / 44.5 / 46 / 45 units beside
+     the 74 / 58 / 42 / 69px bibs); the aerobic pose ends at 33 units and has no bib. */
   .ps-plate {
-    --fit: calc((100cqw + 12px) * 48 / 81.5); /* bars: she dismounts to 81.5 units */
-    --icon: clamp(96px, min(60cqh, var(--fit)), 176px);
+    --fit: 100cqw;
+    --icon: clamp(96px, min(60cqh, var(--fit), (100cqh - var(--pad-b) - var(--top)) * 48 / (48 + var(--head))), 176px);
     grid-area: plate;
     height: auto;
     min-height: 0;
     container-type: size;
   }
-  .ps-plate[data-apparatus="preskok"] {
-    --fit: calc((100cqw + 12px) * 48 / 83.5); /* post-flight to 83.5 units */
-  }
-  .ps-plate[data-apparatus="aerobik"] {
-    --fit: calc((100cqw + 12px) * 48 / 78); /* the partner ends at 78 units */
-  }
   .ps-plate[data-apparatus="parter"] {
-    --fit: calc((100cqw - 81px) * 48 / 40.6); /* the carpet's edge (40.6 units) beside the 73px „3–8“ */
+    --fit: calc((100cqw - 82px) * 48 / 44.8);
   }
   .ps-plate[data-apparatus="greda"] {
-    --fit: calc((100cqw - 66px) * 48 / 42); /* the foot plate (42 units) beside the 58px „8+“ */
+    --fit: calc((100cqw - 66px) * 48 / 44.5);
+  }
+  .ps-plate[data-apparatus="razboj"] {
+    --fit: calc((100cqw - 50px) * 48 / 46);
+  }
+  .ps-plate[data-apparatus="preskok"] {
+    --fit: calc((100cqw - 77px) * 48 / 45);
   }
   .ps-body {
     grid-area: body;

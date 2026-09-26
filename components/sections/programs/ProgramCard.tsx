@@ -10,7 +10,7 @@ import { ScheduleLines } from "./ScheduleLines";
  * drawing stands on a mat line over a faint Marey measuring grid, with the program's
  * competitor bib („3–8“, „8+“, „C“, „A·B“) and an ink-outlined + that opens the detail sheet.
  * The plate takes the row's spare height, so every CTA sits at the same place (QP2-04). It is
- * always the detail sheet's scene — the drawing with the club silhouette posed over it — and the
+ * always the detail sheet's scene — the program's own pose on its apparatus — and the
  * whole scene scales with the plate (QP3-02): .pc-scene is sized by the plate (container units)
  * and is itself a size container, so the line weight follows the drawing's real size.
  * The quiz stamp straddles the plate's lower edge, below the mat line, where no scene reaches.

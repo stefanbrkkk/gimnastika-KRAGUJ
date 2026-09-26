@@ -14,23 +14,38 @@ interface PlateProps {
 }
 
 /**
- * The S3 program plate — program colour + its apparatus drawing in the plate ink — next to a
- * group name. Decorative: the name next to it carries the meaning.
+ * The S3 program plate — program colour + its apparatus print in the plate ink: the apparatus
+ * and the program's pose on it (its own <svg data-figure="pose:<id>">), framed with the pose's
+ * headroom — next to a group name. Decorative: the name next to it carries the meaning.
  */
 export function QuizPlate({ color, ink, art, className }: PlateProps) {
+  const { pose } = art;
   return (
     <span
       className={className ? `quiz-plate ${className}` : "quiz-plate"}
       style={{ "--pc": color, "--pc-ink": ink } as CSSProperties}
       aria-hidden="true"
     >
-      <svg viewBox="0 0 48 48" focusable="false">
+      <svg viewBox={art.frame} focusable="false">
         {art.paths.map(({ d, k }) => (
           <path key={d} d={d} data-k={k} />
         ))}
         {art.dots.map((c) => (
           <circle key={`${c.cx} ${c.cy}`} {...c} />
         ))}
+        <svg
+          data-figure={`pose:${pose.id}`}
+          x={pose.x}
+          y={pose.y}
+          width={pose.width}
+          height={pose.height}
+          viewBox={pose.viewBox}
+          overflow="visible"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d={pose.d} data-k="solid" />
+        </svg>
       </svg>
     </span>
   );

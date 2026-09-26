@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import type { ApparatusIcon } from "@/content/programs";
-import { LEAP_ICON_BOX, LEAP_ICON_D } from "./leap-icon";
+import { PROGRAM_POSES, posePlacement, poseTransform } from "./pose-scene";
 
 /**
  * Apparatus drawings for this site (viewBox 48, round strokes; design review QP-05).
@@ -10,24 +10,26 @@ import { LEAP_ICON_BOX, LEAP_ICON_D } from "./leap-icon";
  *   greda   — the beam on two splayed legs with foot plates
  *   razboj  — uneven bars: a low and a high rail (heavier strokes) crossing on slim uprights
  *   preskok — run-up dashes, the springboard wedge and the vault table
- *   aerobik — the club's own leap silhouette (QP2-06): aerobic gymnastics has no apparatus, the
- *             body is the drawing. The front toe stands on the floor; in the scene a mirrored
- *             partner joins her (pairs and groups are part of the sport).
+ *   aerobik — no apparatus: the high-kick pose standing on the mat line is the drawing
+ * Each program's gymnast is its own pose of the figure family on its apparatus (plan §5.4,
+ * ./pose-scene): star over the floor, cartwheel on the beam, handstand on the high rail,
+ * handspring on the vault table, high kick on the mat.
  *
  * Structure (styles/sections/programs.css; quiz/views.ts iconArt reads it, keep it stable):
- * - `.pi-latent`: a faint static print of the whole drawing (QP-14), so a plate is never empty
- *   while its draw waits. Shown only while motion is on. Paths only (the quiz plates read it):
- *   the aerobic silhouette is a filled `.pi-solid` path there.
+ * - `.pi-latent`: a faint static print of the whole scene (QP-14) — the apparatus paths and the
+ *   pose as one filled `.pi-solid` path (with its placement transform) — so a plate is never
+ *   empty while its draw waits. Shown only while motion is on. Paths only: the quiz plates read it.
  * - `.pi-part[data-part]`: the drawing, split into the pieces that "perform" (MD-06): each stroked
  *   path has pathLength=1 and draws with stroke-dashoffset; a part moves as one (beam flex, rails
- *   flex, springboard compression, floor give, the jump). The silhouette part (`[data-leap]`) is
- *   the sprite's exact #leap and is revealed with a clip-path instead of a stroke draw.
- * - `.pi-fx`: the gymnast's path (giant-swing orbit, vault flight, tumbling hops), only in the
- *   detail sheet, where it leads to the posed silhouette (QP2-11); invisible at rest.
- * - `.pi-fig-x > .pi-fig-y > .pi-fig`: the club's leap silhouette posed over the apparatus (for
- *   aerobik: the partner) — the scene. Sheet and card (`scene="card"`): always; on a card the
- *   whole scene scales with its plate (QP3-02).
- * Without motion (no JS, reduced motion, Save-Data) it is simply the finished drawing.
+ *   flex, springboard compression, floor give).
+ * - `.pi-fx`: the gymnast's path into her pose (the swing up to the handstand, the vault's
+ *   pre-flight, the tumbling hops), only in the detail sheet (QP2-11); invisible at rest.
+ * - `.pi-pose > .pi-ride > .pi-stick > svg[data-figure="pose:<id>"]`: the pose (sheet and card:
+ *   always). The mount drops `.pi-pose` in, a perform moves `.pi-ride` with the apparatus it
+ *   holds, the landing squash scales `.pi-stick` about the contact (--at). The nested <svg> is
+ *   the figure (qa/figures.mjs counts one per such svg); on a card the whole scene scales with
+ *   its plate (QP3-02).
+ * Without motion (no JS, reduced motion, Save-Data) it is simply the finished scene.
  */
 
 type Stroke = "base" | "thin" | "rail" | "post";
@@ -37,23 +39,11 @@ interface Segment {
 }
 interface Part {
   part: string;
-  paths?: readonly Segment[];
-  /** The club silhouette itself is the drawing (aerobik). */
-  leap?: boolean;
-}
-interface Figure {
-  /** Top-left of the silhouette in icon units. */
-  x: number;
-  y: number;
-  /** Mirrored (faces left). */
-  flip?: boolean;
-  /** Full size (the aerobic partner matches the drawing); otherwise the posed 35-unit size. */
-  full?: boolean;
+  paths: readonly Segment[];
 }
 interface IconSpec {
   parts: readonly Part[];
   fx?: readonly string[];
-  figure: Figure;
 }
 
 const SPECS: Record<ApparatusIcon, IconSpec> = {
@@ -65,9 +55,8 @@ const SPECS: Record<ApparatusIcon, IconSpec> = {
       },
       { part: "diag", paths: [{ d: "M7 38.8L40.9 25.2" }] },
     ],
-    // Three hops of a tumbling pass along the diagonal.
+    // Three hops of a tumbling pass along the diagonal, into the star jump over the floor.
     fx: ["M9.7 37.7Q14.5 17.8 19.2 33.9", "M19.2 33.9Q24 14 28.7 30.1", "M28.7 30.1Q33.5 10.2 38.2 26.3"],
-    figure: { x: 11, y: -4.5 },
   },
   greda: {
     parts: [
@@ -77,7 +66,6 @@ const SPECS: Record<ApparatusIcon, IconSpec> = {
       },
       { part: "legs", paths: [{ d: "M12 25.5L10.5 42M36 25.5L37.5 42M6 42H15M33 42H42" }] },
     ],
-    figure: { x: 6.5, y: -3.5 },
   },
   razboj: {
     parts: [
@@ -96,9 +84,8 @@ const SPECS: Record<ApparatusIcon, IconSpec> = {
         ],
       },
     ],
-    // Giant swing: one lap around the high rail, from the handstand.
-    fx: ["M35 3A8.5 8.5 0 1 1 35 20A8.5 8.5 0 1 1 35 3"],
-    figure: { x: 46.5, y: -3 },
+    // The swing up into the handstand: her hips' half-circle about the high rail.
+    fx: ["M35.5 27.5A16 16 0 0 0 35.5 -4.5"],
   },
   preskok: {
     parts: [
@@ -112,23 +99,11 @@ const SPECS: Record<ApparatusIcon, IconSpec> = {
         ],
       },
     ],
-    // Pre-flight from the board to the table, repulsion, post-flight past the table.
-    fx: ["M20 37Q23 18.5 29 14.5Q40.5 1.5 51 21"],
-    figure: { x: 48.5, y: 1 },
+    // Pre-flight from the springboard onto the table, where her hands take it.
+    fx: ["M20 37Q24 18 33.5 13.5"],
   },
-  aerobik: {
-    parts: [{ part: "fig", leap: true }],
-    // The partner: mirrored, facing her on the same floor, 62% of a body to the right — their
-    // raised hands meet and the front legs cross on the mat (QP2-06).
-    figure: { x: 30, y: LEAP_ICON_BOX.y, flip: true, full: true },
-  },
+  aerobik: { parts: [] },
 };
-
-/** Posed silhouette in icon units: 96px wide on the sheet's 132px drawing (QP-21). The #leap
- *  symbol box is 230×150 (LEAP_VIEWBOX); not imported, so the lazy sheet chunk never pulls the
- *  generated path strings. Aerobik's partner has the drawing's own size (LEAP_ICON_BOX). */
-const FIG_W = 35;
-const FIG_H = 22.83;
 
 const kindClass = (kind: Stroke | undefined) => (kind && kind !== "base" ? `pi-${kind}` : undefined);
 
@@ -138,23 +113,38 @@ interface ProgramIconProps {
   label: string;
   className?: string;
   /**
-   * The apparatus scene: the club silhouette posed over the apparatus (aerobik: her partner).
-   * "card": the silhouette only (on every plate, QP3-02); "sheet": the silhouette and the
-   * gymnast's path (.pi-fx). Without it: the bare drawing (quiz plates).
+   * The scene: the program's pose on its apparatus. "card": the pose (every plate, QP3-02);
+   * "sheet": the pose and the gymnast's path into it (.pi-fx). Without it: the bare apparatus
+   * with its latent print (the quiz reads that print, never a scene).
    */
   scene?: "card" | "sheet";
 }
 
-function PosedFigure({ figure }: { figure: Figure }) {
-  const w = figure.full ? LEAP_ICON_BOX.width : FIG_W;
-  const h = figure.full ? LEAP_ICON_BOX.height : FIG_H;
-  const use = <use className="pi-fig" href="#leap" x={figure.x} y={figure.y} width={w} height={h} />;
+type Vars = CSSProperties & Record<`--${string}`, string>;
+
+/** The program's pose, placed on its apparatus: its own <svg data-figure="pose:<id>">. */
+function PoseFigure({ icon }: { icon: ApparatusIcon }) {
+  const p = posePlacement(icon);
+  const { d, viewBox: vb } = PROGRAM_POSES[p.id];
+  const [ax, ay] = p.at;
   return (
-    <g className="pi-fig-x" style={figure.flip ? ({ "--fig-dir": -1 } as CSSProperties) : undefined}>
-      <g className="pi-fig-y">
-        {/* The mirror is an attribute transform on its own group: the CSS stick (scale) on
-            .pi-fig and the hop on the outer groups never replace it. */}
-        {figure.flip ? <g transform={`matrix(-1 0 0 1 ${2 * figure.x + w} 0)`}>{use}</g> : use}
+    <g className="pi-pose" style={{ "--at": `${ax}px ${ay}px` } as Vars}>
+      <g className="pi-ride">
+        <g className="pi-stick">
+          <svg
+            data-figure={`pose:${p.id}`}
+            x={p.box.x}
+            y={p.box.y}
+            width={p.box.width}
+            height={p.box.height}
+            viewBox={`${vb.x} ${vb.y} ${vb.width} ${vb.height}`}
+            overflow="visible"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d={d} />
+          </svg>
+        </g>
       </g>
     </g>
   );
@@ -162,6 +152,7 @@ function PosedFigure({ figure }: { figure: Figure }) {
 
 export function ProgramIcon({ icon, label, className, scene }: ProgramIconProps) {
   const spec = SPECS[icon];
+  const pose = posePlacement(icon);
   return (
     <svg
       className={["pi", className].filter(Boolean).join(" ")}
@@ -172,18 +163,12 @@ export function ProgramIcon({ icon, label, className, scene }: ProgramIconProps)
       data-icon={icon}
     >
       <g className="pi-latent">
-        {spec.parts.map((p) =>
-          p.leap ? (
-            <path key={p.part} d={LEAP_ICON_D} className="pi-solid" />
-          ) : (
-            (p.paths ?? []).map((s) => <path key={`${p.part}${s.d}`} d={s.d} className={kindClass(s.kind)} />)
-          ),
-        )}
+        {spec.parts.map((p) => p.paths.map((s) => <path key={`${p.part}${s.d}`} d={s.d} className={kindClass(s.kind)} />))}
+        <path d={PROGRAM_POSES[pose.id].d} className="pi-solid" transform={poseTransform(pose)} data-pose={pose.id} />
       </g>
       {spec.parts.map((p) => (
-        <g key={p.part} className="pi-part" data-part={p.part} {...(p.leap ? { "data-leap": "" } : {})}>
-          {p.leap ? <use className="pi-solid" href="#leap" {...LEAP_ICON_BOX} /> : null}
-          {(p.paths ?? []).map((s) => (
+        <g key={p.part} className="pi-part" data-part={p.part}>
+          {p.paths.map((s) => (
             <path key={s.d} d={s.d} className={kindClass(s.kind)} pathLength={1} data-draw="" />
           ))}
         </g>
@@ -195,7 +180,7 @@ export function ProgramIcon({ icon, label, className, scene }: ProgramIconProps)
           ))}
         </g>
       ) : null}
-      {scene ? <PosedFigure figure={spec.figure} /> : null}
+      {scene ? <PoseFigure icon={icon} /> : null}
     </svg>
   );
 }

@@ -15,9 +15,6 @@ const LEAP_ROOT_ID = "upis-skok";
 const KIT_TITLE_ID = "upis-kit-title";
 const FAQ_TITLE_ID = "upis-faq-title";
 
-/** Frame of each step in the leap band: takeoff → apex → landing (= „postaje član kluba“). */
-const STEP_FRAMES = ["takeoff", "apex", "landing"] as const;
-
 /** Month initials under the year strip (J F M A M J J A S O N D — the same in Serbian). Aria-hidden. */
 const MONTH_INITIALS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"] as const;
 
@@ -29,11 +26,12 @@ function splitAtPhone(line: string, phone: string): [string, string] {
 
 /**
  * S10 „Upis i prvi trening“ (§5 S10). Server-rendered, complete without JS.
- * - „Jedan skok, tri kadra“: one chronophotograph band above the three steps —
- *   takeoff, apex and the stuck landing on step 3 („postaje član kluba“). The
- *   numerals follow the same ghost → solid progression. S10's primary motion
- *   (LeapBandPlayer → lazy chunk) flies the leap once, then the twelve month
- *   lamps light like a scoreboard.
+ * - „Jedna zvezda, tri koraka“: one chronophotograph band above the three steps —
+ *   a cartwheel in three phases (ghosts) finishing in the salute over step 3
+ *   („postaje član kluba“, plan §5.9). The numerals follow the same ghost → solid
+ *   progression. S10's primary motion (LeapBandPlayer → lazy chunk) develops the
+ *   phases and sticks the salute once, then the twelve month lamps light like a
+ *   scoreboard.
  * - „Šta poneti na prvi trening“: a real packing list — unticked checkboxes a
  *   parent can tick the evening before; each tick draws with a small box squash
  *   (CSS). A full bag keeps every tick and underlines the heading with a short
@@ -59,7 +57,7 @@ export function Enrollment() {
           {/* The numerals are part of the chronophotograph (aria-hidden); the list conveys the order. */}
           <ol className="en-steps" role="list">
             {ENROLLMENT.steps.map((step, i) => (
-              <li key={step} className="en-step" data-frame={STEP_FRAMES[i] ?? "landing"}>
+              <li key={step} className="en-step" data-step={i + 1}>
                 <span className="en-step__num" aria-hidden="true">
                   {i + 1}
                 </span>

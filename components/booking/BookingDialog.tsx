@@ -102,6 +102,23 @@ function fieldsView(dialog: HTMLElement, body: HTMLElement, foot: HTMLElement): 
   };
 }
 
+/**
+ * The „landed“ card's figure is the pose family's salute (docs/plan-figure-system.md §5.13),
+ * rendered by the brand Pose component. The pose data is its own chunk, fetched when the sheet
+ * first mounts (long before a hand-off can happen), so the path data never weighs on this one.
+ * One import() call site; a failed load is forgotten so the next mount retries.
+ */
+type PoseComponent = (typeof import("@/components/brand/Pose"))["Pose"];
+let poseModule: Promise<PoseComponent> | null = null;
+const loadPose = () =>
+  (poseModule ??= import("@/components/brand/Pose").then(
+    (m) => m.Pose,
+    (error: unknown) => {
+      poseModule = null;
+      throw error;
+    },
+  ));
+
 const withoutError = (errors: BookingErrors, field: keyof BookingValues): BookingErrors => {
   if (!(field in errors)) return errors;
   const next = { ...errors };
@@ -223,6 +240,7 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
   const [status, setStatus] = useState("");
   // Hand-offs so far: keys the „landed“ card, so its stamp plays once per hand-off.
   const [handoffs, setHandoffs] = useState(0);
+  const [SentPose, setSentPose] = useState<PoseComponent | null>(null);
   const [year] = useState(() => belgradeYear());
   const [seenRequest, setSeenRequest] = useState(0);
   const primary = useSyncExternalStore(subscribeDevice, devicePrimary, serverPrimary);
@@ -243,6 +261,18 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
     if (next.extraGroups !== extraGroups) setExtraGroups(next.extraGroups);
     if (next.group !== values.group) setValues((v) => ({ ...v, group: next.group }));
   }
+
+  // The salute for the „landed“ card, fetched once the sheet exists (see loadPose).
+  useEffect(() => {
+    let live = true;
+    loadPose().then(
+      (Pose) => live && setSentPose(() => Pose),
+      () => {}, // no figure: the card still says the message is on its way
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
 
   // Open (or re-target) the dialog for each request.
   useEffect(() => {
@@ -699,8 +729,8 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
 
       <div ref={footRef} className="booking__foot">
         {/* The funnel's stuck landing (C-05, M-02): after a hand-off the status is a „landed“
-            card — the club's silhouette drops in and sticks. tabIndex -1: focused on return
-            from the messaging app. */}
+            card — a gymnast drops in, sticks the landing and salutes (the pose family's
+            finish, §5.13). tabIndex -1: focused on return from the messaging app. */}
         <p
           ref={statusRef}
           className="booking__status"
@@ -709,11 +739,7 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
           tabIndex={-1}
           data-landed={landed ? "" : undefined}
         >
-          {landed ? (
-            <svg key={handoffs} className="booking__status-leap" viewBox="0 0 230 150" aria-hidden="true" focusable="false">
-              <use href="#leap" width="230" height="150" />
-            </svg>
-          ) : null}
+          {landed && SentPose ? <SentPose key={handoffs} id="salute" className="booking__status-pose" /> : null}
           {status ? <span>{typesetSr(status)}</span> : null}
         </p>
         {/* Sends + call: one row in the short-viewport footer (booking.css, CV2-05). */}

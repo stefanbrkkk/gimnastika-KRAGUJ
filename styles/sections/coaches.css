@@ -1,5 +1,5 @@
 /* coaches section styles — owned by the coaches section (S6 „Trenerice“, light theme).
-   Two coach cards (portrait print or the KR-07 Marey plate + an inked „Licenca GSS“ stamp +
+   Two coach cards (portrait print or the KR-07 plate + an inked „Licenca GSS“ stamp +
    roles with „izvor ↗“ on the licence lines), then photo 05 as the „Na takmičenju“ print
    carrying the white brush annotation. Phones: compact athlete cards (portrait beside the
    name, roles below). Tablet: cards stacked, the print under them, right-aligned. Desktop:
@@ -126,53 +126,42 @@
 }
 
 /* --------------------------------------------------------------------------
-   KR-07 — the Marey plate (no portrait yet): four exposures of the leap on the mat line.
-   The plate carries data-theme="dark", so --ghost-1/2/3 are the dark-section steps.
+   KR-07 — the plate (no portrait yet): one gymnast in a scale (vaga), white on the navy,
+   standing on a thin mat line like a portrait subject. The mat line sits at --mat-y, high
+   enough that the stamp over the plate's lower-right corner never touches the figure.
    -------------------------------------------------------------------------- */
 .coach__plate {
+  --mat-y: 74%;
   position: relative;
 }
 
-.coach__plate-art {
+.coach__plate-mat {
   position: absolute;
-  inset: 0;
+  top: var(--mat-y);
+  left: 5%;
+  right: 5%;
+  height: 1.5px;
+  border-radius: 1px;
+  background: color-mix(in oklab, var(--color-steel-300) 60%, transparent);
+}
+
+/* The subject box: 86 % of the plate's width, centred, its standing foot exactly on the mat
+   line (the pose box sinks by the share under its lowest ink, --pose-sink from Coaches.tsx).
+   coaches-motion.ts develops this box, not the svg inside it. */
+.coach__plate-subject {
+  position: absolute;
+  left: 7%;
+  bottom: calc(100% - var(--mat-y));
+  display: block;
+  width: 86%;
+  translate: 0 var(--pose-sink, 0%);
+}
+
+.coach__plate-pose {
   display: block;
   width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.coach__plate-mat,
-.coach__plate-tick {
-  stroke: var(--color-steel-300);
-  stroke-opacity: 0.6;
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
-}
-
-.coach__plate-tick {
-  stroke-opacity: 0.45;
-  stroke-width: 1;
-}
-
-.coach__plate-ghost--1 {
-  color: var(--ghost-1);
-  opacity: var(--ghost-1-o);
-}
-
-.coach__plate-ghost--2 {
-  color: var(--ghost-2);
-  opacity: var(--ghost-2-o);
-}
-
-.coach__plate-ghost--3 {
-  color: var(--ghost-3);
-  opacity: var(--ghost-3-o);
-}
-
-.coach__plate-solid {
-  color: var(--color-lav-200);
-  opacity: 0.92;
+  height: auto;
+  color: var(--color-white);
 }
 
 /* --------------------------------------------------------------------------

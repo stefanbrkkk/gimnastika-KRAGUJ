@@ -163,7 +163,7 @@ anything undecided was decided here and can be reverted by the club.
   *Current (after round 1 AD-02 and design v2):* S3 programs dark · S5 about light with a dark „Hronologija“ band · S9 gallery darker; dark sections enter on a diagonal edge.
 - **D-21 · Section titles carry a small chronophotograph mark** (three ghost frames landing as the solid
   silhouette) — the "silhouette lands on section titles" idea from §1, done in CSS with one
-  IntersectionObserver for the whole page. Titles alternate left/right on desktop (the floor diagonal).
+  IntersectionObserver for the whole page. Titles alternate left/right on desktop (the floor diagonal). *(amended by D-43: the ghost frames show only during the hop)*
 
 ## Build-time decisions per area
 
@@ -321,7 +321,7 @@ Recorded by the area implementations (M1–M5); each line is one decision.
 - D-SEO-6 · Icons come from the sprite silhouette. The SVG favicon follows prefers-color-scheme (navy on light, ice-50 on dark, transparent). PNG 32 is white on a navy rounded square; apple-touch 180 and 192/512 are white on full-bleed navy; the maskable 512 keeps the ink inside the 80% safe circle. There is no favicon.ico.
 - D-SEO-7 · The web manifest uses display 'browser' (it stays a web page). appleWebApp is { capable: false, title: 'Kraguj' }, so the iOS home-screen label is short without switching to standalone mode.
 - D-SEO-8 · The 404 exports its own metadata: title „Ups — ova stranica je izgubila ravnotežu | Gimnastički klub Kraguj“, robots noindex+follow (so it stays consistent with Next's own noindex even when INDEXABLE=true), and canonical: null so a missing URL never claims to be the home page.
-- D-404-1 · The 404 gymnast balances against real gravity. The on-screen down angle comes from DeviceOrientation β/γ plus the screen angle, and the upper body counter-rotates (clamped ±24°) with an under-damped spring and 3 lagging ghost frames. The one-path silhouette is cut at the waist (logo y≈150, where only the 26-unit torso crosses) so the legs stay on the beam; rotating the whole figure would push a leg through the beam.
+- D-404-1 · The 404 gymnast balances against real gravity. The on-screen down angle comes from DeviceOrientation β/γ plus the screen angle, and the upper body counter-rotates (clamped ±24°) with an under-damped spring and 3 lagging ghost frames. The one-path silhouette is cut at the waist (logo y≈150, where only the 26-unit torso crosses) so the legs stay on the beam; rotating the whole figure would push a leg through the beam. *(superseded by D-49: a scale pose that sways about the ankle, no ghost frames)*
 - D-404-2 · iOS permission detection: Chromium 153 also exposes DeviceOrientationEvent.requestPermission, so its presence alone does not mean iOS. The page always listens, and shows the enable button only on touch devices that expose requestPermission and received no orientation data within 1 s.
 - D-404-3 · The root not-found boundary is part of the root layout's tree, so its client code ships on every page. The 404 therefore uses a tiny loader and a next/dynamic (ssr:false) tilt chunk of 1.6 KB gz. The home page's first-load JS does not grow, and the button label comes in as a prop so content/copy.ts stays out of the chunk.
 - D-404-4 · The 404 layout is start-aligned on phones and vertically centred on desktop, where the iOS button is out of flow. Late-appearing UI never shifts content. On phones the scene is shown as a centre crop (preserveAspectRatio slice, 500/286) so the gymnast reads larger.
@@ -657,7 +657,7 @@ eight fixers implemented the accepted ones. Where a line below contradicts an ea
 - D-chrome-24 · Header CTA step-aside (ID-06, C-15): data-cta on [data-site-header] comes from StickyBarBehavior (hero CTAs intersecting the viewport, or any part of [data-contact-block]). The pill keeps its box; take-off exit, stuck-landing return. With JS it starts stepped aside, with a 4s CSS failsafe; keyboard focus in the header always shows it; no JS = always shown. The header logo stays (§5).
 - D-chrome-25 · From 1200px the header bar is a 3-column grid with the nav on the page axis, offset by (8-24)/2px for the asymmetric bar padding; 1024-1199 keeps the flex row (ID-10). The desktop logo is 129x56 (ID-09).
 - D-chrome-26 · Sticky bar = floating dock (C-07): 8px (6px under 360) + safe area from the edges, max 560px, 60px tall (58 under 360), navy-950 pill with a static shadow. Spring arrival and pill rise (MD-17), 180ms take-off exit. It also steps aside while >=50% of S10 .en-actions is in view (GE-11). The focus guard uses the dock's resting top.
-- D-chrome-27 · Menu sheet (C-14, C-22, M-05): corner trail removed. The current row carries the „you are here“ silhouette with its take-off and apex frames and plays a hop with a stuck landing on open. Tall tablets get display-size links on 96px rows, in one column (two columns overflow at 640-800 with the row frames). On sheets >=700px tall the CTA and call stand at the foot of the sheet.
+- D-chrome-27 · Menu sheet (C-14, C-22, M-05): corner trail removed. The current row carries the „you are here“ silhouette with its take-off and apex frames and plays a hop with a stuck landing on open. Tall tablets get display-size links on 96px rows, in one column (two columns overflow at 640-800 with the row frames). On sheets >=700px tall the CTA and call stand at the foot of the sheet. *(amended by D-44: the current row has a lavender bar, no silhouette)*
 - D-chrome-28 · Chrome motion (nav spy hop MO-03, footer take-off MO-05) lives in the lazy chunk chrome-motion.ts, imported on idle only when motionAllowed(). Pre-states are set by JS right before playing and only off-screen, so a failed chunk leaves the static chrome.
 - D-chrome-29 · The footer's trial CTA and call are index-style text links (ID-11), so the S11 doskok stays the page's finale. Footer and menu ghost frames use the shared --ghost tokens.
 - D-404-7 · 404 stage (C-16): no frame; the floor is a page-wide mat line level with the beam's feet; A-frame supports like S8; padded beam top; KR-404 as a bottom-left frame label under the floor (aria-hidden; the separate kicker above the h1 is removed). Desktop copy and beam share the floor line.
@@ -687,7 +687,7 @@ eight fixers implemented the accepted ones. Where a line below contradicts an ea
 - Programs motion lives in the lazy chunk programs-motion.ts (1.7 KB gz), loaded when the section is ≤1 viewport away and motion is allowed. It never imports @/lib/motion statically: a static import made Turbopack put gsap's MotionPath helpers (paths.js/matrix.js) in this chunk, so the hero intro started downloading it. gsap is reached only through loadMotion() for the filter Flip.
 - The icon draw no longer waits for the section-title landing (+800ms); it only goes through queuePrimaryMotion (≤250ms wait), in line with the v2 rule that content is never held behind decoration. The latent print covers the wait.
 - Every drawing performs once right after its draw. Phones perform again on snap (IntersectionObserver ≥0.85, ≥4s apart); hover devices on pointer enter or keyboard focus from outside the card. The hover answer is the perform (it includes the apparatus's own compression), not a squash held while hovering. *(superseded by design round 2: D-P2 round 2: scene plates, apparatus-only performs)*
-- KR-04 opens the phone row at min(248px, 64vw). The photo box is capped at 533px tall (a square cover draws at the box's longer side = native/2), so on phones the slot ends on a static landing trail: 3 leap silhouettes in the ghost tokens on a mat line, aria-hidden, hidden from 1024.
+- KR-04 opens the phone row at min(248px, 64vw). The photo box is capped at 533px tall (a square cover draws at the box's longer side = native/2), so on phones the slot ends on a static landing trail: 3 leap silhouettes in the ghost tokens on a mat line, aria-hidden, hidden from 1024. *(the landing trail is removed by D-44)*
 - With MINOR_PHOTOS=false the photo placeholder is the last frame at every width, including ≥1280 (it used to open the 3-column sheet).
 - No orphan card at ≥1024 (QP-20): data-count on the strip drops the photo in the 2-column sheet when the count is even, and in the 3-column sheet when it is a multiple of 3.
 - Phones: the pressed chip's count is a white corner tab (✓ + label + count do not fit the 136px chip at 320); from 640 the count sits inline, as in S9. The status line is screen-reader-only below 640, and the aerobic hint is shown as a visible line under the row there.
@@ -753,7 +753,7 @@ eight fixers implemented the accepted ones. Where a line below contradicts an ea
 - D-S7-15 (RC-03/RC-11/RC-15/RC-17): S7 izvor links are quiet footnotes (steel-300 / 560, lav-200 on hover or focus) placed 6px under the label. The stat izvor focus ring hugs the word, not the 48px target. „oko“ is a field tag in the window corner. The numerals get a static LED bloom and the windows an inset bezel. Display order is 42 · 12 · oko 120 · 2007 (the year tile goes last; content unchanged). From 1024 up the numeral scales from 58px at 1024 to 84px at 1440 so „2007“ keeps air in its window.
 - D-S7-16 (RC-09): from 1024 up the trust row sits under photo 01 in the photo column; below 1024 it closes the section. The photo is not sticky, because the trust row shares its column.
 - D-S7-17 (MI-06): below 1024, photo 01 opens like a shutter from a slit when it enters (only if off-screen when the code arms).
-- D-S8-2 (v2, RC-07/MD-07/MI-04, a deviation from the §4 desktop scrub): the beam is a real one (10px bar on splayed legs), and a one-shot „last beam routine“ plays on every device where motion is allowed: leap with ghost frames → stuck landing and balance wobble → legs fold and bar fades → MorphSVG to the sea → echo swells ripple out. One morphing path, no ScrollTrigger in S8. The pre-state is set only if the horizon is off-screen when the code arms. The static state (no JS, reduced motion, Save-Data) is the wave plus echoes. The wobble is on the gymnast, not the beam, because rotating inside the stretched SVG distorts.
+- D-S8-2 (v2, RC-07/MD-07/MI-04, a deviation from the §4 desktop scrub): the beam is a real one (10px bar on splayed legs), and a one-shot „last beam routine“ plays on every device where motion is allowed: leap with ghost frames → stuck landing and balance wobble → legs fold and bar fades → MorphSVG to the sea → echo swells ripple out. One morphing path, no ScrollTrigger in S8. The pre-state is set only if the horizon is off-screen when the code arms. The static state (no JS, reduced motion, Save-Data) is the wave plus echoes. The wobble is on the gymnast, not the beam, because rotating inside the stretched SVG distorts. *(figures amended by D-48: star take-off, scale landing)*
 - D-S8-7 (v2): superseded — the in-view guard now means „horizon on screen when the code arms → keep the static wave, no routine“.
 - D-S8-13 (RC-13): the sea has two static echo swells behind the wave (royal-500 .45/2px, steel-300 .5/1.5px). The horizon viewBox is 1440×80 and the SVG is 56/64/80px tall at phone/tablet/desktop, with margins re-anchored so the wave keeps its place.
 - D-S8-14 (RC-06): from 1024 up, the camp lead is a postcard headline (30–38px, 620, 112% width, max 13em) under the title, and the note stands at the base of the text column, 112px above the column bottom (not 88) so the leap has clear air. The lead glues short prepositions and its last word.
@@ -773,7 +773,7 @@ eight fixers implemented the accepted ones. Where a line below contradicts an ea
 - S9 entrance (MD-08): the print link swings and the item fades, so the strip rule stays level. The lazy lightbox chunk arms it (armHang), adding no first-load bytes. It only runs when the sheet is below the fold at arm time and only on the prints in view (max 6). GE-M4 'Ekspozicija' is not built (one primary motion per viewport). *(superseded by design round 2: GE2-01 prints hidden only before they are ever seen)*
 - S9 filter motion moves to the lazy gallery-flip.ts. Flip scale:true (strips resize, so transform only). The newcomer tween is not returned to Flip, because Flip re-applied its start state. Resets restore each print's --ar after clearProps.
 - S9 lightbox: opaque navy-950 scrim. Per-slide print foot (frame · category, n / N, typeset alt caption) is aria-hidden; the live counter sits sr-only in the top bar. A Marey rule with a hopping marker sits under the stage. The stage reserves the foot's height. In landscape ≤560px tall: arrows at the sides, caption hidden.
-- S10 leap band (GE-06): geometry in leap-band.ts; the same module renders on the server and drives the motion, so the flight ends exactly on the landed frame. Pitches −24° / −10° / +6° (the logo pose is already tilted +10°; −10° is a level split). Mat contacts are the lowest silhouette points at each pitch, measured from the path. The trajectory is a quadratic through the hips. Ghosts use --ghost-1 / --ghost-2 at .42 / .62; the landing is accent.
+- S10 leap band (GE-06): geometry in leap-band.ts; the same module renders on the server and drives the motion, so the flight ends exactly on the landed frame. Pitches −24° / −10° / +6° (the logo pose is already tilted +10°; −10° is a level split). Mat contacts are the lowest silhouette points at each pitch, measured from the path. The trajectory is a quadratic through the hips. Ghosts use --ghost-1 / --ghost-2 at .42 / .62; the landing is accent. *(superseded by D-47: the band is a cartwheel ending in a salute)*
 - S10 leap motion: data-leap armed/play/done on .en-leap. The pre-state exists only under html.js-motion + no-preference and hides decoration only (step texts, year line and actions stay visible; numerals wait at .35). It waits for the title mark's landing (+800ms), then queuePrimaryMotion(1460). A failsafe lands the final state. *(superseded by design round 2: MD2-07 no title wait)*
 - S10 step numerals (GE-07): aria-hidden (the <ol> gives the order). Ghost ramp in one blue: royal-500 at 45% → 78% → navy. The leotard violet stays on the frames because violet is not allowed as text.
 - S10 year strip (GE-08): lamps with J–D initials. The row layout starts at ≥1280; at 1024 the actions had stacked.
@@ -839,7 +839,7 @@ a `var()` easing inside `@keyframes` as linear, so keyframe easings must be lite
 
 - D-Q21 (QP2-07) · From 1024 the quiz card stretches over the heading and strip rows (align-self: stretch), so its white face ends level with the strip on every step. On the two questions the question is centred in the card; the result starts at the top and grows the row when it is taller. Nothing animates height.
 - D-Q22 (QP2-08) · Two-group result (8 + „Tek počinje“) from 1024: names on the h4 step clamp(1.125rem, 1rem + .4vw, 1.375rem) with text-wrap: pretty, and the plate on the first line (align start, margin-top .1em). The groups stack below 1360 (the D-Q17 breakpoint), because at 1280 a name needs 244 px of a 234 px column. The three-group competitive result and the no-JS guide are unchanged.
-- D-Q23 (QP2-12, amends D-Q15) · The strip's apparatus is 1.5× its v2 size (parter 4.5, greda 3.3, razboj 4.8) with constant line weight in strip units (CSS divides by an inline --s). Landings follow the new surfaces: beam top 67.6 units up, front foot at the beam's end with the seat of the split over it; floor mid-depth 45 up. The bars stand between 02 and 03 with the high rail at the in-flight frames' raised hands, placed so the high bar's right upright is 10 units left of the landed back toe. The landing stays over the 03 tick; the critic's +12 x shift was not needed.
+- D-Q23 (QP2-12, amends D-Q15) · The strip's apparatus is 1.5× its v2 size (parter 4.5, greda 3.3, razboj 4.8) with constant line weight in strip units (CSS divides by an inline --s). Landings follow the new surfaces: beam top 67.6 units up, front foot at the beam's end with the seat of the split over it; floor mid-depth 45 up. The bars stand between 02 and 03 with the high rail at the in-flight frames' raised hands, placed so the high bar's right upright is 10 units left of the landed back toe. The landing stays over the 03 tick; the critic's +12 x shift was not needed. *(superseded by D-46: the strip's landing apparatus are floor, beam and vault; no bars)*
 - D-Q24 (QP2-12) · The strip's viewBox is 720×212 with the mat at 200 (was 204/192), so the flights keep the v2 heights (48 / 64) onto the higher apparatus and stay within the ≥ −8 top limit (worst −5.7). The strip is about 4–6 CSS px taller.
 
 ### Programs (S3) — round 2
@@ -848,7 +848,7 @@ a `var()` easing inside `@keyframes` as linear, so keyframe easings must be lite
 - D-P2-02 · No dead white above CTAs (QP2-04, ruling version): at every width the card plate takes the row's spare height (flex 1000 0 auto, no cap); the body does not grow. No CSS order and no subgrid. CTAs align per row; titles may start at different heights across a desktop row.
 - D-P2-03 · Plate scene (QP2-05): .pc-plate is a size container. The icon is clamp(84/96px, 64cqh, 132px), and the Marey grid lives on ::after, because container units resolve only for the plate's descendants. The user-unit stroke steps down through container queries so the line stays 2.6–3.0 CSS px. Non-scaling strokes were rejected: they break the pathLength=1 draw in Chromium. The posed #leap silhouette shows when the plate is ≥160px (container content ≥150px).
 - D-P2-04 · Card mount (QP2-05): a scene plate's first draw plays the sheet's mount instead of the first perform (hop at +450ms, stick at +950ms, data-mount, through queuePrimaryMotion, once per card). The card hop is −10 units (sheet −14.5) so her back foot stays on the print. Performs are blocked while a card mounts.
-- D-P2-05 · Aerobik (QP2-06): the drawing is the sprite's exact #leap (<use>), 48 units wide with the front toe on the floor y=42. It is revealed with clip-path from the floor up (600ms ease-stick). Its static print (.pi-latent) is a simplified path in icon units (leap-icon.ts, 668 chars, ≤0.2 units from the logo, tested), so the quiz's iconArt keeps reading paths. The scene (sheet, and card plates ≥160px) adds a mirrored partner 30 units (62% of a body) to the right, hopping in from the right.
+- D-P2-05 · Aerobik (QP2-06): the drawing is the sprite's exact #leap (<use>), 48 units wide with the front toe on the floor y=42. It is revealed with clip-path from the floor up (600ms ease-stick). Its static print (.pi-latent) is a simplified path in icon units (leap-icon.ts, 668 chars, ≤0.2 units from the logo, tested), so the quiz's iconArt keeps reading paths. The scene (sheet, and card plates ≥160px) adds a mirrored partner 30 units (62% of a body) to the right, hopping in from the right. *(superseded by D-45: the aerobic drawing is the high-kick pose; leap-icon.ts and the partner are gone)*
 - D-P2-06 · Filter Flip stacking (QP2-09): stayers and arrivals get z-index 1 and leavers 0 during the Flip. A leaver is data-out or computed display:none (the photo dropped by the sheet's count rule).
 - D-P2-07 · KR-04 paper (QP2-10): at ≥1024 the frame stretches to its row and the KR-04 foot sits at the bottom (margin-top:auto); the print keeps its 533px cap. The ≥1280 re-show rule uses display:flex (block dropped the column).
 - D-P2-08 · Card performs are the apparatus's own physics only (QP2-11): beam vertical flex (beam translateY + legs scaleY, same wobble), rail flex (scaleY .94/.92 about the feet), springboard/table spring, floor give, aerobic jump. .pi-fx is rendered only in the detail sheet, where the trail plays at 560ms beside the landing silhouette.
@@ -945,9 +945,9 @@ The 404 font preload is a postbuild step (scripts/font-preloads.mjs) because Nex
 ### Quiz (S2) — round 3
 
 - D-Q25 (QP3-04) · Going back („Nazad“ / „Počnite ponovo“), the strip's apparatus un-draws as its draw-in reversed: stroke-dashoffset 0→1.02 over 200 ms on --ease-takeoff (the time-reverse of --ease-stick), 160 ms into the flier's 420 ms rewind. It is hidden (opacity 0s, delayed 360 ms) once its lines are gone. On the beam her front foot passes the beam's end at ≈220 ms, while the beam is still ≥95 % drawn (tested). Reduced motion / Save-Data: instant.
-- D-Q26 (QP3-05) · The strip's exposures lie over the apparatus. The DOM order was already apparatus → exposures, but 18–28 % ghosts let a full-strength rail cut through them. A navy occluder (.qb-occlude: a copy of the seven exposures with the same classes and inline variables, in --color-navy-900, one union at 0.6) is painted right after the apparatus, so a rail keeps 40 % of its ink under a developed body. The grid now paints after the occluder so it is never dimmed. Only the island's strip has the occluder (QuizBandArt occlude); the no-JS guide does not.
+- D-Q26 (QP3-05) · The strip's exposures lie over the apparatus. The DOM order was already apparatus → exposures, but 18–28 % ghosts let a full-strength rail cut through them. A navy occluder (.qb-occlude: a copy of the seven exposures with the same classes and inline variables, in --color-navy-900, one union at 0.6) is painted right after the apparatus, so a rail keeps 40 % of its ink under a developed body. The grid now paints after the occluder so it is never dimmed. Only the island's strip has the occluder (QuizBandArt occlude); the no-JS guide does not. *(superseded by D-46: the exposures no longer cross an apparatus, so the occluder is gone)*
 - D-Q27 · No SVG <mask> for CSS-animated content: Chromium keeps a mask's cached raster while transitions move the mask's children, so it shows stale mid-flight shapes. Use a painted layer instead.
-- Cost of D-Q26: +2.4 KB raw / +33 B gz of server markup, and a similar amount in the inline RSC payload. No client JS changed (QuizApp/QuizBand untouched), so first-load JS and the GSAP split are unchanged. Frame timing of the leap and the landing with 4× CPU throttle is identical with and without the occluder (p95 16.8 ms).
+- Cost of D-Q26: +2.4 KB raw / +33 B gz of server markup, and a similar amount in the inline RSC payload. No client JS changed (QuizApp/QuizBand untouched), so first-load JS and the GSAP split are unchanged. Frame timing of the leap and the landing with 4× CPU throttle is identical with and without the occluder (p95 16.8 ms). *(obsolete with D-46)*
 
 ### Programs (S3) — round 3
 
@@ -1109,6 +1109,69 @@ verifier on the dev server, and by one retry plus a re-verification where needed
 - CV4-01: After a hand-off the fields scroll until the privacy line is whole above the footer (lib/booking landedScrollBy). When all content fits, the spare room is shared evenly above and below (390×844: first label and privacy line both whole, about 5–6 px each). When it does not fit, they scroll to the end, keeping the 20px padding as air, and the top edge fades. The scroll never goes back up, and it runs in the dialog on short viewports.
 - MD4-01 (round 4, retry): The flier's navy keyline is on only while her silhouette's ink (3px grid samples of #leap via isPointInFill) is within 3.5px of the sash band's polygon, read at play time from the slab's ::after clip-path. The on/off times are sampled at 240 Hz into timeline sets. It is off during the take-off crossfade on the navy-800 title band and over the ghost trail, including ghost 3 before touchdown.
 - (orchestrator ruling) MD4-01 residue accepted: for 32–80 ms at take-off, the 1 px navy-950 keyline that keeps the inverted flier legible over the sash touches ghost 1. It is below the threshold worth another rework.
+
+## Figure system — decisions (docs/plan-figure-system.md)
+
+The owner found the logo's split-leap girl far too repetitive: 81–93 visible copies per page and
+up to 18 on one screen. The plan (rules R1–R7, the pose family, section by section) is in
+docs/plan-figure-system.md; the owner approved it and the pose sheet (docs/poses-sheet.png) on
+2026-09-26. Built in phases 0–2 (commit 0d6a311) and phase 3.
+
+- **D-41 · Figure grammar and its guard.** The logo leap (#leap) is the brand mark only: header and
+  footer logo, hero, section-title marks, the quiz flight, the contact doskok, the booking head
+  (data-figure brand:logo / hero / mark / quiz / doskok / booking). Every other figure is a pose
+  that stands for a program, an action or a state, at most once per page at rest (R2's exceptions:
+  the program sheet and the quiz result reuse the program's pose; the camp routine lands in the
+  scale that the coach plate shows at rest; the 404 is its own page). qa/figures.mjs (in npm run
+  qa) fails the build over 40 figures per page, 9 per screen, or a #leap outside [data-figure^="brand"].
+- **D-42 · The pose family is hand-drawn silhouettes (technique B), not the logo re-cut.** Eleven
+  poses (star, cartwheel, cart1–3, barHandstand, vault, highKick, salute, scale, beamHandstand)
+  in assets-source/poses, one filled currentColor path each, at the logo figure's body scale,
+  with floor and contact anchors as data attributes. scripts/svg.mjs builds
+  components/brand/poses.generated.ts with one named export per pose (POSE_SCALE, …) plus the
+  POSES map: a client chunk imports only the poses it draws (camp: 2). ≤600 B gz per pose, and the
+  script fails over it; tests/poses.test.ts checks contacts and sizes. Forward roll, bridge, push-up,
+  bar swing and the profile arms-up salute were drawn and rejected (plan §4).
+- **D-43 · Section-title marks keep the logo leap, ghosts only in flight.** At rest a title shows one
+  figure; the two ghost frames appear only during the hop. The hop's viewBox is tightened to
+  290×208 (--mark-box, --mark-solid 1.21em / 1.05em; contact title 0.81em) so the resting figure
+  hugs the word.
+- **D-44 · Figures removed from UI chrome (R5).** Photo placeholders show an aperture icon; the
+  footer shows only the logo; the menu's current row is a lavender bar; the schedule uses a clock
+  icon and a now-dot (no weekend figure); the timeline has ringed dots and a bead; the programs
+  photo trail (KR-04) and the enrollment checklist figure are gone; the programs rail flier is a
+  bead; the quiz strip keeps 2 exposures of 7 (take-off and apex, R3).
+- **D-45 · Program cards: each program's own pose on its apparatus** (pose-scene.ts, read by the
+  cards, the detail sheet and the quiz): Mlađa početna — star jump over the floor; Starija početna —
+  cartwheel on the beam; Takmičarke C — handstand on the high rail; Takmičarke A i B — handspring on
+  the vault table; Aerobik — high kick on the mat (the pose is the whole drawing). Hands and feet
+  meet the outer edge of the apparatus line, and the tests check every contact. leap-icon.ts and the
+  aerobic partner are gone.
+- **D-46 · Quiz: the club's girl flies, then lands as the recommended program.** The flight is still
+  the logo leap (brand:quiz). At frame 03 it crossfades into the program's pose on its apparatus and
+  sticks the landing about the contact. The strip's landing apparatus are floor, beam and vault.
+  Every apparatus stands right of 03 and every exposure left of it, so nothing crosses and the
+  occluder is removed. The competitive result lands on the vault (A i B, the first competitive
+  program), not the bars. The C bars scene stays on its card and in its sheet. The bars would
+  need their own strip scene (geometry.ts BandApparatus has no razboj).
+- **D-47 · Enrollment band: one cartwheel in three steps, ending in a salute.** cart1 (foot on tick 1)
+  → cart2 (hands on tick 2) → cart3 (landing lunge) → salute on tick 3 (a routine ends with a
+  salute). The geometry is in leap-band.ts; the motion chunk reads data-origin and never imports the
+  paths.
+- **D-48 · Camp routine: a star take-off, a scale landing.** The flight is a faint star exposure; at
+  the landing it cuts to the solid scale on the beam, which then wobbles about the standing foot and
+  lets go into the sea (D-S8-2's sequence is unchanged). The lane is measured at play time, including
+  390px on the public build.
+- **D-49 · 404: the scale on the beam, swaying about the ankle.** The pose is cut just above the foot
+  (two overlapping clip paths): the foot stays on the beam and the body rotates about the ankle. There
+  are no lagging ghosts. MAX_TILT is 18°, so the forward arm stays clear of the judges' board at
+  320px. sway.ts has no pose data, so the lazy tilt chunk stays a few hundred bytes.
+- **D-50 · Coach plate and booking card.** Slađana Kovačević's plate, which has no portrait yet, shows
+  the scale (balance suits a judge). It is decorative and develops once before the stamp press. The
+  booking sheet's "sent" card shows the salute. Its pose data is a separate lazy chunk, fetched when
+  the sheet mounts.
+- **D-51 · Gallery clips horizontal overflow** (.gallery { overflow-x: clip }). The hung print's
+  swing briefly widened the public build by 6px at 390px.
 
 ## TODO for the club (dosije §7) — nothing here is shown in the UI
 

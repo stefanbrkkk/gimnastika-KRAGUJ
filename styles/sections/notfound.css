@@ -213,23 +213,12 @@
   fill: var(--color-iceblue-200);
 }
 
+/* The gymnast (the scale pose, its own svg): white on the navy, never clipped to its box —
+   a sway about the ankle leaves it. */
 .nf-scene__figure {
+  overflow: visible;
   color: var(--color-white);
-}
-
-.nf-ghost--1 {
-  color: var(--ghost-1);
-  opacity: var(--ghost-1-o);
-}
-
-.nf-ghost--2 {
-  color: var(--ghost-2);
-  opacity: var(--ghost-2-o);
-}
-
-.nf-ghost--3 {
-  color: var(--ghost-3);
-  opacity: var(--ghost-3-o);
+  fill: currentColor;
 }
 
 /* The row under the floor: the frame code bottom-left, like a photo's frame label, and the

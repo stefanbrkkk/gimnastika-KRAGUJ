@@ -1,22 +1,19 @@
 /**
  * The darkroom strip's picture (server component, no client code): a Marey chronophotograph
- * of one tumbling pass drawn once — measuring grid, mat, the three apparatus drawings, two
- * latent exposures of #leap (the take-off at 01 and the apex: two real phases of the leap,
- * figure system R3) and the flier. Every state is chosen by CSS from the data attributes
- * QuizBand sets (data-step / data-v / data-app / data-dir), so the quiz island ships none of
- * this geometry. Poses per variant and develop delays travel as inline custom properties
+ * of one tumbling pass drawn once — measuring grid, mat, the three landing apparatus, two latent
+ * exposures of #leap (the take-off at 01 and the apex: two real phases of the leap, figure
+ * system R3), the flier and the three landing poses. At frame 03 she becomes the recommended
+ * program's pose on its apparatus (plan §5.3): a crossfade from the leap to the pose at
+ * touchdown, then the pose sticks about its contact. Every state is chosen by CSS from the data
+ * attributes QuizBand sets (data-step / data-v / data-app / data-dir), so the quiz island ships
+ * none of this geometry. Poses per variant and develop delays travel as inline custom properties
  * (geometry.ts); the motion itself is CSS (styles/sections/quiz.css).
  *
- * Paint order is the print's: the scene (apparatus, grid, mat) → exposures → flier. The ghosts
- * are faint (18–28 %), so a steel rail under one would still cut through it like a fence; the
- * print therefore lays a navy occluder over the apparatus first (QP3-05): a second copy of the
- * exposures with the same classes and inline variables — every pose, develop delay and
- * transition of the visible print drives it too — so a rail shows through a body only faintly.
- * Over the strip's own navy it is invisible, so it touches nothing but the apparatus. (Not an
- * SVG <mask>: Chromium keeps a mask's cached raster while CSS transitions move its content.)
- * With two exposures only one crossing is left: on the bars result the low bar's left upright
- * runs through the apex's front shin. Phase 3 of the figure plan redraws the landings so
- * nothing needs masking; the occluder goes then.
+ * Paint order is the print's: the scene (apparatus, grid, mat) → exposures → flier → landing
+ * pose. The exposures are phases of the first leap (x ≤ 454) and every landing apparatus stands
+ * right of 03's left edge (x ≥ 465), so no ghost crosses an apparatus line and nothing needs
+ * masking (the QP3-05 occluder is gone). The brand figure (the flier and its two exposures) and
+ * the poses share this svg: each pose is its own nested <svg data-figure="pose:<id>">.
  */
 import type { CSSProperties } from "react";
 import {
@@ -28,6 +25,7 @@ import {
   FIG_H,
   FIG_W,
   GRID_X,
+  LANDING,
   MAT_Y,
   PUFF,
   USE_X,
@@ -37,13 +35,14 @@ import {
   transformOf,
   type BandApparatus,
 } from "./geometry";
+import { POSES } from "@/components/brand/poses.generated";
 import { iconArt } from "./views";
 
 type Vars = CSSProperties & Record<`--${string}`, string | number>;
 
 const [X1, X2, X3] = FRAME_X;
 const MAJOR = new Set<number>(FRAME_X);
-const APPS: readonly BandApparatus[] = ["parter", "greda", "razboj"];
+const APPS: readonly BandApparatus[] = ["parter", "greda", "preskok"];
 
 /** Resting places of the flier, per state (CSS picks one: .quiz-band[data-step][data-v]). */
 const flierVars: Vars = {
@@ -59,7 +58,7 @@ function Leap() {
   return <use href="#leap" x={USE_X} y={USE_Y} width={FIG_W} height={FIG_H} />;
 }
 
-/** The two exposures (the visible print, and again as the apparatus occluder). */
+/** The two exposures: the take-off at 01 and the apex. */
 function Exposures() {
   return EXPOSURES.map((e, i) => {
     const style: Vars = {
@@ -79,14 +78,45 @@ function Exposures() {
   });
 }
 
-/**
- * `occlude` — lay the exposures over the apparatus (the island's strip). The no-JS guide's still
- * print never shows an apparatus, so it leaves the occluder out.
- */
-export function QuizBandArt({ occlude = false }: { occlude?: boolean }) {
+const Puff = () =>
+  PUFF.map(([dx, dy], i) => <circle key={i} r={4.5} style={{ "--dx": `${dx}px`, "--dy": `${dy}px`, "--i": i } as Vars} />);
+
+/** The recommended program's pose at 03, placed on its apparatus (hidden until her landing). */
+function Landings() {
+  return APPS.map((id) => {
+    const l = LANDING[id];
+    return (
+      <g key={id} className={`qb-land qb-land--${id}`} style={{ "--at": `${l.at[0]}px ${l.at[1]}px` } as Vars}>
+        <g className="qb-land-stick">
+          <svg
+            data-figure={`pose:${l.id}`}
+            x={l.x}
+            y={l.y}
+            width={l.width}
+            height={l.height}
+            viewBox={l.viewBox}
+            overflow="visible"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d={POSES[l.id].d} />
+          </svg>
+        </g>
+        {/* Chalk off her hands on the beam and the table; the star is in the air. */}
+        {id === "parter" ? null : (
+          <g className="qb-puff" transform={`translate(${l.at[0]} ${l.at[1]})`}>
+            <Puff />
+          </g>
+        )}
+      </g>
+    );
+  });
+}
+
+export function QuizBandArt() {
   return (
     <svg className="quiz-band__svg" viewBox={`0 0 ${VB_W} ${VB_H}`} focusable="false" style={flierVars} data-figure="brand:quiz">
-      {/* The apparatus of the recommended program, drawn in under frame 03 as she lands. */}
+      {/* The apparatus of the recommended program under frame 03, drawn in as she lands. */}
       <g className="qb-apps">
         {APPS.map((id) => {
           const a = APPARATUS[id];
@@ -105,12 +135,6 @@ export function QuizBandArt({ occlude = false }: { occlude?: boolean }) {
           );
         })}
       </g>
-      {/* Where a developed exposure lies over the apparatus, the rail shows through it faintly. */}
-      {occlude ? (
-        <g className="qb-occlude">
-          <Exposures />
-        </g>
-      ) : null}
 
       {/* Measuring grid over the scene's apparatus, under the exposures. */}
       <g className="qb-grid">
@@ -133,25 +157,28 @@ export function QuizBandArt({ occlude = false }: { occlude?: boolean }) {
       </g>
 
       {/* The flier: X and base height (.qb-fly, transition), the parabola (.qb-hop), torso pitch
-          (.qb-pitch) and the stuck landing, compressed from the feet (.qb-stick). */}
+          (.qb-pitch) and the stuck landing on 02, compressed from the feet (.qb-stick). At 03 her
+          body (.qb-body) crossfades into the landing pose. */}
       <g className="qb-fly">
-        <g className="qb-hop">
-          <g className="qb-pitch">
-            <g transform={`translate(0 ${FOOT.y})`}>
-              <g className="qb-stick">
-                <g transform={`translate(0 ${-FOOT.y})`}>
-                  <Leap />
+        <g className="qb-body">
+          <g className="qb-hop">
+            <g className="qb-pitch">
+              <g transform={`translate(0 ${FOOT.y})`}>
+                <g className="qb-stick">
+                  <g transform={`translate(0 ${-FOOT.y})`}>
+                    <Leap />
+                  </g>
                 </g>
               </g>
             </g>
           </g>
         </g>
         <g className="qb-puff" transform={`translate(${FOOT.x} ${FOOT.y})`}>
-          {PUFF.map(([dx, dy], i) => (
-            <circle key={i} r={4.5} style={{ "--dx": `${dx}px`, "--dy": `${dy}px`, "--i": i } as Vars} />
-          ))}
+          <Puff />
         </g>
       </g>
+
+      <Landings />
     </svg>
   );
 }

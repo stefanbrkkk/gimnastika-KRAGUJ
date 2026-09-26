@@ -1,7 +1,8 @@
 /* ==========================================================================
    S2 QUIZ — „Koji program je za vaše dete?“ (owned by the quiz section)
-   A darkroom chronophotograph strip (the silhouette leaps one hop per answer and the
-   print develops behind it) beside / above the current question or the result.
+   A darkroom chronophotograph strip (the silhouette leaps one hop per answer, the print
+   develops behind it, and at 03 she becomes the recommended program's pose) beside / above
+   the current question or the result.
    Phones–tablets: one card, strip on top. ≥1024: the strip is its own print in the
    left column (sticky), the white card holds only the question or the result.
    Tokens from app/globals.css; ghost colours from styles/ui.css (the strip is data-theme=dark).
@@ -255,9 +256,9 @@ html:not(.js) .quiz-app {
   opacity: 0.6;
 }
 
-/* The recommended program's apparatus under frame 03 (S3's ProgramIcon drawings, 1.5× their
-   v2 size — QP2-12). One stroke weight in strip units at every apparatus scale: the widths are
-   divided by the drawing's own scale (--s, inline from geometry.ts), as S3 keeps ≈2.8px. */
+/* The recommended program's apparatus under frame 03 (S3's ProgramIcon drawings at the landing
+   scene's scale, geometry.ts SCENE_S). One stroke weight in strip units at every apparatus
+   scale: the widths are divided by the drawing's own scale (--s, inline), as S3 keeps ≈2.8px. */
 .qb-app {
   opacity: 0;
 }
@@ -279,33 +280,14 @@ html:not(.js) .quiz-app {
 }
 .quiz-band[data-app="parter"] .qb-app--parter,
 .quiz-band[data-app="greda"] .qb-app--greda,
-.quiz-band[data-app="razboj"] .qb-app--razboj {
+.quiz-band[data-app="preskok"] .qb-app--preskok {
   opacity: 1;
 }
 .quiz-band[data-app="parter"] .qb-app--parter path,
 .quiz-band[data-app="greda"] .qb-app--greda path,
-.quiz-band[data-app="razboj"] .qb-app--razboj path {
+.quiz-band[data-app="preskok"] .qb-app--preskok path {
   stroke-dashoffset: 0;
 }
-/* In a Marey print every exposure lies over the scene (QP3-05). The ghosts are faint, so a rail
-   painted under one still cut through it like a fence. The occluder (QuizBandArt) is a copy of
-   the two exposures painted right over the apparatus in the strip's own navy: solid wherever a
-   ghost is developed, as one union at 60 %, so a rail keeps 40 % of its ink under a body. Its
-   poses, develop delays and transitions are the visible print's (same classes, same inline
-   variables); over the navy strip the occluder is invisible. Grid and mat are painted after it,
-   untouched. With no apparatus drawn (steps 01–02) there is nothing to occlude: it is off, so
-   no invisible copy of the figure lies in the strip. */
-.qb-occlude {
-  --ghost-1: var(--color-navy-900);
-  --ghost-2: var(--color-navy-900);
-  --ghost-1-o: 1;
-  --ghost-2-o: 1;
-  opacity: 0.6;
-}
-.quiz-band:not([data-app]) .qb-occlude {
-  visibility: hidden;
-}
-
 /* The two exposures (figure system R3): two real phases of the leap — the take-off at 01 and
    the apex (over 02 on the long flight). Poses per landing variant come inline (--t-*). A latent
    print: 10 % ice; once the flier has passed, the apex develops to ghost 1 (ice) and the
@@ -361,12 +343,37 @@ html:not(.js) .quiz-app {
   opacity: 0;
 }
 
+/* Her landing (plan §5.3): at 03 she is the recommended program's pose on its apparatus. The leap
+   (.qb-body) gives way to the pose of the result's apparatus (data-app); the no-JS guide, which
+   names no result, keeps the leap on the mat. The pose's groups move about its contact (--at). */
+.qb-land {
+  color: var(--color-white);
+  opacity: 0;
+}
+.qb-land path {
+  fill: currentColor;
+}
+.qb-land,
+.qb-land-stick {
+  transform-box: view-box;
+  transform-origin: var(--at);
+}
+.quiz-band[data-app] .qb-body {
+  opacity: 0;
+}
+.quiz-band[data-app="parter"] .qb-land--parter,
+.quiz-band[data-app="greda"] .qb-land--greda,
+.quiz-band[data-app="preskok"] .qb-land--preskok {
+  opacity: 1;
+}
+
 /* ---- Darkroom strip: motion (island only; reduced motion / Save-Data = the same states
    without transitions). Direct feedback to a tap — never queued. Forward answer: a real
-   leap — X linear, Y a parabola (out-quad up, in-quad down), torso pitch, a STUCK landing
-   compressed from the feet (--ease-land) and a chalk puff at the front foot; the print
-   develops each exposure exactly when the flier passes it (--d, geometry.ts). Going back
-   rewinds the film (no leap). -------------------------------------------------------- */
+   leap — X linear, Y a parabola (out-quad up, in-quad down), torso pitch; on 02 a STUCK
+   landing compressed from the feet (--ease-land) and a chalk puff at the front foot; at 03 a
+   110ms crossfade from the leap to her program's pose, which then sticks about its contact.
+   The print develops each exposure exactly when the flier passes it (--d, geometry.ts). Going
+   back rewinds the film (no leap). ----------------------------------------------------- */
 @media (prefers-reduced-motion: no-preference) {
   /* The latent print surfaces once, left to right, right after the section title's mark has
      landed (data-landed from the page's one heading observer — no observer of its own). */
@@ -421,41 +428,71 @@ html:not(.js) .quiz-app {
   .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-step="1"] .qb-stick {
     animation: qb-stick-a var(--dur-land) var(--ease-land) var(--qb-fly);
   }
-  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-step="2"] .qb-stick {
-    animation: qb-stick-b var(--dur-land) var(--ease-land) var(--qb-fly);
-  }
-  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-step="1"] .qb-puff circle {
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-step="1"] .qb-fly > .qb-puff circle {
     animation: qb-puff-a 420ms var(--ease-stick) calc(var(--qb-fly) + var(--i) * 20ms);
   }
-  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-step="2"] .qb-puff circle {
-    animation: qb-puff-b 420ms var(--ease-stick) calc(var(--qb-fly) + var(--i) * 20ms);
-  }
 
-  /* She lands on her apparatus: it is drawn in under her during the descent. */
+  /* She lands on the floor or the beam: it is drawn in under her during the descent. The vault
+     is drawn in as she touches down on the mat in front of it (its table is out of her reach). */
   .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="parter"] .qb-app--parter,
-  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="greda"] .qb-app--greda,
-  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="razboj"] .qb-app--razboj {
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="greda"] .qb-app--greda {
     transition: opacity 0s linear calc(var(--qb-fly) * 0.4);
   }
   .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="parter"] .qb-app--parter path,
-  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="greda"] .qb-app--greda path,
-  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="razboj"] .qb-app--razboj path {
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="greda"] .qb-app--greda path {
     transition: stroke-dashoffset 500ms var(--ease-stick) calc(var(--qb-fly) * 0.4);
   }
-  /* „Nazad“ / „Počnite ponovo“ (QP3-04): the apparatus stays under her while the film rewinds and
-     leaves after her feet do — its draw-in played backwards (--ease-takeoff is --ease-stick
-     reversed) from 160 to 360 ms of her 420 ms rewind, then hidden once its lines are gone. On the
-     beam her front foot is past the beam's end at ≈220 ms. The caption and frame numbers still
-     switch at once; reduced motion / Save-Data stay instant (data-lite). */
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="preskok"] .qb-app--preskok {
+    transition: opacity 0s linear var(--qb-fly);
+  }
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="preskok"] .qb-app--preskok path {
+    transition: stroke-dashoffset 400ms var(--ease-stick) var(--qb-fly);
+  }
+
+  /* Touchdown at 03: a 110ms crossfade from the leap to her program's pose (a chronophotograph
+     cut), then the pose sticks about its contact — held compressed while it fades in, released on
+     --ease-land — with chalk off her hands (beam, table). */
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app] .qb-body {
+    transition: opacity 110ms linear var(--qb-fly);
+  }
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="parter"] .qb-land--parter,
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="greda"] .qb-land--greda,
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="preskok"] .qb-land--preskok {
+    transition: opacity 110ms linear var(--qb-fly);
+  }
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="parter"] .qb-land--parter .qb-land-stick,
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="greda"] .qb-land--greda .qb-land-stick,
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="preskok"] .qb-land--preskok .qb-land-stick {
+    animation: qb-pose-stick var(--dur-land) var(--ease-land) calc(var(--qb-fly) + 110ms) backwards;
+  }
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="greda"] .qb-land--greda .qb-puff circle,
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-app="preskok"] .qb-land--preskok .qb-puff circle {
+    animation: qb-puff-a 420ms var(--ease-stick) calc(var(--qb-fly) + 110ms + var(--i) * 20ms);
+  }
+
+  /* „Nazad“ / „Počnite ponovo“ (QP3-04): the film rewinds the landing first — her pose gives way
+     to the leap in 110ms as she takes off backwards — and the apparatus leaves after her feet
+     do: its draw-in played backwards (--ease-takeoff is --ease-stick reversed) from 160 to 360 ms
+     of her 420 ms rewind, then hidden once its lines are gone. Her front foot leaves the beam's
+     near end at ≈230 ms. The caption and frame numbers still switch at once; reduced motion /
+     Save-Data stay instant (data-lite). */
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="back"] .qb-body,
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="back"] .qb-land {
+    transition: opacity 110ms linear;
+  }
   .quiz-app:not([data-lite]) .quiz-band[data-dir="back"] .qb-app {
     transition: opacity 0s linear 360ms;
   }
   .quiz-app:not([data-lite]) .quiz-band[data-dir="back"] .qb-app path {
     transition: stroke-dashoffset 200ms var(--ease-takeoff) 160ms;
   }
-  /* …and its occluder stays with it. */
-  .quiz-app:not([data-lite]) .quiz-band[data-dir="back"] .qb-occlude {
-    transition: visibility 0s linear 360ms;
+  /* The vault was never under her feet (she stuck on the mat in front of it): it leaves with her
+     pose, undrawn fast, so the leap never stands over a drawn table. */
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="back"] .qb-app--preskok {
+    transition: opacity 0s linear 180ms;
+  }
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="back"] .qb-app--preskok path {
+    transition: stroke-dashoffset 180ms var(--ease-stick);
   }
 
   .quiz-app:not([data-lite]) .quiz-band :is(.qb-mat--span, .qb-mat--air, .qb-tick--2) {
@@ -548,7 +585,8 @@ html:not(.js) .quiz-app {
   }
 }
 /* Stuck landing: compress from the feet and hold (no bounce), as the section-title marks. */
-@keyframes qb-stick-a {
+/* Her pose at 03 sticks about its contact (--at): compressed as it fades in, then released. */
+@keyframes qb-pose-stick {
   0% {
     transform: scale(1.05, 0.88);
   }
@@ -556,7 +594,7 @@ html:not(.js) .quiz-app {
     transform: scale(1, 1);
   }
 }
-@keyframes qb-stick-b {
+@keyframes qb-stick-a {
   0% {
     transform: scale(1.05, 0.88);
   }
@@ -566,16 +604,6 @@ html:not(.js) .quiz-app {
 }
 /* Magnesium puff at the front foot. */
 @keyframes qb-puff-a {
-  0% {
-    opacity: 0.75;
-    transform: translate(0, 0) scale(0.3);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(var(--dx), var(--dy)) scale(1);
-  }
-}
-@keyframes qb-puff-b {
   0% {
     opacity: 0.75;
     transform: translate(0, 0) scale(0.3);
@@ -843,7 +871,7 @@ html:not(.js) .quiz-app {
   stroke: none;
 }
 
-/* The aerobik print is the club silhouette itself (QP2-06): filled, not stroked. */
+/* The program's pose (its own nested svg, views.ts iconArt): filled, not stroked. */
 .quiz-plate path[data-k="solid"] {
   fill: currentColor;
   stroke: none;

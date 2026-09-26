@@ -197,3 +197,69 @@ describe("poses: <Pose> renders the contract", () => {
     expect(html).not.toContain("aria-hidden");
   });
 });
+
+describe("poses: the enrollment band (plan §5.9: cartwheel → salute)", async () => {
+  const { buildBand, NARROW, WIDE } = await import("@/components/sections/enrollment/leap-band");
+  type FigureId = import("@/components/sections/enrollment/leap-band").FigureId;
+
+  describe.each([
+    ["wide", WIDE],
+    ["narrow", NARROW],
+  ] as const)("%s band", (_, spec) => {
+    const band = buildBand(spec);
+    const { s, mat, w, h, ticks } = spec;
+    const fig = (id: FigureId) => band.figures.find((f) => f.id === id)!;
+    /** A pose point (pose units) in band units. */
+    const at = (id: FigureId, [px, py]: readonly [number, number]) => {
+      const f = fig(id);
+      const vb = pose(id).viewBox;
+      return [f.x + (px - vb.x) * s, f.y + (py - vb.y) * s] as const;
+    };
+    const contact = (id: FigureId, name: string) => at(id, pose(id).contacts![name]!);
+
+    it("shows the four figures in the order of the movement", () => {
+      expect(band.figures.map((f) => f.id)).toEqual(["cart1", "cart2", "cart3", "salute"]);
+    });
+
+    it("keeps every figure inside the band and standing on the mat", () => {
+      for (const f of band.figures) {
+        expect(f.x).toBeGreaterThanOrEqual(0);
+        expect(f.y).toBeGreaterThanOrEqual(0);
+        expect(f.x + f.width).toBeLessThanOrEqual(w);
+        const lowest = Math.max(...outline(f.id).map(([x, y]) => at(f.id, [x, y])[1]));
+        expect(Math.abs(lowest - mat), f.id).toBeLessThanOrEqual(TOL);
+        expect(lowest).toBeLessThanOrEqual(h);
+      }
+    });
+
+    it("stands cart1's foot, cart2's hands and the salute's feet on the step ticks (GE2-09)", () => {
+      expect(contact("cart1", "foot")[0]).toBeCloseTo(ticks[0], 1);
+      const [l, r] = [contact("cart2", "handL")[0], contact("cart2", "handR")[0]];
+      expect((l + r) / 2).toBeCloseTo(ticks[1], 1);
+      const salute = fig("salute");
+      expect(salute.x + salute.width / 2).toBeCloseTo(ticks[2], 1);
+      expect(salute.support).toEqual({ x: ticks[2], y: mat });
+    });
+
+    it("lands every support ahead of the previous one", () => {
+      const salute = fig("salute");
+      const xs = [
+        contact("cart1", "foot")[0],
+        contact("cart2", "handL")[0],
+        contact("cart2", "handR")[0],
+        contact("cart3", "toe")[0],
+        contact("cart3", "foot")[0],
+        salute.x + salute.width / 2,
+      ];
+      for (let k = 1; k < xs.length; k++) expect(xs[k]!, `support ${k}`).toBeGreaterThan(xs[k - 1]!);
+    });
+
+    it("never puts two figures closer than 70% of the wider one", () => {
+      for (let k = 1; k < band.figures.length; k++) {
+        const [a, b] = [band.figures[k - 1]!, band.figures[k]!];
+        const gap = b.x + b.width / 2 - (a.x + a.width / 2);
+        expect(gap / Math.max(a.width, b.width), `${a.id} → ${b.id}`).toBeGreaterThanOrEqual(0.7);
+      }
+    });
+  });
+});

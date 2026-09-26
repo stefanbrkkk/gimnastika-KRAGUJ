@@ -8,11 +8,29 @@ import type { QuizOutcomeTable, QuizResultKind } from "@/lib/quiz";
 /** Landing variant of the chronophotograph strip (components/sections/quiz/geometry.ts). */
 export type QuizBandVariant = "flat" | "parter" | "greda" | "skip";
 
-/** An apparatus drawing of S3's ProgramIcon (48-unit box): stroked paths (+ stroke weight) and solid dots. */
+/** The program's pose in an apparatus print: its own nested <svg data-figure="pose:<id>">. */
+export interface QuizIconPose {
+  id: string;
+  /** Path in pose units (the figure family's own viewBox). */
+  d: string;
+  viewBox: string;
+  /** The nested svg's box on the 48-unit drawing. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * The print of S3's ProgramIcon (48-unit drawing): the apparatus as stroked paths (+ stroke
+ * weight) and solid dots, and the program's pose (the latent print's filled path, k = "solid").
+ */
 export interface QuizIconArt {
-  /** Stroked paths, or a filled silhouette when k = "solid" (the aerobik print). */
-  paths: readonly { d: string; k?: "thin" | "rail" | "post" | "solid" }[];
+  paths: readonly { d: string; k?: "thin" | "rail" | "post" }[];
   dots: readonly { cx: number; cy: number; r: number }[];
+  pose: QuizIconPose;
+  /** viewBox framing the whole print: the drawing's 48 units, the pose's headroom, the floor. */
+  frame: string;
 }
 
 export interface QuizGroupView {
@@ -36,8 +54,11 @@ export interface QuizResultView {
   booking: string;
   /** Recommended program ids (S3 marks them: window „kraguj:recommend“). */
   programs: readonly string[];
-  /** The strip's landing: variant (raised floor / beam / mat / single long flight) and apparatus. */
-  band: { variant: QuizBandVariant; apparatus: "parter" | "greda" | "razboj" };
+  /**
+   * The strip's landing: variant (raised floor / beam / mat / single long flight) and the primary
+   * program's apparatus, whose pose she lands in.
+   */
+  band: { variant: QuizBandVariant; apparatus: "parter" | "greda" | "preskok" };
 }
 
 export interface QuizCopy {

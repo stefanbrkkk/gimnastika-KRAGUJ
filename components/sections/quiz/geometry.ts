@@ -3,9 +3,11 @@
  * Pure numbers, server-side only (the island never imports this: the art is rendered by a
  * server component and the motion is CSS keyed on data attributes).
  *
- * The flier (the club silhouette, #leap) takes off at frame 01, lands at 02 and sticks the
- * landing at 03 — one hop per answer. Ages 3–7 skip the second question: ONE longer flight
- * 01 → 03. The motion model is the one the CSS plays (styles/sections/quiz.css):
+ * The flier (the club silhouette, #leap) takes off at frame 01, lands at 02 and touches down at
+ * 03 — one hop per answer. Ages 3–7 skip the second question: ONE longer flight 01 → 03. At 03
+ * she becomes the recommended program's pose on its apparatus (plan §5.3): the card's own scene
+ * (programs/pose-scene.ts), drawn at one scale for every result. The motion model is the one the
+ * CSS plays (styles/sections/quiz.css):
  *   X     linear (a ballistic flight has constant horizontal speed),
  *   Y     a parabola: out-quad up to the apex at 50 %, in-quad down,
  *   base  the landing height changes linearly with X (a raised landing on greda/parter),
@@ -14,10 +16,13 @@
  * model, so each ghost sits exactly where — and appears exactly when — the flier passes it.
  */
 
+import { POSES } from "@/components/brand/poses.generated";
+import { posePlacement } from "../programs/pose-scene";
+
 /** The four landing variants of the print: flat (mat), a raised floor or beam, or the long single flight. */
 export type BandVariant = "flat" | "parter" | "greda" | "skip";
-/** Apparatus drawn at frame 03 (ProgramIcon ids). */
-export type BandApparatus = "parter" | "greda" | "razboj";
+/** Apparatus drawn at frame 03 (ProgramIcon ids): the recommended primary program's. */
+export type BandApparatus = "parter" | "greda" | "preskok";
 
 export const VB_W = 720;
 /** 8 units taller than v2 (204/192): headroom for the 1.5× apparatus (QP2-12), so the leaps onto
@@ -84,14 +89,14 @@ export const PITCH_KEYS: readonly (readonly [t: number, deg: number])[] = [
   [1, 0],
 ];
 
-/* ---- Apparatus under frame 03 (ProgramIcon's 48-unit drawings, scaled into the band) ---- */
+/* ---- The landing scene at frame 03 (ProgramIcon's 48-unit drawings, scaled into the band) ---- */
 
 interface ApparatusPlacement {
   /** translate(x y) scale(s) of the 48-unit icon drawing. */
   x: number;
   y: number;
   s: number;
-  /** How far above the mat the figure lands on it (0 = on the mat in front of it). */
+  /** How far above the mat the leap touches down (0 = on the mat). */
   lift: number;
 }
 
@@ -107,51 +112,89 @@ export const ICON = {
   parter: { back: 22, land: 32, frontLeft: 1.5, frontRight: 35, backLeft: 13, backRight: 46.5 },
   /** Beam top y 21.5 over x 3.5–44.5. */
   greda: { top: 21.5, left: 3.5, right: 44.5 },
-  /** High rail y 11.5; the uprights of the high bar stand at x 27.5 and 43. */
-  razboj: { rail: 11.5, post: 43 },
+  /** Vault table top y 14 over x 25.5–47; run-up dashes from x 1. */
+  preskok: { top: 14, left: 25.5, right: 47, run: 1 },
 } as const;
 
 /**
- * QP2-12: the apparatus is drawn 1.5× its v2 size (parter 3 → 4.5, greda 2.2 → 3.3,
- * razboj 3.2 → 4.8), so it reads as full-size apparatus beside the realistic silhouette instead
- * of a pictogram (a beam that looked like a bench). Stroke weight stays constant in strip units
- * (quiz.css divides by --s).
+ * One scale for every landing scene (band units per icon unit): the card's scene — pose and
+ * apparatus in the approved sheet's proportions — at the largest size at which the handspring
+ * on the vault table stays inside the strip (its toes ≥ −8, as the flier's arms) and the leap
+ * still lands on the beam without leaving the strip in flight (hop 2's lift ≤ 72). Every pose is
+ * drawn at SCENE_S × its scene scale (0.52 band units per pose unit: ≈65 % of the flier's body).
+ * Stroke weight stays constant in strip units (quiz.css divides by --s).
  */
-export const APPARATUS_SCALE = 1.5;
-const PARTER_S = 3 * APPARATUS_SCALE;
-const GREDA_S = r1(2.2 * APPARATUS_SCALE);
-const RAZBOJ_S = r1(3.2 * APPARATUS_SCALE);
-/** The landed figure's back toe at frame 03 (level pose). */
-const BACK_TOE_X = X3 + (BACK_TOE[0] - COM_FX) * FIG_W;
+export const SCENE_S = 3.44;
 /**
- * parter — the competition floor in perspective (front edge y 42, back edge y 22): its front
- *          edge on the mat, its back corner 6 units inside the strip's right edge; the front
- *          foot lands mid-depth (y 32), inside the carpet's right edge.
- * greda  — the beam (top y 21.5, x 3.5–44.5) on its legs: the front foot lands on the beam's
- *          top at its right end, the seat of the split over the beam — a split leap on the beam.
- * razboj — the uneven bars on the mat between 02 and 03, the high rail at the raised hands of
- *          the in-flight exposures: she flies off the high bar and sticks the landing on the mat
- *          in front of them, her back toe 10 units clear of the high bar's right upright (x 43).
+ * parter  — the competition floor in perspective (front edge y 42, back edge y 22): its front
+ *           edge on the mat, its back corner 6 units inside the strip's right edge. The leap's
+ *           front foot touches down mid-depth (y 32) inside the carpet's right edge; the star
+ *           springs from it into the air over the floor.
+ * greda   — the beam (top y 21.5, x 3.5–44.5) on its legs: the leap's front foot touches down on
+ *           the beam's top at its right end, the seat of the split over the beam; the cartwheel
+ *           puts both hands on the beam's middle.
+ * preskok — run-up, springboard and table, the handspring centred over 03. Her hands take the
+ *           table 98 units above the mat, higher than any leap can land inside the strip, so the
+ *           leap sticks on the mat at 03 and the vault scene is drawn in as she touches down.
  */
 export const APPARATUS: Readonly<Record<BandApparatus, ApparatusPlacement>> = {
   parter: {
-    x: r1(VB_W - 6 - ICON.parter.backRight * PARTER_S),
-    y: r1(MAT_Y - ICON.floor * PARTER_S),
-    s: PARTER_S,
-    lift: r1((ICON.floor - ICON.parter.land) * PARTER_S),
+    x: r1(VB_W - 6 - ICON.parter.backRight * SCENE_S),
+    y: r1(MAT_Y - ICON.floor * SCENE_S),
+    s: SCENE_S,
+    lift: r1((ICON.floor - ICON.parter.land) * SCENE_S),
   },
   greda: {
-    x: r1(X3 + FOOT.x + 6 - ICON.greda.right * GREDA_S),
-    y: r1(MAT_Y - ICON.floor * GREDA_S),
-    s: GREDA_S,
-    lift: r1((ICON.floor - ICON.greda.top) * GREDA_S),
+    x: r1(X3 + FOOT.x + 6 - ICON.greda.right * SCENE_S),
+    y: r1(MAT_Y - ICON.floor * SCENE_S),
+    s: SCENE_S,
+    lift: r1((ICON.floor - ICON.greda.top) * SCENE_S),
   },
-  razboj: {
-    x: r1(BACK_TOE_X - 10 - ICON.razboj.post * RAZBOJ_S),
-    y: r1(MAT_Y - ICON.floor * RAZBOJ_S),
-    s: RAZBOJ_S,
+  preskok: {
+    x: r1(X3 - (posePlacement("preskok").box.x + posePlacement("preskok").box.width / 2) * SCENE_S),
+    y: r1(MAT_Y - ICON.floor * SCENE_S),
+    s: SCENE_S,
     lift: 0,
   },
+};
+
+/** The landing pose: the program's pose on its apparatus, in band units. */
+export interface Landing {
+  id: keyof typeof POSES;
+  /** The nested <svg>'s box. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  viewBox: string;
+  /** The contact (hands, foot; the star's feet): the stick squashes about it, the chalk puffs there. */
+  at: readonly [x: number, y: number];
+  /** Band units per pose unit. */
+  scale: number;
+}
+
+function landing(icon: BandApparatus): Landing {
+  const a = APPARATUS[icon];
+  const p = posePlacement(icon);
+  const vb = POSES[p.id].viewBox;
+  const band = (u: number, v: number) => [r1(a.x + u * a.s), r1(a.y + v * a.s)] as const;
+  const [x, y] = band(p.box.x, p.box.y);
+  return {
+    id: p.id,
+    x,
+    y,
+    width: r1(p.box.width * a.s),
+    height: r1(p.box.height * a.s),
+    viewBox: `${vb.x} ${vb.y} ${vb.width} ${vb.height}`,
+    at: band(p.at[0], p.at[1]),
+    scale: p.k * a.s,
+  };
+}
+
+export const LANDING: Readonly<Record<BandApparatus, Landing>> = {
+  parter: landing("parter"),
+  greda: landing("greda"),
+  preskok: landing("preskok"),
 };
 
 /** Landing height (above the mat) of each variant. */

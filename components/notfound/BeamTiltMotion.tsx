@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motionAllowed } from "@/lib/motion-env";
-import { GHOSTS, swayAt } from "./scene";
+import { swayAt } from "./sway";
 import { SCORE_POST_MS, SETTLE_KICK, balanceTarget, createBalance, gravityAngle, isSettled, pointerTarget, stepBalance } from "./tilt";
 
 type Permission = "granted" | "denied" | "default";
@@ -27,9 +27,10 @@ const SCORE_FAILSAFE_MS = 3600;
  * Tilt island for the 404 scene — a lazy chunk, loaded by BeamTiltLoader on the
  * 404 only, and only when motion is allowed (static under reduced motion / Save-Data;
  * a live switch to reduced motion unmounts it and restores the static pose):
- * 1. on load she visibly loses and catches her balance (SETTLE_KICK), and when the
- *    catch is over the judges' board posts 4.04 (data-posted → CSS LED posting);
- * 2. then the upper body counter-rotates with DeviceOrientation (Android: no
+ * 1. on load she visibly loses and catches her balance (SETTLE_KICK), swaying at the
+ *    ankle of her support foot, and when the catch is over the judges' board posts 4.04
+ *    (data-posted → CSS LED posting);
+ * 2. then her body counter-rotates about the ankle with DeviceOrientation (Android: no
  *    permission needed; iOS: a tap on NOT_FOUND.enableTilt calls
  *    DeviceOrientationEvent.requestPermission());
  * 3. with a fine pointer she leans toward the pointer instead (pointerTarget) and
@@ -46,25 +47,17 @@ export default function BeamTiltMotion({ label }: { label: string }) {
     const Ctor = orientationCtor();
     if (!root || !motionAllowed()) return;
     const figure = root.querySelector<SVGGElement>("[data-nf-figure]");
-    const ghosts = Array.from(root.querySelectorAll<SVGGElement>("[data-nf-ghost]"));
     const scene = root.querySelector<SVGSVGElement>(".nf-scene");
     const score = root.querySelector<HTMLElement>("[data-nf-score]");
     if (!figure) return;
 
-    let state = createBalance(GHOSTS.length, SETTLE_KICK);
+    let state = createBalance(0, SETTLE_KICK);
     let target = 0;
     let raf = 0;
     let last = 0;
     let pointerX: number | null = null;
 
-    const render = () => {
-      figure.setAttribute("transform", swayAt(state.angle));
-      // ghost 0 is the oldest frame → it follows the last lag in the chain
-      ghosts.forEach((g, i) => {
-        const lag = state.lags[GHOSTS.length - 1 - i] ?? state.angle;
-        g.setAttribute("transform", swayAt(GHOSTS[i]!.fan + lag));
-      });
-    };
+    const render = () => figure.setAttribute("transform", swayAt(state.angle));
     const frame = (now: number) => {
       if (pointerX !== null && !gotData && scene) {
         const r = scene.getBoundingClientRect();
@@ -138,7 +131,6 @@ export default function BeamTiltMotion({ label }: { label: string }) {
       document.documentElement.removeEventListener("pointerleave", onPointerLeave);
       // Unmounted (e.g. a live switch to reduced motion) or failed: back to the static composition.
       figure.setAttribute("transform", swayAt(0));
-      ghosts.forEach((g, i) => g.setAttribute("transform", swayAt(GHOSTS[i]!.fan)));
     };
     try {
       document.addEventListener("visibilitychange", onVisibility);

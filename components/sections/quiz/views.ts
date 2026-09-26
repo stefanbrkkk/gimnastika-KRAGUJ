@@ -8,8 +8,10 @@ import { programById, type ApparatusIcon, type Program } from "@/content/program
 import { formatDays, formatTimes, groupById, type ScheduleGroup } from "@/content/schedule";
 import { QUIZ_AGES, QUIZ_RULES, buildOutcomeTable, type QuizResultKind } from "@/lib/quiz";
 import { typesetSr } from "@/lib/typeset";
+import { POSES, type PoseId } from "@/components/brand/poses.generated";
 import { ProgramIcon } from "../programs/ProgramIcon";
 import { glueDash } from "../programs/model";
+import { ICON_FLOOR, posePlacement, poseTransform } from "../programs/pose-scene";
 import { QuizCtaLabel, QuizHint, QuizPlate } from "./QuizPlate";
 import type { QuizGroupView, QuizIconArt, QuizResultView, QuizViewModel } from "./types";
 
@@ -23,7 +25,16 @@ export const QUIZ_UI = { back: QUIZ.back, restart: QUIZ.restart, ageUnit: QUIZ.a
  */
 export const BOTH_BEGINNERS_BOOKING = "Mlađa ili starija početna grupa";
 
-type Props = { className?: unknown; d?: unknown; cx?: unknown; cy?: unknown; r?: unknown; children?: ReactNode };
+type Props = {
+  className?: unknown;
+  d?: unknown;
+  cx?: unknown;
+  cy?: unknown;
+  r?: unknown;
+  transform?: unknown;
+  "data-pose"?: unknown;
+  children?: ReactNode;
+};
 
 /** Depth-first walk over a rendered element tree (arrays of arrays, nulls). `visit` → false skips a subtree. */
 function walk(node: ReactNode, visit: (type: unknown, props: Props) => boolean | void): void {
@@ -37,14 +48,17 @@ function walk(node: ReactNode, visit: (type: unknown, props: Props) => boolean |
 }
 
 const classOf = (props: Props): string => (typeof props.className === "string" ? props.className : "");
-const STROKES = ["thin", "rail", "post", "solid"] as const;
+const STROKES = ["thin", "rail", "post"] as const;
+const r1 = (n: number) => Math.round(n * 10) / 10;
 
 /**
- * The apparatus drawing of S3's ProgramIcon (48-unit box), read from the component itself so
- * the quiz's plates and strip always draw exactly what the program cards draw. Takes the
- * static print of the whole drawing (.pi-latent) when there is one, otherwise every drawn
- * path; motion trails (.pi-fx) and the posed silhouette are left out. Server side only: the
- * strings reach the island as props, never the icon module.
+ * The print of S3's ProgramIcon (48-unit box), read from the component itself so the quiz's
+ * plates and strip always draw exactly what the program cards draw: the static print of the
+ * whole scene (.pi-latent) — the apparatus paths and the program's pose, one filled .pi-solid
+ * path placed on it (data-pose + transform). Motion trails (.pi-fx) and the card's own figure
+ * are left out. Server side only: the strings reach the island as props, never the icon module.
+ * The pose is returned as a nested-svg box (pose-scene placement, checked against the print's
+ * transform), so every plate draws it as its own <svg data-figure="pose:<id>">.
  */
 export function iconArt(icon: ApparatusIcon): QuizIconArt {
   const svg = ProgramIcon({ icon, label: "" });
@@ -56,9 +70,14 @@ export function iconArt(icon: ApparatusIcon): QuizIconArt {
   });
   const paths: { d: string; k?: (typeof STROKES)[number] }[] = [];
   const dots: { cx: number; cy: number; r: number }[] = [];
+  let solid: { d: string; id: unknown; transform: unknown } | null = null;
   walk(scope, (type, props) => {
     const cls = classOf(props).split(" ");
     if (cls.includes("pi-fx") || type === "use") return false;
+    if (type === "path" && typeof props.d === "string" && cls.includes("pi-solid")) {
+      solid = { d: props.d, id: props["data-pose"], transform: props.transform };
+      return;
+    }
     if (type === "path" && typeof props.d === "string" && !paths.some((p) => p.d === props.d)) {
       const k = STROKES.find((s) => cls.includes(`pi-${s}`));
       paths.push(k ? { d: props.d, k } : { d: props.d });
@@ -68,8 +87,26 @@ export function iconArt(icon: ApparatusIcon): QuizIconArt {
       if (!dots.some((o) => o.cx === dot.cx && o.cy === dot.cy)) dots.push(dot);
     }
   });
-  if (!paths.length) throw new Error(`ProgramIcon „${icon}“ has no drawing`);
-  return { paths, dots };
+  const place = posePlacement(icon);
+  const print = solid as { d: string; id: unknown; transform: unknown } | null;
+  if (!print || print.id !== place.id || print.transform !== poseTransform(place)) {
+    throw new Error(`ProgramIcon „${icon}“ has no pose print where pose-scene places it`);
+  }
+  const vb = POSES[place.id as PoseId].viewBox;
+  const { x, y, width, height } = place.box;
+  // The print's frame: the drawing's width, from the pose's top (or the drawing's) to 2 units
+  // under the floor (y 42), so a handstand never leaves a small plate.
+  // Without an apparatus (aerobik) the frame is the pose's own, so a 20px hint plate is all body.
+  const top = Math.min(0, y - 1);
+  const frame = paths.length
+    ? `0 ${r1(top)} 48 ${r1(44 - top)}`
+    : `${r1(x - 1)} ${r1(y - 1)} ${r1(width + 2)} ${r1(ICON_FLOOR + 1 - (y - 1))}`;
+  return {
+    paths,
+    dots,
+    pose: { id: place.id, d: print.d, viewBox: `${vb.x} ${vb.y} ${vb.width} ${vb.height}`, x, y, width, height },
+    frame,
+  };
 }
 
 /** Plate ink on a program color — the S3 cards' --pc-ink rule (programs/model programStyle). */
@@ -115,16 +152,17 @@ export function groupView(id: ScheduleGroup["id"], programName: boolean): QuizGr
 }
 
 /**
- * The strip's landing per result: ages 3–7 fly once, long, onto the floor podium (Mlađa
- * početna — parter); the 8-year-old beginner lands on the floor too (both beginner groups);
- * Starija početna lands on the beam; the competitive result flies off the uneven bars and
- * sticks the landing on the mat.
+ * The strip's landing per result: she becomes the pose of the result's primary program (the
+ * first it recommends) on that program's apparatus (plan §5.3). Ages 3–7 fly once, long, onto the
+ * floor and spring into the star (Mlađa početna); the 8-year-old beginner (both beginner groups,
+ * Mlađa first) lands on the floor too; Starija početna lands on the beam and cartwheels on it;
+ * the competitive result (A i B first) sticks on the mat and is the handspring on the vault.
  */
 const BAND: Readonly<Record<QuizResultKind, QuizResultView["band"]>> = {
   mladja: { variant: "skip", apparatus: "parter" },
   "obe-pocetne": { variant: "parter", apparatus: "parter" },
   starija: { variant: "greda", apparatus: "greda" },
-  takmicarske: { variant: "flat", apparatus: "razboj" },
+  takmicarske: { variant: "flat", apparatus: "preskok" },
 };
 
 export function resultView(kind: QuizResultKind): QuizResultView {

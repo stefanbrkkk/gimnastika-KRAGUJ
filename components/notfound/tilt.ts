@@ -14,8 +14,12 @@ const R2D = 180 / Math.PI;
 
 /** Below this share of g on the screen plane the phone lies ~flat: no meaningful "down". */
 export const FLAT_THRESHOLD = 0.35;
-/** Largest counter-rotation shown (deg). */
-export const MAX_TILT = 24;
+/**
+ * Largest counter-rotation shown (deg). She sways whole, about the ankle of her support foot
+ * (scene.ts), so her arms travel far: beyond 18° she leans with the beam instead, and her
+ * forward arm stays clear of the judges' board at 320px.
+ */
+export const MAX_TILT = 18;
 
 export const normalizeDeg = (deg: number): number => {
   const d = (((deg + 180) % 360) + 360) % 360 - 180;
@@ -44,14 +48,14 @@ export function balanceTarget(down: number | null): number {
 }
 
 // ---------------------------------------------------------------------------
-// Balance dynamics: an under-damped spring (she wobbles, then holds) and three
-// lagging ghost frames (the chronophotograph trail of the wobble).
+// Balance dynamics: an under-damped spring (she wobbles at the ankle, then holds),
+// optionally with lagging followers (lags; the 404 scale pose has none).
 // ---------------------------------------------------------------------------
 
 export interface Balance {
   angle: number;
   velocity: number;
-  /** Ghost angles, each chasing the previous one (0 chases the figure). */
+  /** Follower angles, each chasing the previous one (0 chases the figure). */
   lags: number[];
 }
 
@@ -83,7 +87,7 @@ export function pointerTarget(clientX: number, stageLeft: number, stageWidth: nu
   return Math.max(-POINTER_TILT, Math.min(POINTER_TILT, t));
 }
 
-export const createBalance = (ghosts: number, velocity = 0): Balance => ({ angle: 0, velocity, lags: Array.from({ length: ghosts }, () => 0) });
+export const createBalance = (followers: number, velocity = 0): Balance => ({ angle: 0, velocity, lags: Array.from({ length: followers }, () => 0) });
 
 /** Advances the balance by dt seconds (semi-implicit Euler; dt is clamped to 1/30 s). */
 export function stepBalance(s: Balance, target: number, dt: number): Balance {

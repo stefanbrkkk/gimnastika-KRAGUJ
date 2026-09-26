@@ -214,6 +214,7 @@ describe("programs: keyframe easings are literal (MD2-01)", async () => {
       ["pi-beam", wobble],
       ["pi-beam-legs", wobble],
       ["pi-bars", swing],
+      ["pi-rail-ride", swing],
     ] as const) {
       const body = keyframes(name);
       expect(body, name).toContain(`animation-timing-function: ${curve};`);
@@ -229,122 +230,132 @@ describe("programs: keyframe easings are literal (MD2-01)", async () => {
   });
 });
 
-describe("programs: aerobic silhouette plate (QP2-06)", async () => {
-  const { LEAP_PATH, LEAP_VIEWBOX } = await import("@/components/brand/sprite-paths.generated");
-  const { LEAP_ICON_BOX, LEAP_ICON_D } = await import("@/components/sections/programs/leap-icon");
+describe("programs: each program's pose on its apparatus (plan §5.4)", async () => {
+  const { POSES } = await import("@/components/brand/poses.generated");
+  const { ANCHOR, ICON_FLOOR, PROGRAM_POSE, SCENE_K, SW_REF, headroom, posePlacement, poseTransform } = await import(
+    "@/components/sections/programs/pose-scene"
+  );
+  type Icon = keyof typeof PROGRAM_POSE;
+  const ICONS = ["parter", "greda", "razboj", "preskok", "aerobik"] as const satisfies readonly Icon[];
 
-  /** Absolute polyline of an SVG path (curves and arcs sampled). */
-  function outline(d: string): [number, number][] {
-    const t = d.match(/[a-zA-Z]|-?(?:\d+\.?\d*|\.\d+)(?:e-?\d+)?/g) ?? [];
+  /** Absolute polyline of a pose path (the family uses M/L/H/V/Z only, absolute or relative). */
+  function polyline(d: string): [number, number][] {
+    const t = d.match(/[a-zA-Z]|-?(?:\d+\.?\d*|\.\d+)/g) ?? [];
     const pts: [number, number][] = [];
-    let i = 0;
-    let cmd = "";
-    let prev = "";
-    let [x, y, sx, sy, cx, cy, qx, qy] = [0, 0, 0, 0, 0, 0, 0, 0];
+    let [x, y, sx, sy, i, cmd] = [0, 0, 0, 0, 0, ""];
     const num = () => parseFloat(t[i++] ?? "0");
     while (i < t.length) {
       if (/[a-zA-Z]/.test(t[i] ?? "")) cmd = t[i++] ?? "";
       const rel = cmd === cmd.toLowerCase();
       const C = cmd.toUpperCase();
-      const [ox, oy] = rel ? [x, y] : [0, 0];
-      if (C === "M") {
-        x = ox + num();
-        y = oy + num();
-        [sx, sy] = [x, y];
-        pts.push([x, y]);
-        cmd = rel ? "l" : "L";
-        prev = "M";
-        continue;
-      }
       if (C === "Z") {
         [x, y] = [sx, sy];
-        prev = "Z";
         continue;
       }
-      if (C === "L") [x, y] = [ox + num(), oy + num()];
-      else if (C === "H") x = ox + num();
-      else if (C === "V") y = oy + num();
-      else if (C === "C" || C === "S") {
-        const [x1, y1] = C === "C" ? [ox + num(), oy + num()] : prev === "C" || prev === "S" ? [2 * x - cx, 2 * y - cy] : [x, y];
-        const [x2, y2, ex, ey] = [ox + num(), oy + num(), ox + num(), oy + num()];
-        for (let k = 1; k <= 12; k++) {
-          const s = k / 12;
-          const u = 1 - s;
-          pts.push([u * u * u * x + 3 * u * u * s * x1 + 3 * u * s * s * x2 + s * s * s * ex, u * u * u * y + 3 * u * u * s * y1 + 3 * u * s * s * y2 + s * s * s * ey]);
-        }
-        [cx, cy, x, y] = [x2, y2, ex, ey];
-      } else if (C === "Q" || C === "T") {
-        const [x1, y1] = C === "Q" ? [ox + num(), oy + num()] : prev === "Q" || prev === "T" ? [2 * x - qx, 2 * y - qy] : [x, y];
-        const [ex, ey] = [ox + num(), oy + num()];
-        for (let k = 1; k <= 12; k++) {
-          const s = k / 12;
-          const u = 1 - s;
-          pts.push([u * u * x + 2 * u * s * x1 + s * s * ex, u * u * y + 2 * u * s * y1 + s * s * ey]);
-        }
-        [qx, qy, x, y] = [x1, y1, ex, ey];
-      } else if (C === "A") {
-        // SVG arc: endpoint → centre parameterisation (SVG 2, F.6.5), then sampled.
-        let [rx, ry] = [Math.abs(num()), Math.abs(num())];
-        const phi = (num() * Math.PI) / 180;
-        const [fa, fs] = [num(), num()];
-        const [ex, ey] = [ox + num(), oy + num()];
-        const [cos, sin] = [Math.cos(phi), Math.sin(phi)];
-        const [hx, hy] = [(x - ex) / 2, (y - ey) / 2];
-        const [x1, y1] = [cos * hx + sin * hy, -sin * hx + cos * hy];
-        const lambda = (x1 * x1) / (rx * rx) + (y1 * y1) / (ry * ry);
-        if (lambda > 1) [rx, ry] = [rx * Math.sqrt(lambda), ry * Math.sqrt(lambda)];
-        const den = rx * rx * y1 * y1 + ry * ry * x1 * x1;
-        const co = (fa === fs ? -1 : 1) * Math.sqrt(Math.max(0, (rx * rx * ry * ry - den) / den));
-        const [ccx, ccy] = [(co * rx * y1) / ry, (-co * ry * x1) / rx];
-        const [mx, my] = [cos * ccx - sin * ccy + (x + ex) / 2, sin * ccx + cos * ccy + (y + ey) / 2];
-        const angle = (ux: number, uy: number, vx: number, vy: number) => Math.atan2(ux * vy - uy * vx, ux * vx + uy * vy);
-        const th = angle(1, 0, (x1 - ccx) / rx, (y1 - ccy) / ry);
-        let dth = angle((x1 - ccx) / rx, (y1 - ccy) / ry, (-x1 - ccx) / rx, (-y1 - ccy) / ry);
-        if (!fs && dth > 0) dth -= 2 * Math.PI;
-        else if (fs && dth < 0) dth += 2 * Math.PI;
-        const n = Math.max(4, Math.ceil(Math.abs(dth) / (Math.PI / 16)));
-        for (let k = 1; k < n; k++) {
-          const a = th + (dth * k) / n;
-          pts.push([mx + rx * Math.cos(a) * cos - ry * Math.sin(a) * sin, my + rx * Math.cos(a) * sin + ry * Math.sin(a) * cos]);
-        }
-        [x, y] = [ex, ey];
-      } else throw new Error(`path command ${cmd}`);
-      if (C !== "C" && C !== "S" && C !== "Q" && C !== "T") pts.push([x, y]);
-      prev = C;
+      if (C === "M" || C === "L") {
+        [x, y] = rel ? [x + num(), y + num()] : [num(), num()];
+        if (C === "M") [sx, sy, cmd] = [x, y, rel ? "l" : "L"];
+      } else if (C === "H") x = rel ? x + num() : num();
+      else if (C === "V") y = rel ? y + num() : num();
+      else throw new Error(`path command ${cmd}`);
+      pts.push([x, y]);
     }
     return pts;
   }
-  const s = LEAP_ICON_BOX.width / LEAP_VIEWBOX.width;
-  const logo = outline(LEAP_PATH).map(([px, py]) => [LEAP_ICON_BOX.x + (px - LEAP_VIEWBOX.x) * s, LEAP_ICON_BOX.y + (py - LEAP_VIEWBOX.y) * s] as const);
-  const icon = outline(LEAP_ICON_D);
-  const segDist = (p: readonly [number, number], a: readonly [number, number], b: readonly [number, number]) => {
-    const [dx, dy] = [b[0] - a[0], b[1] - a[1]];
-    const L = dx * dx + dy * dy || 1e-9;
-    const k = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L));
-    return Math.hypot(p[0] - a[0] - k * dx, p[1] - a[1] - k * dy);
+  /** A pose's outline on the drawing (icon units). */
+  const inkOf = (icon: Icon) => {
+    const p = posePlacement(icon);
+    return polyline(POSES[p.id].d).map(([px, py]) => [p.ox + px * p.k, p.oy + py * p.k] as const);
   };
-  const toPolyline = (poly: readonly (readonly [number, number])[], p: readonly [number, number]) =>
-    Math.min(...poly.map((a, k) => segDist(p, a, poly[(k + 1) % poly.length] ?? a)));
+  const onDrawing = (icon: Icon, [px, py]: readonly [number, number]) => {
+    const p = posePlacement(icon);
+    return [p.ox + px * p.k, p.oy + py * p.k] as const;
+  };
 
-  it("places #leap with its own aspect, 48 units wide, the front toe on the floor y = 42", () => {
-    expect(LEAP_ICON_BOX.width / LEAP_ICON_BOX.height).toBeCloseTo(LEAP_VIEWBOX.width / LEAP_VIEWBOX.height, 3);
-    expect(Math.max(...logo.map((p) => p[1]))).toBeCloseTo(42, 1);
-    expect(Math.min(...logo.map((p) => p[0]))).toBeGreaterThanOrEqual(0);
-    expect(Math.max(...logo.map((p) => p[0]))).toBeLessThanOrEqual(48);
+  it("gives every program its own pose from the approved family, at the scene scale", () => {
+    expect(ICONS.map((i) => PROGRAM_POSE[i].id)).toEqual(["star", "cartwheel", "barHandstand", "vault", "highKick"]);
+    for (const i of ICONS) expect(PROGRAM_POSE[i].k).toBeCloseTo(i === "aerobik" ? 48 / 230 : SCENE_K, 9);
+    expect(new Set(ICONS.map((i) => PROGRAM_POSE[i].id)).size).toBe(ICONS.length); // one pose per program (R2)
   });
 
-  it("the static-print path is the logo outline (within 0.2 units both ways)", () => {
-    expect(Math.max(...icon.map((p) => toPolyline(logo, p)))).toBeLessThan(0.2);
-    expect(Math.max(...logo.map((p) => toPolyline(icon, p)))).toBeLessThan(0.2);
-    expect(LEAP_ICON_D.length).toBeLessThan(800); // it travels in the HTML of the card and the quiz
-  });
-
-  it("keeps the ProgramIcon contract the quiz reads: every apparatus has a path print", async () => {
-    const { iconArt } = await import("@/components/sections/quiz/views");
-    for (const icon of ["parter", "greda", "razboj", "preskok", "aerobik"] as const) {
-      expect(iconArt(icon).paths.length, icon).toBeGreaterThan(0);
+  it("puts each hand and foot on its apparatus (±0.5 units), never ink below the floor", () => {
+    const beamTop = 21.5 - SW_REF / 2;
+    // Cartwheel: both hands on the beam top, inside the beam (x 3.5–44.5).
+    const cw = POSES.cartwheel.contacts;
+    for (const h of [cw.handL, cw.handR]) {
+      const [x, y] = onDrawing("greda", h);
+      expect(y).toBeCloseTo(beamTop, 1);
+      expect(x).toBeGreaterThan(3.5 + 2);
+      expect(x).toBeLessThan(44.5 - 2);
     }
-    expect(iconArt("aerobik").paths.map((p) => p.d)).toEqual([LEAP_ICON_D]);
+    // Handstand: the hand on the HIGH rail (y 11.5, x 14.5–46.5), between the uprights (27.5, 43).
+    const [bx, by] = onDrawing("razboj", POSES.barHandstand.contacts.hand);
+    expect(by).toBeCloseTo(11.5 - (SW_REF * 1.4) / 2, 1);
+    expect(bx).toBeGreaterThan(27.5);
+    expect(bx).toBeLessThan(43);
+    // Handspring: the hand on the vault table top (y 14, x 25.5–47).
+    const [vx, vy] = onDrawing("preskok", POSES.vault.contacts.hand);
+    expect(vy).toBeCloseTo(14 - SW_REF / 2, 1);
+    expect(vx).toBeGreaterThan(25.5 + 2);
+    expect(vx).toBeLessThan(47 - 2);
+    // High kick: the standing foot on the mat line, and its lowest ink on it.
+    const [fx, fy] = onDrawing("aerobik", POSES.highKick.contacts.foot);
+    expect(fy).toBeCloseTo(ICON_FLOOR, 1);
+    expect(fx).toBeCloseTo(ANCHOR.aerobik.x, 1);
+    expect(Math.max(...inkOf("aerobik").map((p) => p[1]))).toBeCloseTo(ICON_FLOOR, 0);
+    // Star: in the air over the carpet — its lowest ink above the carpet's back edge (y 22).
+    const star = inkOf("parter");
+    expect(Math.max(...star.map((p) => p[1]))).toBeLessThan(22);
+    expect(Math.max(...star.map((p) => p[1]))).toBeGreaterThan(22 - 4);
+    // No pose goes through its apparatus: the hands and feet are the lowest ink.
+    for (const [icon, surface] of [
+      ["greda", beamTop],
+      ["razboj", 11.5 - (SW_REF * 1.4) / 2],
+      ["preskok", 14 - SW_REF / 2],
+      ["aerobik", ICON_FLOOR],
+    ] as const) {
+      expect(Math.max(...inkOf(icon).map((p) => p[1])), icon).toBeLessThanOrEqual(surface + 0.5);
+    }
+    for (const i of ICONS) expect(Math.max(...inkOf(i).map((p) => p[1])), i).toBeLessThanOrEqual(ICON_FLOOR + 0.5);
+  });
+
+  it("keeps each scene inside the drawing's width; only the handstand and handspring rise far above it", () => {
+    for (const i of ICONS) {
+      const ink = inkOf(i);
+      expect(Math.min(...ink.map((p) => p[0])), i).toBeGreaterThanOrEqual(0);
+      expect(Math.max(...ink.map((p) => p[0])), i).toBeLessThanOrEqual(48);
+    }
+    expect(headroom("razboj")).toBeGreaterThan(18);
+    expect(headroom("razboj")).toBeLessThan(23);
+    expect(headroom("preskok")).toBeGreaterThan(18);
+    expect(headroom("preskok")).toBeLessThan(23);
+    expect(headroom("greda")).toBeLessThan(8);
+    expect(headroom("parter")).toBeLessThan(2);
+    expect(headroom("aerobik")).toBe(0);
+  });
+
+  it("the plates reserve each pose's headroom (programs.css --head ≥ headroom, whole units)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const css = readFileSync("styles/sections/programs.css", "utf8");
+    const head = (icon: string) =>
+      Number(css.match(new RegExp(`\\.pc-plate\\[data-apparatus="${icon}"\\],\\s*\\.ps-plate\\[data-apparatus="${icon}"\\]\\s*\\{\\s*--head:\\s*(\\d+);`))?.[1] ?? 0);
+    for (const i of ICONS) {
+      expect(head(i), i).toBeGreaterThanOrEqual(headroom(i));
+      expect(head(i), i).toBeLessThan(headroom(i) + 1.5);
+    }
+  });
+
+  it("the latent print (which the quiz reads) is the scene: apparatus paths + the pose, placed as on the card", async () => {
+    const { iconArt } = await import("@/components/sections/quiz/views");
+    for (const i of ICONS) {
+      const art = iconArt(i);
+      const p = posePlacement(i);
+      expect(art.pose.id, i).toBe(PROGRAM_POSE[i].id);
+      expect(art.pose.d, i).toBe(POSES[p.id].d);
+      expect([art.pose.x, art.pose.y, art.pose.width, art.pose.height], i).toEqual([p.box.x, p.box.y, p.box.width, p.box.height]);
+      expect(poseTransform(p)).toMatch(/^translate\(-?[\d.]+ -?[\d.]+\) scale\([\d.]+\)$/);
+      expect(art.paths.length > 0, i).toBe(i !== "aerobik"); // aerobik: the pose is the whole drawing
+    }
   });
 });
 
@@ -363,27 +374,44 @@ describe("programs: plate scene (QP2-05, QP2-11)", async () => {
   const render = (icon: Parameters<typeof ProgramIcon>[0]["icon"], scene?: "card" | "sheet") =>
     classes(ProgramIcon({ icon, label: "", scene }));
 
-  it("cards get the posed silhouette but no trails; the sheet gets both", () => {
+  it("cards get the pose but no trails; the sheet gets both", () => {
     for (const icon of ["parter", "razboj", "preskok"] as const) {
-      expect(render(icon, "card"), icon).toContain("pi-fig");
+      expect(render(icon, "card"), icon).toContain("pi-pose");
       expect(render(icon, "card"), icon).not.toContain("pi-fx");
       expect(render(icon, "sheet"), icon).toContain("pi-fx");
     }
-    expect(render("greda", "card")).toContain("pi-fig");
+    expect(render("greda", "card")).toContain("pi-pose");
     expect(render("greda", "sheet")).not.toContain("pi-fx"); // the beam has no trail
   });
 
-  it("aerobik: the drawing is the silhouette itself; the scene adds her mirrored partner", () => {
-    expect(render("aerobik")).toContain("pi-solid");
-    expect(render("aerobik", "card")).toContain("pi-fig");
-    expect(render("aerobik", "sheet")).toContain("pi-fig");
+  it("aerobik: the high kick is the drawing — one pose, no partner, no trail", () => {
+    expect(render("aerobik", "card").filter((c) => c === "pi-pose")).toHaveLength(1);
+    expect(render("aerobik", "sheet").filter((c) => c === "pi-pose")).toHaveLength(1);
     expect(render("aerobik", "sheet")).not.toContain("pi-fx");
+    expect(render("aerobik")).not.toContain("pi-part");
   });
 
-  it("the bare drawing (quiz plates) has neither silhouette nor trails", () => {
+  it("the bare drawing (the quiz's print) has neither the pose figure nor trails", () => {
     for (const icon of ["parter", "greda", "razboj", "preskok", "aerobik"] as const) {
-      expect(render(icon)).not.toContain("pi-fig");
+      expect(render(icon)).not.toContain("pi-pose");
       expect(render(icon)).not.toContain("pi-fx");
+      expect(render(icon)).toContain("pi-solid"); // …but the latent print carries the pose
+    }
+  });
+
+  it("every pose figure is its own <svg data-figure=\"pose:<id>\"> on its plate (card and sheet)", async () => {
+    const { createElement } = await import("react");
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { ProgramCard } = await import("@/components/sections/programs/ProgramCard");
+    const { PROGRAM_POSE, posePlacement } = await import("@/components/sections/programs/pose-scene");
+    for (const program of visiblePrograms(false)) {
+      const html = renderToStaticMarkup(createElement(ProgramCard, { program }));
+      const figs = html.match(/<svg data-figure="pose:[^"]+"[^>]*>/g) ?? [];
+      expect(figs, program.id).toHaveLength(1);
+      const { box } = posePlacement(program.icon);
+      expect(figs[0]).toContain(`data-figure="pose:${PROGRAM_POSE[program.icon].id}"`);
+      expect(figs[0]).toContain(`x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}"`);
+      expect(html).not.toMatch(/href="#leap"/); // no logo figure on a program plate (R1)
     }
   });
 });
@@ -395,15 +423,16 @@ describe("programs: every card plate is a scene that scales with it (QP3-02, QP3
   const css = readFileSync("styles/sections/programs.css", "utf8");
   const px = (s: string | undefined) => parseFloat(s ?? "NaN");
 
-  it("never hides the card silhouette behind a plate-height threshold", () => {
-    expect(css).not.toMatch(/\.pc-icon\s+\.pi-fig-x\s*\{[^}]*display:\s*none/);
+  it("never hides the card's pose behind a plate-height threshold", () => {
+    expect(css).not.toMatch(/\.pc-icon\s+\.pi-pose\s*\{[^}]*display:\s*none/);
     expect(css).toMatch(/\.pc-scene\s*\{[^}]*width:\s*var\(--icon\);[^}]*container:\s*pc-scene\s*\/\s*size;/);
   });
 
   it("keeps the line 2.7–3.0 CSS px from the smallest (84px) to the largest (176px) drawing", () => {
-    const icon = css.match(/\.pc-plate\s*\{[^}]*--icon-min:\s*(\d+)px;[^}]*--icon:\s*clamp\(var\(--icon-min\),\s*min\(64cqh,\s*var\(--fit\)\),\s*(\d+)px\)/);
-    expect(icon, ".pc-plate --icon").not.toBeNull();
-    const [lo, hi] = [px(icon?.[1]), px(icon?.[2])];
+    const plate = css.slice(css.indexOf(".pc-plate {\n  --icon-min:"), css.indexOf("container-type: size;", css.indexOf(".pc-plate {\n  --icon-min:")));
+    const icon = [plate.match(/--icon-min:\s*(\d+)px;/)?.[1], plate.match(/--icon: clamp\(\s*var\(--icon-min\),[^;]*,\s*(\d+)px\s*\);/)?.[1]];
+    expect(icon, ".pc-plate --icon").not.toContain(undefined);
+    const [lo, hi] = [px(icon[0]), px(icon[1])];
     expect([lo, hi]).toEqual([84, 176]);
     const base = px(css.match(/\.pi\s*\{[^}]*--sw:\s*([\d.]+)px/)?.[1]);
     const steps = [...css.matchAll(/@container pc-scene \(min-width: ([\d.]+)px\) \{\s*\.pc-icon \{\s*--sw: ([\d.]+)px;/g)].map(
@@ -419,13 +448,26 @@ describe("programs: every card plate is a scene that scales with it (QP3-02, QP3
     });
   });
 
-  it("gives each apparatus its scene's width budget", () => {
-    const fit = (icon: string) => css.match(new RegExp(`\\[data-apparatus="${icon}"\\][^{]*\\{\\s*--fit:\\s*(\\d+)cqw`))?.[1];
-    expect(css).toMatch(/\.pc-plate\s*\{[^}]*--fit:\s*42cqw;/); // bars (the default)
-    expect(fit("preskok")).toBe("55");
-    expect(fit("parter")).toBe("60");
-    expect(css).toMatch(/\.pc-plate:is\(\[data-apparatus="parter"\], \[data-apparatus="greda"\]\)\s*\{\s*--fit:\s*60cqw;/);
-    expect(fit("aerobik")).toBe("58");
+  it("never lets a pose reach the plate's top edge: the headroom caps the drawing and floors the plate", () => {
+    // --icon ≤ (plate height − bottom pad − top clearance) × 48 / (48 + headroom)
+    expect(css).toMatch(/--icon: clamp\(\s*var\(--icon-min\),\s*min\(64cqh, var\(--fit\), \(100cqh - var\(--pad-b\) - var\(--top\)\) \* 48 \/ \(48 \+ var\(--head\)\)\),\s*176px\s*\)/);
+    // …and a plate is never shorter than its smallest drawing plus that headroom.
+    const floor = /min-height: max\(calc\(var\(--icon-min\) \+ (\d+)px\), calc\(var\(--icon-min\) \* \(48 \+ var\(--head\)\) \/ 48 \+ var\(--pad-b\) \+ var\(--top\)\)\);/g;
+    expect([...css.matchAll(floor)].map((m) => m[1])).toEqual(["32", "28"]);
+    expect(css).toMatch(/\.pc-plate,\s*\.ps-plate \{\s*--head: 0;\s*--top: 6px;/);
+    // The sheet's portrait plate grows by the same headroom.
+    expect(css).toMatch(/\.ps-plate \{[^}]*height: max\(176px, calc\(var\(--icon\) \* \(48 \+ var\(--head\)\) \/ 48 \+ var\(--pad-b\) \+ var\(--top\)\)\);/);
+  });
+
+  it("gives each apparatus its width budget: ≥8px clear of its bib in the bib's band", () => {
+    const fit = (icon: string) => css.match(new RegExp(`\\.pc-plate\\[data-apparatus="${icon}"\\] \\{\\s*--fit: calc\\(\\(100cqw - (\\d+)px\\) \\* 48 / ([\\d.]+)\\);`))?.slice(1).map(Number);
+    // bib width + 8px, and the drawing's reach in the bib's band (units): carpet edge, beam end,
+    // high bar foot plate, vault table base.
+    expect(fit("parter")).toEqual([74 + 8, 44.8]);
+    expect(fit("greda")).toEqual([58 + 8, 44.5]);
+    expect(fit("razboj")).toEqual([42 + 8, 46]);
+    expect(fit("preskok")).toEqual([69 + 8, 45]);
+    expect(css).toMatch(/\.pc-plate \{[^}]*--fit: 100cqw;/); // aerobik: no bib, the pose ends at 33 units
   });
 
   it("renders the scene in its own box, tags the plate with its apparatus and hangs the quiz stamp from the body", () => {
@@ -444,7 +486,7 @@ describe("programs: every card plate is a scene that scales with it (QP3-02, QP3
       const [plate] = find(card, "pc-plate");
       expect(plate?.props["data-apparatus"], program.id).toBe(program.icon);
       const [scene] = find(plate ? [plate] : [], "pc-scene");
-      expect(find(scene ? [scene] : [], "pi-fig-x").length, program.id).toBe(1);
+      expect(find(scene ? [scene] : [], "pi-pose").length, program.id).toBe(1);
       expect(find(plate ? [plate] : [], "pc-stamp"), program.id).toHaveLength(0);
       expect(find(find(card, "pc-body"), "pc-stamp"), program.id).toHaveLength(1);
     }
@@ -685,7 +727,7 @@ describe("programs: detail sheet (QP4-02, QP4-03)", async () => {
     expect(land).toMatch(/\.ps-body::after \{[^}]*position: sticky;[^}]*bottom: 0;[^}]*height: 16px;/);
     // The gymnast and the bib stay; only the week rows' day letters (and, ≤380px tall, the rows) give way.
     const scene = land.replace(/\.ps-sched \.pg-week(?:__label)? \{[^}]*\}/g, "");
-    expect(scene).not.toMatch(/pi-fig-x|pc-bib|display: none/);
+    expect(scene).not.toMatch(/pi-pose|pc-bib|display: none/);
     expect(land).toMatch(/\.ps-sched \.pg-week__label \{\s*display: none;/);
   });
 
@@ -695,7 +737,8 @@ describe("programs: detail sheet (QP4-02, QP4-03)", async () => {
 
   it("keeps the compact plate only for short AND narrow viewports (400% zoom)", () => {
     expect(css).not.toMatch(/@media \(max-height: 480px\) \{/);
-    expect(block("@media (max-height: 480px) and (max-width: 639.98px)")).toMatch(/\.ps-icon \.pi-fig-x/);
+    // The compact plate keeps only the drawing — for aerobik that is its pose.
+    expect(block("@media (max-height: 480px) and (max-width: 639.98px)")).toMatch(/\.ps-plate:not\(\[data-apparatus="aerobik"\]\) \.ps-icon \.pi-pose/);
   });
 });
 
@@ -764,5 +807,70 @@ describe("programs: no figure in the rail or under the photo (figure system §5.
     // The print itself keeps the native/2 cap.
     expect(css).toMatch(/\n\.pg-photo \{[^}]*--pg-photo-cap: 533px;/);
     expect(rule(".programs .pg-photo .photo")).toMatch(/max-height: var\(--pg-photo-cap\);/);
+  });
+});
+
+describe("programs: the pose rides its apparatus; the mount drops it and sticks (plan §5.4)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const css = readFileSync("styles/sections/programs.css", "utf8");
+  const keyframes = (name: string) => {
+    const start = css.indexOf(`@keyframes ${name} {`);
+    if (start < 0) return "";
+    let depth = 0;
+    for (let i = css.indexOf("{", start); i < css.length; i++) {
+      if (css[i] === "{") depth++;
+      else if (css[i] === "}" && --depth === 0) return css.slice(start, i + 1);
+    }
+    return "";
+  };
+  const stop = (name: string, pct: number) => keyframes(name).match(new RegExp(`${pct}% \\{[^}]*\\}`))?.[0] ?? "";
+  const px = (s: string) => Number(s.match(/translateY\((-?[\d.]+)px\)/)?.[1]);
+  const rule = (selector: string) => {
+    const at = css.indexOf(`${selector} {`);
+    expect(at, selector).toBeGreaterThan(-1);
+    return css.slice(at, css.indexOf("}", at));
+  };
+
+  it("rides the beam, the high rail and the table by exactly their dip, on their timing", () => {
+    // Cartwheel: the beam's own keyframes, one rule for both.
+    expect(css).toMatch(
+      /html\.js-motion \[data-perform\] \[data-part="beam"\],\s*html\.js-motion \[data-perform\] \.pi\[data-icon="greda"\] \.pi-ride \{\s*animation: pi-beam /,
+    );
+    // Handstand: the high rail (y 11.5) flexes scaleY(0.94) about the floor (y 42).
+    const high = rule('html.js-motion [data-perform] [data-part="high"]');
+    const flex = Number(high.match(/--flex: ([\d.]+);/)?.[1]);
+    expect(px(stop("pi-rail-ride", 13))).toBeCloseTo((42 - 11.5) * (1 - flex), 2);
+    expect(stop("pi-bars", 13)).toContain("scaleY(var(--flex, 0.92))");
+    const timing = (r: string) => r.match(/animation: [\w-]+ (calc\([^)]*\)|[^ ]+) linear (.+) both;/)?.slice(1);
+    expect(timing(rule('html.js-motion [data-perform] .pi[data-icon="razboj"] .pi-ride'))).toEqual(timing(high));
+    // Handspring: the table (top y 14) gives scaleY(0.9) about the floor.
+    expect(stop("pi-table", 20)).toContain("scaleY(0.9)");
+    expect(px(stop("pi-table-ride", 20))).toBeCloseTo((42 - 14) * (1 - 0.9), 2);
+    expect(timing(rule('html.js-motion [data-perform] .pi[data-icon="preskok"] .pi-ride'))).toEqual(
+      timing(rule('html.js-motion [data-perform] [data-part="table"]')),
+    );
+    // Star: rides the floor's give (the same 0.8 units at 22 %), then springs above her pose.
+    expect(px(stop("pi-star", 22))).toBe(px(stop("pi-floor", 22)));
+    expect(px(stop("pi-star", 58))).toBeLessThan(0);
+    // High kick: crouch, spring and stick on her standing foot.
+    expect(rule('html.js-motion [data-perform] .pi[data-icon="aerobik"] .pi-ride')).toMatch(/animation: pi-jump /);
+  });
+
+  it("moves the pose about its contact (--at), and the mount drops it in and sticks on --ease-land (no leap hop)", () => {
+    expect(css).toMatch(/\.pi-pose,\s*\.pi-ride,\s*\.pi-stick \{\s*transform-box: view-box;\s*transform-origin: var\(--at, 50% 87\.5%\);/);
+    expect(css).not.toMatch(/ps-fig-x|ps-fig-y|pi-fig/);
+    for (const [pose, stick] of [
+      ["html.js-motion .program-card[data-mount] .pc-icon .pi-pose", "html.js-motion .program-card[data-mount] .pc-icon .pi-stick"],
+      ["html.js-motion .program-sheet[data-scene] .pi-pose", "html.js-motion .program-sheet[data-scene] .pi-stick"],
+    ] as const) {
+      const drop = rule(pose).match(/animation: pi-drop (\d+)ms cubic-bezier\([^)]*\) (?:calc\(var\(--draw-delay, 0s\) \+ )?(\d+)ms\)? both;/);
+      expect(drop, pose).not.toBeNull();
+      const [dur, delay] = [Number(drop?.[1]), Number(drop?.[2])];
+      const land = rule(stick).match(/animation: pi-stick var\(--dur-land\) var\(--ease-land\) (?:calc\(var\(--draw-delay, 0s\) \+ )?(\d+)ms\)?;/);
+      expect(land, stick).not.toBeNull();
+      expect(Number(land?.[1])).toBe(delay + dur); // the stick starts as she touches down
+    }
+    expect(stop("pi-drop", 0)).toMatch(/translateY\(var\(--drop, -6px\)\)/);
+    expect(keyframes("pi-stick")).toMatch(/0% \{\s*transform: scale\(1\.05, 0\.9\);/);
   });
 });

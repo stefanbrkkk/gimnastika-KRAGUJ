@@ -5,6 +5,14 @@
    <dialog>, scroll-snap track). Motion: transform, opacity (Flip, the hung-print
    swing, crossfades). */
 
+/* The hung-print swing rotates edge prints a few px past the viewport on phones (seen on
+   the public build: 6 px at 390). Clip sideways overflow at the section edge, which is
+   the viewport edge, so the swing never adds a horizontal scroll. `clip`, not `hidden`:
+   no scroll container, so nothing sticky or focus-scrolling inside changes. */
+.gallery {
+  overflow-x: clip;
+}
+
 /* --------------------------------------------------------------------------
    Head: heading (right on desktop) + chips (left on desktop). The filter status
    is a screen-reader-only live region: the pressed chip and its count already
