@@ -27,13 +27,16 @@ import {
   bookingHrefs,
   composeBookingMessage,
   hasErrors,
+  landedScrollBy,
   primaryChannel,
+  scrollEdgeFades,
   sendOrder,
   validateBooking,
   type BookingErrors,
   type BookingField,
   type BookingValues,
   type MessageChannel,
+  type ScrollBox,
   type SendChannel,
 } from "@/lib/booking";
 import { prefersLessMotion } from "@/lib/motion-env";
@@ -51,6 +54,8 @@ const PULL_CLOSE_RATIO = 0.3;
 const PULL_CLOSE_SPEED = 0.5;
 /** Invalid fields that wobble on a send attempt (the first three, 40 ms apart). */
 const WOBBLE_MAX = 3;
+/** The fields' scroll-edge fade at most (px), where a line is cut (CV4-01). */
+const FADE = 20;
 
 // Device → primary send action (lib/booking primaryChannel). Live: a tablet that
 // gets a mouse, or DevTools device emulation, re-renders the actions.
@@ -72,6 +77,30 @@ type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 // dash never starts a line, one-letter words hold on to the next word, and the phone
 // number in the status / call line never breaks between its digit groups (D-BK-7).
 // This chunk is lazy (never first-load); the message and hrefs stay raw.
+
+/**
+ * The fields' scroll view (CV4-01). Normally the body is the scroller. On short viewports
+ * (≤480px tall, booking.css) the whole dialog scrolls instead, and the fields are seen
+ * between the sheet's top edge and the sticky footer: the same box is then measured from
+ * rects (scrollTop = how far that view's top is below the body's top, which is negative
+ * while the head is in view).
+ */
+function fieldsView(dialog: HTMLElement, body: HTMLElement, foot: HTMLElement): { scroller: HTMLElement; box: ScrollBox } {
+  const style = getComputedStyle(body);
+  const paddingTop = Number.parseFloat(style.paddingTop) || 0;
+  const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
+  if (style.overflowY !== "visible") {
+    const { scrollTop, clientHeight, scrollHeight } = body;
+    return { scroller: body, box: { scrollTop, clientHeight, scrollHeight, paddingTop, paddingBottom } };
+  }
+  const b = body.getBoundingClientRect();
+  const viewTop = dialog.getBoundingClientRect().top + dialog.clientTop;
+  const viewBottom = Math.min(foot.getBoundingClientRect().top, viewTop + dialog.clientHeight);
+  return {
+    scroller: dialog,
+    box: { scrollTop: viewTop - b.top, clientHeight: viewBottom - viewTop, scrollHeight: b.height, paddingTop, paddingBottom },
+  };
+}
 
 const withoutError = (errors: BookingErrors, field: keyof BookingValues): BookingErrors => {
   if (!(field in errors)) return errors;
@@ -176,6 +205,7 @@ function SelectBox({
 export function BookingDialog({ request }: { request: BookingRequest }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const footRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
   const primaryRef = useRef<HTMLAnchorElement>(null);
@@ -240,10 +270,57 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
     [],
   );
 
+  // CV4-01 · While a line of the fields is cut by the view's lower edge, that edge fades out,
+  // so it reads as „more below“ and is never guillotined at the footer's hairline; a line cut
+  // at the upper edge (under the head, or under the sheet's top edge on short viewports) fades
+  // the same way. Only content counts, not the body's padding, and each fade is as long as
+  // what it hides (≤ FADE px), so it grows and shrinks with the scroll instead of popping. The
+  // lengths go on the dialog (--fade-above / --fade-below): the body's mask reads them, and on
+  // short viewports, where the dialog scrolls, the scrims on the sheet's top edge and above
+  // the sticky footer do (booking.css). Checked on either scroll and whenever the sheet, the
+  // body, its content or the footer changes size (errors, the note, the landed card, rotation).
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const body = bodyRef.current;
+    const foot = footRef.current;
+    if (!dialog || !body || !foot) return;
+    const check = () => {
+      const { above, below } = scrollEdgeFades(fieldsView(dialog, body, foot).box, FADE);
+      const fade = (name: string, attr: string, px: number) => {
+        body.toggleAttribute(attr, px > 0);
+        if (dialog.style.getPropertyValue(name) !== `${px}px`) dialog.style.setProperty(name, `${px}px`);
+      };
+      fade("--fade-below", "data-more", below);
+      fade("--fade-above", "data-more-above", above);
+    };
+    check();
+    body.addEventListener("scroll", check, { passive: true });
+    dialog.addEventListener("scroll", check, { passive: true });
+    const resize = new ResizeObserver(check);
+    for (const el of [dialog, body, foot, ...Array.from(body.children)]) resize.observe(el);
+    return () => {
+      body.removeEventListener("scroll", check);
+      dialog.removeEventListener("scroll", check);
+      resize.disconnect();
+    };
+  }, []);
+
   // Back from the SMS / e-mail app: focus the „landed“ card (screen readers hear it again,
   // the keyboard continues from there), without scrolling the page.
   useEffect(() => {
     if (!landed) return;
+    // CV4-01 · The landed card grows the footer and shortens the fields' view: scroll the fields
+    // (the body, or the whole sheet on short viewports) until the privacy line stands whole
+    // above the card — sharing the spare room above and below when everything fits (lib/booking
+    // landedScrollBy; 390×844: 15 px, first label and privacy line both whole).
+    const dialog = dialogRef.current;
+    const body = bodyRef.current;
+    const foot = footRef.current;
+    if (dialog && body && foot) {
+      const { scroller, box } = fieldsView(dialog, body, foot);
+      const by = landedScrollBy(box);
+      if (by > 0) scroller.scrollBy({ top: by, behavior: prefersLessMotion() ? "auto" : "smooth" });
+    }
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
       document.removeEventListener("visibilitychange", onVisible);
@@ -620,7 +697,7 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
         </p>
       </div>
 
-      <div className="booking__foot">
+      <div ref={footRef} className="booking__foot">
         {/* The funnel's stuck landing (C-05, M-02): after a hand-off the status is a „landed“
             card — the club's silhouette drops in and sticks. tabIndex -1: focused on return
             from the messaging app. */}

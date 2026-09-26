@@ -20,6 +20,24 @@
         "value": "cubic-bezier(0.34, 1.8, 0.5, 1)",
         "createdAt": "2026-09-25T10:01:35.598Z",
         "reason": "orchestrator-judged design v2 (MD-03): vault springboard ease for spring motions; client asked for sport-related motion"
+      },
+      {
+        "rule": "bounce-easing",
+        "value": "calc(var(--dur-wobble)",
+        "createdAt": "2026-09-25T20:42:04.160Z",
+        "reason": "orchestrator-judged design v2 + round 2 (MD-06/MI-02, MD2-01): S3 apparatus performs — beam flex-and-settle and vault-board spring, domain-appropriate gymnastics motion; animation timing is linear, the easing lives in the keyframes"
+      },
+      {
+        "rule": "bounce-easing",
+        "value": "calc(var(--dur-spring)",
+        "createdAt": "2026-09-25T20:42:04.182Z",
+        "reason": "orchestrator-judged design v2 + round 2 (MD-06/MI-02, MD2-01): S3 apparatus performs — beam flex-and-settle and vault-board spring, domain-appropriate gymnastics motion; animation timing is linear, the easing lives in the keyframes"
+      },
+      {
+        "rule": "bounce-easing",
+        "value": "var(--dur-spring)",
+        "createdAt": "2026-09-25T20:42:04.201Z",
+        "reason": "orchestrator-judged design v2 + round 2 (MD-06/MI-02, MD2-01): S3 apparatus performs — beam flex-and-settle and vault-board spring, domain-appropriate gymnastics motion; animation timing is linear, the easing lives in the keyframes"
       }
     ]
   }

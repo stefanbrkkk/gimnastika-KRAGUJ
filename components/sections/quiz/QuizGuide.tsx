@@ -30,11 +30,12 @@ export function QuizGuide() {
                 <span className="quiz-rule__age tabular">{agesLabel(rule.ages)}</span>
                 {rule.experience ? (
                   <span className="quiz-rule__exp">
-                    {/* Each answer stays whole; the list wraps only after a „ · “ separator. */}
+                    {/* Each answer stays whole and the „·“ travels with the answer after it, so the
+                        list wraps only before a separator, never leaving it at a line end. */}
                     {rule.experience.map((answer, i) => (
                       <Fragment key={answer}>
-                        {i > 0 ? "\u00a0· " : null}
-                        <span className="quiz-rule__answer">{answer}</span>
+                        {i > 0 ? " " : null}
+                        <span className="quiz-rule__answer">{i > 0 ? `· ${answer}` : answer}</span>
                       </Fragment>
                     ))}
                   </span>

@@ -37,9 +37,20 @@
   pointer-events: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
-  /* The dot field: the art's right 45 % (compact: 360 of 800 units), centred on the landing. */
+  /* The dot field: the art's right 45 % (compact: 360 of 800 units), around the landing. */
   --dots-w: 0.82;
-  --dots-at: 68% 92%;
+  /* A printed halftone dissolves into the navy; it never ends on a hard vertical
+     cut at the field's right edge (the container's edge, 20–32 px from the
+     screen's on phones and portrait tablets). Both masks are ellipses that reach
+     alpha 0 by 91 % of the field's width — the big-dot core a little left of the
+     landing (60 % 90 %), the small-dot halo further left (52 % 86 %) so it still
+     reaches the „j“ — each intersected with a fade that is transparent over the
+     field's last 12 px and eases in over at least four 7 px dot columns
+     (0 → .2 → 1), so the last dots before the edge are the faintest (≤ .13 of
+     the densest, FI4-03). */
+  --dots-edge: linear-gradient(to left, transparent 12px, rgb(0 0 0 / 0.2) calc(12px + max(7%, 14px)), #000 calc(12px + max(14%, 28px)));
+  --dots-core: radial-gradient(38% 60% at 60% 90%, #000 0%, rgb(0 0 0 / 0.45) 46%, transparent 80%);
+  --dots-halo: radial-gradient(46% 84% at 52% 86%, transparent 28%, #000 50%, transparent 84%);
 }
 
 /* The club banner's halftone, behind the landing zone only: a static dot field
@@ -56,20 +67,28 @@
   z-index: -1;
   height: 100%;
   aspect-ratio: var(--dots-w);
+  /* short phones cap the compact art (D-HERO-43): a field narrower than this
+     has no room for the fades (63 px at 320×640), so it keeps this width and
+     reaches a little further left, behind the flight */
+  min-width: 120px;
   background-position: 100% 100%;
   background-size: 7px 7px;
   pointer-events: none;
   transform: translateZ(0);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
 }
 
 .hero__art::before {
   background-image: radial-gradient(circle, color-mix(in oklab, var(--color-royal-500) 34%, transparent) 0 1.4px, transparent 2px);
-  mask-image: radial-gradient(50% 58% at var(--dots-at), #000 0%, rgb(0 0 0 / 0.45) 45%, transparent 80%);
+  -webkit-mask-image: var(--dots-core), var(--dots-edge);
+  mask-image: var(--dots-core), var(--dots-edge);
 }
 
 .hero__art::after {
   background-image: radial-gradient(circle, color-mix(in oklab, var(--color-royal-500) 28%, transparent) 0 0.75px, transparent 1.25px);
-  mask-image: radial-gradient(72% 80% at var(--dots-at), transparent 36%, #000 56%, transparent 92%);
+  -webkit-mask-image: var(--dots-halo), var(--dots-edge);
+  mask-image: var(--dots-halo), var(--dots-edge);
 }
 
 .hero-art {
@@ -132,9 +151,11 @@
     --dots-at: 70% 86%;
   }
   .hero__art::before {
+    -webkit-mask-image: radial-gradient(40% 58% at var(--dots-at), #000 0%, rgb(0 0 0 / 0.45) 42%, transparent 74%);
     mask-image: radial-gradient(40% 58% at var(--dots-at), #000 0%, rgb(0 0 0 / 0.45) 42%, transparent 74%);
   }
   .hero__art::after {
+    -webkit-mask-image: radial-gradient(38% 78% at var(--dots-at), transparent 30%, #000 50%, transparent 78%);
     mask-image: radial-gradient(38% 78% at var(--dots-at), transparent 30%, #000 50%, transparent 78%);
   }
 }
@@ -227,10 +248,11 @@
   stroke-dashoffset: 1;
 }
 
-/* The gutter leg — from the mat's end, folded down the right margin — is the
-   floor carried on, not a border: the mat's own weight (1.5 px steel-300 at
-   .6), a mitred fold instead of a card's rounded corner, and the mat's Marey
-   ticks every 96 px, pointing out of the page. Each draws as the line passes
+/* The drops — the gutter leg (from the mat's end, folded down the right
+   margin) and the lane beside the next title — are the floor carried on, not a
+   border: the mat's own weight (1.5 px steel-300 at .6), mitred folds instead
+   of a card's rounded corners, and the mat's Marey ticks every 96 px, pointing
+   out of the page (away from the title). Each draws as the line passes
    (stroke-dashoffset). The diagonal and the band legs keep the spine's 2 px. */
 .hero-spine__floor,
 .hero-spine__tick {
@@ -249,12 +271,13 @@
   opacity: 0;
 }
 
-/* The second exposure fades out where her figure cannot fit (the right margin,
-   the lane beside the next title) and back in where it can. */
+/* The second exposure is out of sight where her figure cannot fit and on every
+   drop (the right margin, the lane beside the next title). Her opacity is
+   scrubbed with her place on the route (scrub.ts), so it has no transition of
+   its own; only the hand-off fades her on a clock. */
 .hero-spine__x {
   color: var(--color-white);
   opacity: 0;
-  transition: opacity 120ms linear;
 }
 
 /* ---- Statement ---- */

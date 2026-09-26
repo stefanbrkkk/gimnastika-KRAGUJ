@@ -130,13 +130,16 @@
 }
 
 /* The focus ring (§3: 3px gap + 2px ring) hugs the word, like on an inline link, instead of
-   framing the invisible 48px target across the label above it. */
-.stat__source:focus-visible {
+   framing the invisible 48px target across the label above it. The list „izvor“ links in
+   Medalje and Nastupi get the same ring (RC4-02): one focus treatment for one link in S7. */
+.stat__source:focus-visible,
+.result-row__source:focus-visible {
   outline: none;
   box-shadow: none;
 }
 
-.stat__source:focus-visible::after {
+.stat__source:focus-visible::after,
+.result-row__source:focus-visible::after {
   content: "";
   position: absolute;
   inset: 11px -1px;
@@ -534,6 +537,7 @@
 }
 
 .result-row__source {
+  position: relative;
   grid-area: source;
   justify-self: start;
   margin-left: -4px;
@@ -545,7 +549,10 @@
     grid-template-areas: "marks body source";
     padding-bottom: 12px;
   }
+  /* A 48px target at the row's vertical centre, not stretched to the row (RC4-02): the word
+     stays where it was (the negative top margin is centred with it). */
   .result-row__source {
+    align-self: center;
     margin: -12px -4px 0 0;
   }
 }

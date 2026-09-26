@@ -98,6 +98,25 @@ export interface HeaderCapInputs {
  */
 export const headerCapOn = (s: HeaderCapInputs): boolean => s.scrollY > 0 && !s.onEdge && !!s.theme;
 
+export interface HeaderCapBandInputs {
+  /** data-theme under the middle of the gap (the cap's colour). */
+  capTheme: string | null | undefined;
+  /** data-theme under the bar's centre line (the header band's pick, before toneOf). */
+  barTheme: string | null | undefined;
+}
+
+/**
+ * The cap's solid band behind the bar's top half (SC4-02): it paints the pill's top
+ * corner cut-outs in the cap colour, so a dark element inside a light section (the S4
+ * scoreboard after a day tap) does not smudge them. Only while the gap and the bar's
+ * centre line are over the same tone: then no section boundary lies between them and
+ * the page there is that colour. When a straight boundary is between them (dark above,
+ * light below, for about 30px of scroll), a band in the gap's colour would wrap the
+ * bar's top corners in navy „shoulders“ with a hard edge at its inline edge; without it
+ * the corners show the page as it is, under the gutter fade.
+ */
+export const headerCapBandOn = (s: HeaderCapBandInputs): boolean => !!s.capTheme && s.capTheme === s.barTheme;
+
 /** Viewports at most this tall (landscape phones, 400% zoom) never show header and bar together. */
 export const SHORT_VIEWPORT_MAX = 480;
 

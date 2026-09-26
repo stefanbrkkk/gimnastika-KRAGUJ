@@ -31,7 +31,23 @@ import {
   type Pose,
   type Pt,
 } from "@/components/sections/hero/pass";
-import { SPINE_SLOPE, gutterLeg, legTicks, measure, nextLeg, roundRoute, routeClear, spinePath, spineRoute, type SpineRect } from "@/components/sections/hero/spine";
+import {
+  SPINE_SLOPE,
+  STEEP,
+  exposureAt,
+  exposureRamp,
+  gutterLeg,
+  laneLeg,
+  laneTicks,
+  legTicks,
+  measure,
+  nextLeg,
+  roundRoute,
+  routeClear,
+  spinePath,
+  spineRoute,
+  type SpineRect,
+} from "@/components/sections/hero/spine";
 import { OG_SPEC } from "@/components/seo/art";
 
 /**
@@ -192,14 +208,24 @@ describe.each([
     vx.slice(1).forEach((v, i) => expect(Math.abs(v - vx[i]!)).toBeLessThan(0.2 * top));
   });
 
+  // where the push toe stands: on the mat line (the wide plate: on its upper half, FI4-04)
+  const floor = spec.mat - (spec.stand ?? 0);
+  const pushToe = (t: number) => {
+    const p = pass.pose(t);
+    return apply(p.m, turn(TOE_BACK, HIP_BACK, p.back));
+  };
+
   it("plants the push foot: it never slides and stays on the mat, while the body compresses over it", () => {
-    const toe0 = apply(pass.pose(spec.plant).m, turn(TOE_BACK, HIP_BACK, pass.pose(spec.plant).back));
-    expect(toe0[1]).toBeCloseTo(spec.mat, 1);
+    const toe0 = pushToe(spec.plant);
+    expect(toe0[1]).toBeCloseTo(floor, 1);
+    // the mat is 1.5 px at any scale: the toe stands in its upper half (≤ .5 px in at the wide plate's 1024 px scale)
+    expect(spec.mat - floor).toBeGreaterThanOrEqual(0);
+    expect(spec.mat - floor).toBeLessThan(1);
     for (let t = spec.plant; t <= launch; t += 0.002) {
       const p = pass.pose(t);
       const toe = apply(p.m, turn(TOE_BACK, HIP_BACK, p.back));
       expect(Math.abs(toe[0] - toe0[0])).toBeLessThan(0.5);
-      expect(Math.abs(toe[1] - spec.mat)).toBeLessThan(0.5);
+      expect(Math.abs(toe[1] - floor)).toBeLessThan(0.5);
       // a believable squash (≤ 10 %)
       const ratio = Math.hypot(p.m[2], p.m[3]) / Math.hypot(p.m[0], p.m[1]);
       expect(ratio).toBeGreaterThan(0.9);
@@ -209,11 +235,36 @@ describe.each([
     }
   });
 
+  it("glides onto the mat before the plant where it has a glide: the push toe skims it, never below it, and the takeoff ghost stands on it", () => {
+    if (spec.brush === undefined) {
+      // the phones' plate: the bound lands straight on the plant (its takeoff ghost is inside the plant)
+      expect(name).toBe("compact");
+      expect(spec.stand).toBeUndefined();
+      return;
+    }
+    // from the glide to the takeoff the toe is on the floor; before it, above it, and it comes down onto it
+    for (let t = spec.brush; t <= launch; t += 0.002) expect(Math.abs(pushToe(t)[1] - floor)).toBeLessThan(0.05);
+    for (let t = spec.enter; t < spec.brush; t += 0.002) expect(pushToe(t)[1]).toBeLessThanOrEqual(floor + 1e-9);
+    // a soft touchdown: the toe's fall slows to nothing as it meets the floor (no bump)
+    const f = 1 / 240;
+    const fall = (t: number) => (pushToe(t)[1] - pushToe(t - f)[1]) / f;
+    expect(Math.abs(fall(spec.brush))).toBeLessThan(0.1 * Math.abs(fall(spec.brush - 0.05)));
+    // she never jolts: through the ease-in and the glide the centre of mass's vertical speed changes by
+    // less than 25 units/s per 1/240 s (the plant itself, which follows, changes it by up to ~70)
+    const vy = (t: number) => (COM_OF(pass.pose(t))[1] - COM_OF(pass.pose(t - f))[1]) / f;
+    for (let t = spec.brush - 0.12; t + f < spec.plant; t += f) expect(Math.abs(vy(t + f) - vy(t))).toBeLessThan(25);
+    // the takeoff ghost — the leg under her, pointed down — stands on the mat
+    const standing = spec.ghosts.filter((t) => t >= spec.brush! && t < spec.plant);
+    expect(standing).toHaveLength(1);
+    expect(Math.abs(pushToe(standing[0]!)[1] - floor)).toBeLessThan(0.05);
+  });
+
   it("enters whole, inside the frame, and flies above the mat", () => {
     const lowest = (t: number) => Math.max(...outline(pass.pose(t)).map(([, y]) => y));
     for (let t = spec.enter; t < spec.plant; t += 0.005) {
-      // the bound: in the air, low
-      expect(lowest(t)).toBeLessThan(spec.mat);
+      // the bound: in the air, low (a glide skims the mat: never below its line)
+      if (spec.brush !== undefined && t >= spec.brush) expect(lowest(t)).toBeLessThan(spec.mat + 0.5);
+      else expect(lowest(t)).toBeLessThan(spec.mat);
       // never a fragment at the viewport edge: the whole figure inside the art (phones: from the container's edge on)
       expect(Math.min(...outline(pass.pose(t)).map(([x]) => x))).toBeGreaterThan(name === "compact" ? 0 : -40);
     }
@@ -520,6 +571,47 @@ describe.each(Object.entries(SPINE_FIXTURES))("hero floor diagonal — %s", (_si
     ys.forEach((y) => expect(y).toBeLessThanOrEqual(ey - 12));
     expect(ys.length).toBe(Math.floor((ey - 12 - f.matY) / 96));
   });
+
+  it("draws the lane beside the title as the floor folded down again: mitred at both corners, ticked, handing over to the spine at both ends", () => {
+    const title = f.title.map(rect);
+    const next = nextLeg({ bottom: f.h, mark: rect(f.mark), endX: ml + 222.7 * kMark, lines: title, others: f.cards.map(rect) });
+    const raw = spineRoute({ ...base, next });
+    const rounded = roundRoute(raw, 14);
+    const lane = laneLeg(raw, 14)!;
+    expect(lane).not.toBeNull();
+    // the drop at dropX, from the band floor (or the diagonal) down to the title's baseline — not the gutter
+    expect(lane.top[0]).toBe(next.dropX);
+    expect(lane.bottom).toEqual([next.dropX, next.end[1]]);
+    expect(lane.top[1]).toBeGreaterThan(f.h);
+    // as drawn: in along the incoming leg, the sharp corners themselves, out along the baseline
+    expect(lane.pts).toHaveLength(4);
+    expect(lane.pts[1]).toEqual(lane.top);
+    expect(lane.pts[2]).toEqual(lane.bottom);
+    // it starts exactly where the rounded route starts to round into the drop, and ends where it has rounded out
+    expect(rounded[lane.from]![0]).toBeCloseTo(lane.pts[0]![0], 6);
+    expect(rounded[lane.from]![1]).toBeCloseTo(lane.pts[0]![1], 6);
+    expect(rounded[lane.to]![0]).toBeCloseTo(lane.pts[3]![0], 6);
+    expect(rounded[lane.to]![1]).toBeCloseTo(lane.pts[3]![1], 6);
+    // the straight drop starts at `down`: on the lane's x, 14 px below the top corner
+    expect(rounded[lane.down]![0]).toBeCloseTo(next.dropX, 6);
+    expect(rounded[lane.down]![1]).toBeCloseTo(lane.top[1] + 14, 6);
+    expect(lane.from).toBeLessThan(lane.down);
+    expect(lane.down).toBeLessThan(lane.to);
+    // the drop is steeper than 60° — where the second exposure is never seen — and nothing after it is
+    const steep = (i: number) => {
+      const [ax, ay] = rounded[i - 1]!;
+      const [bx, by] = rounded[i]!;
+      return Math.abs(by - ay) / Math.hypot(bx - ax, by - ay) > STEEP;
+    };
+    expect(steep(lane.down + 1)).toBe(true);
+    for (let i = lane.to + 1; i < rounded.length; i++) expect(steep(i)).toBe(false);
+    // Marey ticks every 96 px below the top corner, none on the rounding onto the baseline
+    const ys = laneTicks(lane);
+    ys.forEach((y, i) => expect(y).toBeCloseTo(lane.top[1] + 96 * (i + 1), 6));
+    ys.forEach((y) => expect(y).toBeLessThanOrEqual(lane.bottom[1] - 12));
+    // the hero-only route (the guard stopped it at the bottom edge) has no lane
+    expect(laneLeg(spineRoute(base), 14)).toBeNull();
+  });
 });
 
 describe("hero floor diagonal — the lane beside a title whose first line is the widest", () => {
@@ -611,5 +703,70 @@ describe("hero floor diagonal — edge cases", () => {
       expect(x).toBeLessThanOrEqual(100 + 1e-9);
       expect(y).toBeGreaterThanOrEqual(0);
     });
+  });
+});
+
+describe("the second exposure's scrubbed ramp (FI4-01/02, round 4)", () => {
+  // 4 px samples: hidden, then 20 shown, then hidden, then 10 shown to the route's end
+  const shown = [false, ...Array(20).fill(true), false, false, ...Array(10).fill(true)] as boolean[];
+  const ramp = exposureRamp(shown, 4, 24);
+
+  it("is 0 where she must not be seen and on the samples right next to it", () => {
+    shown.forEach((v, i) => {
+      if (!v) expect(ramp[i]).toBe(0);
+    });
+    expect(ramp[1]).toBe(0);
+    expect(ramp[20]).toBe(0);
+    expect(ramp[23]).toBe(0);
+  });
+
+  it("rises linearly over the ramp from each hidden stretch and holds 1 between", () => {
+    expect(ramp.slice(1, 9)).toEqual([0, 4 / 24, 8 / 24, 12 / 24, 16 / 24, 20 / 24, 1, 1]);
+    expect(ramp.slice(14, 21)).toEqual([1, 20 / 24, 16 / 24, 12 / 24, 8 / 24, 4 / 24, 0]);
+    ramp.forEach((v) => {
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(1);
+    });
+  });
+
+  it("does not fade toward the route's end, which is not a hidden stretch (the arrival)", () => {
+    expect(ramp[ramp.length - 1]).toBe(1);
+    expect(ramp[ramp.length - 2]).toBe(1);
+  });
+
+  it("takes each hidden stretch's own ramp, so a stretch rises on one and falls on the other", () => {
+    const r = exposureRamp(shown, 4, (at) => (at < 40 ? 8 : 40));
+    // from the hidden sample at 0 (ramp 8 px): 0, then full two samples on
+    expect(r.slice(1, 5)).toEqual([0, 0.5, 1, 1]);
+    // toward the hidden sample at 84 (ramp 40 px): 40 / 40, 36 / 40 … 0 on the sample next to it
+    expect(r.slice(10, 21)).toEqual([40, 36, 32, 28, 24, 20, 16, 12, 8, 4, 0].map((d) => d / 40));
+  });
+
+  it("interpolates between samples and clamps outside the route", () => {
+    expect(exposureAt(ramp, 4, 10)).toBeCloseTo((4 / 24 + 8 / 24) / 2, 9);
+    expect(exposureAt(ramp, 4, -5)).toBe(0);
+    expect(exposureAt(ramp, 4, 1e6)).toBe(1);
+  });
+
+  it("never blinks: over any one-way scroll she fades in and out at most once per shown stretch", () => {
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let run = 0; run < 200; run++) {
+      const mask = Array.from({ length: 120 }, (_, i) => i > 0 && rnd() > 0.08);
+      const r = exposureRamp(mask, 4, 16 + 64 * rnd());
+      // a wheel/keyboard/trackpad pass: monotone positions with random step sizes
+      const seq: { s: number; o: number }[] = [];
+      for (let s = 0; s <= 480; s += 0.5 + 40 * rnd() ** 3) seq.push({ s, o: exposureAt(r, 4, s) });
+      let falling = false;
+      for (let k = 1; k < seq.length; k++) {
+        const { s, o } = seq[k]!;
+        const { s: s0, o: prev } = seq[k - 1]!;
+        // out of sight (or past a hidden sample in one frame): a new stretch may begin
+        const crossed = mask.some((v, i) => !v && i * 4 > s0 && i * 4 <= s);
+        if (o === 0 || crossed) falling = false;
+        else if (o < prev - 1e-12) falling = true;
+        else if (o > prev + 1e-12) expect(falling, `rise after a fall at s=${seq[k]!.s}`).toBe(false);
+      }
+    }
   });
 });

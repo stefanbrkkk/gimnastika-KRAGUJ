@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { motionAllowed } from "@/lib/motion-env";
 import {
+  headerCapBandOn,
   headerCapOn,
   initialHeaderState,
   nextHeaderState,
@@ -12,6 +13,7 @@ import {
   type BandCandidate,
 } from "./chrome";
 import { installFocusGuard } from "./focus-guard";
+import { HEADER_TONE_OWNED, headerYKey } from "./header-tone";
 
 /** Scroll-spy band for aria-current: a 1%-tall line at 30% of the viewport. */
 const SPY_MARGIN = "-30% 0px -69% 0px";
@@ -42,10 +44,17 @@ const pageSections = (): HTMLElement[] =>
  * 3b. data-cap / data-cap-tone: the page-coloured cap over the gap above the bar
  *    (SC3-05), in the colour of the section under that gap (a third 1px band, at
  *    its middle); off at the top of the page and while a diagonal edge crosses it.
+ *    data-cap-band: its solid band behind the bar's top corners (SC4-02), only while
+ *    the gap and the bar's centre line are over the same tone (headerCapBandOn).
  * 4. WCAG 2.4.11: keyboard focus that lands under the visible header or the
  *    sticky bottom bar is scrolled clear of it (focus-guard.ts).
  * 5. Chrome motion (nav spy hop, footer take-off) is a lazy chunk, fetched on
  *    idle and only when motion is allowed (chrome-motion.ts).
+ * 6. MD4-02 (header-tone.ts): on mount it tells the inline tone script that the
+ *    observers own the tone now (HEADER_TONE_OWNED). On pagehide the scroll position
+ *    (and viewport width) goes to sessionStorage under this history entry's key, so
+ *    the footer's script knows where a reload or history arrival lands in browsers
+ *    that restore it only after parsing (WebKit).
  */
 export function HeaderBehavior() {
   useEffect(() => {
@@ -59,11 +68,16 @@ export function HeaderBehavior() {
     // 3b — the cap's inputs (filled by capIO below)
     let capTheme: string | null = null;
     let capOnEdge = false;
+    // 2 — the raw data-theme under the bar's centre line (filled by themeIO below)
+    let barTheme: string | null = null;
     const render = () => {
       const hidden = scroll.hidden && !keyboardInside ? "true" : "false";
       if (root.dataset.hidden !== hidden) root.dataset.hidden = hidden;
       const cap = headerCapOn({ scrollY: scroll.y, theme: capTheme, onEdge: capOnEdge }) ? "on" : "off";
       if (root.dataset.cap !== cap) root.dataset.cap = cap;
+      // Independent of data-cap, so when the cap fades out its band fades with it.
+      const band = headerCapBandOn({ capTheme, barTheme }) ? "on" : "off";
+      if (root.dataset.capBand !== band) root.dataset.capBand = band;
     };
     const onScroll = () => {
       scroll = nextHeaderState(scroll, window.scrollY);
@@ -118,6 +132,8 @@ export function HeaderBehavior() {
           const sectionTheme = under.getAttribute("data-theme");
           const theme = toneOf(sectionTheme) === "light" ? "light" : sectionTheme === "darker" ? "darker" : "dark";
           if (root.dataset.theme !== theme) root.dataset.theme = theme;
+          barTheme = sectionTheme;
+          render();
         },
         { rootMargin: `-${bandY}px 0px -${below}px 0px` },
       );
@@ -184,8 +200,20 @@ export function HeaderBehavior() {
     // 4 — focus not obscured by the header or the sticky bar
     const removeFocusGuard = installFocusGuard(root, bar);
 
+    // 6 — the observers own the tone from here; the landing position of the next reload / history arrival
+    root.dispatchEvent(new Event(HEADER_TONE_OWNED));
+    const onPageHide = () => {
+      try {
+        const nav = (window as Window & { navigation?: { currentEntry?: { key?: string } | null } }).navigation;
+        sessionStorage.setItem(headerYKey(nav?.currentEntry?.key), `${Math.round(window.scrollY)} ${window.innerWidth}`);
+      } catch {
+        // storage blocked (private mode, site data off): the observer corrects the tone after hydration
+      }
+    };
+
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize);
+    window.addEventListener("pagehide", onPageHide);
     root.addEventListener("focusin", onFocusIn);
     root.addEventListener("focusout", onFocusOut);
     render();
@@ -217,6 +245,7 @@ export function HeaderBehavior() {
       stopMotion?.();
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
+      window.removeEventListener("pagehide", onPageHide);
       root.removeEventListener("focusin", onFocusIn);
       root.removeEventListener("focusout", onFocusOut);
       removeFocusGuard();

@@ -499,7 +499,9 @@ html:not(.js) .sched-next {
     -1.5px 0 0 0 var(--color-navy-950);
 }
 /* 320–359px: the label takes its own line above day + numerals, and a long group name may
-   take two lines — reserved, so nothing moves. */
+   take two lines — reserved, so nothing moves. A one-line name sits in the middle of that
+   block (SC4-04): one grid row, centred in the block (align-content), with the bars on the
+   name's first baseline as before, so a two-line name fills the block unchanged. */
 @media (max-width: 359.98px) {
   .sched-score {
     grid-template-areas:
@@ -512,6 +514,9 @@ html:not(.js) .sched-next {
     margin-top: 6px;
   }
   .sched-score__group {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-content: center;
     min-height: calc(2.8em + 11px);
   }
 }
@@ -668,6 +673,18 @@ html:not(.js) .sched-next {
   .sched-card__title {
     font-size: 1.375rem;
     font-stretch: 118%;
+  }
+}
+/* Two cards in a row (SC4-01): the title is a two-line slot, so the week row and the times
+   sit at one offset from the card top in every card, whether its name takes one line or
+   two (a one-line name gets a line of air above the dots). The swatch stays on the first
+   line; heights stay natural (AD-11). A lone card (head beside the times) and phones (one
+   column) keep the title's own height. Cards fading out of a filter keep their slot. */
+@media (min-width: 640px) {
+  .sched-cards:not([data-count="1"]) .sched-card__title,
+  .sched-card[data-leaving] .sched-card__title {
+    min-block-size: 2.4em; /* = 2 × line-height 1.2, for engines without lh */
+    min-block-size: 2lh;
   }
 }
 

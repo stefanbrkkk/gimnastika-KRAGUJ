@@ -218,3 +218,41 @@ export function applyGroupPrefill(prefill: string, current: GroupPrefill): Group
   const match = matchGroup(label, BOOKING_GROUPS);
   return match === null ? { extraGroups: [label], group: label } : { extraGroups: [], group: match };
 }
+
+export interface ScrollBox {
+  scrollTop: number;
+  clientHeight: number;
+  scrollHeight: number;
+  paddingTop: number;
+  paddingBottom: number;
+}
+
+/**
+ * The booking fields' scroll-edge fades (CV4-01), in whole px: each edge fades only where
+ * content (not the scroller's padding) is cut there, and only as far as it is cut, up to
+ * `max` — so the fade grows and shrinks with the scroll, and is 0 at either end.
+ */
+export function scrollEdgeFades(box: ScrollBox, max: number): { above: number; below: number } {
+  const clamp = (hidden: number) => Math.round(Math.min(max, Math.max(0, hidden)));
+  return {
+    above: clamp(box.scrollTop - box.paddingTop),
+    below: clamp(box.scrollHeight - box.clientHeight - box.scrollTop - box.paddingBottom),
+  };
+}
+
+/**
+ * How far (px, ≥ 0) to scroll the fields once the „landed“ card has grown the footer
+ * (CV4-01): until the last line (the privacy note) stands whole above the footer. When all
+ * the content fits the scroller, the spare room is shared evenly above and below it, so no
+ * label is cut under the head either (390×844: 5.5 px each side); when it does not fit, to
+ * the scroll's end (the bottom padding stays as air; the top edge fades). Never scrolls back
+ * up: a parent already further down stays where they are. The same box describes the short-
+ * viewport sheet, where the whole dialog scrolls (the view ends at the sticky footer).
+ */
+export function landedScrollBy(box: ScrollBox): number {
+  const content = box.scrollHeight - box.paddingTop - box.paddingBottom;
+  const slack = box.clientHeight - content;
+  const gap = slack >= 0 ? Math.min(box.paddingBottom, slack / 2) : box.paddingBottom;
+  const target = box.scrollHeight - box.paddingBottom + gap - box.clientHeight;
+  return Math.max(0, Math.round(target - box.scrollTop));
+}

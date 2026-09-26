@@ -5,6 +5,7 @@ import {
   SHORT_VIEWPORT_MAX,
   bandDelta,
   focusScrollDelta,
+  headerCapBandOn,
   headerCapOn,
   headerCtaHidden,
   initialHeaderState,
@@ -18,6 +19,14 @@ import {
   toneOf,
   type HeaderScrollState,
 } from "@/components/sections/header/chrome";
+import {
+  HEADER_LAND_SCRIPT,
+  HEADER_TONE_LAND,
+  HEADER_TONE_OWNED,
+  HEADER_TONE_SCRIPT,
+  HEADER_Y_KEY,
+  headerYKey,
+} from "@/components/sections/header/header-tone";
 import { POINTER_TILT, SETTLE_KICK, createBalance, isSettled, pointerTarget, stepBalance } from "@/components/notfound/tilt";
 import { titlePhrases } from "@/components/notfound/title";
 import { NOT_FOUND } from "@/content/copy";
@@ -106,6 +115,18 @@ describe("header cap over the gap above the bar (SC3-05)", () => {
     expect(headerCapOn({ scrollY: 0, theme: "dark", onEdge: false })).toBe(false);
     expect(headerCapOn({ scrollY: 1900, theme: "dark", onEdge: true })).toBe(false);
     expect(headerCapOn({ scrollY: 1900, theme: null, onEdge: false })).toBe(false);
+  });
+  it("paints its band behind the bar's top corners only over one tone (SC4-02)", () => {
+    // the S4 scoreboard case: gap and bar centre both over the light S4 → page-coloured corners
+    expect(headerCapBandOn({ capTheme: "light", barTheme: "light" })).toBe(true);
+    expect(headerCapBandOn({ capTheme: "darker", barTheme: "darker" })).toBe(true);
+    // a straight boundary between the gap and the bar centre (dark above, light below): no navy shoulders
+    expect(headerCapBandOn({ capTheme: "dark", barTheme: "light" })).toBe(false);
+    expect(headerCapBandOn({ capTheme: "darker", barTheme: "light" })).toBe(false);
+    expect(headerCapBandOn({ capTheme: "dark", barTheme: "darker" })).toBe(false);
+    expect(headerCapBandOn({ capTheme: "light", barTheme: "ice" })).toBe(false);
+    expect(headerCapBandOn({ capTheme: null, barTheme: null })).toBe(false);
+    expect(headerCapBandOn({ capTheme: "light", barTheme: null })).toBe(false);
   });
 });
 
@@ -293,5 +314,254 @@ describe("404 balance: the load catch reads, then holds", () => {
 describe("menu fallback", () => {
   it("Meni links to the footer page index until hydration", () => {
     expect(MENU_INDEX_ID).toBe("meni");
+  });
+});
+
+/**
+ * MD4-02: the header's inline script keeps the tone of the painted position from the
+ * first paint on (every scroll event and ResizeObserver delivery while the page is
+ * parsed); the footer's script moves a deep link / reload / history arrival to its
+ * landing position once the page is parsed. Both run here against a minimal DOM
+ * stand-in: blocks are given in document coordinates, rects follow the live scrollY.
+ */
+describe("pre-paint header tone (header-tone.ts)", () => {
+  interface Block {
+    theme: string;
+    top: number;
+    bottom: number;
+    /** [data-header-band] nested in a section (D-37). */
+    band?: boolean;
+    /** Some other themed element nested in a section (a card): never picked. */
+    nested?: boolean;
+  }
+  interface Setup {
+    navType?: string;
+    hash?: string;
+    scrollY?: number;
+    innerWidth?: number;
+    /** sessionStorage contents */
+    stored?: Record<string, string>;
+    /** navigation.currentEntry.key (undefined: no Navigation API) */
+    entryKey?: string;
+    /** The browser scrolls here in the first forced layout after this point (Chromium's fragment anchor). */
+    layoutScrollsTo?: number;
+    header?: boolean;
+  }
+  // A 390-wide page: bar 10 + 60 (band line 40, cap line 5), scroll-padding-top 88.
+  const BLOCKS: Block[] = [
+    { theme: "dark", top: 0, bottom: 900 }, // S1
+    { theme: "light", top: 900, bottom: 1700 },
+    { theme: "dark", top: 1700, bottom: 2800 },
+    { theme: "light", top: 2800, bottom: 4000 }, // S5 with …
+    { theme: "dark", top: 3000, bottom: 3100, nested: true }, // … a dark card
+    { theme: "dark", top: 3200, bottom: 3600, band: true }, // … and the „Hronologija“ band
+    { theme: "darker", top: 4000, bottom: 5000 }, // S7
+    { theme: "ice", top: 5000, bottom: 5400 },
+    { theme: "darker", top: 5400, bottom: 5600 }, // footer
+  ];
+  const MAX_SCROLL = 5600 - 844;
+
+  /** Loads the page: the header's script runs, then (land !== false) the footer's. */
+  const load = (o: Setup, land = true) => {
+    const page = {
+      scrollY: o.scrollY ?? 0,
+      scrolls: [] as number[],
+      attrs: { "data-theme": "dark" } as Record<string, string>,
+      header: {} as Record<string, () => void>,
+      win: {} as Record<string, () => void>,
+      ro: null as null | (() => void),
+      roOn: false,
+    };
+    const rect = (top: number, bottom: number) => ({ top: top - page.scrollY, bottom: bottom - page.scrollY });
+    let pendingScroll = o.layoutScrollsTo;
+    const bar = {
+      get offsetTop() {
+        // a forced layout: the place where Chromium may run its fragment anchor
+        if (pendingScroll !== undefined) {
+          page.scrollY = pendingScroll;
+          pendingScroll = undefined;
+        }
+        return 10;
+      },
+      offsetHeight: 60,
+    };
+    const header = {
+      querySelector: (sel: string) => (sel === "[data-header-bar]" ? bar : null),
+      getAttribute: (k: string) => page.attrs[k] ?? null,
+      setAttribute: (k: string, v: string) => {
+        page.attrs[k] = v;
+      },
+      addEventListener: (type: string, fn: () => void) => {
+        page.header[type] = fn;
+      },
+      dispatchEvent: (e: { type: string }) => {
+        page.header[e.type]?.();
+        return true;
+      },
+    };
+    const els = BLOCKS.map((b) => ({
+      band: !!b.band,
+      getAttribute: (k: string) => (k === "data-theme" ? b.theme : null),
+      hasAttribute: (k: string) => k === "data-header-band" && !!b.band,
+      parentElement: { closest: () => (b.band || b.nested ? {} : null) },
+      getBoundingClientRect: () => rect(b.top, b.bottom),
+    }));
+    const root = {};
+    const scope = {
+      document: {
+        documentElement: root,
+        querySelector: (sel: string) => (sel === "[data-site-header]" && o.header !== false ? header : null),
+        querySelectorAll: (sel: string) => (sel.startsWith("main [data-header-band]") ? els.filter((e) => e.band) : els),
+      },
+      performance: { getEntriesByType: () => [{ type: o.navType ?? "navigate" }] },
+      location: { hash: o.hash ?? "" },
+      get scrollY() {
+        return page.scrollY;
+      },
+      innerWidth: o.innerWidth ?? 390,
+      sessionStorage: { getItem: (k: string) => o.stored?.[k] ?? null },
+      ...(o.entryKey !== undefined ? { navigation: { currentEntry: { key: o.entryKey } } } : {}),
+      scrollTo: ({ top }: { top: number; behavior: string }) => {
+        page.scrolls.push(top);
+        page.scrollY = Math.max(0, Math.min(MAX_SCROLL, top));
+      },
+      addEventListener: (type: string, fn: () => void) => {
+        page.win[type] = fn;
+      },
+      removeEventListener: (type: string, fn: () => void) => {
+        if (page.win[type] === fn) delete page.win[type];
+      },
+      ResizeObserver: class {
+        constructor(cb: () => void) {
+          page.ro = cb;
+        }
+        observe() {
+          page.roOn = true;
+        }
+        disconnect() {
+          page.roOn = false;
+        }
+      },
+      Event: class {
+        constructor(public type: string) {}
+      },
+    };
+    // Sloppy-mode `with` gives the scripts live globals (scrollY follows scrollTo).
+    const exec = (src: string) => new Function("scope", `with (scope) { ${src} }`)(scope);
+    exec(HEADER_TONE_SCRIPT);
+    if (land) exec(HEADER_LAND_SCRIPT);
+    const tone = () => ({ theme: page.attrs["data-theme"], cap: page.attrs["data-cap-tone"] ?? null });
+    return { page, tone, exec };
+  };
+  it("leaves a plain first visit alone: no listeners, no scroll, the server-rendered tone", () => {
+    const { page, tone } = load({ scrollY: 0 });
+    expect(tone()).toEqual({ theme: "dark", cap: null });
+    expect(page.win.scroll).toBeUndefined();
+    expect(page.roOn).toBe(false);
+    expect(page.scrolls).toEqual([]);
+  });
+
+  it("measures nothing while it is parsed: the tone comes from the first ResizeObserver delivery", () => {
+    const { page, tone } = load({ hash: "#uspesi" }, false);
+    expect(page.roOn).toBe(true);
+    expect(tone()).toEqual({ theme: "dark", cap: null });
+    page.ro?.(); // first frame: the hero is under the bar
+    expect(tone()).toEqual({ theme: "dark", cap: "dark" });
+  });
+
+  it("deep link: the measure at the end of parsing gets the landing tone when the fragment scroll runs in that layout", () => {
+    // /#uspesi lands at 4000 − 88 = 3912: the light S5 is under the bar (band line 3952), not the darker S7.
+    const { page, tone } = load({ hash: "#uspesi", layoutScrollsTo: 3912 });
+    expect(page.scrolls).toEqual([]);
+    expect(page.scrollY).toBe(3912);
+    expect(tone()).toEqual({ theme: "light", cap: "light" });
+  });
+
+  it("deep link: never scrolled from script; the tone follows the browser's fragment scroll", () => {
+    const { page, tone } = load({ hash: "#uspesi" });
+    expect(page.scrolls).toEqual([]);
+    page.ro?.();
+    expect(tone()).toEqual({ theme: "dark", cap: "dark" });
+    // /#uspesi lands at 4000 − 88 = 3912: the light S5 is under the bar (band line 3952), not the darker S7.
+    page.scrollY = 3912;
+    page.win.scroll?.();
+    expect(tone()).toEqual({ theme: "light", cap: "light" });
+  });
+
+  it("a [data-header-band] under the line wins over its section; other nested themed elements never count", () => {
+    const { page, tone } = load({ hash: "#hronologija" });
+    page.scrollY = 3300 - 88;
+    page.win.scroll?.();
+    expect(tone()).toEqual({ theme: "dark", cap: "dark" });
+    page.scrollY = 3120 - 88; // a dark card in S5 under the bar
+    page.win.scroll?.();
+    expect(tone()).toEqual({ theme: "light", cap: "light" });
+  });
+
+  it("maps themes like HeaderBehavior: darker keeps darker, ice → light bar; the cap takes the raw theme", () => {
+    const a = load({ navType: "reload", scrollY: 4200 });
+    a.page.ro?.();
+    expect(a.tone()).toEqual({ theme: "darker", cap: "darker" });
+    const b = load({ navType: "back_forward", scrollY: 5100 });
+    b.page.win.scroll?.();
+    expect(b.tone()).toEqual({ theme: "light", cap: "ice" });
+  });
+
+  it("while parsing, the tone follows a restore (Chromium restores as soon as the page is tall enough)", () => {
+    const { page, tone, exec } = load({ navType: "reload", stored: { [HEADER_Y_KEY]: "4200 390" } }, false);
+    page.ro?.(); // the hero under the bar
+    expect(tone()).toEqual({ theme: "dark", cap: "dark" });
+    page.scrollY = 1000; // restored in the layout where the document grew …
+    page.ro?.(); // … and ResizeObserver is delivered after that layout, before its paint
+    expect(tone()).toEqual({ theme: "light", cap: "light" });
+    exec(HEADER_LAND_SCRIPT); // already restored: the footer's script moves nothing
+    expect(page.scrolls).toEqual([]);
+    expect(tone()).toEqual({ theme: "light", cap: "light" });
+  });
+
+  it("reload not yet restored at the end of parsing (WebKit, Firefox): this entry's stored position, same width", () => {
+    const k = headerYKey("entry-a");
+    expect(k).toBe(`${HEADER_Y_KEY}:entry-a`);
+    expect(headerYKey(undefined)).toBe(HEADER_Y_KEY);
+    const a = load({ navType: "reload", entryKey: "entry-a", stored: { [k]: "4200 390" } });
+    expect(a.page.scrolls).toEqual([4200]);
+    expect(a.tone()).toEqual({ theme: "darker", cap: "darker" });
+    // without the Navigation API: the one slot
+    const b = load({ navType: "back_forward", stored: { [HEADER_Y_KEY]: "1000 390" } });
+    expect(b.page.scrolls).toEqual([1000]);
+    expect(b.tone()).toEqual({ theme: "light", cap: "light" });
+    // stored at the top: nothing to move
+    expect(load({ navType: "reload", stored: { [HEADER_Y_KEY]: "0 390" } }).page.scrolls).toEqual([]);
+  });
+
+  it("never uses another entry's or another width's position, nor any with a #hash (the fragment wins)", () => {
+    // back to an earlier entry of the page: only a later entry's position is stored
+    const a = load({ navType: "back_forward", entryKey: "entry-a", stored: { [headerYKey("entry-b")]: "4200 390" } });
+    expect(a.page.scrolls).toEqual([]);
+    expect(a.tone()).toEqual({ theme: "dark", cap: "dark" }); // measured where it is: the hero
+    // rotation: stored at 844 wide
+    const b = load({ navType: "reload", entryKey: "entry-a", stored: { [headerYKey("entry-a")]: "4200 844" } });
+    expect(b.page.scrolls).toEqual([]);
+    // WebKit and Firefox go to the fragment on a reload / history arrival of /#uspesi
+    const c = load({ navType: "reload", hash: "#uspesi", entryKey: "e", stored: { [headerYKey("e")]: "4400 390" } });
+    expect(c.page.scrolls).toEqual([]);
+    const d = load({ navType: "back_forward", hash: "#uspesi", stored: { [HEADER_Y_KEY]: "4400 390" } });
+    expect(d.page.scrolls).toEqual([]);
+  });
+
+  it("stops when HeaderBehavior owns the tone", () => {
+    const { page } = load({ hash: "#uspesi" });
+    expect(page.win.scroll).toBeTypeOf("function");
+    page.header[HEADER_TONE_OWNED]?.();
+    expect(page.win.scroll).toBeUndefined();
+    expect(page.roOn).toBe(false);
+    expect(HEADER_LAND_SCRIPT).toContain(HEADER_TONE_LAND);
+  });
+
+  it("does nothing without a header (404)", () => {
+    const a = load({ hash: "#uspesi", header: false });
+    expect(a.tone()).toEqual({ theme: "dark", cap: null });
+    expect(a.page.scrolls).toEqual([]);
+    expect(a.page.win.scroll).toBeUndefined();
   });
 });

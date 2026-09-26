@@ -355,7 +355,10 @@ export function DayPanels({ groups }: { groups: readonly ScheduleGroup[] }) {
                     </li>
                   ))}
                 </ul>
-                <p className="sched-day__filtered">{typesetSr(T.filteredEmpty)}</p>
+                {/* The text has its own box: a day change fades it in while the hairline stays (SC4-03). */}
+                <p className="sched-day__filtered">
+                  <span>{typesetSr(T.filteredEmpty)}</span>
+                </p>
               </>
             ) : (
               <div className="sched-day__empty">

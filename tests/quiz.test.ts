@@ -485,3 +485,44 @@ describe("quiz — rewind leaves the apparatus after her feet (QP3-04)", () => {
     expect(css.indexOf(`${BACK} .qb-app`)).toBeGreaterThan(css.indexOf("@media (prefers-reduced-motion: no-preference)"));
   });
 });
+
+describe("quiz — strip caption stays one line at 320 (QP4-04)", () => {
+  const css = readFileSync(new URL("../styles/sections/quiz.css", import.meta.url), "utf8");
+  /** The unbreakable runs of a caption: text inside each nowrap part, in order. */
+  const parts = (html: string, cls: string) =>
+    [...html.matchAll(new RegExp(`<span class="${cls}">([^<]*)</span>`, "g"))].map((m) => m[1]);
+
+  it("the „·“ travels with the answer after it, so it can never end a line", async () => {
+    const { QuizBand } = await import("@/components/sections/quiz/QuizBand");
+    const html = renderToStaticMarkup(
+      createElement(QuizBand, { step: 2, asked: true, caption: ["10 god.", REKREATIVNO], art: null }),
+    );
+    expect(parts(html, "quiz-band__part")).toEqual(["10 god.", `· ${REKREATIVNO}`]);
+    // The only break opportunity is the plain space before the dot, outside the nowrap parts.
+    const caption = html.match(/<span class="quiz-band__caption">(.*?)<\/span><span class="quiz-band__code">/)?.[1] ?? "";
+    expect(caption.replace(/<span class="quiz-band__part">[^<]*<\/span>/g, "|")).toBe("| |");
+    expect(css).toMatch(/\.quiz-band__part \{\s*white-space: nowrap;/);
+  });
+
+  it("a narrow strip drops only the decorative „KR-Q“, and only for a two-answer caption", async () => {
+    const { QuizBand } = await import("@/components/sections/quiz/QuizBand");
+    const edge = (caption: string[]) =>
+      renderToStaticMarkup(createElement(QuizBand, { step: 2, caption, art: null })).match(/data-parts="(\d)"/)?.[1];
+    expect(edge(["5 god."])).toBe("1");
+    expect(edge(["10 god.", REKREATIVNO])).toBe("2");
+    expect(css).toMatch(/\.quiz-band__edge \{[^}]*container: qb-edge \/ inline-size;/);
+    const rule = css.match(/@container qb-edge \(width < (\d+)px\) \{\s*([^{]+)\{\s*display: none;/);
+    expect(rule?.[2]?.trim()).toBe('.quiz-band__edge[data-parts="2"] .quiz-band__code');
+    // 320px screens give the edge 252px (hidden there); 340px screens give it 272px (kept).
+    expect(Number(rule?.[1])).toBeGreaterThan(252);
+    expect(Number(rule?.[1])).toBeLessThanOrEqual(272);
+  });
+
+  it("the no-JS guide keeps the same rule: a separator opens the next answer", async () => {
+    const { QuizGuide } = await import("@/components/sections/quiz/QuizGuide");
+    const answers = parts(renderToStaticMarkup(createElement(QuizGuide)), "quiz-rule__answer");
+    expect(answers.length).toBeGreaterThan(0);
+    for (const a of answers) expect(a).not.toMatch(/·\s*$/);
+    expect(answers).toContain(`· ${TAKMICILO_SE}`);
+  });
+});

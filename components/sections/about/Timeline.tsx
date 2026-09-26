@@ -143,7 +143,8 @@ export function Timeline({ labelledBy }: { labelledBy: string }) {
                     frame
                     aspect={PHOTO_ASPECT}
                     position={PHOTO_POSITION}
-                    caption={typesetSr(TIMELINE_PHOTO.caption)}
+                    // The last two words never part („torta kluba“): no lone word under the print (AC4-02, display only).
+                    caption={typesetSr(TIMELINE_PHOTO.caption).replace(/ (\S+)$/, " $1")}
                     sizes="(min-width: 1024px) 288px, (min-width: 640px) 348px, min(348px, calc(100vw - 96px))"
                   />
                 </div>

@@ -57,6 +57,37 @@ const HANG_MAX = 6;
 /** Safety net (MD-02): a waiting print ≥50% in view for this long plays at once. */
 const HANG_SAFETY_MS = 300;
 const HANG_STAGGER_MS = 50;
+/**
+ * The first batch's longest wait for the primary-motion slot when no other primary motion
+ * is on screen (GE4-01): a short grace for a motion that truly starts at the same moment.
+ * A flat 250ms left strip 1 an empty slot for ~270ms while strip 2 was already in view at
+ * fast scroll (the S8 beam routine, scrolled away, still held the slot).
+ */
+const HANG_QUEUE_WAIT_MS = 60;
+/**
+ * While S8's flier is still on screen, the first batch yields to her — until she has left
+ * the viewport or faded, at most this long (the house cap, MD-02: content is never held
+ * back longer). A flat 60ms had the swing start under her landing and wobble at moderate
+ * scroll speeds (GE4-01 side effect: two primary motions in one viewport).
+ */
+const HANG_YIELD_MS = 250;
+/** S8's beam-routine flier (camp-beam.ts): her solid figure exists only while the routine plays. */
+const S8_FLIER = ".camp__routine-solid";
+/**
+ * She counts as gone once her feet are this far above the top edge: she may still be coming
+ * down onto the beam, and a pause in the scroll must not bring her back into view.
+ */
+const FLIER_GONE_PX = 16;
+
+/** Is S8's flier on screen: her figure in the viewport and not yet faded out? */
+function flierOnScreen(): boolean {
+  const figure = document.querySelector(S8_FLIER);
+  const g = figure?.parentElement; // gsap moves and fades her through this group
+  if (!figure || !g) return false;
+  const r = figure.getBoundingClientRect();
+  if (r.bottom <= -FLIER_GONE_PX || r.top >= window.innerHeight || r.right <= 0 || r.left >= window.innerWidth) return false;
+  return Number(getComputedStyle(g).opacity) > 0.05;
+}
 
 /**
  * S9's primary motion, armed by the gallery island once this chunk is warm: prints
@@ -69,11 +100,16 @@ const HANG_STAGGER_MS = 50;
  * first screenful (max 6) put on their pegs (data-hang="pre": hidden, tilted,
  * raised) — nothing visible changes. Each one plays (data-hang="play") when its top
  * edge is 12% into the viewport; prints entering together share one batch with a
- * 50ms stagger, and the first batch takes the page's primary-motion slot (≤250ms
- * wait). Safety net: a waiting print ≥50% in view for 300ms plays at once. The CSS
- * keyframes only hold end states, so every swing starts from the pre-state itself.
- * Prints further down are never hidden. Reduced motion / Save-Data: nothing.
- * Cleanup (unmount) puts every still-waiting print back to its static final state.
+ * 50ms stagger. The first batch takes the page's primary-motion slot: while S8's flier
+ * is still on screen it yields to her until she leaves the viewport or fades (at most
+ * HANG_YIELD_MS, 250ms); otherwise it waits at most HANG_QUEUE_WAIT_MS (60ms). So a fast
+ * reader gets the arrival right behind them, top strip first, and a slower one never sees
+ * the swing start under her landing. Prints that cross the line while the first batch still
+ * waits join it, so a lower print never swings before the top one. Safety net: a waiting
+ * print ≥50% in view for 300ms plays at once. The CSS keyframes only hold end states, so
+ * every swing starts from the pre-state itself. Prints further down are never hidden.
+ * Reduced motion / Save-Data: nothing. Cleanup (unmount) puts every still-waiting print
+ * back to its static final state.
  */
 export function armHang(grid: HTMLElement | null): () => void {
   if (!grid || !motionAllowed() || prefersLessMotion() || typeof IntersectionObserver === "undefined") return () => {};
@@ -96,6 +132,9 @@ export function armHang(grid: HTMLElement | null): () => void {
 
   let live = true;
   let firstBatch = true;
+  /** The first batch while it waits for its turn (later prints join it); null once it plays. */
+  let pending: HTMLElement[] | null = null;
+  let stopYield = () => {};
   const safety = new Map<Element, number>();
   const isWaiting = (li: Element) => li.getAttribute("data-hang") === "pre";
   const settle = (li: HTMLElement) => {
@@ -133,19 +172,50 @@ export function armHang(grid: HTMLElement | null): () => void {
     });
   };
 
+  const swingMs = (n: number) => DUR.swing * 1000 + (n - 1) * HANG_STAGGER_MS;
+  /** The first batch's turn: it plays with every print that joined it meanwhile. */
+  const playPending = () => {
+    const list = pending;
+    pending = null;
+    if (live && list) play(list);
+  };
+
   const release = (batch: HTMLElement[]) => {
     const list = batch.filter(isWaiting);
     if (!list.length) return;
     list.forEach(unwatch);
-    const ms = DUR.swing * 1000 + (list.length - 1) * HANG_STAGGER_MS;
-    if (firstBatch) {
-      firstBatch = false;
-      void queuePrimaryMotion(ms).then(() => live && play(list));
-    } else {
-      // The same arrival continuing down the sheet: hold the slot, never wait on itself.
-      void queuePrimaryMotion(ms, 0);
-      play(list);
+    if (pending) {
+      // The first batch still waits: join it, so the top strip always swings first.
+      pending.push(...list);
+      return;
     }
+    if (!firstBatch) {
+      // The same arrival continuing down the sheet: hold the slot, never wait on itself.
+      void queuePrimaryMotion(swingMs(list.length), 0);
+      play(list);
+      return;
+    }
+    firstBatch = false;
+    pending = list;
+    if (!flierOnScreen()) {
+      void queuePrimaryMotion(swingMs(list.length), HANG_QUEUE_WAIT_MS).then(playPending);
+      return;
+    }
+    // S8's flier is still on screen: yield to her until she has left it or faded (≤ HANG_YIELD_MS),
+    // then take the slot at once. Checked on gsap's ticker, for these few frames only.
+    const asked = performance.now();
+    const check = () => {
+      if (live && flierOnScreen() && performance.now() - asked < HANG_YIELD_MS) return;
+      stopYield();
+      if (!live || !pending) return;
+      void queuePrimaryMotion(swingMs(pending.length), 0);
+      playPending();
+    };
+    stopYield = () => {
+      gsap.ticker.remove(check);
+      stopYield = () => {};
+    };
+    gsap.ticker.add(check);
   };
 
   const io = new IntersectionObserver(
@@ -184,6 +254,8 @@ export function armHang(grid: HTMLElement | null): () => void {
 
   return () => {
     live = false;
+    stopYield();
+    pending = null;
     io.disconnect();
     guard.disconnect();
     safety.forEach((t) => window.clearTimeout(t));

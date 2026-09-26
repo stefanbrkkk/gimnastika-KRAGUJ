@@ -16,9 +16,11 @@
  *    rides up with it; the layout follows in one frame when it already matches (rise()).
  *  - day change: rows shared by both days glide (Flip keyed by data-flip-id), rows the new
  *    day does not have fade out where they stood (a clone, 90 ms), new rows land with the
- *    new day title (the old one fades as a clone); a shorter card's edge rises as above,
- *    also into the weekend. The strip pill travels fast-out and sticks its landing (squash);
- *    the white labels it passes show under it on the way.
+ *    new day title (the old one fades as a clone); a shorter card's edge rises as above.
+ *    An empty day (the weekend, or none of the filtered program) gets the same hand-off:
+ *    the old rows (or the old empty state) fade as clones, and its title and sentence fade
+ *    in from 0.1s (120 ms) as the weekend's leap takes off. The strip pill travels fast-out
+ *    and sticks its landing (squash); the white labels it passes show under it on the way.
  *  - landings on first view: a card's training days land on the mat line one by one
  *    (MI-1), the scoreboard posts its numerals row by row (MI-4), the location pictogram
  *    draws the floor diagonal and drops its pin (MI-6). CSS does the motion (schedule.css);
@@ -49,8 +51,8 @@ export interface Enhancer {
   captureDay(): unknown;
   /**
    * After the pick committed: if the strip is stuck and the new day starts above it, scroll
-   * the panels back under it; otherwise shared rows hold, new rows land, the pill sticks and
-   * the weekend leap replays.
+   * the panels back under it; otherwise what leaves fades where it stood, shared rows hold,
+   * new rows (or an empty day's sentence) come in, the pill sticks and the weekend leap replays.
    */
   playDay(state: unknown): void;
   /** A view switch: finish a running filter motion; the tab pill sticks its landing. */
@@ -88,13 +90,25 @@ interface Pin {
   height: number;
 }
 
-/** What captureDay() keeps of the day on screen before a pick commits. */
+/**
+ * What captureDay() keeps of the day on screen before a pick commits. Boxes are measured
+ * from the day title's bottom-left corner, where the row list (or the empty state) starts:
+ * the same point in the new day's card.
+ */
 interface DayCapture {
   flip: FlipState | null;
   rows: Pin[];
+  /** The empty state instead of rows: the weekend's mark + sentence, or the filtered „no training“ line. */
+  note: Pin | null;
+  /** Its sentence: a new day that says the same keeps it where it is. */
+  said: string;
   height: number;
   title: Element | null;
 }
+
+/** The text of an empty state: the weekend sentence, or the „no training“ line's own text box. */
+const textOf = (note: HTMLElement): HTMLElement => note.querySelector<HTMLElement>(":scope > p, :scope > span") ?? note;
+const EMPTY_STATE = ".sched-day__empty, .sched-day__filtered";
 
 const matches = (el: HTMLElement, filter: string): boolean => filter === "all" || el.dataset.program === filter;
 const rendered = (el: Element): boolean => el.getClientRects().length > 0;
@@ -113,6 +127,12 @@ const measure = (el: HTMLElement): Pin => ({
   width: el.offsetWidth,
   height: el.offsetHeight,
 });
+
+/** An element's box from a point (fractions kept): see DayCapture. */
+const measureFrom = (el: HTMLElement, x: number, y: number): Pin => {
+  const r = el.getBoundingClientRect();
+  return { el, display: getComputedStyle(el).display, top: r.top - y, left: r.left - x, width: r.width, height: r.height };
+};
 
 /** Keeps an item where it stood (absolute in its positioned list) while it fades out. */
 function pin({ el, display, top, left, width, height }: Pin): void {
@@ -139,17 +159,30 @@ function squash(pill: Element | null | undefined, delay: number): void {
   });
 }
 
-/** Replays the landed chronophotograph leap of a weekend panel (styles/ui.css .chrono-mark). */
-function leap(mark: Element | null): void {
-  if (!mark) return;
+/**
+ * The landed chronophotograph leap of a weekend panel (styles/ui.css .chrono-mark) goes back
+ * to its take-off state at once (no transition: invisible, the flier before the first ghost).
+ */
+function takeoff(mark: Element): void {
   mark.setAttribute("data-reset", ""); // schedule.css: no transitions while the take-off state applies
   mark.removeAttribute("data-landing");
   mark.removeAttribute("data-landed");
   mark.getBoundingClientRect(); // style flush: the take-off state applies without a transition
   mark.removeAttribute("data-reset");
-  mark.getBoundingClientRect();
+}
+
+/** …and leaps again from there (the landing transitions of .chrono-mark). */
+function land(mark: Element): void {
+  mark.getBoundingClientRect(); // the take-off state is the transitions' start
   mark.setAttribute("data-landing", "");
   mark.setAttribute("data-landed", "");
+}
+
+/** Replays the leap at once. */
+function leap(mark: Element | null): void {
+  if (!mark) return;
+  takeoff(mark);
+  land(mark);
 }
 
 /** Sets or removes a boolean attribute only when it changes. */
@@ -418,13 +451,18 @@ export function enhance(root: HTMLElement): Enhancer {
       if (!m || !motionAllowed()) return null;
       const days = Array.from(root.querySelectorAll<HTMLElement>(".sched-days > .sched-day")).filter(rendered);
       const day = days.length === 1 ? days[0] : undefined;
-      if (!day) return null;
+      const title = day?.querySelector<HTMLElement>(".sched-day__title");
+      if (!day || !title) return null;
+      const o = title.getBoundingClientRect();
       const rows = Array.from(day.querySelectorAll<HTMLElement>(ITEM)).filter((el) => !el.hidden);
+      const note = rows.length ? undefined : Array.from(day.querySelectorAll<HTMLElement>(EMPTY_STATE)).find(rendered);
       const capture: DayCapture = {
         flip: rows.length ? m.Flip.getState(rows) : null,
-        rows: rows.map(measure),
+        rows: rows.map((el) => measureFrom(el, o.left, o.bottom)),
+        note: note ? measureFrom(note, o.left, o.bottom) : null,
+        said: note ? (textOf(note).textContent ?? "") : "",
         height: heightOf(day),
-        title: day.querySelector(".sched-day__title"),
+        title,
       };
       return capture;
     },
@@ -451,84 +489,112 @@ export function enhance(root: HTMLElement): Enhancer {
       const day = Array.from(root.querySelectorAll<HTMLElement>(".sched-days > .sched-day")).find(rendered);
       if (!day) return;
       const capture = state as DayCapture | null;
-      const mark = day.querySelector(".sched-day__empty .chrono-mark");
-      if (mark) {
-        // Into the weekend: the leap replays while the shorter card's edge rises (SC3-01).
-        leap(mark);
-        if (capture) {
-          const t = gsap.timeline();
-          t.call(rise(day, capture.height, t, 0.1, 0.34), [], 0.34);
-          tl = t;
-        }
-        return;
-      }
       const rows = Array.from(day.querySelectorAll<HTMLElement>(ITEM)).filter((el) => !el.hidden);
-      if (!rows.length) return;
+      const mark = day.querySelector(".sched-day__empty .chrono-mark");
+      const title = day.querySelector<HTMLElement>(".sched-day__title");
       const enter = (els: Element[]) =>
         gsap.fromTo(els, { opacity: 0, y: -8 }, { opacity: 1, y: 0, duration: 0.24, ease: EASE.stick, delay: 0.1, stagger: 0.03, clearProps: "opacity,transform" });
-      // The day title cross-fades with the rows (SC3-02): the old title, cloned in place (a
-      // zero-height copy right before the new one), fades in 90 ms; the new one comes with
-      // the entering rows from 0.1s.
-      const title = day.querySelector<HTMLElement>(".sched-day__title");
-      const ghost = capture?.title && title && capture.title !== title ? (capture.title.cloneNode(true) as HTMLElement) : null;
-      const cross = (t: Timeline) => {
-        if (!ghost || !title) return;
+      if (!capture || !title) {
+        // Nothing of the old day was kept (motion loaded after the pick began): new rows land,
+        // a weekend's leap replays.
+        if (mark) leap(mark);
+        else if (rows.length) tl = enter(rows);
+        return;
+      }
+      // One hand-off for every pick, into rows or into an empty day (SC4-03): what leaves fades
+      // out where it stood (90 ms, linear), the new title and content come in from 0.1s.
+      // The new day's empty state instead of rows (a weekend, or no training of the filtered
+      // program). A sentence the old day said too (Su ↔ Ne, two filtered-empty days) stays put.
+      const note = rows.length ? undefined : Array.from(day.querySelectorAll<HTMLElement>(EMPTY_STATE)).find(rendered);
+      const steady = !!note && textOf(note).textContent === capture.said;
+      // Leavers: the rows the new day does not have, and the old empty state (unless all it
+      // shows stays: a weekend's mark always leaves, its leap replays). Each is a clone pinned
+      // in the new card at its old box, behind (z −1) the rows that glide over its place.
+      const ids = new Set(rows.map((el) => el.dataset.flipId));
+      const leavers = capture.rows.filter((p) => !ids.has(p.el.dataset.flipId));
+      const old = capture.note && !(steady && !capture.note.el.querySelector(".chrono-mark")) ? capture.note : null;
+      let list = day.querySelector<HTMLElement>(".sched-rows");
+      let temp: HTMLElement | null = null;
+      if (!list && (leavers.length || old)) {
+        // A weekend card has no row list: an empty one right under the title (no height) holds them.
+        temp = list = document.createElement("ul");
+        temp.className = "sched-rows";
+        temp.setAttribute("aria-hidden", "true");
+        title.after(temp);
+      }
+      const clone = (p: Pin, into: HTMLElement): HTMLElement => {
+        const el = p.el.cloneNode(true) as HTMLElement;
+        // Today's marks stay on (the royal rule and the „now“ line fade with their row).
+        ["data-sched-item", "data-flip-id", "hidden"].forEach((a) => el.removeAttribute(a));
+        el.querySelectorAll("[data-landing]").forEach((c) => c.removeAttribute("data-landing")); // no second stick
+        // Not a row the day shows: the „no training“ line (:has() in schedule.css) is not held back by it.
+        el.setAttribute(LEAVING, "");
+        el.setAttribute("aria-hidden", "true");
+        pin({ ...p, el });
+        el.style.zIndex = "-1";
+        into.append(el);
+        return el;
+      };
+      const clones = list ? leavers.map((p) => clone(p, list)) : [];
+      if (list && old) {
+        const el = clone(old, list);
+        // An empty day draws its own hairline there; a sentence it repeats is not doubled.
+        if (!rows.length) el.style.borderTopColor = "transparent";
+        if (steady) textOf(el).style.visibility = "hidden";
+        clones.push(el);
+      }
+      // The day title cross-fades (SC3-02): the old one, a zero-height copy right before the
+      // new one, fades out in 90 ms.
+      const ghost = capture.title && capture.title !== title ? (capture.title.cloneNode(true) as HTMLElement) : null;
+      if (ghost) {
         ghost.removeAttribute("id");
         ghost.setAttribute("aria-hidden", "true");
         ghost.classList.add("sched-day__ghost");
         title.before(ghost);
-        t.to(ghost, { opacity: 0, duration: 0.09, ease: "none" }, 0);
-        t.fromTo(title, { opacity: 0 }, { opacity: 1, duration: 0.24, ease: EASE.stick, clearProps: "opacity" }, 0.1);
-      };
-      if (!capture?.flip) {
-        const t = gsap.timeline({ onComplete: () => ghost?.remove(), onInterrupt: () => ghost?.remove() });
-        t.add(enter(rows), 0);
-        cross(t);
-        tl = t;
-        return;
       }
-      // Rows the new day does not have fade out where they stood: a clone of each, pinned in
-      // the new card at its old box, behind the rows that glide over its place.
-      const ids = new Set(rows.map((el) => el.dataset.flipId));
-      const list = day.querySelector<HTMLElement>(".sched-rows");
-      const clones = list
-        ? capture.rows
-            .filter((p) => !ids.has(p.el.dataset.flipId))
-            .map((p) => {
-              const el = p.el.cloneNode(true) as HTMLElement;
-              ["data-sched-item", "data-flip-id", "data-next", "data-now", "hidden"].forEach((a) => el.removeAttribute(a));
-              el.setAttribute("aria-hidden", "true");
-              pin({ ...p, el });
-              el.style.zIndex = "-1";
-              list.append(el);
-              return el;
-            })
-        : [];
       day.setAttribute("data-flipping", "");
       let release = () => {};
       const done = () => {
         clones.forEach((el) => el.remove());
         clones.length = 0;
+        temp?.remove();
         ghost?.remove();
         release();
         day.removeAttribute("data-flipping");
       };
       const stick = gsap.parseEase(EASE.stick);
       const hold = 0.06 / 0.34; // shared rows wait 60 ms for the missing ones to clear
-      const flip: Timeline = Flip.from(capture.flip, {
-        targets: rows,
-        duration: 0.34,
-        ease: (p: number) => (p <= hold ? 0 : stick((p - hold) / (1 - hold))),
-        simple: true,
-        onEnter: enter,
-        onComplete: done,
-        onInterrupt: done,
-      });
-      release = rise(day, capture.height, flip, 0.1, 0.34);
-      if (clones.length) flip.add(gsap.to(clones, { opacity: 0, duration: 0.09, ease: "none" }), 0);
-      cross(flip);
-      flip.call(() => release(), [], 0.34);
-      tl = flip;
+      const t: Timeline =
+        rows.length && capture.flip
+          ? Flip.from(capture.flip, {
+              targets: rows,
+              duration: 0.34,
+              ease: (p: number) => (p <= hold ? 0 : stick((p - hold) / (1 - hold))),
+              simple: true,
+              onEnter: enter,
+              onComplete: done,
+              onInterrupt: done,
+            })
+          : gsap.timeline({ onComplete: done, onInterrupt: done });
+      if (rows.length && !capture.flip) t.add(enter(rows), 0);
+      release = rise(day, capture.height, t, 0.1, 0.34);
+      if (clones.length) t.add(gsap.to(clones, { opacity: 0, duration: 0.09, ease: "none" }), 0);
+      if (ghost) t.to(ghost, { opacity: 0, duration: 0.09, ease: "none" }, 0);
+      if (rows.length) {
+        // The new title comes with the entering rows.
+        if (ghost) t.fromTo(title, { opacity: 0 }, { opacity: 1, duration: 0.24, ease: EASE.stick, clearProps: "opacity" }, 0.1);
+      } else {
+        // An empty day: its title and sentence wait until the leavers are gone, then fade in
+        // over 120 ms, and a weekend's leap takes off with them.
+        const ins = [...(ghost ? [title] : []), ...(note && !steady ? [textOf(note)] : [])];
+        if (ins.length) t.fromTo(ins, { opacity: 0 }, { opacity: 1, duration: 0.12, ease: "none", clearProps: "opacity" }, 0.1);
+        if (mark) {
+          takeoff(mark);
+          t.call(() => land(mark), [], 0.1);
+        }
+      }
+      t.call(() => release(), [], 0.34);
+      tl = t;
     },
 
     view() {
@@ -586,7 +652,8 @@ export function enhance(root: HTMLElement): Enhancer {
       let slot = "";
       root.querySelectorAll<HTMLElement>(".sched-day").forEach((panel) => {
         const today = !!now && panel.dataset.day === code;
-        panel.querySelectorAll<HTMLElement>(".sched-row").forEach((row) => {
+        // (Not the clones of rows fading out of a day change: they carry no data-sched-item.)
+        panel.querySelectorAll<HTMLElement>(".sched-row[data-sched-item]").forEach((row) => {
           let last = Number.NEGATIVE_INFINITY;
           let over = today;
           let starts = "";

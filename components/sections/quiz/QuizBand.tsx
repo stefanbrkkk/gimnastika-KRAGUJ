@@ -54,13 +54,15 @@ export function QuizBand({ step, asked = false, band = null, dir, caption = NO_C
       data-dir={dir}
       data-still={still ? "" : undefined}
     >
-      <p className="quiz-band__edge">
-        {/* Each answer stays whole; a narrow strip wraps only after the „ · “ separator. */}
+      {/* data-parts: a narrow strip drops the decorative „KR-Q“ once the caption has two answers. */}
+      <p className="quiz-band__edge" data-parts={caption.length}>
+        {/* Each answer stays whole and the „·“ travels with the answer after it, so a narrow
+            strip could only wrap before the dot, never leave it dangling at a line end. */}
         <span className="quiz-band__caption">
           {caption.map((part, i) => (
             <Fragment key={part}>
-              {i > 0 ? " · " : null}
-              <span className="quiz-band__part">{part}</span>
+              {i > 0 ? " " : null}
+              <span className="quiz-band__part">{i > 0 ? `· ${part}` : part}</span>
             </Fragment>
           ))}
         </span>

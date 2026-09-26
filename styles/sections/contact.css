@@ -438,6 +438,22 @@
   }
 }
 
+/* MD4-01 · The flier's keyline over the sash (≥640): doskok.ts sets --doskok-keyline (in the
+   leap symbol's units: 2px at the tuck's scale, a 1px rim outside the fill, still a clean edge
+   on 1× screens) only while her silhouette's ink is within a few px of the sash's band, and 0
+   otherwise — never on the navy-800 title band at take-off, never over the ghost trail or at
+   touchdown. Navy-950 disappears on the slab and cuts her white silhouette out of the band's
+   lavender; painted under the fill, so her shape does not grow. At rest (no JS, reduced
+   motion, after the landing) the width is 0: the static composition has no outline. */
+@media (min-width: 640px) {
+  .doskok__landed {
+    stroke: var(--color-navy-950);
+    stroke-width: var(--doskok-keyline, 0);
+    stroke-linejoin: round;
+    paint-order: stroke fill;
+  }
+}
+
 /* The finale button: the page's one decisive action, a size above every other button. */
 .doskok__btn {
   width: 100%;
@@ -689,6 +705,36 @@
   flex: none;
   width: 20px;
   height: 20px;
+}
+
+/* CV4-02 · Tablets (640–1023): the venue card stretches to the channels' last hairline (the
+   Instagram row's rule), so the two blocks under the CTA slab share one floor, as they do
+   from 1024; the maps button sits on the card's floor. The street keeps the button's 14px
+   step as a margin, so the gap never shrinks when the card is the taller of the two. Where
+   the card is the taller one (912–1023: 1.2px), the last channel row takes up the rest, so
+   its closing hairline still meets the card's floor. */
+@supports (grid-template-columns: subgrid) {
+  @media (min-width: 640px) and (max-width: 1023.98px) {
+    .contact-venue,
+    .contact-channels {
+      align-self: stretch;
+    }
+    .contact-channels,
+    .contact-list {
+      display: flex;
+      flex-direction: column;
+    }
+    .contact-list,
+    .contact-list > li:last-child {
+      flex: 1 0 auto;
+    }
+    .contact-venue__street {
+      margin-bottom: 14px;
+    }
+    .contact-venue__maps {
+      margin-top: auto;
+    }
+  }
 }
 
 /* 640–719: the venue card is its narrowest (245–281px) beside the channels, so the

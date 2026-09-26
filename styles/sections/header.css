@@ -84,9 +84,19 @@
    by the bar — after a day tap in S4 the navy scoreboard's white text, sliced in half.
    While the page is scrolled (data-cap="on", HeaderBehavior) the gap is painted in the
    colour of the section under it (data-cap-tone), so it reads as page, never as a cut.
-   Solid down to the bar's top edge, then a 16px fade behind the bar: it only shows in
-   the pill's rounded corners and the side gutters, so no sliver of a dark element is
-   left between the cap and the bar (a fade inside the 10px gap left a navy line there).
+   Solid down to the bar's top edge, then a 16px fade behind the bar in the side gutters,
+   so no sliver of a dark element is left between the cap and the bar (a fade inside the
+   10px gap left a navy line there).
+   Behind the bar's top half, limited to the bar's own width, a band (SC4-02): the opaque
+   pill hides it except in its top corner cut-outs, which are page-coloured like the gap
+   instead of showing a smudge of the content under them (the S4 scoreboard). At
+   mid-height the cut-out is 0px wide, so the band has no edge there; at the bar's
+   inline edges it fades in over 8px, so a full-bleed line crossing from the gutter into
+   a corner (S8's flight lines) thins out instead of ending on a hard vertical cut.
+   The band is on only while the gap and the bar's centre line are over the same tone
+   (data-cap-band, HeaderBehavior): with a straight section boundary between them it
+   would wrap the bar's top corners in the gap's colour („shoulders“), so there the
+   corners show the page itself under the gutter fade.
    Off at the very top and while a diagonal section edge crosses the gap. It travels
    with the header when it hides. */
 .site-header::before {
@@ -94,8 +104,18 @@
   position: absolute;
   inset: 0 0 auto;
   z-index: -1; /* under the bar, its ring and shadow */
-  height: calc(var(--hdr-top) + 16px);
-  background: linear-gradient(var(--cap-bg, transparent) var(--hdr-top), transparent);
+  height: calc(var(--hdr-top) + var(--hdr-h) / 2);
+  background:
+    linear-gradient(
+        90deg,
+        transparent,
+        var(--cap-band, transparent) 8px,
+        var(--cap-band, transparent) calc(100% - 8px),
+        transparent
+      )
+      center var(--hdr-top) / min(1352px, 100% - 2 * var(--hdr-inset)) calc(var(--hdr-h) / 2) no-repeat,
+    linear-gradient(var(--cap-bg, transparent) var(--hdr-top), transparent calc(var(--hdr-top) + 16px)) 0 0 / 100% 100%
+      no-repeat;
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--dur-fast) linear;
@@ -103,6 +123,10 @@
 
 .site-header[data-cap="on"]::before {
   opacity: 1;
+}
+
+.site-header[data-cap-band="on"] {
+  --cap-band: var(--cap-bg);
 }
 
 .site-header[data-cap-tone="light"] {
@@ -315,7 +339,11 @@
   transition: transform var(--dur-base) var(--ease-flight);
 }
 
-.site-header__spy[data-jump="true"],
+/* A jump (first show after hydration, font re-measure, resize, hidden header) places the
+   line without travel. The box selector carries [data-spy] so it outranks the base rule's
+   transform transition; without it a reload or deep link at #treneri slid the line in from
+   the nav's left edge for 280ms after hydration (found verifying MD4-02). */
+.site-header[data-spy] .site-header__spy[data-jump="true"],
 .site-header__spy[data-jump="true"] .site-header__spy-line {
   transition: opacity var(--dur-fast) linear;
 }

@@ -172,6 +172,20 @@ export interface PassSpec {
   dip: number;
   /** Height of the bound above its landing (the centre of mass at the entry). */
   hop: number;
+  /**
+   * The chassé's glide (optional): from this time the push toe skims the mat
+   * into the plant. The bound's tail is lowered by the toe's clearance (eased
+   * in over BRUSH_IN before it), so the foot that reads as planted — the leg under her,
+   * pointed down — is on the floor, never a hair above it. The plant's solve
+   * is unchanged; only the height of the approach changes.
+   */
+  brush?: number;
+  /**
+   * Where the push toe stands (optional): this many units above the mat line's
+   * centre, so its tip sits on the line's upper edge rather than half into it
+   * (the mat is 1.5 px at any scale; the logo's own toe stands 1.3 units above).
+   */
+  stand?: number;
   /** Forward lean in the bound (deg) and at the takeoff. */
   lean: number;
   launchLean: number;
@@ -205,6 +219,8 @@ const DIP_LEAD = 0.05;
 const SQUASH_UNITS = 6;
 /** The kick leg's highest point after the takeoff (rig angle, deg). */
 const KICK = -24;
+/** The glide (PassSpec.brush) eases the bound's tail down onto the push toe over this long (s). */
+const BRUSH_IN = 0.1;
 
 /**
  * Timing shared by both variants (s from the intro start).
@@ -280,6 +296,11 @@ export const WIDE_PASS: PassSpec = {
   runSpeed: 1350,
   dip: 0.3,
   hop: 14,
+  // the push toe is on the mat from the takeoff ghost (.187) on: the low, long bound would
+  // otherwise skim 2–3 units (≈ 2 px) above it for the last 60 ms before the plant
+  brush: 0.185,
+  // on the mat's upper half: ≤ .5 px into the 1.5 px line from 1024 (.56 px/unit) up
+  stand: 0.6,
   lean: 8,
   launchLean: -3,
   reach: 22,
@@ -367,7 +388,9 @@ export function makePass(spec: PassSpec): Pass {
   const rest: Matrix = [1, 0, 0, 1, landed[0], landed[1]];
   const touchdown = apply(rest, TOE_FRONT);
   const landCom = apply(rest, COM);
-  const { enter, plant, launch, mat } = spec;
+  const { enter, plant, launch } = spec;
+  /** The push toe's floor (the plant, the glide). */
+  const mat = spec.mat - (spec.stand ?? 0);
   const flightT = spec.land - launch;
   const hold = launch - plant;
 
@@ -427,8 +450,31 @@ export function makePass(spec: PassSpec): Pass {
   const contactY = heightFor(plant, rig0);
   const launchRig = legFor(launch, 1);
   const launchY = heightFor(launch, launchRig);
-  // vertical speeds: the bound's descent onto the foot, the flight's rise off it
-  const vyIn = (2 * spec.hop) / (plant - enter);
+  // The bound: its top at the entry, landing on the push toe at the plant. The push leg swings
+  // under her on a Hermite from the trail to the contact angle (the leg track below, keys 0–1).
+  const trailRig = rigFor("back", BOUND.trail, spec.lean);
+  const boundRig = (t: number) => hermite(trailRig, 0, rig0, 0, clamp01((t - enter) / (plant - enter)));
+  const hopY = (t: number) => {
+    const u = (plant - t) / (plant - enter);
+    return contactY - spec.hop * (2 * u - u * u);
+  };
+  /** The push toe's clearance above the mat in the plain bound. */
+  const clearance = (t: number) => mat - hopY(t) - worldVec(bodyAt(t, 0), toeVec("back", boundRig(t)))[1];
+  // The glide: from `brush` the bound is lowered by exactly that clearance, so the toe skims the
+  // mat into the plant and meets it where it did. Before, the lowering eases in on a Hermite that
+  // joins it with the same slope (no kick in her fall), never more than the clearance (never
+  // below the floor).
+  const brush = spec.brush;
+  const brushAt = brush === undefined ? 0 : clearance(brush);
+  const brushRate = brush === undefined ? 0 : ((clearance(brush + 1e-4) - clearance(brush - 1e-4)) / 2e-4) * BRUSH_IN;
+  function boundY(t: number): number {
+    const y = hopY(t);
+    if (brush === undefined || t <= brush - BRUSH_IN) return y;
+    if (t >= brush) return y + clearance(t);
+    return y + Math.min(clearance(t), hermite(0, 0, brushAt, brushRate, (t - (brush - BRUSH_IN)) / BRUSH_IN));
+  }
+  // vertical speeds: the bound's descent onto the foot (measured, with a glide), the flight's rise off it
+  const vyIn = brush === undefined ? (2 * spec.hop) / (plant - enter) : (boundY(plant) - boundY(plant - 1e-4)) / 1e-4;
   const vyOut = ((landCom[1] - launchY - 4 * spec.lift) * (1 + spec.hang)) / flightT;
   // The body over a rigid leg would ride an arc (an inverted pendulum); the
   // centre of mass follows that arc plus a smooth correction that joins the
@@ -465,7 +511,7 @@ export function makePass(spec: PassSpec): Pass {
   type Key = [number, number, number];
   const track: Record<Leg, Key[]> = {
     back: [
-      [enter, rigFor("back", BOUND.trail, spec.lean), 0],
+      [enter, trailRig, 0],
       // the swing is stopped by the floor at the strike; then the plant is solved
       [plant, rig0, 0],
       // (the plant is solved) — then the split opens in the air
@@ -502,9 +548,8 @@ export function makePass(spec: PassSpec): Pass {
       const st = stance(t);
       return { m: matrixOf(bodyAt(t, st.y, st.sy)), back: st.rig, front: legAt("front", t) };
     }
-    // the bound: its top at the entry, landing on the push toe at the plant
-    const u = (plant - t) / (plant - enter);
-    return { m: matrixOf(bodyAt(t, contactY - spec.hop * (2 * u - u * u))), back: legAt("back", t), front: legAt("front", t) };
+    // the bound: its top at the entry, landing on the push toe at the plant (a glide skims it in)
+    return { m: matrixOf(bodyAt(t, boundY(t))), back: legAt("back", t), front: legAt("front", t) };
   }
 
   // ---- Flight (takeoff → touchdown), time-warped for the hang ----

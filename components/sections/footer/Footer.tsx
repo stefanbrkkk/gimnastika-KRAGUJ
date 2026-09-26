@@ -1,6 +1,7 @@
 import { MENU_INDEX_ID } from "@/components/sections/header/chrome";
 import { ArrowIcon, ExternalIcon, FacebookIcon, InstagramIcon } from "@/components/sections/header/icons";
 import { HEADER_COPY } from "@/components/sections/header/header-copy";
+import { HEADER_LAND_SCRIPT } from "@/components/sections/header/header-tone";
 import { FooterMark } from "@/components/sections/header/LeapTrail";
 import { CONTACT, FOOTER } from "@/content/copy";
 import { CLUB, CREDIT_NAME, CREDIT_URL, CTA, FLAGS, GSS, NAV, PRIMARY_PHONE, SOCIAL } from "@/content/site";
@@ -18,6 +19,11 @@ const typeset = (text: string) => typesetSr(text).replace(/ · /g, "\u00a0· ");
  * #meni — a compact page index mirroring the menu sheet (the six NAV links, the
  * trial CTA, the call — as quiet index links, so the doskok stays the finale). It is where the header's "Meni" leads without JS and
  * before hydration, and it gives parents a way on from the bottom of the page.
+ *
+ * The inline script at the very end tells the header's tone script that the page is
+ * parsed: a reload or history arrival that the browser restores only after parsing
+ * (WebKit, Firefox) is moved to its stored position with its tone before the first
+ * paint (MD4-02, header-tone.ts).
  */
 export function Footer() {
   const external = { target: "_blank", rel: "noopener noreferrer" } as const;
@@ -108,6 +114,7 @@ export function Footer() {
           </div>
         </div>
       </div>
+      <script dangerouslySetInnerHTML={{ __html: HEADER_LAND_SCRIPT }} />
     </footer>
   );
 }

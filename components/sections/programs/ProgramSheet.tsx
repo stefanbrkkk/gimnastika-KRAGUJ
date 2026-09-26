@@ -234,19 +234,24 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
       style={programStyle(program)}
     >
       <div ref={panelRef} className="ps-panel">
+        {/* First in the panel, sticky in its scroller (QP4-03): the way out stays in view while
+            the times are read on a short phone. At rest it sits on the plate's corner. */}
+        <button type="button" className="ps-close" data-sheet-close="" aria-label={BOOKING.close}>
+          <svg className="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
+          </svg>
+        </button>
         <div className="ps-inner">
-          <div className="ps-plate">
-            <ProgramIcon icon={program.icon} label={program.iconLabel} className="ps-icon" scene="sheet" />
+          <div className="ps-plate" data-apparatus={program.icon}>
+            {/* The scene's box (a size container): the stroke steps with the drawing's size. */}
+            <span className="ps-scene">
+              <ProgramIcon icon={program.icon} label={program.iconLabel} className="ps-icon" scene="sheet" />
+            </span>
             {bib ? (
               <span className="pc-bib" aria-hidden="true">
                 {bib}
               </span>
             ) : null}
-            <button type="button" className="ps-close" data-sheet-close="" aria-label={BOOKING.close}>
-              <svg className="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
-              </svg>
-            </button>
           </div>
           <div className="ps-body">
             <h2 id="program-sheet-title" ref={titleRef} tabIndex={-1} className="ps-title text-h2">
@@ -261,14 +266,16 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
               <ScheduleLines groups={groups} week className="ps-sched" />
               <p className="ps-where text-small">{glueVenue(typesetSr(SCHEDULE_LOCATION.sub))}</p>
             </section>
-            <div className="ps-actions">
-              <a href="#kontakt" data-booking={program.title} className="btn btn-primary">
-                {CTA.trial}
-              </a>
-              <a href="#raspored" data-schedule-program={program.id} className="btn btn-secondary">
-                {CTA.viewSchedule}
-              </a>
-            </div>
+          </div>
+          {/* After the text, outside its scroller: pinned under it in portrait, under the scene in
+              the landscape grid (QP4-02), so the CTAs never cover the times there. */}
+          <div className="ps-actions">
+            <a href="#kontakt" data-booking={program.title} className="btn btn-primary">
+              {CTA.trial}
+            </a>
+            <a href="#raspored" data-schedule-program={program.id} className="btn btn-secondary">
+              {CTA.viewSchedule}
+            </a>
           </div>
         </div>
       </div>

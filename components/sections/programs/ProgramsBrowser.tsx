@@ -13,7 +13,7 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import { motionAllowed, prefersLessMotion, whenNear } from "@/lib/motion-env";
-import { pagerTarget } from "./pager";
+import { pagerTarget, restTarget } from "./pager";
 
 /**
  * Programs island (initial bundle — keep it small: no gsap, no motion code here).
@@ -88,6 +88,15 @@ const visibleItems = (strip: HTMLElement) =>
   Array.from(strip.children).filter((el): el is HTMLElement => el instanceof HTMLElement && !el.hidden && !el.hasAttribute(OUT));
 const padStart = (strip: HTMLElement) => parseFloat(getComputedStyle(strip).paddingLeft) || 0;
 
+/** Where the row rests after a filter (QP4-01, pager.ts restTarget), measured on the frames that
+ *  stay (leavers are data-out or hidden: display:none). 0 on the ≥1024 sheet, which does not scroll. */
+const restOf = (strip: HTMLElement, first: HTMLElement | undefined) => {
+  const cs = getComputedStyle(strip);
+  if (cs.overflowX === "visible") return 0;
+  const end = Math.max(0, ...visibleItems(strip).map((el) => el.offsetLeft + el.offsetWidth));
+  return restTarget(first ? first.offsetLeft - padStart(strip) : null, end + (parseFloat(cs.paddingRight) || 0), strip.clientWidth);
+};
+
 export function ProgramsBrowser({ heading, chips, dots, filtersLabel, pager, stamp, total, children }: ProgramsBrowserProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
@@ -107,6 +116,9 @@ export function ProgramsBrowser({ heading, chips, dots, filtersLabel, pager, sta
   const nextOff = page.atEnd || page.i >= page.n - 1;
   const activeChip = chips.find((c) => c.key === active) ?? chips[0];
   const railDots = dots.filter((d) => activeChip?.ids.includes(d.id) ?? true);
+  /** Dot cells on the rail; the flier's cell is clamped to them, so it never waits past the
+   *  track's end while the pager catches up with a shorter row. */
+  const railN = Math.max(railDots.length, 1);
 
   /* An arrow that disables itself while focused would drop keyboard focus to <body>:
      hand it to the other arrow instead. */
@@ -231,7 +243,9 @@ export function ProgramsBrowser({ heading, chips, dots, filtersLabel, pager, sta
       const cards = items.filter((el) => el.matches(CARD));
       const keeps = (el: HTMLElement) => chip.ids.includes(el.dataset.programId ?? "");
       /** Filtered-out cards leave (a11y tree included). While a Flip runs they only get data-out
-       *  (display:none in CSS, beaten by Flip's inline display) and `hidden` once it is done. */
+       *  (display:none in CSS, beaten by Flip's inline display) and `hidden` once it is done.
+       *  The row is not scrolled here (QP4-01): this returns where it rests, and the caller puts
+       *  it there — the Flip once every frame is held where it stood on screen. */
       const apply = (fading: boolean) => {
         for (const el of cards) {
           if (keeps(el)) {
@@ -247,8 +261,7 @@ export function ProgramsBrowser({ heading, chips, dots, filtersLabel, pager, sta
         // The ≥1024 sheet drops the photo when it would leave an orphan card (QP-20, CSS).
         strip.dataset.count = String(chip.ids.length);
         // „Sve“ opens on the photo again; a filter opens on its first program.
-        const first = chip.ids.length < total ? cards.find(keeps) : undefined;
-        strip.scrollTo({ left: first ? first.offsetLeft - padStart(strip) : 0, behavior: "instant" });
+        return restOf(strip, chip.ids.length < total ? cards.find(keeps) : undefined);
       };
       /** After the Flip: leavers become `hidden` (unless another chip took over meanwhile). */
       const settle = () => {
@@ -272,10 +285,12 @@ export function ProgramsBrowser({ heading, chips, dots, filtersLabel, pager, sta
         const m = await loadProgramsMotion();
         if (run !== filterRun.current) return;
         // The layout is captured before the chip / status / rail commit, so their shift is part of the Flip.
-        await m.flipFilter({ items, apply: () => apply(true), commit, done: settle });
+        await m.flipFilter({ items, strip, apply: () => apply(true), commit, done: settle });
         flipReady.current = true;
       } else {
-        apply(false);
+        const rest = apply(false);
+        strip.style.removeProperty("scroll-snap-type"); // (a Flip cut short by a switch to reduced motion)
+        strip.scrollTo({ left: rest, behavior: "instant" });
         setActive(chip.key);
         setStatus(chip.status);
         for (const el of items) {
@@ -354,7 +369,7 @@ export function ProgramsBrowser({ heading, chips, dots, filtersLabel, pager, sta
       <div
         className="pg-rail"
         hidden={page.n <= 1 || (page.atStart && page.atEnd)}
-        style={{ "--i": page.i, "--n": Math.max(railDots.length, 1) } as CSSProperties}
+        style={{ "--i": Math.min(page.i, railN - 1), "--n": railN } as CSSProperties}
         data-hop={page.i % 2}
       >
         <button

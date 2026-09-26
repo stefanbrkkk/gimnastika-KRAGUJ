@@ -2,6 +2,7 @@ import { Logo } from "@/components/brand/Logo";
 import { CTA, NAV } from "@/content/site";
 import { typesetSr } from "@/lib/typeset";
 import { HEADER_COPY } from "./header-copy";
+import { HEADER_TONE_SCRIPT } from "./header-tone";
 import { HeaderBehavior } from "./HeaderBehavior";
 import { MenuSheetBody } from "./MenuSheetBody";
 import { MobileMenu } from "./MobileMenu";
@@ -9,6 +10,8 @@ import { MobileMenu } from "./MobileMenu";
 /**
  * Floating header (§5 HEADER). A solid inset bar — never glass/blur.
  * Server-rendered in its final state (visible, dark tone for the hero under it);
+ * on a deep link, reload or history arrival its inline script keeps the tone of the
+ * painted position from the first paint on (MD4-02, header-tone.ts);
  * HeaderBehavior toggles data-hidden / data-theme after hydration, and
  * StickyBarBehavior sets data-cta: the CTA pill steps aside while the hero CTAs
  * or the S11 finale are on screen, and lands in the bar once they are passed.
@@ -19,7 +22,9 @@ import { MobileMenu } from "./MobileMenu";
  */
 export function Header() {
   return (
-    <header data-site-header="" data-hidden="false" data-theme="dark" className="site-header">
+    // suppressHydrationWarning: the inline tone scripts may set data-theme / data-cap-tone
+    // before hydration (MD4-02, header-tone.ts); HeaderBehavior owns them after it.
+    <header data-site-header="" data-hidden="false" data-theme="dark" className="site-header" suppressHydrationWarning>
       <div className="site-header__bar" data-header-bar="">
         <a href="#top" className="site-header__logo">
           <Logo className="site-header__logo-svg" />
@@ -52,6 +57,7 @@ export function Header() {
         </div>
       </div>
       <HeaderBehavior />
+      <script dangerouslySetInnerHTML={{ __html: HEADER_TONE_SCRIPT }} />
     </header>
   );
 }

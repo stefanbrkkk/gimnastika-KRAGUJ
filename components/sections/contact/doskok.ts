@@ -1,7 +1,7 @@
 /**
  * Final CTA „doskok“ — „Poslednji skok“ (§4 Final CTA; design review v2: C-02, C-13,
- * MD-11, M-01, MI-10; round 2: CV2-01, CV2-06, CV2-07; round 3: CV3-02). The page's
- * closing dismount:
+ * MD-11, M-01, MI-10; round 2: CV2-01, CV2-06, CV2-07; round 3: CV3-02; round 4: MD4-01).
+ * The page's closing dismount:
  *
  *   take-off  the flier appears exactly ON the S11 title mark's solid frame (same ink size
  *             and centre) and crossfades with it (the frame dims to .3), crouches, springs;
@@ -16,7 +16,8 @@
  *             from the drop point, taken from the hop and the drop — doskok-path
  *             saltoClock), it opens out at full size through the three static ghost frames
  *             (tilts −330/−344/−354), each flashing brighter as it is passed — a fresh
- *             exposure on the plate;
+ *             exposure on the plate; from 640, where the salto passes over the leotard
+ *             sash, she wears a navy keyline while her box overlaps its band (MD4-01);
  *   landing   a STUCK landing on the button's top edge: the figure compresses and holds
  *             (--ease-land), the button squashes with it (.94/1.03 → 1, rebound .35 s,
  *             D-S11-4), chalk puffs leave the feet; the afterimages fade back to the
@@ -43,7 +44,7 @@
  * Loaded lazily by ContactDoskok — never in the first-load JS.
  */
 import { DUR, EASE, MQ, gsap, motionAllowed, queuePrimaryMotion, registerMotion } from "@/lib/motion";
-import { buildFlight, flightTiming, keyed, saltoClock, timeAt, type Pt } from "./doskok-path";
+import { buildFlight, convexOverlap, flightTiming, keyed, saltoClock, spansWhere, timeAt, turnedBox, withinPolygon, type Pt } from "./doskok-path";
 
 const noop = () => {};
 
@@ -79,6 +80,11 @@ const CLEAR = 8;
 const MAX_RISE = 24;
 const DWELL_MS = 120;
 const VISIBLE_RATIO = 0.85;
+/** The flier's keyline while she is over the sash's band (screen px at the tuck's scale, MD4-01):
+ *  painted under the fill, so 1px shows — a clean edge even on 1× screens. */
+const KEYLINE_PX = 2;
+/** Grid of the silhouette's ink samples for the band test (px at scale 1). */
+const INK_STEP = 3;
 
 /** Chalk: puffs where the split touches down — front foot (out and up) and under the hips. */
 const CHALK = [
@@ -109,6 +115,63 @@ function textBoxes(el: Element | null | undefined): Box[] {
   }
   range.detach();
   return out;
+}
+
+/**
+ * The leotard sash's band (≥640, contact.css .cta-panel__slab::after) as a polygon relative to
+ * `origin` (viewport px): the pseudo's box at the slab's top-right, cut by its polygon() clip.
+ * Empty where there is no sash (phones: a 10px mat clipped by inset()).
+ */
+function sashBand(slab: HTMLElement | null, origin: Pt): Pt[] {
+  if (!slab) return [];
+  const cs = getComputedStyle(slab, "::after");
+  const m = /^polygon\((.*)\)$/.exec(cs.clipPath.trim());
+  const w = Number.parseFloat(cs.width);
+  const h = Number.parseFloat(cs.height);
+  if (!m || !(w > 0) || !(h > 0)) return [];
+  const r = slab.getBoundingClientRect();
+  const left = r.left + slab.clientLeft + slab.clientWidth - w; // inset: 0 0 auto auto
+  const top = r.top + slab.clientTop;
+  const len = (v: string, of: number) => (v.endsWith("%") ? (Number.parseFloat(v) / 100) * of : Number.parseFloat(v));
+  const pts: Pt[] = [];
+  for (const pair of m[1]!.split(",")) {
+    const v = pair.trim().split(/\s+/);
+    if (v.length !== 2) continue; // a fill rule
+    const x = len(v[0]!, w);
+    const y = len(v[1]!, h);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return [];
+    pts.push({ x: left + x - origin.x, y: top + y - origin.y });
+  }
+  return pts.length >= 3 ? pts : [];
+}
+
+/**
+ * Ink sample points of the flier's silhouette (#leap), on a grid of about `step` px: offsets
+ * from the flier frame's centre in px at scale 1 (the frame is LEAP_W × LEAP_H = 230 × 150
+ * units, `k` px each). Null when the path cannot be probed (then the ink box stands in).
+ */
+function inkPoints(figure: SVGUseElement, k: number, ink: { x: number; y: number; width: number; height: number }, step: number): Pt[] | null {
+  const href = figure.getAttribute("href") ?? figure.getAttribute("xlink:href") ?? "";
+  const symbol = href.startsWith("#") ? document.getElementById(href.slice(1)) : null;
+  const path = symbol?.querySelector("path");
+  const vb = symbol instanceof SVGSymbolElement ? symbol.viewBox.baseVal : null;
+  if (!path || !vb || !(vb.width > 0) || !(vb.height > 0) || typeof path.isPointInFill !== "function") return null;
+  // The symbol's viewBox inside the <use>'s 230 × 150 box (preserveAspectRatio xMidYMid meet).
+  const s = Math.min(230 / vb.width, 150 / vb.height);
+  const ox = (230 - vb.width * s) / 2 - vb.x * s;
+  const oy = (150 - vb.height * s) / 2 - vb.y * s;
+  const d = step / k;
+  const out: Pt[] = [];
+  try {
+    for (let fy = ink.y + d / 2; fy < ink.y + ink.height; fy += d) {
+      for (let fx = ink.x + d / 2; fx < ink.x + ink.width; fx += d) {
+        if (path.isPointInFill({ x: (fx - ox) / s, y: (fy - oy) / s })) out.push({ x: (fx - 115) * k, y: (fy - 75) * k });
+      }
+    }
+  } catch {
+    return null;
+  }
+  return out.length > 0 ? out : null;
 }
 
 /** Half extents of a w×h box turned by `deg`. */
@@ -151,6 +214,7 @@ export function armDoskok(root: HTMLElement): () => void {
   const mark = section?.querySelector<SVGUseElement>(".section-heading__mark .chrono-solid") ?? null;
   const title = section?.querySelector<HTMLElement>(".section-heading__title") ?? null;
   const trust = section?.querySelector<HTMLElement>(".cta-panel__trust") ?? null;
+  const slab = root.closest<HTMLElement>(".cta-panel__slab") ?? section?.querySelector<HTMLElement>(".cta-panel__slab") ?? null;
   if (!flier || !figure || !body || ghosts.length !== GHOST_TURN.length) return noop;
 
   // Already on screen (deep link to #kontakt, restored scroll): keep the static final state — no flash.
@@ -180,6 +244,7 @@ export function armDoskok(root: HTMLElement): () => void {
       /* not rendered: keep the sprite's measured box */
     }
     const inkW = ink.width * k;
+    const inkH = ink.height * k;
     // Ink centre relative to the frame centre (the transform origin), at scale 1.
     const inkOff = { x: (ink.x + ink.width / 2 - 115) * k, y: (ink.y + ink.height / 2 - 75) * k };
 
@@ -373,9 +438,49 @@ export function armDoskok(root: HTMLElement): () => void {
       },
     });
 
+    // MD4-01 · From 640 the salto's inverted part passes over the leotard sash, where white on
+    // the band's lavender end is only ~1.4:1. While her (turned, scaled) ink box overlaps the
+    // band she wears a navy-950 keyline (contact.css --doskok-keyline, in the leap symbol's
+    // units = the flier's 230-unit frame), which cuts her silhouette out of the stripe. It is
+    // off everywhere else: on the navy-800 title band at take-off it would show as a darker
+    // rim, and over the ghost trail as a dark cut line (round 4 verification). Sized to
+    // KEYLINE_PX at the tuck's scale; 0 at touchdown, so the landed frame is exactly the static
+    // composition. (Routing the head-down part below the band was measured: only 28–96 px of
+    // path lie between the band and ghost 1, so a ≤1,050°/s turn there brakes the fall to a
+    // ~250 ms hover — the timing stays CV3-02's.)
+    const band = sashBand(slab, L);
+    const keyline = band.length > 0 ? KEYLINE_PX / (k * ((sHop + sTuck) / 2)) : 0;
+    // Her ink, not her box: the split's bounding box reaches far past the limbs, so a box test
+    // keeps the keyline on while she is already over the ghost trail. Each sample point is
+    // moved as the figure is (tuck scale about the ink centre, then the flier's scale and turn
+    // about the frame centre, then the path), and counts within half a grid step plus the
+    // keyline of the band; the turned ink box is a quick reject (and the fallback).
+    const points = keyline > 0 ? inkPoints(figure, k, ink, INK_STEP) : null;
+    const reach = INK_STEP / 2 + KEYLINE_PX;
+    const overBand = (t: number) => {
+      const p = path.at(clock.progress(t));
+      const turn = keyed(turnKeys, t);
+      const sc = keyed(scaleKeys, t);
+      const fx = keyed(sxKeys, t);
+      const fy = keyed(syKeys, t);
+      const cos = Math.cos((turn * Math.PI) / 180);
+      const sin = Math.sin((turn * Math.PI) / 180);
+      const move = (q: Pt): Pt => {
+        const x = (inkOff.x + (q.x - inkOff.x) * fx) * sc;
+        const y = (inkOff.y + (q.y - inkOff.y) * fy) * sc;
+        return { x: p.x + x * cos - y * sin, y: p.y + x * sin + y * cos };
+      };
+      const box = turnedBox(move(inkOff), inkW * sc * fx + 2 * reach, inkH * sc * fy + 2 * reach, turn);
+      if (!convexOverlap(box, band)) return false;
+      return points ? points.some((q) => withinPolygon(move(q), band, reach)) : true;
+    };
+    const KEY_STEP = 1 / 240;
+    const keySpans = keyline > 0 ? spansWhere(overBand, -CROUCH, tLand, KEY_STEP) : [];
+
     // 1 · Take-off: the flier appears ON the mark's solid frame (same size and centre) while
     //     the frame dims — a crossfade, no jump — then crouches and springs.
     gsap.set(flier, { transformOrigin: "50% 50%", willChange: "transform" });
+    if (keyline > 0) gsap.set(flier, { "--doskok-keyline": 0 });
     gsap.set(figure, { transformOrigin: "50% 50%" });
     place(-CROUCH);
     tl.to(flier, { autoAlpha: 1, duration: CROSSFADE, ease: "none" }, 0);
@@ -384,6 +489,11 @@ export function armDoskok(root: HTMLElement): () => void {
     // 2 · Crouch + flight: one pass of the salto clock (hop, salto, opening out).
     tl.to(tick, { t: tLand, duration: CROUCH + tLand, ease: "none", onUpdate: () => place(tick.t) }, CROSSFADE);
     const lift = CROSSFADE + CROUCH;
+    // The keyline on one sample before her box reaches the band, off as it has left it.
+    for (const [a, b] of keySpans) {
+      tl.set(flier, { "--doskok-keyline": keyline.toFixed(2) }, lift + a - KEY_STEP);
+      tl.set(flier, { "--doskok-keyline": 0 }, lift + b);
+    }
 
     // Ghost frames flash as they are passed — brighter, like a fresh exposure.
     ghosts.forEach((g, i) => {
@@ -392,6 +502,7 @@ export function armDoskok(root: HTMLElement): () => void {
 
     // 3 · Stuck landing: figure and button compress together; chalk leaves the feet.
     const touch = lift + tLand;
+    if (keyline > 0) tl.set(flier, { "--doskok-keyline": 0 }, touch);
     tl.set(figure, { transformOrigin: "50% 100%" }, touch)
       .fromTo(figure, { ...FIGURE_SQUASH }, { scaleX: 1, scaleY: 1, duration: DUR.land, ease: EASE.land, immediateRender: false }, touch)
       .fromTo(body, { ...BUTTON_SQUASH, transformOrigin: "50% 100%" }, { scaleX: 1, scaleY: 1, duration: BUTTON_SQUASH_DUR, ease: EASE.rebound, immediateRender: false }, touch);

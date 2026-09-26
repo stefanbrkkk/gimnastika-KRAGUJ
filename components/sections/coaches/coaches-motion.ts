@@ -10,9 +10,15 @@
  *    up (and below the fixed header when scrolled back into view from above), after the
  *    „Trenerice“ title mark has finished landing (≤800 ms). A stamp left at least half in
  *    view for 900 ms (the reader stopped short of it) is pressed then.
- *  - „Licenca GSS“ stamp press: ≤120 ms after the print lands the stamp comes down fast
- *    (scale 1.35 → .94, rotate −8° → 0, EASE.takeoff), settles (.94 → 1, EASE.land), a one-off
- *    ink ring spreads from the rim and the print under it gives 1.5 px.
+ *  - „Licenca GSS“ stamp press: the stamp comes down fast (scale 1.35 → .94, rotate −8° → 0,
+ *    EASE.takeoff), settles (.94 → 1, EASE.land), a one-off ink ring spreads from the rim and
+ *    the print under it gives 1.5 px. On the portrait card it is a motion of its own (AC4-01):
+ *    the portrait keeps its 20 % trigger, but the stamp (≈300 px below the card top, at the
+ *    fold on desktop at that moment) comes down only once it is wholly in view on the same
+ *    press line as the plate's, and after its print has landed (≤120 ms after, when the
+ *    stamp is already clear then). It has no half-in-view net: until then it stays in its
+ *    hidden pre-press state (an absent stamp at the fold goes unnoticed, a sliced press does
+ *    not); one scrolled past above before it was ever wholly in view is finished statically.
  *  - Brush annotation over photo 05, drawn at hand speed with DrawSVG (MI-AC-4): the loaded
  *    core 0 → 100 % in .72 s, the four bristles +.04–.12 s behind it, each lifting off the
  *    paper along its own flick (≤.92 s in all).
@@ -38,10 +44,11 @@ const SAFETY_THRESHOLD = 0.5;
 const SAFETY_MS = 300;
 /** The stamp comes down this long after the print has landed (≤120 ms)… */
 const STAMP_GAP = 0.08;
-/** …or, on the static KR-07 plate, this long after the whole stamp is in view (AC3-01). */
+/** …or this long after the whole stamp is in view (the KR-07 plate, AC3-01; a portrait card
+ *  whose print landed a while ago, AC4-01). */
 const PLATE_STAMP_GAP = 0.05;
-/** The plate stamp's press line from 1024 px up: above the lowest 12 % of the viewport. */
-const STAMP_BOTTOM_WIDE = "-12%";
+/** The stamps' press line from 1024 px up: above the lowest 12 % of the viewport. */
+const STAMP_BOTTOM_WIDE = 0.12;
 /** Below 1024 px: clear of the sticky dock by this much (px)… */
 const DOCK_CLEAR = 24;
 /** …or this whole margin when the dock cannot be measured. */
@@ -88,14 +95,24 @@ const shownShare = (el: Element): number => {
 
 type State = "pending" | "queued" | "playing" | "done";
 
-interface Card {
-  el: HTMLElement;
-  /** What arms the card: the card itself (portrait), or its stamp (the KR-07 plate). */
+/**
+ * One motion of a coach card. A portrait card has two: the print's reveal (armed by the card)
+ * and then its stamp's press (armed by the stamp, AC4-01). The KR-07 plate card has only the
+ * press (AC3-01).
+ */
+interface Motion {
+  /** What arms it: the card (a portrait reveal) or the stamp (a press). */
   anchor: HTMLElement;
+  kind: "reveal" | "press";
+  /** The KR-07 plate's press: after the title mark's landing, with a half-in-view net. */
   plate: boolean;
+  /** A portrait card's press: the reveal of the print it lands on. */
+  print?: Motion;
   state: State;
   /** Seconds, for the primary-motion queue. */
   duration: number;
+  /** Resolves when the motion may ask for its slot (a press: once the print under it is there). */
+  ready: () => Promise<void>;
   play: (onDone: () => void) => void;
   showStatic: () => void;
 }
@@ -134,8 +151,22 @@ export function armCoaches(root: HTMLElement): () => void {
 
   mm.add(MQ.noReduce, (context) => {
     let live = true;
-    const cards: Card[] = [];
+    const motions: Motion[] = [];
     let lastPress = -Infinity;
+
+    // The stamps' press line (AC3-01, AC4-01): the whole stamp below the fixed header, and above
+    // the lowest 12 % of the viewport from 1024 px up, or clear of the dock (+ 24 px) below that.
+    const wide = window.matchMedia("(min-width: 1024px)").matches;
+    const cover = wide ? 0 : dockCover();
+    const headerPx = headerCover();
+    const floorMargin = wide ? `${-STAMP_BOTTOM_WIDE * 100}%` : `-${cover ? cover + DOCK_CLEAR : DOCK_MARGIN_FALLBACK}px`;
+    /** Bottom edge of the visible page (px from the viewport top): the dock's top below 1024 px. */
+    const visibleFloor = () => window.innerHeight - (wide ? 0 : cover || DOCK_MARGIN_FALLBACK - DOCK_CLEAR);
+    /** The whole stamp is on screen, clear of the header and the dock (checked again at press time). */
+    const stampShown = (stamp: Element) => {
+      const r = stamp.getBoundingClientRect();
+      return r.top >= headerPx - 1 && r.bottom <= visibleFloor() + 1;
+    };
 
     root.querySelectorAll<HTMLElement>("[data-coach]").forEach((el) => {
       const frame = el.querySelector<HTMLElement>("[data-coach-portrait] .frame");
@@ -150,7 +181,8 @@ export function armCoaches(root: HTMLElement): () => void {
       if (!plate && !img) return;
       // On screen at arm time (the card, or on the plate card its stamp): keep the static final state.
       if (inView(plate ? stamp : el)) return;
-      const cleared = [frame, stamp, ...layers, splash, ...(img ? [img] : [])];
+      const clear = (els: Element[]) => gsap.set(els, { clearProps: "transform,opacity,visibility,clipPath" });
+      const stampParts = [stamp, ...layers, splash];
 
       // --- Pre-states -------------------------------------------------------------------
       if (img) {
@@ -159,32 +191,71 @@ export function armCoaches(root: HTMLElement): () => void {
       }
       gsap.set(layers, { autoAlpha: 0, scale: 1.35, rotation: -8, y: -10, transformOrigin: "50% 50%" });
 
-      /** When the stamp comes down (s from the card's start). */
-      const pressAtStart = img ? DUR.reveal + STAMP_GAP : PLATE_STAMP_GAP;
-      const duration = pressAtStart + PRESS + Math.max(DUR.base, DUR.land);
+      // --- The portrait's rise (its 20 % trigger) -----------------------------------------
+      // The print under the stamp is there at once on the static plate; on a portrait card once
+      // its reveal has landed or it has been shown static.
+      let landedAt = -Infinity;
+      let markLanded = () => {};
+      const landed = new Promise<void>((resolve) => {
+        markLanded = () => {
+          if (landedAt === -Infinity) landedAt = performance.now();
+          resolve();
+        };
+      });
+      let print: Motion | undefined;
+      if (img) {
+        const printParts = [frame, img];
+        print = {
+          anchor: el,
+          kind: "reveal",
+          plate: false,
+          state: "pending",
+          duration: DUR.reveal,
+          ready: () => Promise.resolve(),
+          play: (onDone) => {
+            gsap
+              .timeline({
+                onComplete: () => {
+                  clear(printParts);
+                  markLanded();
+                  onDone();
+                },
+              })
+              .to(frame, { clipPath: `inset(-${CLIP_BLEED}px -${CLIP_BLEED}px -${CLIP_BLEED}px -${CLIP_BLEED}px)`, y: 0, duration: DUR.reveal, ease: EASE.stick }, 0)
+              .to(img, { scale: 1, duration: DUR.reveal, ease: EASE.stick }, 0);
+          },
+          showStatic: () => {
+            clear(printParts);
+            markLanded();
+          },
+        };
+        motions.push(print);
+      }
 
-      const card: Card = {
-        el,
-        anchor: plate ? stamp : el,
+      // --- The stamp's press (its own visibility) -----------------------------------------
+      motions.push({
+        anchor: stamp,
+        kind: "press",
         plate: Boolean(plate),
+        print,
         state: "pending",
-        duration,
+        duration: (plate ? PLATE_STAMP_GAP : STAMP_GAP) + PRESS + Math.max(DUR.base, DUR.land),
+        // The plate's stamp follows the „Trenerice“ mark's landing instead of overlapping it;
+        // a portrait's stamp waits for its print to land.
+        ready: () => (plate ? titleLanded(root, TITLE_WAIT_MS) : landed),
         play: (onDone) => {
-          // Two cards revealing together press their stamps one after the other, never as one thud.
-          let press = pressAtStart;
+          // STAMP_GAP after the print has landed; at once (PLATE_STAMP_GAP) on a print long there.
+          let press = plate ? PLATE_STAMP_GAP : Math.max(PLATE_STAMP_GAP, STAMP_GAP - (performance.now() - landedAt) / 1000);
+          // Two cards pressing together press one after the other, never as one thud.
           const pressAt = performance.now() + press * 1000;
           if (Math.abs(pressAt - lastPress) < STAMP_STAGGER_MS) press += (lastPress + STAMP_STAGGER_MS - pressAt) / 1000;
           lastPress = performance.now() + press * 1000;
           const tl = gsap.timeline({
             onComplete: () => {
-              gsap.set(cleared, { clearProps: "transform,opacity,visibility,clipPath" });
+              clear([frame, ...stampParts]);
               onDone();
             },
           });
-          if (img) {
-            tl.to(frame, { clipPath: `inset(-${CLIP_BLEED}px -${CLIP_BLEED}px -${CLIP_BLEED}px -${CLIP_BLEED}px)`, y: 0, duration: DUR.reveal, ease: EASE.stick }, 0)
-              .to(img, { scale: 1, duration: DUR.reveal, ease: EASE.stick }, 0);
-          }
           // The judge's stamp: fast down, press, hold.
           tl.to(layers, { autoAlpha: 1, duration: 0.08, ease: "none" }, press)
             .to(layers, { scale: 0.94, y: 0, rotation: 0, duration: PRESS, ease: EASE.takeoff }, press)
@@ -197,115 +268,141 @@ export function armCoaches(root: HTMLElement): () => void {
             )
             .to(frame, { y: 1.5, duration: 0.06, ease: "power2.out", yoyo: true, repeat: 1 }, press + PRESS);
         },
-        showStatic: () => {
-          gsap.set(cleared, { clearProps: "transform,opacity,visibility,clipPath" });
-        },
-      };
-      cards.push(card);
+        showStatic: () => clear(stampParts),
+      });
     });
 
-    // --- Card triggers + safety net -------------------------------------------------------
-    const byEl = new Map(cards.map((c) => [c.anchor as Element, c]));
-    const start = (card: Card) => {
-      if (card.state !== "pending") return;
-      card.state = "queued";
-      // The plate's stamp follows the „Trenerice“ mark's landing instead of overlapping it.
-      void (card.plate ? titleLanded(root, TITLE_WAIT_MS) : Promise.resolve())
-        .then(() => queuePrimaryMotion(card.duration * 1000))
+    // --- Triggers + safety nets ---------------------------------------------------------------
+    const byEl = new Map(motions.map((m) => [m.anchor as Element, m]));
+    const start = (m: Motion) => {
+      if (m.state !== "pending") return;
+      m.state = "queued";
+      void m
+        .ready()
+        .then(() => queuePrimaryMotion(m.duration * 1000))
         .then(() => {
-          if (!live || card.state !== "queued") return;
-          card.state = "playing";
+          if (!live || m.state !== "queued") return;
+          // A portrait's stamp presses only where all of it is seen (AC4-01): scrolled past
+          // meanwhile → finished off-screen; back below the line → it waits for it again.
+          if (m.print && !stampShown(m.anchor)) {
+            if (m.anchor.getBoundingClientRect().top < headerPx) {
+              m.state = "done";
+              m.showStatic();
+            } else {
+              m.state = "pending";
+              pressIo.observe(m.anchor);
+            }
+            return;
+          }
+          m.state = "playing";
           context.add(() =>
-            card.play(() => {
-              card.state = "done";
+            m.play(() => {
+              m.state = "done";
             }),
           );
         });
     };
+    // A portrait card rises when 20 % of it is in view…
     const revealIo = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
-          const card = byEl.get(e.target);
-          if (!e.isIntersecting || !card) continue;
+          const m = byEl.get(e.target);
+          if (!e.isIntersecting || !m) continue;
           revealIo.unobserve(e.target);
-          start(card);
+          start(m);
         }
       },
       { threshold: REVEAL_THRESHOLD },
     );
-    const timers = new Map<Card, ReturnType<typeof setTimeout>>();
+    // …and one pre-hidden ≥50 % in view for 300 ms without having started is shown at once.
+    const timers = new Map<Motion, ReturnType<typeof setTimeout>>();
     const safetyIo = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
-          const card = byEl.get(e.target);
-          if (!card) continue;
-          const t = timers.get(card);
+          const m = byEl.get(e.target);
+          if (!m) continue;
+          const t = timers.get(m);
           if (t) clearTimeout(t);
-          timers.delete(card);
-          if (!e.isIntersecting || card.state !== "pending") continue;
+          timers.delete(m);
+          if (!e.isIntersecting || m.state !== "pending") continue;
           timers.set(
-            card,
+            m,
             setTimeout(() => {
-              if (!live || card.state !== "pending") return;
-              card.state = "done"; // never leave a frame hidden in view
-              card.showStatic();
+              if (!live || m.state !== "pending") return;
+              m.state = "done"; // never leave a frame hidden in view
+              m.showStatic();
             }, SAFETY_MS),
           );
         }
       },
       { threshold: SAFETY_THRESHOLD },
     );
-    // The KR-07 plate card (AC3-01): its stamp presses once the whole stamp is in view, clear of
-    // the dock on phones and tablets; one left half in view for STAMP_LINGER_MS presses then.
-    const wide = window.matchMedia("(min-width: 1024px)").matches;
-    const cover = wide ? 0 : dockCover();
-    const top = `-${headerCover()}px`;
+    // Both stamps press once the whole stamp is above the press line (AC3-01, AC4-01).
     const pressIo = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
-          const card = byEl.get(e.target);
-          if (!card || e.intersectionRatio < 0.98) continue;
+          const m = byEl.get(e.target);
+          if (!m || e.intersectionRatio < 0.98) continue;
           pressIo.unobserve(e.target);
-          start(card);
+          start(m);
         }
       },
-      { threshold: [0.98, 1], rootMargin: `${top} 0px ${wide ? STAMP_BOTTOM_WIDE : `-${cover ? cover + DOCK_CLEAR : DOCK_MARGIN_FALLBACK}px`} 0px` },
+      { threshold: [0.98, 1], rootMargin: `-${headerPx}px 0px ${floorMargin} 0px` },
     );
+    // The plate's stamp left at least half in view (above the dock) for STAMP_LINGER_MS presses
+    // then (AC3-01). A portrait's stamp has no such net: it never presses at the fold (AC4-01).
     const lingerIo = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
-          const card = byEl.get(e.target);
-          if (!card) continue;
-          const t = timers.get(card);
+          const m = byEl.get(e.target);
+          if (!m) continue;
+          const t = timers.get(m);
           if (t) clearTimeout(t);
-          timers.delete(card);
-          if (e.intersectionRatio < 0.5 || card.state !== "pending") continue;
+          timers.delete(m);
+          if (e.intersectionRatio < 0.5 || m.state !== "pending") continue;
           timers.set(
-            card,
-            setTimeout(() => live && start(card), STAMP_LINGER_MS),
+            m,
+            setTimeout(() => live && start(m), STAMP_LINGER_MS),
           );
         }
       },
-      { threshold: [0, 0.5], rootMargin: `${top} 0px -${cover}px 0px` },
+      { threshold: [0, 0.5], rootMargin: `-${headerPx}px 0px -${cover}px 0px` },
     );
-    cards.forEach((c) => {
-      if (c.plate) {
-        pressIo.observe(c.anchor);
-        lingerIo.observe(c.anchor);
-      } else {
-        revealIo.observe(c.el);
-        safetyIo.observe(c.el);
+    // A portrait's stamp scrolled past above before it was ever wholly in view (its print
+    // already rising or risen) is finished statically, off-screen (AC4-01).
+    const passIo = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          const m = byEl.get(e.target);
+          if (!m || e.isIntersecting || m.state !== "pending" || m.print?.state === "pending") continue;
+          if (e.boundingClientRect.bottom > (e.rootBounds?.top ?? headerPx)) continue; // still below
+          pressIo.unobserve(e.target);
+          m.state = "done";
+          m.showStatic();
+        }
+      },
+      { rootMargin: `-${headerPx}px 0px 0px 0px` },
+    );
+    motions.forEach((m) => {
+      if (m.kind === "reveal") {
+        revealIo.observe(m.anchor);
+        safetyIo.observe(m.anchor);
+        return;
       }
+      pressIo.observe(m.anchor);
+      if (m.plate) lingerIo.observe(m.anchor);
+      else passIo.observe(m.anchor);
     });
 
     // --- Brush annotation (DrawSVG) ---------------------------------------------------------
     let brushIo: IntersectionObserver | undefined;
     const brush = root.querySelector<SVGSVGElement>("[data-brush]");
     const cardsBusy = () =>
-      cards.some((c) => {
-        if (c.state === "playing" || c.state === "queued") return true;
-        if (c.state !== "pending") return false;
-        const r = c.anchor.getBoundingClientRect(); // desktop: a card beside the print, about to start
+      motions.some((m) => {
+        if (m.state === "playing" || m.state === "queued") return true;
+        // A portrait's pending stamp may never press (the reader stops above it): not „about to start“.
+        if (m.state !== "pending" || m.print) return false;
+        const r = m.anchor.getBoundingClientRect(); // desktop: a card beside the print, about to start
         return r.bottom > 0 && r.top < window.innerHeight * (1 + JOIN_BELOW);
       });
     let dwell: ReturnType<typeof setTimeout> | undefined;
@@ -400,6 +497,7 @@ export function armCoaches(root: HTMLElement): () => void {
       safetyIo.disconnect();
       pressIo.disconnect();
       lingerIo.disconnect();
+      passIo.disconnect();
       timers.forEach((t) => clearTimeout(t));
       if (dwell) clearTimeout(dwell);
       unwatchBrush?.();

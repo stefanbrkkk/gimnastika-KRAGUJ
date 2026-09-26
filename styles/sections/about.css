@@ -442,6 +442,12 @@ html.js-motion .about__ghost + .about__ghost {
   max-width: 360px;
 }
 
+/* KR-17's caption sets as a balanced pair when it has to wrap (320 px: „Rođendanska“ /
+   „torta kluba“), never a lone word under the print (AC4-02). The shared .frame-caption stays. */
+.timeline__print .frame-caption {
+  text-wrap: balance;
+}
+
 @media (min-width: 640px) {
   .timeline {
     --node-w: 44px;

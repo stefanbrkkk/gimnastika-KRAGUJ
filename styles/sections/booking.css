@@ -179,6 +179,29 @@ html[data-booking-open] body {
   scroll-padding-block: 16px;
 }
 
+/* CV4-01: where a line of the fields is cut by the scroller's edge, that edge fades out
+   instead of slicing it — at the bottom above the footer's hairline (data-more), at the top
+   under the head (data-more-above). BookingDialog sets each fade's length to what it hides
+   beyond the padding (0–20px, --fade-below / --fade-above on the dialog), so it shrinks to
+   nothing at either end of the scroll. No mask while nothing is cut. Short viewports, where
+   the whole sheet scrolls, use scrims instead („Short viewports, continued“). */
+.booking__body:is([data-more], [data-more-above]) {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 var(--fade-above, 0px),
+    #000 calc(100% - var(--fade-below, 0px)),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 var(--fade-above, 0px),
+    #000 calc(100% - var(--fade-below, 0px)),
+    transparent
+  );
+}
+
 .booking__form {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -694,6 +717,35 @@ html[data-booking-open] body {
   .booking__call {
     min-height: 44px;
     margin-top: 0;
+  }
+  /* CV4-01: here the dialog is the scroller, so the fields' edges are the sheet's top edge
+     and the sticky footer's hairline; a mask on the body would fade its own box, not those
+     edges. Two chalk scrims sit on the edges instead, as long as what they hide (the same
+     --fade-above / --fade-below): the top one sticks to the sheet's top edge inside the body
+     (it never reaches the head), the bottom one stands on the footer's hairline. Painting
+     the sheet's own --bg over the content equals the mask's fade to that background. */
+  .booking__body:is([data-more], [data-more-above]) {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .booking__body::before {
+    content: "";
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: block;
+    height: var(--fade-above, 0px);
+    margin-bottom: calc(-1 * var(--fade-above, 0px));
+    background: linear-gradient(to bottom, var(--bg), transparent);
+    pointer-events: none;
+  }
+  .booking__foot::before {
+    content: "";
+    position: absolute;
+    inset: auto 0 calc(100% + 1px);
+    height: var(--fade-below, 0px);
+    background: linear-gradient(to top, var(--bg), transparent);
+    pointer-events: none;
   }
   @container (min-width: 520px) {
     .booking__actions {

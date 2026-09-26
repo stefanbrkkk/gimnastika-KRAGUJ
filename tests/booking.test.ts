@@ -18,12 +18,24 @@ import {
   hasErrors,
   isPlausiblePhone,
   matchGroup,
+  landedScrollBy,
   primaryChannel,
+  scrollEdgeFades,
   sendOrder,
   validateBooking,
   type BookingValues,
 } from "@/lib/booking";
-import { buildFlight, flightTiming, progressAt, saltoClock, timeAt } from "@/components/sections/contact/doskok-path";
+import {
+  buildFlight,
+  convexOverlap,
+  flightTiming,
+  progressAt,
+  saltoClock,
+  spansWhere,
+  timeAt,
+  turnedBox,
+  withinPolygon,
+} from "@/components/sections/contact/doskok-path";
 
 const FULL: BookingValues = {
   parent: "Ana Petrović",
@@ -301,6 +313,62 @@ describe("device-dependent primary action", () => {
   });
 });
 
+describe("scroll-edge fades of the fields (CV4-01)", () => {
+  // 390×844 after a hand-off: 512 px of fields (20 px padding at each end) in a 483 px scroller.
+  const box = { scrollTop: 0, clientHeight: 483, scrollHeight: 512, paddingTop: 20, paddingBottom: 20 };
+
+  it("fades the lower edge only as far as content is cut there (the privacy line's 9 px)", () => {
+    expect(scrollEdgeFades(box, 20)).toEqual({ above: 0, below: 9 });
+  });
+
+  it("at the end of the scroll: no lower fade, and the upper edge fades the 8 px of the first label under the head", () => {
+    expect(scrollEdgeFades({ ...box, scrollTop: 29 }, 20)).toEqual({ above: 9, below: 0 });
+    expect(scrollEdgeFades({ ...box, scrollTop: 28 }, 20)).toEqual({ above: 8, below: 0 });
+  });
+
+  it("an overflow of padding alone cuts nothing, so nothing fades (1280×720 on open: 6 px)", () => {
+    expect(scrollEdgeFades({ scrollTop: 0, clientHeight: 395, scrollHeight: 401, paddingTop: 24, paddingBottom: 20 }, 20)).toEqual({ above: 0, below: 0 });
+  });
+
+  it("never fades more than the maximum, and never below 0 (content that fits, overscroll)", () => {
+    expect(scrollEdgeFades({ ...box, clientHeight: 208, scrollHeight: 605, scrollTop: 150 }, 20)).toEqual({ above: 20, below: 20 });
+    expect(scrollEdgeFades({ ...box, clientHeight: 512 }, 20)).toEqual({ above: 0, below: 0 });
+    expect(scrollEdgeFades({ ...box, scrollTop: -12 }, 20)).toEqual({ above: 0, below: 20 });
+  });
+});
+
+describe("landed scroll of the fields (CV4-01)", () => {
+  // 390×844 after a hand-off: 472 px of content in a 483 px view — it all fits, 11 px to spare.
+  const box = { scrollTop: 0, clientHeight: 483, scrollHeight: 512, paddingTop: 20, paddingBottom: 20 };
+
+  it("when everything fits, shares the spare room above and below: first label and privacy line both whole", () => {
+    expect(landedScrollBy(box)).toBe(15);
+    // Nothing is cut at either edge, so nothing fades.
+    expect(scrollEdgeFades({ ...box, scrollTop: 15 }, 20)).toEqual({ above: 0, below: 0 });
+  });
+
+  it("when it does not fit (360×800), scrolls to the end: the privacy line keeps the padding as air", () => {
+    const small = { ...box, clientHeight: 420 };
+    expect(landedScrollBy(small)).toBe(92); // = scrollHeight − clientHeight
+    expect(scrollEdgeFades({ ...small, scrollTop: 92 }, 20)).toEqual({ above: 20, below: 0 });
+  });
+
+  it("does not scroll when the privacy line already stands whole with its air, and never scrolls back up", () => {
+    expect(landedScrollBy({ ...box, clientHeight: 520 })).toBe(0);
+    expect(landedScrollBy({ ...box, scrollTop: 29 })).toBe(0);
+  });
+
+  it("short viewports (844×390): the whole sheet scrolls past the head until the privacy line is whole above the sticky footer", () => {
+    // The view is the sheet's top edge → the footer's top; the head (56 px) is still above the body.
+    const sheet = { scrollTop: -56, clientHeight: 177, scrollHeight: 400, paddingTop: 20, paddingBottom: 20 };
+    const by = landedScrollBy(sheet);
+    expect(by).toBe(56 + 400 - 177);
+    const after = { ...sheet, scrollTop: sheet.scrollTop + by };
+    expect(scrollEdgeFades(after, 20)).toEqual({ above: 20, below: 0 }); // the labels under the top edge fade
+    expect(scrollEdgeFades(sheet, 20)).toEqual({ above: 0, below: 20 }); // before: the cut labels fade above the footer
+  });
+});
+
 describe("helpers", () => {
   it("clean() trims and collapses whitespace", () => {
     expect(clean("  a \n\t b  ")).toBe("a b");
@@ -396,5 +464,59 @@ describe("doskok salto clock (CV3-02)", () => {
     // The open-out never loses more than half its time, even for an impossible tuck.
     const g = timeAt(timing, sG1);
     expect(saltoClock(timing, sDrop, sG1, 0.6, 0.8).g1).toBeCloseTo(g + (land - g) / 2, 9);
+  });
+});
+
+/**
+ * The S11 finale's keyline (MD4-01): on only while the flier's turned ink box overlaps the
+ * leotard sash's band, measured with a separating-axis test against the band polygon
+ * (1024 px sash: 260 × 138 px box, 88 px band, edges at 28°).
+ */
+describe("doskok keyline over the sash band (MD4-01)", () => {
+  const band = [
+    { x: 0, y: 0 },
+    { x: 88, y: 0 },
+    { x: 260, y: 91.45 },
+    { x: 260, y: 138.23 },
+  ];
+
+  it("turns a box about its centre like CSS rotate (y down)", () => {
+    const c = turnedBox({ x: 10, y: 20 }, 40, 10, 0);
+    expect(c).toEqual([
+      { x: -10, y: 15 },
+      { x: 30, y: 15 },
+      { x: 30, y: 25 },
+      { x: -10, y: 25 },
+    ]);
+    const q = turnedBox({ x: 0, y: 0 }, 40, 10, 90);
+    expect(q[0]!.x).toBeCloseTo(5, 9); // (−20, −5) → (5, −20)
+    expect(q[0]!.y).toBeCloseTo(-20, 9);
+  });
+
+  it("on over the band, off above the slab (the navy-800 title band) and in the navy corners beside the band", () => {
+    expect(convexOverlap(turnedBox({ x: 130, y: 45 }, 40, 30, -150), band)).toBe(true); // head down in the stripe
+    expect(convexOverlap(turnedBox({ x: 150, y: -30 }, 60, 40, 0), band)).toBe(false); // take-off, above the slab
+    expect(convexOverlap(turnedBox({ x: 40, y: 100 }, 30, 20, 0), band)).toBe(false); // under the lower edge (ghost trail side)
+    expect(convexOverlap(turnedBox({ x: 240, y: 20 }, 20, 10, 0), band)).toBe(false); // the navy corner above the band
+    // …although that last box lies inside the band's bounding box: only the diagonal axis separates them.
+    expect(convexOverlap(turnedBox({ x: 240, y: 20 }, 20, 10, 0), turnedBox({ x: 130, y: 69 }, 260, 138, 0))).toBe(true);
+  });
+
+  it("tests her ink points against the band, with a margin, in either winding", () => {
+    expect(withinPolygon({ x: 130, y: 45 }, band)).toBe(true);
+    expect(withinPolygon({ x: 130, y: 45 }, [...band].reverse())).toBe(true);
+    // A hand 3 px above the band's upper edge (28°: 3 px off the edge along its normal).
+    const edge = { x: 174, y: 45.7 }; // on the upper edge (88,0)→(260,91.45)
+    const n = { x: 0.4695, y: -0.8829 }; // its outward normal (towards the navy corner)
+    const hand = { x: edge.x + 3 * n.x, y: edge.y + 3 * n.y };
+    expect(withinPolygon(hand, band)).toBe(false);
+    expect(withinPolygon(hand, band, 3.5)).toBe(true);
+    expect(withinPolygon({ x: 40, y: 100 }, band, 3.5)).toBe(false); // on the ghost trail's side
+  });
+
+  it("collects the time spans in which a test holds, including one still open at the end", () => {
+    expect(spansWhere((t) => t >= 0.4 && t <= 0.6, 0, 1, 0.25)).toEqual([[0.5, 0.75]]);
+    expect(spansWhere((t) => t >= 0.9, 0, 1, 0.25)).toEqual([[1, 1]]);
+    expect(spansWhere(() => false, 0, 1, 0.25)).toEqual([]);
   });
 });

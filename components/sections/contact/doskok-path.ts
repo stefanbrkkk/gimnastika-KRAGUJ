@@ -276,3 +276,83 @@ export function keyed(keys: readonly (readonly [number, number])[], t: number): 
   }
   return keys[keys.length - 1]![1];
 }
+
+/** Corners of a w×h box centred on `c`, turned by `deg` (screen coordinates, y down: CSS rotate). */
+export function turnedBox(c: Pt, w: number, h: number, deg: number): Pt[] {
+  const a = (deg * Math.PI) / 180;
+  const cos = Math.cos(a);
+  const sin = Math.sin(a);
+  return [
+    [-w / 2, -h / 2],
+    [w / 2, -h / 2],
+    [w / 2, h / 2],
+    [-w / 2, h / 2],
+  ].map(([x, y]) => ({ x: c.x + x! * cos - y! * sin, y: c.y + x! * sin + y! * cos }));
+}
+
+/** Whether two convex polygons (corner lists, either winding) overlap: no separating axis. */
+export function convexOverlap(a: readonly Pt[], b: readonly Pt[]): boolean {
+  for (const poly of [a, b]) {
+    for (let i = 0; i < poly.length; i++) {
+      const p = poly[i]!;
+      const q = poly[(i + 1) % poly.length]!;
+      const nx = q.y - p.y;
+      const ny = p.x - q.x;
+      if (nx === 0 && ny === 0) continue;
+      let aMin = Infinity;
+      let aMax = -Infinity;
+      for (const v of a) {
+        const d = v.x * nx + v.y * ny;
+        aMin = Math.min(aMin, d);
+        aMax = Math.max(aMax, d);
+      }
+      let bMin = Infinity;
+      let bMax = -Infinity;
+      for (const v of b) {
+        const d = v.x * nx + v.y * ny;
+        bMin = Math.min(bMin, d);
+        bMax = Math.max(bMax, d);
+      }
+      if (aMax < bMin || bMax < aMin) return false;
+    }
+  }
+  return true;
+}
+
+/** The [start, end] time spans in which `hit(t)` holds, sampled every `step` from t0 to t1. */
+export function spansWhere(hit: (t: number) => boolean, t0: number, t1: number, step: number): [number, number][] {
+  const out: [number, number][] = [];
+  let open: number | null = null;
+  const n = Math.max(1, Math.ceil((t1 - t0) / step));
+  for (let i = 0; i <= n; i++) {
+    const t = Math.min(t1, t0 + i * step);
+    const on = hit(t);
+    if (on && open === null) open = t;
+    if (!on && open !== null) {
+      out.push([open, t]);
+      open = null;
+    }
+  }
+  if (open !== null) out.push([open, t1]);
+  return out;
+}
+
+/** Whether `p` lies inside a convex polygon (either winding) or within `margin` px of it. */
+export function withinPolygon(p: Pt, poly: readonly Pt[], margin = 0): boolean {
+  let area = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i]!;
+    const b = poly[(i + 1) % poly.length]!;
+    area += a.x * b.y - b.x * a.y;
+  }
+  const sign = area >= 0 ? 1 : -1;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i]!;
+    const b = poly[(i + 1) % poly.length]!;
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    if (len === 0) continue;
+    const side = ((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x)) / len;
+    if (side * sign < -margin) return false;
+  }
+  return true;
+}

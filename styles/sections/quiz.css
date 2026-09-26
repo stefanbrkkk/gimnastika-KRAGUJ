@@ -129,6 +129,7 @@ html:not(.js) .quiz-app {
 .quiz-band__edge {
   position: relative;
   z-index: 1;
+  container: qb-edge / inline-size;
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -151,6 +152,16 @@ html:not(.js) .quiz-app {
 }
 .quiz-band__code {
   flex: none;
+}
+/* QP4-04: the longest caption („18 god. · Treniralo je rekreativno“, ≈211px) plus the 12px
+   gap and „KR-Q“ (≈35px) needs ≈258px; a 320px screen gives the edge 252px. Instead of
+   wrapping (and growing the strip by a line while she is in the air), a narrow strip drops
+   the purely decorative frame code while the caption carries two answers. From a 340px
+   screen the edge has ≥272px and keeps it. */
+@container qb-edge (width < 270px) {
+  .quiz-band__edge[data-parts="2"] .quiz-band__code {
+    display: none;
+  }
 }
 .quiz-band__svg,
 .quiz-band__frames {

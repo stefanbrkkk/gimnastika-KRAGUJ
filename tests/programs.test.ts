@@ -463,7 +463,254 @@ describe("programs: the filter Flip ends on the final layout (QP3-01)", async ()
   it("takes leavers out of flow and tweens width/height (never scale), so no card snaps after the landing", () => {
     expect(call).toMatch(/absoluteOnLeave:\s*true/);
     expect(call).toMatch(/scale:\s*false/);
-    expect(call).toMatch(/duration:\s*DUR\.base/);
-    expect(call).toMatch(/ease:\s*EASE\.stick/);
+    // The ≥1024 sheet keeps the house flight; the phone/tablet row glides on its bounded ease (QP4-01).
+    expect(call).toMatch(/duration: row \? glideTime\(reach, DUR\.base, DUR\.reveal\) : DUR\.base,/);
+    expect(call).toMatch(/ease: row \? glideEase : EASE\.stick,/);
+  });
+});
+
+/* --------------------------------------------------------------------------------------------
+   Design review round 4
+   -------------------------------------------------------------------------------------------- */
+
+describe("programs: the filter glides the row to its rest (QP4-01)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { restTarget } = await import("@/components/sections/programs/pager");
+  const src = readFileSync("components/sections/programs/programs-motion.ts", "utf8");
+  const flip = src.slice(src.indexOf("export async function flipFilter"));
+  const browser = readFileSync("components/sections/programs/ProgramsBrowser.tsx", "utf8");
+
+  it("rests on the first kept program, clamped to the end of the FINAL row (rows measured in the browser)", () => {
+    // 390×844: photo 20–268, cards 318 wide, 12px gaps, 20px pads. „3–8 godina“ keeps the photo + Mlađa (280).
+    expect(restTarget(260, 280 + 318 + 20, 390)).toBe(228);
+    // „Od 8 godina“: Starija (then C, A·B) opens the row.
+    expect(restTarget(260, 940 + 318 + 20, 390)).toBe(260);
+    // 320×640 „3–8 godina“: Mlađa at 237, 260 wide.
+    expect(restTarget(217, 237 + 260 + 20, 320)).toBe(197);
+    // 768×1024 „3–8 godina“: the photo and Mlađa fit, so the row does not move at all.
+    expect(restTarget(264, 296 + 320 + 32, 768)).toBe(0);
+    // 844×390 „Takmičarke“: C's snap start would pass the row's end.
+    expect(restTarget(264, 632 + 320 + 32, 844)).toBe(140);
+    // „Sve“ opens on the photo.
+    expect(restTarget(null, 1600 + 318 + 20, 390)).toBe(0);
+  });
+
+  it("never jumps the row inside apply(): snapping is off from before the layout changes until both flights land", () => {
+    const apply = browser.slice(browser.indexOf("const apply = (fading: boolean) => {"), browser.indexOf("const settle = () =>"));
+    expect(apply).toMatch(/return restOf\(strip,/);
+    expect(apply).not.toMatch(/scrollTo|scrollLeft/);
+    const snapOff = flip.indexOf('strip.style.scrollSnapType = "none"');
+    expect(snapOff).toBeGreaterThan(-1);
+    expect(snapOff).toBeLessThan(flip.indexOf("const rest = apply()"));
+    expect(flip).toMatch(/const land = \(\) => \{\s*if \(--flying\) return;\s*strip\.style\.removeProperty\("scroll-snap-type"\);/);
+  });
+
+  it("puts the row at its rest once, while every frame is held where it stood on screen (bounds, not offsets)", () => {
+    const at = (needle: string) => flip.indexOf(needle);
+    expect(flip).toMatch(/Flip\.getState\(items as HTMLElement\[\], \{ simple: row \}\)/);
+    expect(at('strip.scrollTo({ left: rest, behavior: "instant" })')).toBeGreaterThan(at("const rest = apply()"));
+    expect(at('strip.scrollTo({ left: rest, behavior: "instant" })')).toBeLessThan(at("Flip.from(state, {"));
+    expect(flip).toMatch(/Flip\.from\(state, \{[^]*?simple: row,/);
+    expect(flip).not.toMatch(/scrollLeft: rest/); // no second, scroll-driven motion
+  });
+
+  it("hides a hopper for 60ms on each side of its move, so no frame shows it crossing the row", () => {
+    expect(src).toMatch(/const HOP_OFF = 0\.14;\s*const HOP_MOVE = 0\.2;\s*const HOP_ON = 0\.26;/);
+    expect(flip).toMatch(/tl\.to\(el, \{ opacity: 0, duration: HOP_OFF, ease: "none" \}, 0\)/);
+    expect(flip).toMatch(/\.set\(el, \{ x: 0, y: on \? drop : 0, scale: 1, opacity: on \? 0 : 1, zIndex: restZ\.get\(el\) \}, HOP_MOVE\)/);
+    expect(flip).toMatch(/if \(on\) arrive\(tl, el, HOP_ON, drop, false\)/);
+  });
+
+  it("lets cards that land in view draw or perform only after the flight has landed", () => {
+    expect(flip).toMatch(/flightUntil = performance\.now\(\) \+ Math\.max\(flip\.duration\(\), hop\?\.duration\(\) \?\? 0\) \* 1000;/);
+    expect(src).toMatch(/if \(flying > 0\) later\(drawBatch, flying\);/);
+    expect(src).toMatch(/if \(flying\) later\(\(\) => perform\(card, delay\), flying\);/);
+  });
+
+  it("takes off on the next tick, so the first frame is the take-off and not ≈50ms (most of a stick flight) in", () => {
+    expect(flip).toMatch(/Flip\.from\(state, \{[^]*?paused: true,/);
+    expect(flip).toMatch(/gsap\.ticker\.add\(go, true\)/);
+  });
+});
+
+describe("programs: the row's glide is bounded; farther moves hop (QP4-01, flight.ts)", async () => {
+  const { GLIDE_PEAK, GLIDE_SPEED, glideEase, glideReach, glideTime, planRow } = await import("@/components/sections/programs/flight");
+  const { DUR } = await import("@/lib/motion-env");
+  const span = (left: number, width: number, top = 200) => ({ left, right: left + width, top });
+
+  it("eases from 0 to 1 without overshoot, leaves at its peak slope and brakes onto the mark", () => {
+    expect(glideEase(0)).toBe(0);
+    expect(glideEase(1)).toBe(1);
+    let prev = 0;
+    let steepest = 0;
+    for (let i = 1; i <= 1000; i++) {
+      const p = i / 1000;
+      const v = glideEase(p);
+      expect(v).toBeGreaterThanOrEqual(prev);
+      expect(v).toBeLessThanOrEqual(1);
+      steepest = Math.max(steepest, (v - prev) * 1000);
+      prev = v;
+    }
+    expect(steepest).toBeLessThanOrEqual(GLIDE_PEAK + 1e-6);
+    expect((glideEase(1) - glideEase(0.999)) * 1000).toBeLessThan(0.01); // slope 0 at the landing
+  });
+
+  it("never moves a gliding frame more than 24px in a 30ms frame, from one card to one row frame", () => {
+    const reach = glideReach(DUR.reveal);
+    for (const d of [20, 120, 197, 228, 260, 300, 332, 336, reach]) {
+      const t = glideTime(d, DUR.base, DUR.reveal);
+      const peak = (GLIDE_PEAK * d) / (t * 1000); // px per ms at the take-off
+      expect(peak).toBeLessThanOrEqual(GLIDE_SPEED + 1e-9);
+      expect(peak * 30).toBeLessThanOrEqual(24);
+      expect(t).toBeGreaterThanOrEqual(DUR.base);
+      expect(t).toBeLessThanOrEqual(DUR.reveal);
+    }
+    // One frame of the row (measured: 197–336px from 320 to 844 wide) still glides.
+    expect(reach).toBeGreaterThanOrEqual(336);
+  });
+
+  it("390×844 „Takmičarke“ → „Sve“: the photo glides back in; C and A·B take off in place (their rest is off screen)", () => {
+    const plan = planRow(
+      [
+        { from: span(-240, 248), to: span(20, 248) }, // photo
+        { from: span(20, 318), to: span(940, 318) }, // C
+        { from: span(350, 318), to: span(1270, 318) }, // A·B, its left edge in view
+      ],
+      0,
+      390,
+      glideReach(DUR.reveal),
+    );
+    expect(plan.reach).toBe(260);
+    expect(plan.hops).toEqual([
+      { index: 1, dx: 920, dy: 0, off: true, on: false },
+      { index: 2, dx: 920, dy: 0, off: true, on: false },
+    ]);
+  });
+
+  it("390×844 „Sve“ → „3–8 godina“: the photo and Mlađa glide one frame over together", () => {
+    const plan = planRow(
+      [
+        { from: span(280, 318), to: span(52, 318) }, // Mlađa
+        { from: span(20, 248), to: span(-208, 248) }, // photo
+      ],
+      0,
+      390,
+      glideReach(DUR.reveal),
+    );
+    expect(plan).toEqual({ hops: [], reach: 228 });
+  });
+
+  it("320×640 „Sve“ → „Od 8 godina“: Starija and C land from off screen, the photo glides out, A·B's unseen move does not slow it", () => {
+    const plan = planRow(
+      [
+        { from: span(509, 260), to: span(20, 260) }, // Starija
+        { from: span(781, 260), to: span(292, 260) }, // C
+        { from: span(1053, 260), to: span(564, 260) }, // A·B: off screen all the way
+        { from: span(20, 205), to: span(-197, 205) }, // photo
+      ],
+      0,
+      320,
+      glideReach(DUR.reveal),
+    );
+    expect(plan).toEqual({
+      hops: [
+        { index: 0, dx: -489, dy: 0, off: false, on: true },
+        { index: 1, dx: -489, dy: 0, off: false, on: true },
+      ],
+      reach: 217,
+    });
+  });
+
+  it("844×390 swiped to the end, „Sve“ → „Takmičarke“: C and A·B glide one frame over; the photo's edge lands", () => {
+    const plan = planRow(
+      [
+        { from: span(-180, 320), to: span(156, 320) }, // C
+        { from: span(156, 320), to: span(492, 320) }, // A·B
+        { from: span(-1116, 248), to: span(-108, 248) }, // photo: 140px of it in view at the rest
+      ],
+      0,
+      844,
+      glideReach(DUR.reveal),
+    );
+    expect(plan).toEqual({ hops: [{ index: 2, dx: 1008, dy: 0, off: false, on: true }], reach: 336 });
+  });
+});
+
+describe("programs: leavers take off from where they stand (QP4-05)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync("components/sections/programs/programs-motion.ts", "utf8");
+  const leave = src.slice(src.indexOf("onLeave: (els) =>"), src.indexOf("onComplete: land"));
+
+  it("lifts 8px relative to Flip's placement of the absolute leaver, never to an absolute y", () => {
+    expect(leave).toMatch(/y: "-=8", scale: 0\.97, duration: DUR\.fast, ease: EASE\.takeoff/);
+    expect(leave).not.toMatch(/y: -8\b/);
+  });
+});
+
+describe("programs: detail sheet (QP4-02, QP4-03)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { createElement } = await import("react");
+  const { renderToStaticMarkup } = await import("react-dom/server");
+  const { default: ProgramSheet } = await import("@/components/sections/programs/ProgramSheet");
+  const css = readFileSync("styles/sections/programs.css", "utf8");
+  const block = (head: string) => {
+    const start = css.indexOf(`${head} {`);
+    if (start < 0) return "";
+    let depth = 0;
+    for (let i = css.indexOf("{", start); i < css.length; i++) {
+      if (css[i] === "{") depth++;
+      else if (css[i] === "}" && --depth === 0) return css.slice(start, i + 1);
+    }
+    return "";
+  };
+  const html = renderToStaticMarkup(createElement(ProgramSheet, { programId: "c-program", card: {} as HTMLElement, onClosed: () => {} }));
+
+  it("keeps the way out in view: the close is the panel's first child and sticky in its scroller", () => {
+    expect(html).toMatch(/<div class="ps-panel"><button type="button" class="ps-close" data-sheet-close="" aria-label="[^"]+">/);
+    expect(css).toMatch(/\.ps-close \{\s*position: sticky;\s*top: 10px;/);
+  });
+
+  it("gives the scene its apparatus and a size-container box", () => {
+    expect(html).toMatch(/<div class="ps-plate" data-apparatus="razboj"><span class="ps-scene"><svg class="pi ps-icon"/);
+    expect(css).toMatch(/\.ps-scene \{[^}]*container: ps-scene \/ size;/);
+  });
+
+  it("lays a landscape phone out in two columns: scene over CTAs left, the text alone scrolling right", () => {
+    const land = block("@media (max-height: 480px) and (min-width: 640px)");
+    expect(land).toMatch(/\.ps-inner \{[^}]*display: grid;[^}]*grid-template-columns: minmax\(0, 2fr\) minmax\(0, 3fr\);/);
+    expect(land).toMatch(/grid-template-areas:\s*"plate body"\s*"actions body";/);
+    expect(land).toMatch(/\.ps-body \{[^}]*grid-area: body;[^}]*overflow: hidden auto;/);
+    expect(land).toMatch(/\.ps-actions \{[^}]*grid-area: actions;[^}]*position: static;/);
+    // The text fades out 16px at the column's foot instead of being cut by the CTAs' rule.
+    expect(land).toMatch(/\.ps-body::after \{[^}]*position: sticky;[^}]*bottom: 0;[^}]*height: 16px;/);
+    // The gymnast and the bib stay; only the week rows' day letters (and, ≤380px tall, the rows) give way.
+    const scene = land.replace(/\.ps-sched \.pg-week(?:__label)? \{[^}]*\}/g, "");
+    expect(scene).not.toMatch(/pi-fig-x|pc-bib|display: none/);
+    expect(land).toMatch(/\.ps-sched \.pg-week__label \{\s*display: none;/);
+  });
+
+  it("keeps the CTAs outside the text's scroller, after it", () => {
+    expect(html).toMatch(/<\/section><\/div><div class="ps-actions"><a href="#kontakt" data-booking=/);
+  });
+
+  it("keeps the compact plate only for short AND narrow viewports (400% zoom)", () => {
+    expect(css).not.toMatch(/@media \(max-height: 480px\) \{/);
+    expect(block("@media (max-height: 480px) and (max-width: 639.98px)")).toMatch(/\.ps-icon \.pi-fig-x/);
+  });
+});
+
+describe("programs: the rail's flier never leaves its track (round 4 regression)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const css = readFileSync("styles/sections/programs.css", "utf8");
+  const browser = readFileSync("components/sections/programs/ProgramsBrowser.tsx", "utf8");
+
+  it("places the flier on its cell's centre in track widths (cqw), never in % of a width that changes with the dot count", () => {
+    expect(css).toMatch(/\.pg-rail__track \{[^}]*container: pg-track \/ inline-size;[^}]*overflow-x: clip;/);
+    expect(css).toMatch(/\.pg-rail__flier \{[^}]*width: 0;[^}]*transform: translateX\(calc\(\(var\(--i\) \+ 0\.5\) \* 100cqw \/ var\(--n\)\)\);/);
+    expect(css).not.toMatch(/translateX\(calc\(var\(--i\) \* 100%\)\)/);
+  });
+
+  it("clamps the flier's cell to the dots the rail shows", () => {
+    expect(browser).toMatch(/"--i": Math\.min\(page\.i, railN - 1\), "--n": railN/);
   });
 });

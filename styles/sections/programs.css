@@ -1379,6 +1379,9 @@ html.js .program-card {
   min-width: 0;
   max-width: 360px;
   margin-inline: auto;
+  /* The flier moves in track widths (cqw), and nothing it does may widen the page. */
+  container: pg-track / inline-size;
+  overflow-x: clip;
 }
 
 /* The mat line, from the first dot to the last. */
@@ -1430,15 +1433,18 @@ html.js .program-card {
   scale: 1;
 }
 
-/* The flier is one dot cell wide and moves by whole cells (translate % = its own width), so it
-   never reaches past the track (no page overflow). */
+/* The flier is a point on the active cell's centre, placed in track widths (cqw). It used to be
+   one cell wide and move by its own width (%): when a filter changed the dot count, the width
+   changed at once and the transition started from the old cell index times the NEW cell width —
+   past the track's end, widening the page for a moment (768px, row swiped to its end). A length
+   in cqw is absolute, so the hop runs from one real cell centre to the other. */
 .pg-rail__flier {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
-  width: calc(100% / var(--n));
-  transform: translateX(calc(var(--i) * 100%));
+  width: 0;
+  transform: translateX(calc((var(--i) + 0.5) * 100cqw / var(--n)));
   transition: transform var(--dur-base) var(--ease-flight);
   pointer-events: none;
 }
@@ -1446,7 +1452,7 @@ html.js .program-card {
 .pg-rail__leap {
   position: absolute;
   top: 2px;
-  left: 50%;
+  left: 0;
   width: 30px;
   height: 20px;
   margin-left: -13px;
@@ -1586,10 +1592,19 @@ html.js .program-card {
   border-radius: calc(var(--radius-xl) - 6px);
 }
 
-.ps-icon {
-  --sw: 1.02px; /* ≈2.8 CSS px at 132px */
+/* The scene's box: --icon wide and tall, and a size container, so the landscape sheet (below)
+   can step the drawing's line weight with its real size, as the cards do. */
+.ps-scene {
+  flex: none;
   width: var(--icon);
   height: var(--icon);
+  container: ps-scene / size;
+}
+
+.ps-icon {
+  --sw: 1.02px; /* ≈2.8 CSS px at 132px */
+  width: 100%;
+  height: 100%;
 }
 
 .pi-fig {
@@ -1605,19 +1620,25 @@ html.js .program-card {
   transform-box: view-box;
 }
 
+/* Close (QP4-03): the panel's first child, sticky in its scroller, so it stays in view while
+   the schedule is read on a short phone. At rest it sits on the plate's top-right corner (the
+   panel's 6px padding + 10px); the −58px bottom margin (48 + 10) gives the plate its place back.
+   The soft shadow separates it from the white body text it floats over once scrolled. */
 .ps-close {
-  position: absolute;
+  position: sticky;
   top: 10px;
-  right: 10px;
-  z-index: 1;
+  z-index: 2;
   display: grid;
   place-items: center;
   width: 48px;
   height: 48px;
+  margin: 10px 10px -58px auto;
   border-radius: var(--radius-full);
   background: var(--color-white);
   color: var(--color-navy-900);
-  box-shadow: 0 0 0 1px rgba(17, 45, 95, 0.12);
+  box-shadow:
+    0 0 0 1px rgba(17, 45, 95, 0.12),
+    0 2px 10px rgba(17, 45, 95, 0.18);
   cursor: pointer;
 }
 
@@ -1724,13 +1745,14 @@ html.js .program-card {
   }
 }
 
+/* No bottom padding: the CTA row follows the text (.ps-actions, outside the body since QP4-02). */
 .ps-body {
-  padding: 22px 16px 16px;
+  padding: 22px 16px 0;
 }
 
 @media (min-width: 640px) {
   .ps-body {
-    padding: 26px 26px 22px;
+    padding: 26px 26px 0;
   }
 }
 
@@ -1781,7 +1803,7 @@ html.js .program-card {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin: 20px -16px -16px;
+  margin-top: 20px;
   padding: 12px 16px 16px;
   background: var(--color-white);
   /* The white copy 40px lower covers the panel's bottom padding, which the sticky row does
@@ -1797,14 +1819,14 @@ html.js .program-card {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
-    margin: 24px -26px -22px;
+    margin-top: 24px;
     padding: 14px 26px 22px;
   }
 }
 
-/* Short viewports (landscape phones, 400% zoom): a compact plate leaves room to read; the
-   scene keeps only the drawing. */
-@media (max-height: 480px) {
+/* Short and narrow (400% zoom): a compact plate leaves room to read; the scene keeps only the
+   drawing, and the stacked CTAs follow the text instead of covering it. */
+@media (max-height: 480px) and (max-width: 639.98px) {
   .ps-plate {
     --icon: 40px;
     --pad-b: 8px;
@@ -1820,13 +1842,158 @@ html.js .program-card {
   .ps-icon {
     --sw: 2.5px; /* ≈2.1 CSS px at 40px, so the small drawing does not go hairline-thin */
   }
-}
-
-/* …and on narrow ones the stacked CTAs follow the text instead of covering it (from 640px
-   they are one short row and stay pinned). */
-@media (max-height: 480px) and (max-width: 639.98px) {
   .ps-actions {
     position: static;
+  }
+}
+
+/* Landscape phones (QP4-02): two columns instead of a shrunken plate. Left: the scene, gymnast
+   and bib included, with both CTAs stacked under it — the program card's own order, plate over
+   CTAs. Right: the text alone, the whole panel height, scrolling under a 16px fade, so the title,
+   the description and the first times are in view at rest (the CTAs pinned under the text left it
+   ≈200px and hid every time). The panel itself no longer scrolls, so the close stays put on the
+   plate's top-right corner (40% of the row: 2fr of 5fr), clear of the title. */
+@media (max-height: 480px) and (min-width: 640px) {
+  .program-sheet[open] {
+    padding-block: 16px;
+  }
+  .ps-panel {
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    overflow: hidden;
+  }
+  .ps-close {
+    flex: none;
+    margin-right: calc(60% + 10px);
+  }
+  .ps-inner {
+    display: grid;
+    flex: 1 1 auto;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "plate body"
+      "actions body";
+    min-height: 0;
+  }
+  /* The plate is a size container: the scene is 60% of its height, within the width its pose
+     needs, so she never leaves the print and nothing touches the bib. --fit = the drawing's
+     reach in units from the content box's left edge (cq units are the plate's content box):
+     the pose may run into the 20px right pad up to 8px from the edge; in the bib's band (the
+     lowest ≈10 units) the apparatus stays ≥8px clear of the bib. */
+  .ps-plate {
+    --fit: calc((100cqw + 12px) * 48 / 81.5); /* bars: she dismounts to 81.5 units */
+    --icon: clamp(96px, min(60cqh, var(--fit)), 176px);
+    grid-area: plate;
+    height: auto;
+    min-height: 0;
+    container-type: size;
+  }
+  .ps-plate[data-apparatus="preskok"] {
+    --fit: calc((100cqw + 12px) * 48 / 83.5); /* post-flight to 83.5 units */
+  }
+  .ps-plate[data-apparatus="aerobik"] {
+    --fit: calc((100cqw + 12px) * 48 / 78); /* the partner ends at 78 units */
+  }
+  .ps-plate[data-apparatus="parter"] {
+    --fit: calc((100cqw - 81px) * 48 / 40.6); /* the carpet's edge (40.6 units) beside the 73px „3–8“ */
+  }
+  .ps-plate[data-apparatus="greda"] {
+    --fit: calc((100cqw - 66px) * 48 / 42); /* the foot plate (42 units) beside the 58px „8+“ */
+  }
+  .ps-body {
+    grid-area: body;
+    min-height: 0;
+    padding: 18px 22px 0;
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+  }
+  /* The text fades out at the column's foot (a scroll hint, never a hard cut): the body's last
+     box, 16px below the text and sticky at the scrollport's bottom edge. At the end of the text
+     it lies under the last line, over nothing. */
+  .ps-body::after {
+    content: "";
+    position: sticky;
+    bottom: 0;
+    display: block;
+    height: 16px;
+    background: linear-gradient(to bottom, rgb(255 255 255 / 0), var(--color-white));
+    pointer-events: none;
+  }
+  /* Sized for the ≈365px column, not the viewport width; the rhythm is tightened so the first
+     times clear the fade at 844×390 (C: two groups, three blocks). */
+  .ps-title {
+    font-size: 1.5rem;
+  }
+  .ps-desc {
+    margin-top: 10px;
+    font-size: 1rem;
+  }
+  .ps-schedule {
+    margin-top: 16px;
+    padding-top: 14px;
+  }
+  .ps-schedule__title {
+    margin-bottom: 10px;
+  }
+  /* The week rows keep their dots and drop the day letters: the day line right under each row
+     names the days. On the shortest phones (≤380px: 640×360, 667×375) the rows give way to the
+     times altogether. */
+  .ps-sched .pg-week {
+    margin-bottom: 10px;
+  }
+  .ps-sched .pg-week__label {
+    display: none;
+  }
+  @media (max-height: 380px) {
+    .ps-sched .pg-week {
+      display: none;
+    }
+  }
+  /* Both CTAs under the scene, one line each (≥226px wide at 640px: the labels need ≈200). */
+  .ps-actions {
+    grid-area: actions;
+    position: static;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 10px 0 0;
+    background: none;
+    box-shadow: none;
+  }
+  .ps-actions .btn {
+    padding-inline: 12px;
+  }
+  /* The line weight steps with the drawing's real size (the cards' steps): 2.7–3.0 CSS px. */
+  .ps-icon {
+    --sw: 1.2px;
+  }
+  @container ps-scene (min-width: 120px) {
+    .ps-icon {
+      --sw: 1.09px;
+    }
+  }
+  @container ps-scene (min-width: 132px) {
+    .ps-icon {
+      --sw: 1px;
+    }
+  }
+  @container ps-scene (min-width: 144px) {
+    .ps-icon {
+      --sw: 0.92px;
+    }
+  }
+  @container ps-scene (min-width: 156px) {
+    .ps-icon {
+      --sw: 0.84px;
+    }
+  }
+  @container ps-scene (min-width: 171px) {
+    .ps-icon {
+      --sw: 0.78px;
+    }
   }
 }
 

@@ -27,7 +27,10 @@
  *
  * gutterLeg() splits off the route's first stretch — the mat carried on and
  * folded down the right margin — which is drawn as the floor (the mat's
- * weight, a sharp fold, legTicks() every 96 px); the rest is the spine.
+ * weight, a sharp fold, legTicks() every 96 px); laneLeg() does the same for
+ * the drop beside the next title (sharp at both corners, laneTicks()); the
+ * rest is the spine. No one runs a drop: legs steeper than 60° (STEEP) are
+ * where the second exposure is out of sight.
  */
 
 export type Pt = readonly [number, number];
@@ -292,10 +295,70 @@ export function gutterLeg(route: readonly Pt[], r: number, steps = 8): GutterLeg
  */
 export function legTicks(leg: GutterLeg, every = 96, clear = 12): number[] {
   if (!leg.fold) return [];
-  const endY = leg.pts[leg.pts.length - 1]![1];
+  return ticksDown(leg.fold[1], leg.pts[leg.pts.length - 1]![1], every, clear);
+}
+
+/** A tick every `every` px below `top`, none within `clear` px of `end`. */
+function ticksDown(top: number, end: number, every: number, clear: number): number[] {
   const ys: number[] = [];
-  for (let y = leg.fold[1] + every; y <= endY - clear; y += every) ys.push(y);
+  for (let y = top + every; y <= end - clear; y += every) ys.push(y);
   return ys;
+}
+
+/** A leg of a route steeper than this (from horizontal) is a drop: she is never seen on it. */
+export const STEEP = Math.sin((60 * Math.PI) / 180);
+
+/**
+ * The lane beside the next title (the route's drop to the title's baseline),
+ * drawn like the gutter leg — the floor carried on, folded down: sharp at both
+ * corners, with Marey ticks.
+ */
+export interface LaneLeg {
+  /** As drawn: from where the route starts to round into the drop, a mitred corner, down, a mitred corner, to where it has rounded out. */
+  pts: Pt[];
+  /** The two corners (the drop's top and bottom). */
+  top: Pt;
+  bottom: Pt;
+  /** Indices in roundRoute(route, r, steps): where the drawn lane starts, where its straight drop starts, and where it ends. */
+  from: number;
+  down: number;
+  to: number;
+}
+
+/**
+ * The route's lane: its last leg steeper than 60° after the gutter (the drop
+ * beside the next title), with a corner at both ends; null when the route has
+ * none (it stops at the hero's bottom edge).
+ */
+export function laneLeg(route: readonly Pt[], r: number, steps = 8): LaneLeg | null {
+  const n = route.length;
+  let j = -1;
+  for (let i = 2; i + 1 <= n - 2; i++) {
+    const [ax, ay] = route[i]!;
+    const [bx, by] = route[i + 1]!;
+    const len = Math.hypot(bx - ax, by - ay);
+    if (len > 0 && Math.abs(by - ay) / len > STEEP) j = i;
+  }
+  if (j < 0) return null;
+  // the rounded route's point index where each corner's arc starts (a corner too tight to round is one point)
+  const size = (i: number) => (cornerCut(route, i, r) < 0.5 ? 1 : steps + 1);
+  let from = 1;
+  for (let i = 1; i < j; i++) from += size(i);
+  const down = from + size(j) - 1;
+  const to = down + size(j + 1);
+  const top = route[j]!;
+  const bottom = route[j + 1]!;
+  const stub = (corner: Pt, toward: Pt, t: number): Pt => {
+    const l = Math.hypot(toward[0] - corner[0], toward[1] - corner[1]) || 1;
+    return [corner[0] + ((toward[0] - corner[0]) / l) * t, corner[1] + ((toward[1] - corner[1]) / l) * t];
+  };
+  const pts: Pt[] = [stub(top, route[j - 1]!, cornerCut(route, j, r)), top, bottom, stub(bottom, route[j + 2]!, cornerCut(route, j + 1, r))];
+  return { pts, top, bottom, from, down, to };
+}
+
+/** Ticks down a lane (y), every `every` px below its top corner, none within `clear` px of its bottom corner. */
+export function laneTicks(lane: LaneLeg, every = 96, clear = 12): number[] {
+  return ticksDown(lane.top[1], lane.bottom[1], every, clear);
 }
 
 /** SVG path data of a route. */
@@ -309,6 +372,50 @@ export function spinePath(input: SpineInput): string {
   if (pts.length === 3) return `${head}V${r1(pts[2]![1])}`;
   const [, , [, y0], [x1, y1]] = pts as [Pt, Pt, Pt, Pt];
   return `${head}V${r1(y0)}L${r1(x1)} ${r1(y1)}`;
+}
+
+/**
+ * The second exposure's visibility along the route, scrubbed (round 4): for
+ * each sample (`sample` px of route apart) the share of her opacity, 0 on
+ * every sample where she must not be seen and on the samples right next to
+ * one (the boundary lies somewhere between them), rising linearly away from
+ * each such stretch over its `ramp` (px of route; a function of the hidden
+ * sample's arc length, so a ramp can span the same scroll wherever it is),
+ * and 1 beyond. A shown stretch is the lower of its two ramps, so it rises
+ * once and falls once. The route's ends are not hidden stretches: the arrival
+ * at the mark does not fade. Her opacity is a function of where she is, never
+ * of time, so over any one-way scroll she fades in and out once per shown
+ * stretch — no blink.
+ */
+export function exposureRamp(shown: readonly boolean[], sample: number, ramp: number | ((at: number) => number)): number[] {
+  const n = shown.length;
+  const len = (j: number) => Math.max(1e-6, typeof ramp === "number" ? ramp : ramp(j * sample));
+  const term = (i: number, j: number) => {
+    const d = Math.abs(i - j) * sample;
+    return d === 0 ? 0 : Math.min(1, Math.max(0, (d - sample) / len(j)));
+  };
+  const out: number[] = new Array<number>(n).fill(1);
+  let last = -1;
+  for (let i = 0; i < n; i++) {
+    if (!shown[i]) last = i;
+    if (last >= 0) out[i] = term(i, last);
+  }
+  last = -1;
+  for (let i = n - 1; i >= 0; i--) {
+    if (!shown[i]) last = i;
+    if (last >= 0) out[i] = Math.min(out[i]!, term(i, last));
+  }
+  return out;
+}
+
+/** exposureRamp()'s value at arc length s: linear between samples, clamped to the route. */
+export function exposureAt(ramp: readonly number[], sample: number, s: number): number {
+  if (!ramp.length) return 0;
+  const f = Math.min(Math.max(s / sample, 0), ramp.length - 1);
+  const i = Math.floor(f);
+  const a = ramp[i]!;
+  const b = ramp[Math.min(i + 1, ramp.length - 1)]!;
+  return a + (b - a) * (f - i);
 }
 
 /** A polyline measured by arc length: the point, its direction and the segment index at distance s. */
