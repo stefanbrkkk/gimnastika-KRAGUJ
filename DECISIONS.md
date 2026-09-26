@@ -115,6 +115,15 @@ anything undecided was decided here and can be reverted by the club.
   head script sets html.hash-land (scroll-behavior: auto) when the URL has a hash (and, round 4, on reload and back/forward,
   so a late scroll restoration is never animated) and removes it two frames after load (5 s fallback); in-page navigation
   afterwards is smooth again.
+- **D-40 · Deployed to Vercel at the owner's request** (the master prompt said not to deploy and to document Cloudflare
+  Pages instead; the owner asked for Vercel on 2026-09-26). Project `gimnastika-kraguj` is linked to the private GitHub
+  repo `stefanbrkkk/gimnastika-KRAGUJ`, and every push to `main` deploys production at https://gimnastika-kraguj.vercel.app.
+  Settings: framework "Other", build `npm run build` (so the postbuild steps run), output `out`, Node 24.x. The public
+  production URL is allowed only because of the project env var **`NEXT_PUBLIC_MINOR_PHOTOS=false`** (all environments):
+  all 12 photos showing children are placeholders and their files are not deployed. Do not remove that variable until the
+  club confirms parental consent (TODO 2); noindex is not consent. `NEXT_PUBLIC_SITE_URL=https://gimnastika-kraguj.vercel.app`
+  keeps canonical and OG URLs on the live host; INDEXABLE stays false. Verified on the live URL: qa/content (privacy
+  checks on a mirror of the deployment), behavior 27/27, axe 7/7, Lighthouse 98/100/100 with LCP 1949 ms.
 
 ## Images & privacy
 
