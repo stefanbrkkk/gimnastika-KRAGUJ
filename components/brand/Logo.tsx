@@ -12,7 +12,7 @@ interface LogoProps {
 export function Logo({ className, title = "Gimnastički klub Kraguj" }: LogoProps) {
   const a11y = title ? { role: "img", "aria-label": title } : { "aria-hidden": true as const };
   return (
-    <svg viewBox="0 0 490 213" className={className} {...a11y} focusable="false">
+    <svg viewBox="0 0 490 213" className={className} data-figure="brand:logo" {...a11y} focusable="false">
       <use href="#wordmark" width="490" height="213" />
       <use href="#leap" x={x} y={y} width={width} height={height} />
     </svg>

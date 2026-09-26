@@ -47,6 +47,7 @@ export function HeroArt({ variant, name }: { variant: PassVariant; name: "compac
       className={`hero-art hero-art--${name}`}
       viewBox={`0 0 ${variant.width} ${variant.height}`}
       data-hero-variant={name}
+      data-figure="brand:hero"
       aria-hidden="true"
       focusable="false"
     >

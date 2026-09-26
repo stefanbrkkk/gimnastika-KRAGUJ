@@ -38,10 +38,10 @@
 }
 
 /* The mark is the doskok's TAKE-OFF frame (static: land={false}). On the display step the
-   shared 2.6–3em would be a 240px sticker; 2em keeps its solid frame at about the
+   shared mark size would be a sticker; --mark-solid keeps its solid frame at about the
    x-height of „trening“, the size the flier leaves with. */
 .contact__heading .section-heading__mark {
-  width: 2em;
+  --mark-solid: 0.81em;
 }
 
 /* From 640 the title stands right, over the panel's sash: the leap drops from the

@@ -1,9 +1,9 @@
 /* about section styles — owned by the about section (S5 „O nama“, light theme).
    Mission (a display statement, then body copy) and history beside the club print, then a
-   full-bleed darkroom band cut on the floor diagonal: „Hronologija“ as a Marey plate — one
-   exposure of the club's leaping gymnast per year on a vertical rail, earlier years as ghost
-   frames, the last as the solid landing. Static and complete without JS; the motion modules
-   add the print's landing and the flier riding the rail. Motion: transform + opacity only. */
+   full-bleed darkroom band cut on the floor diagonal: „Hronologija“ — one ringed dot per year
+   on a vertical rail (UI chrome, no figure: plan-figure-system R5). Static and complete
+   without JS (every dot filled); the motion modules add the print's landing and a lavender
+   bead riding the rail. Motion: transform + opacity only. */
 
 /* The band ends the section: the dark → light edge divides it from S6 (coaches.css gives S6
    its full top spacing), so no chalk strip is left under the band. */
@@ -213,13 +213,15 @@ html.js-motion .about__ghost + .about__ghost {
 }
 
 /* --------------------------------------------------------------------------
-   Hronologija — the rail and its exposures
+   Hronologija — the rail and its year dots
    -------------------------------------------------------------------------- */
 .timeline {
-  --node-w: 36px;
-  --node-h: calc(var(--node-w) * 150 / 230); /* the #leap box */
-  --rail-x: calc(var(--node-w) / 2);
-  --gutter: calc(var(--node-w) + 16px);
+  --dot: 12px; /* a year's ring: outer diameter (2 px stroke) */
+  --cut: 5px; /* the backing's margin around the ring: the gap it cuts in the rail */
+  --bead: 10px;
+  --lit: var(--color-lav-200);
+  --rail-x: 11px; /* phones/tablets: under the centre of the label's 22 px tick */
+  --gutter: 44px;
   --node-y: calc(var(--year-size) * 0.52); /* the year's cap centre */
   --row-gap: 36px;
   position: relative;
@@ -268,55 +270,61 @@ html.js-motion .about__ghost + .about__ghost {
   row-gap: 8px;
 }
 
-/* One exposure per year. The node's dark backing cuts the rail around it, so the years read
-   as frames on a strip; earlier years are ghosts in the leotard steps (--node-c/--node-o set
-   per year in Timeline.tsx), the last year is the solid landing. */
+/* One ringed dot per year on the rail. The node is its dark backing: a disc that cuts the
+   rail around the ring, so the years read as frames on a strip. ::before is the ring (steel,
+   the unlit rail's colour), ::after the lavender fill over it. Static (no JS, reduced motion):
+   every year filled. */
 .timeline__node {
   position: absolute;
   z-index: 1;
-  left: 0;
-  top: calc(var(--node-y) - var(--node-h) / 2 - 5px);
-  width: var(--node-w);
-  padding-block: 5px;
+  left: calc(var(--rail-x) - var(--dot) / 2 - var(--cut));
+  top: calc(var(--node-y) - var(--dot) / 2 - var(--cut));
+  width: calc(var(--dot) + 2 * var(--cut));
+  height: calc(var(--dot) + 2 * var(--cut));
+  border-radius: 50%;
   background: var(--bg);
 }
 
-.timeline__leap {
-  display: block;
-  width: 100%;
-  height: var(--node-h);
-  overflow: visible;
+.timeline__node::before,
+.timeline__node::after {
+  content: "";
+  position: absolute;
+  inset: var(--cut);
+  border-radius: 50%;
 }
 
-.timeline__node .timeline__leap {
-  color: var(--node-c, var(--ghost));
-  /* The leap is a thin figure at this size: the shared ghost steps are lifted by half so the
-     plate still reads as exposures (ice .27 → lavender .42 → violet .63). */
-  opacity: calc(var(--node-o, 0.28) * 1.5);
+.timeline__node::before {
+  border: 2px solid var(--color-steel-300);
 }
 
-.timeline__item:last-child .timeline__node .timeline__leap {
-  color: var(--accent);
-  opacity: 1;
+/* The fill covers the ring's outer anti-aliased edge too (no steel halo round a lit dot). */
+.timeline__node::after {
+  inset: calc(var(--cut) - 0.5px);
+  background: var(--lit);
 }
 
-/* The flier (motion only): rides the rail's head and lands on each year. */
+/* The bead (motion only): rides the rail's head and lands on each year. Its glow is a static
+   shadow; only the flier's transform and the bead's landing squash animate. */
 .timeline__flier {
   position: absolute;
   z-index: 2;
-  left: 0;
-  top: calc(var(--node-y) - var(--node-h) / 2);
+  left: calc(var(--rail-x) - var(--bead) / 2);
+  top: calc(var(--node-y) - var(--bead) / 2);
   display: none;
-  width: var(--node-w);
-  height: var(--node-h);
-  color: var(--accent);
+  width: var(--bead);
+  height: var(--bead);
   pointer-events: none;
 }
 
-.timeline__flier-body {
+.timeline__bead {
   display: block;
   width: 100%;
   height: 100%;
+  border-radius: 50%;
+  background: var(--lit);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--color-lav-200) 24%, transparent),
+    0 0 14px 3px color-mix(in oklab, var(--color-lav-200) 50%, transparent);
 }
 
 .timeline[data-armed] .timeline__flier {
@@ -324,22 +332,18 @@ html.js-motion .about__ghost + .about__ghost {
   will-change: transform;
 }
 
-/* Armed: a year's ghost is exposed when the flier leaves it; the flier itself is the solid
-   frame (so the last node stays empty under it). Years not reached yet wait at .38. */
-.timeline[data-armed] .timeline__node .timeline__leap {
-  transition: opacity var(--dur-fast) linear;
-}
-
-.timeline[data-armed] .timeline__item:not([data-left]) .timeline__node .timeline__leap {
+/* Armed: a year not reached yet is a ring only; its fill lands with the bead (data-here,
+   timeline-motion.ts) on the stuck-landing ease and stays once the bead has left (data-left).
+   Emptying (at arm time) is instant. Years not reached yet wait at .38. */
+.timeline[data-armed] .timeline__item:not([data-left]):not([data-here]) .timeline__node::after {
   opacity: 0;
+  transform: scale(0.3);
 }
 
-/* A year the flier has not reached yet has no frame cut either: the thin unlit rail runs
-   through it (even once the year has lit on its own crossing). The backing returns under the
-   flier as its feet touch the year (data-here, timeline-motion.ts) and stays once it has
-   left (AC3-05). */
-.timeline[data-armed] .timeline__item:not([data-left]):not([data-here]) .timeline__node {
-  background: transparent;
+.timeline[data-armed] .timeline__item:is([data-left], [data-here]) .timeline__node::after {
+  transition:
+    transform var(--dur-land) var(--ease-land),
+    opacity var(--dur-fast) linear;
 }
 
 .timeline[data-armed] .timeline__year {
@@ -450,8 +454,7 @@ html.js-motion .about__ghost + .about__ghost {
 
 @media (min-width: 640px) {
   .timeline {
-    --node-w: 44px;
-    --gutter: calc(var(--node-w) + 20px);
+    --gutter: 48px;
   }
   .timeline__item {
     grid-template-columns: 7.25rem minmax(0, 1fr);
@@ -468,7 +471,8 @@ html.js-motion .about__ghost + .about__ghost {
 
 @media (min-width: 1024px) {
   .timeline {
-    --node-w: 52px;
+    --rail-x: 12px;
+    --gutter: 56px;
     --row-gap: 44px;
   }
   .timeline__item {
@@ -502,8 +506,19 @@ html.js-motion .about__ghost + .about__ghost {
   }
 }
 
+/* Forced colours drop backgrounds: the fill, the bead and the rail keep a system colour. */
+@media (forced-colors: active) {
+  .timeline__node::after,
+  .timeline__bead,
+  .timeline__track {
+    forced-color-adjust: none;
+    background: CanvasText;
+    box-shadow: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .timeline__node .timeline__leap,
+  .timeline__node::after,
   .timeline__year {
     transition: none;
     animation: none;

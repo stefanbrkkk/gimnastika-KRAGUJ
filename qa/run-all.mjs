@@ -3,7 +3,7 @@
 //   npm run lint → npm test → build variants (MINOR_PHOTOS=false, INDEXABLE=true)
 //   → npm run build (default, last, so out/ ends up as the default build)
 //   → serve out/ on QA_PORT (4173) → bundle, content, shots (+ MINOR_PHOTOS=false
-//   variant), trace, behavior, axe, lighthouse (+ SEO on the INDEXABLE=true variant)
+//   variant), trace, behavior, axe, figures, lighthouse (+ SEO on the INDEXABLE=true variant)
 //   → content checks on both variants → qa/report.json (+ printed summary, also in
 //   qa/trace/summary.md). Exit code 1 when anything failed.
 //
@@ -14,7 +14,7 @@
 // A pre-existing out/ is kept aside and restored if the default build fails.
 //
 // Env: QA_PORT (4173; variant servers use +1 and +2), QA_SKIP=lint,test,build,
-//      variants,bundle,content,shots,trace,behavior,axe,lighthouse (comma list),
+//      variants,bundle,content,shots,trace,behavior,axe,figures,lighthouse (comma list),
 //      QA_VARIANTS_DIR, QA_LH_RUNS (3). Never run it while another process serves
 //      out/ on QA_PORT (the run stops early and says so).
 import { spawn } from "node:child_process";
@@ -181,6 +181,7 @@ async function main() {
     await check("trace", "trace.mjs", base);
     await check("behavior", "behavior.mjs", base);
     await check("axe", "axe.mjs", base);
+    await check("figures", "figures.mjs", base);
     await check("lighthouse", "lighthouse.mjs", { ...base, ...(hasIndex ? { QA_LH_SEO_OUT: indexOut, QA_LH_SEO_PORT: String(SEO_PORT) } : {}) });
     if (!SKIP.has("variants")) {
       if (hasMinor) await check("content:minor-photos-off", "content.mjs", { QA_OUT: minorOut, ...VARIANTS[0].env });

@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   HEADER_HIDE_AFTER,
   MENU_INDEX_ID,
@@ -29,7 +32,9 @@ import {
 } from "@/components/sections/header/header-tone";
 import { POINTER_TILT, SETTLE_KICK, createBalance, isSettled, pointerTarget, stepBalance } from "@/components/notfound/tilt";
 import { titlePhrases } from "@/components/notfound/title";
-import { NOT_FOUND } from "@/content/copy";
+import { NOT_FOUND, PHOTO_PLACEHOLDER } from "@/content/copy";
+import type { PhotoId } from "@/content/photos";
+import { CLUB, NAV } from "@/content/site";
 
 /** Feed a scroll path (list of scrollY values) through the header state machine. */
 const run = (path: number[], start = 0): HeaderScrollState =>
@@ -314,6 +319,79 @@ describe("404 balance: the load catch reads, then holds", () => {
 describe("menu fallback", () => {
   it("Meni links to the footer page index until hydration", () => {
     expect(MENU_INDEX_ID).toBe("meni");
+  });
+});
+
+/**
+ * The figure grammar in the page chrome (docs/plan-figure-system.md R1, R3, R5): the logo
+ * girl only as the brand, never as a UI indicator, and the title marks' ghost frames only
+ * while the mark is in flight. qa/figures.mjs counts the rendered result; these pin the markup.
+ */
+describe("figures in the page chrome (plan §5.1, §5.11, §5.12)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  const count = (html: string, re: RegExp) => html.match(re)?.length ?? 0;
+
+  it("the menu sheet marks the current row with a bar, not a figure (R5)", async () => {
+    const { MenuSheetBody } = await import("@/components/sections/header/MenuSheetBody");
+    const html = renderToStaticMarkup(createElement(MenuSheetBody));
+    expect(count(html, /data-nav-link/g)).toBe(NAV.length);
+    expect(html).not.toContain("#leap");
+    expect(html).not.toContain("<svg");
+    const css = readFileSync("styles/sections/header.css", "utf8");
+    expect(css).toMatch(/\.menu-sheet__link\[aria-current\]::before\s*\{[^}]*background:\s*var\(--color-lav-200\)/);
+  });
+
+  it("the footer mark is the logo alone: one silhouette, labelled, counted as the brand logo (R1)", async () => {
+    const { FooterMark } = await import("@/components/sections/header/LeapTrail");
+    const html = renderToStaticMarkup(createElement(FooterMark, { className: "site-footer__mark", title: CLUB.brandName }));
+    expect(html).toContain('data-figure="brand:logo"');
+    expect(html).toContain('viewBox="0 0 490 213"');
+    expect(html).toContain(`role="img" aria-label="${CLUB.brandName}"`);
+    expect(count(html, /href="#leap"/g)).toBe(1);
+    expect(count(html, /href="#wordmark"/g)).toBe(1);
+  });
+
+  it("a photo placeholder carries the aperture glyph and its frame code, not the gymnast (R5)", async () => {
+    vi.resetModules();
+    vi.stubEnv("NEXT_PUBLIC_MINOR_PHOTOS", "false");
+    const { Picture, isPhotoPlaceholder } = await import("@/components/ui/Picture");
+    const { PHOTOS } = await import("@/content/photos");
+    const id = (Object.keys(PHOTOS) as PhotoId[]).find(isPhotoPlaceholder);
+    expect(id).toBeDefined();
+    const html = renderToStaticMarkup(createElement(Picture, { id: id!, sizes: "100vw", frame: true }));
+    expect(html).toContain("data-placeholder");
+    expect(html).not.toContain("#leap");
+    expect(html).toMatch(/<svg class="ui-icon photo-placeholder__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/);
+    expect(html).toContain(PHOTO_PLACEHOLDER);
+    expect(html).toContain(PHOTOS[id!].frame);
+  });
+
+  it("a title mark keeps its three ghost frames in the box, shown only in flight (R3)", async () => {
+    const { ChronoMark } = await import("@/components/ui/ChronoMark");
+    const html = renderToStaticMarkup(createElement(ChronoMark, {}));
+    expect(html).toContain('data-figure="brand:mark"');
+    expect(count(html, /class="chrono-ghost"/g)).toBe(3);
+    expect(count(html, /class="chrono-solid"/g)).toBe(1);
+    // One geometry in three places: the viewBox (ChronoMark), the flier's take-off offset
+    // (ui.css) and the hero's hand-off onto the first ghost (scrub.ts MARK).
+    const boxW = Number(/viewBox="0 0 (\d+) 208"/.exec(html)?.[1]);
+    expect(boxW).toBeGreaterThan(230);
+    expect(html).toContain(`--mark-box:${(boxW / 230).toFixed(4)}`);
+    expect(html).toMatch(/<use href="#leap" class="chrono-ghost" x="0" y="52"/);
+    expect(readFileSync("styles/ui.css", "utf8")).toContain(`transform: translateX(-${boxW - 230}px);`);
+    expect(/const MARK = \{ width: (\d+), first: \[0, 52\] as Pt/.exec(readFileSync("components/sections/hero/scrub.ts", "utf8"))?.[1]).toBe(String(boxW));
+    // Every rule that gives a ghost a non-zero opacity is the in-flight state, and the base is 0
+    // (no-JS, reduced motion, land={false} and at rest: the solid figure alone).
+    const css = readFileSync("styles/ui.css", "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const rules = Array.from(css.matchAll(/([^{}]+)\{([^{}]*)\}/g), (m) => ({ sel: m[1]!.trim(), body: m[2]! }));
+    const ghostOpacity = rules.filter((r) => r.sel.includes(".chrono-ghost") && /(^|;)\s*opacity\s*:/.test(r.body));
+    expect(ghostOpacity.find((r) => r.sel === ".chrono-ghost")?.body).toMatch(/opacity:\s*0;/);
+    const shown = ghostOpacity.filter((r) => !/opacity:\s*0;/.test(r.body));
+    expect(shown.length).toBeGreaterThan(0);
+    for (const r of shown) expect(r.sel).toContain("html.js-motion .chrono-mark[data-landing]:not([data-landed-rest])");
   });
 });
 

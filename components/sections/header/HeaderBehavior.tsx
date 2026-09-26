@@ -48,7 +48,7 @@ const pageSections = (): HTMLElement[] =>
  *    the gap and the bar's centre line are over the same tone (headerCapBandOn).
  * 4. WCAG 2.4.11: keyboard focus that lands under the visible header or the
  *    sticky bottom bar is scrolled clear of it (focus-guard.ts).
- * 5. Chrome motion (nav spy hop, footer take-off) is a lazy chunk, fetched on
+ * 5. Chrome motion (nav spy hop) is a lazy chunk, fetched on
  *    idle and only when motion is allowed (chrome-motion.ts).
  * 6. MD4-02 (header-tone.ts): on mount it tells the inline tone script that the
  *    observers own the tone now (HEADER_TONE_OWNED). On pagehide the scroll position

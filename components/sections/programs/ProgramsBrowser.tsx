@@ -22,7 +22,7 @@ import { pagerTarget, restTarget } from "./pager";
  *   carries the program count; the status line is an aria-live region (sr-only on phones).
  * - Tap on a card (or its +) opens the detail sheet, a lazily loaded chunk.
  * - Progress rail under the phone row: prev · one dot per program (the active one in its
- *   colour, the club silhouette hopping onto it) · next. Native scrolling stays the primary input.
+ *   colour, a lavender bead sliding over to it) · next. Native scrolling stays the primary input.
  * - Quiz hand-off (QP-10): on „kraguj:recommend“ the recommended cards get a stamp and, while
  *   the row is off-screen, the phone row opens on the first of them.
  * - Motion (icon draw + perform or scene mount, seam line, stamp-in, filter Flip) lives in ./programs-motion,
@@ -116,7 +116,7 @@ export function ProgramsBrowser({ heading, chips, dots, filtersLabel, pager, sta
   const nextOff = page.atEnd || page.i >= page.n - 1;
   const activeChip = chips.find((c) => c.key === active) ?? chips[0];
   const railDots = dots.filter((d) => activeChip?.ids.includes(d.id) ?? true);
-  /** Dot cells on the rail; the flier's cell is clamped to them, so it never waits past the
+  /** Dot cells on the rail; the bead's cell is clamped to them, so it never waits past the
    *  track's end while the pager catches up with a shorter row. */
   const railN = Math.max(railDots.length, 1);
 
@@ -398,9 +398,7 @@ export function ProgramsBrowser({ heading, chips, dots, filtersLabel, pager, sta
             ))}
           </ol>
           <span className="pg-rail__flier">
-            <svg className="pg-rail__leap" viewBox="0 0 230 150" focusable="false">
-              <use href="#leap" width="230" height="150" />
-            </svg>
+            <span className="pg-rail__bead" />
           </span>
         </div>
         <button

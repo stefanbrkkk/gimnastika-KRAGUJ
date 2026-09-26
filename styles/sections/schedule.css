@@ -719,10 +719,17 @@ html:not(.js) .sched-next {
     right: 24px;
   }
 }
-.sched-next__leap {
+/* The tag's clock: a .ui-icon line glyph (1.5 CSS px, round caps), 16 px like the tag's old
+   figure, lavender on navy. */
+.sched-next__icon {
   flex: none;
-  width: 24px;
+  width: 16px;
   height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
   color: var(--color-lav-200);
 }
 .sched-next__value {
@@ -1329,7 +1336,7 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
 
 /* Today (set after mount, every minute; static, also under reduced motion): finished
    trainings go quiet (muted colour, not opacity: AA contrast holds), the next one gets a
-   royal rule on the card edge, and the „now“ line — the leap standing on it — separates
+   royal rule on the card edge, and the „now“ line — a lavender dot sitting on it — separates
    what has started from what is next. */
 .sched-times__range[data-past] {
   color: var(--muted);
@@ -1352,9 +1359,6 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   border-radius: 0 3px 3px 0;
   background: var(--color-royal-600);
 }
-.sched-row__now {
-  display: none;
-}
 .sched-row[data-now] {
   border-top-color: transparent;
 }
@@ -1362,20 +1366,26 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
   content: "";
   position: absolute;
   top: -1px;
-  left: 20px;
+  left: 0;
   right: 0;
   height: 1.5px;
   border-radius: 1px;
   background: var(--color-royal-600);
 }
-.sched-row[data-now] .sched-row__now {
+/* The dot: the time cell's pseudo-element (::before/::after of the row are the rule and the
+   line), positioned against the row. Lavender with a royal rim, so it holds on white. */
+.sched-row[data-now] .sched-row__time::before {
+  content: "";
   position: absolute;
-  top: -14px;
+  z-index: 1;
+  top: -0.25px;
   left: 0;
-  display: block;
-  width: 21px;
-  height: 14px;
-  color: var(--color-royal-600);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-lav-200);
+  box-shadow: 0 0 0 1.5px var(--color-royal-600);
+  translate: 0 -50%;
 }
 
 .sched-day__filtered {
@@ -1388,30 +1398,14 @@ html:has([data-site-header][data-hidden="false"]) .sched-strip {
 .sched-day:not(:has(.sched-row:not([hidden], [data-leaving]))) .sched-day__filtered {
   display: block;
 }
-/* The mark beside the sentence where both fit; on phones the sentence goes under the mark. */
+/* A day without training (the weekend): the sentence alone, in a row's rhythm. */
 .sched-day__empty {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px 20px;
   padding: 16px 0 20px;
   border-top: 1px solid var(--hairline);
 }
 .sched-day__empty p {
-  flex: 1 1 15rem;
   font-weight: 600;
   text-wrap: balance;
-}
-/* The weekend's chronophotograph: the landed leap (a weekend pick replays it). */
-.sched-day__empty .chrono-mark {
-  flex: none;
-  width: 124px;
-  margin: 0;
-}
-.sched-day__mark[data-reset],
-.sched-day__mark[data-reset] * {
-  transition: none !important;
-  animation: none !important;
 }
 
 /* ---------- location: the section's end-cap ---------- */
@@ -1655,7 +1649,8 @@ html.js-motion .sched-score:not([data-landed]) .sched-score__c {
     background: CanvasText;
   }
   .sched-row[data-next]::before,
-  .sched-row[data-now]::after {
+  .sched-row[data-now]::after,
+  .sched-row[data-now] .sched-row__time::before {
     background: Highlight;
   }
 }

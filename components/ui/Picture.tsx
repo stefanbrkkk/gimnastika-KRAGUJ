@@ -3,7 +3,6 @@ import manifest from "@/content/images.generated.json";
 import { PHOTO_PLACEHOLDER } from "@/content/copy";
 import { PHOTOS, type Photo, type PhotoId } from "@/content/photos";
 import { FLAGS } from "@/content/site";
-import { LEAP_VIEWBOX } from "@/components/brand/sprite-paths.generated";
 
 interface ManifestEntry {
   width: number;
@@ -58,6 +57,30 @@ interface PictureProps {
 }
 
 /**
+ * The placeholder's glyph: a lens aperture in the .ui-icon stroke family (24px grid, 1.5
+ * stroke, round caps, currentColor). No figure: a photo slot is UI chrome (plan-figure-system
+ * §5.12, R5) — the frame code and the caption say the rest.
+ */
+function ApertureIcon() {
+  return (
+    <svg
+      className="ui-icon photo-placeholder__icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M15.93 12 11.05 20.45M13.96 15.4H4.21M10.04 15.4 5.16 6.95M8.07 12l4.88-8.45M10.04 8.6h9.75M13.96 8.6l4.88 8.45" />
+    </svg>
+  );
+}
+
+/**
  * <picture> with AVIF + WebP srcsets from scripts/images.mjs, intrinsic size,
  * inline blur placeholder, grain overlay and the native/2 width cap.
  * Renders the navy "Fotografija uskoro" placeholder for minors when MINOR_PHOTOS=false.
@@ -77,9 +100,7 @@ export function Picture({ id, sizes, aspect, frame, caption, className, position
 
   const media = placeholder ? (
     <div className="photo photo-placeholder" style={boxStyle} role="img" aria-label={PHOTO_PLACEHOLDER} data-photo-id={photo.id} data-placeholder="">
-      <svg viewBox={`0 0 ${LEAP_VIEWBOX.width} ${LEAP_VIEWBOX.height}`} aria-hidden="true" focusable="false" className="photo-placeholder__leap">
-        <use href="#leap" width={LEAP_VIEWBOX.width} height={LEAP_VIEWBOX.height} />
-      </svg>
+      <ApertureIcon />
       <span className="photo-placeholder__text label-caps">{PHOTO_PLACEHOLDER}</span>
     </div>
   ) : (

@@ -577,7 +577,7 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
         onPointerUp={onHeadPointerEnd}
         onPointerCancel={onHeadPointerEnd}
       >
-        <svg className="booking__leap" viewBox="0 0 230 150" aria-hidden="true" focusable="false">
+        <svg className="booking__leap" viewBox="0 0 230 150" data-figure="brand:booking" aria-hidden="true" focusable="false">
           <use href="#leap" width="230" height="150" />
         </svg>
         <h2 ref={titleRef} id={`${uid}-title`} className="booking__title" tabIndex={-1}>

@@ -19,13 +19,12 @@
  *    new day title (the old one fades as a clone); a shorter card's edge rises as above.
  *    An empty day (the weekend, or none of the filtered program) gets the same hand-off:
  *    the old rows (or the old empty state) fade as clones, and its title and sentence fade
- *    in from 0.1s (120 ms) as the weekend's leap takes off. The strip pill travels fast-out
- *    and sticks its landing (squash); the white labels it passes show under it on the way.
+ *    in from 0.1s (120 ms). The strip pill travels fast-out and sticks its landing (squash);
+ *    the white labels it passes show under it on the way.
  *  - landings on first view: a card's training days land on the mat line one by one
  *    (MI-1), the scoreboard posts its numerals row by row (MI-4), the location pictogram
  *    draws the floor diagonal and drops its pin (MI-6). CSS does the motion (schedule.css);
  *    this module only sets data-landed.
- *  - weekend pick: the chronophotograph leap replays toward Monday (MI-5).
  * Plus motion-independent jobs: today's rows in „Po danu“ (finished / next / now), the
  * Google Calendar links' dates, bringing the day panels back under a stuck strip, and the
  * edge fades of the swipeable pill row on phones.
@@ -52,7 +51,7 @@ export interface Enhancer {
   /**
    * After the pick committed: if the strip is stuck and the new day starts above it, scroll
    * the panels back under it; otherwise what leaves fades where it stood, shared rows hold,
-   * new rows (or an empty day's sentence) come in, the pill sticks and the weekend leap replays.
+   * new rows (or an empty day's sentence) come in and the pill sticks.
    */
   playDay(state: unknown): void;
   /** A view switch: finish a running filter motion; the tab pill sticks its landing. */
@@ -98,7 +97,7 @@ interface Pin {
 interface DayCapture {
   flip: FlipState | null;
   rows: Pin[];
-  /** The empty state instead of rows: the weekend's mark + sentence, or the filtered „no training“ line. */
+  /** The empty state instead of rows: the weekend's sentence, or the filtered „no training“ line. */
   note: Pin | null;
   /** Its sentence: a new day that says the same keeps it where it is. */
   said: string;
@@ -157,32 +156,6 @@ function squash(pill: Element | null | undefined, delay: number): void {
     delay,
     easing: "cubic-bezier(0.22, 1.12, 0.36, 1)",
   });
-}
-
-/**
- * The landed chronophotograph leap of a weekend panel (styles/ui.css .chrono-mark) goes back
- * to its take-off state at once (no transition: invisible, the flier before the first ghost).
- */
-function takeoff(mark: Element): void {
-  mark.setAttribute("data-reset", ""); // schedule.css: no transitions while the take-off state applies
-  mark.removeAttribute("data-landing");
-  mark.removeAttribute("data-landed");
-  mark.getBoundingClientRect(); // style flush: the take-off state applies without a transition
-  mark.removeAttribute("data-reset");
-}
-
-/** …and leaps again from there (the landing transitions of .chrono-mark). */
-function land(mark: Element): void {
-  mark.getBoundingClientRect(); // the take-off state is the transitions' start
-  mark.setAttribute("data-landing", "");
-  mark.setAttribute("data-landed", "");
-}
-
-/** Replays the leap at once. */
-function leap(mark: Element | null): void {
-  if (!mark) return;
-  takeoff(mark);
-  land(mark);
 }
 
 /** Sets or removes a boolean attribute only when it changes. */
@@ -490,15 +463,12 @@ export function enhance(root: HTMLElement): Enhancer {
       if (!day) return;
       const capture = state as DayCapture | null;
       const rows = Array.from(day.querySelectorAll<HTMLElement>(ITEM)).filter((el) => !el.hidden);
-      const mark = day.querySelector(".sched-day__empty .chrono-mark");
       const title = day.querySelector<HTMLElement>(".sched-day__title");
       const enter = (els: Element[]) =>
         gsap.fromTo(els, { opacity: 0, y: -8 }, { opacity: 1, y: 0, duration: 0.24, ease: EASE.stick, delay: 0.1, stagger: 0.03, clearProps: "opacity,transform" });
       if (!capture || !title) {
-        // Nothing of the old day was kept (motion loaded after the pick began): new rows land,
-        // a weekend's leap replays.
-        if (mark) leap(mark);
-        else if (rows.length) tl = enter(rows);
+        // Nothing of the old day was kept (motion loaded after the pick began): new rows land.
+        if (rows.length) tl = enter(rows);
         return;
       }
       // One hand-off for every pick, into rows or into an empty day (SC4-03): what leaves fades
@@ -507,12 +477,12 @@ export function enhance(root: HTMLElement): Enhancer {
       // program). A sentence the old day said too (Su ↔ Ne, two filtered-empty days) stays put.
       const note = rows.length ? undefined : Array.from(day.querySelectorAll<HTMLElement>(EMPTY_STATE)).find(rendered);
       const steady = !!note && textOf(note).textContent === capture.said;
-      // Leavers: the rows the new day does not have, and the old empty state (unless all it
-      // shows stays: a weekend's mark always leaves, its leap replays). Each is a clone pinned
-      // in the new card at its old box, behind (z −1) the rows that glide over its place.
+      // Leavers: the rows the new day does not have, and the old empty state (unless its
+      // sentence stays). Each is a clone pinned in the new card at its old box, behind (z −1)
+      // the rows that glide over its place.
       const ids = new Set(rows.map((el) => el.dataset.flipId));
       const leavers = capture.rows.filter((p) => !ids.has(p.el.dataset.flipId));
-      const old = capture.note && !(steady && !capture.note.el.querySelector(".chrono-mark")) ? capture.note : null;
+      const old = capture.note && !steady ? capture.note : null;
       let list = day.querySelector<HTMLElement>(".sched-rows");
       let temp: HTMLElement | null = null;
       if (!list && (leavers.length || old)) {
@@ -526,7 +496,6 @@ export function enhance(root: HTMLElement): Enhancer {
         const el = p.el.cloneNode(true) as HTMLElement;
         // Today's marks stay on (the royal rule and the „now“ line fade with their row).
         ["data-sched-item", "data-flip-id", "hidden"].forEach((a) => el.removeAttribute(a));
-        el.querySelectorAll("[data-landing]").forEach((c) => c.removeAttribute("data-landing")); // no second stick
         // Not a row the day shows: the „no training“ line (:has() in schedule.css) is not held back by it.
         el.setAttribute(LEAVING, "");
         el.setAttribute("aria-hidden", "true");
@@ -538,9 +507,8 @@ export function enhance(root: HTMLElement): Enhancer {
       const clones = list ? leavers.map((p) => clone(p, list)) : [];
       if (list && old) {
         const el = clone(old, list);
-        // An empty day draws its own hairline there; a sentence it repeats is not doubled.
+        // An empty day draws its own hairline there.
         if (!rows.length) el.style.borderTopColor = "transparent";
-        if (steady) textOf(el).style.visibility = "hidden";
         clones.push(el);
       }
       // The day title cross-fades (SC3-02): the old one, a zero-height copy right before the
@@ -585,13 +553,9 @@ export function enhance(root: HTMLElement): Enhancer {
         if (ghost) t.fromTo(title, { opacity: 0 }, { opacity: 1, duration: 0.24, ease: EASE.stick, clearProps: "opacity" }, 0.1);
       } else {
         // An empty day: its title and sentence wait until the leavers are gone, then fade in
-        // over 120 ms, and a weekend's leap takes off with them.
+        // over 120 ms.
         const ins = [...(ghost ? [title] : []), ...(note && !steady ? [textOf(note)] : [])];
         if (ins.length) t.fromTo(ins, { opacity: 0 }, { opacity: 1, duration: 0.12, ease: "none", clearProps: "opacity" }, 0.1);
-        if (mark) {
-          takeoff(mark);
-          t.call(() => land(mark), [], 0.1);
-        }
       }
       t.call(() => release(), [], 0.34);
       tl = t;

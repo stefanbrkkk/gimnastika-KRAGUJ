@@ -273,22 +273,63 @@ describe("quiz — chronophotograph strip geometry", () => {
     expect(pitchAt(1)).toBe(0);
   });
 
-  it("each in-flight exposure sits on the flier's path and develops when the flier passes it", async () => {
+  it("the print keeps two real phases of the leap: the take-off at 01 and the apex over 02 (figure system R3)", async () => {
     const g = await import("@/components/sections/quiz/geometry");
-    const byId = Object.fromEntries(g.EXPOSURES.map((e) => [e.id, e]));
+    expect(g.EXPOSURES.map((e) => e.id)).toEqual(["takeoff", "apex"]);
+    const [takeoff, apex] = g.EXPOSURES;
+    expect(takeoff!.key).toBe(true);
+    expect(apex!.key).toBe(false);
     const [x1, x2, x3] = g.FRAME_X;
     const hop1 = { from: [x1, 0], to: [x2, 0], amp: g.HOP } as const;
-    expect(byId.a1!.pose.flat).toEqual(g.poseAt(hop1, 1 / 3));
-    expect(byId.a2!.pose.flat).toEqual(g.poseAt(hop1, 2 / 3));
-    expect(byId.a1!.delay).toBe(g.FLIGHT_MS / 3);
-    const hop2 = { from: [x2, 0], to: [x3, g.LIFT.greda], amp: g.HOP } as const;
-    expect(byId.b2!.pose.greda).toEqual(g.poseAt(hop2, 2 / 3));
     const skip = { from: [x1, 0], to: [x3, g.LIFT.skip], amp: g.HOP_LONG } as const;
-    expect(byId.b1!.pose.skip).toEqual(g.poseAt(skip, 3 / 5));
-    expect(byId.b1!.delaySkip).toBe(Math.round((3 / 5) * g.FLIGHT_LONG_MS));
-    // The long flight exposes frames left to right.
-    const order = ["k1", "a1", "a2", "b1", "b2", "k3"].map((id) => byId[id]!.delaySkip);
-    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    // Samples of the flight model: the first leap on the two-question path (the same on every
+    // landing variant), the one long flight for ages 3–7.
+    for (const v of ["flat", "parter", "greda"] as const) {
+      expect(takeoff!.pose[v]).toEqual(g.poseAt(hop1, 0.12));
+      expect(apex!.pose[v]).toEqual(g.poseAt(hop1, g.APEX_T));
+    }
+    expect(takeoff!.pose.skip).toEqual(g.poseAt(skip, 0.12));
+    expect(apex!.pose.skip).toEqual(g.poseAt(skip, g.APEX_T));
+    // The take-off has just left the floor at 01, nose up; the apex of the long flight is over 02.
+    expect(takeoff!.pose.flat.x - x1).toBeGreaterThan(0);
+    expect(takeoff!.pose.flat.x - x1).toBeLessThan(g.FIG_W / 4);
+    expect(takeoff!.pose.flat.r).toBeCloseTo(-18, 6);
+    expect(apex!.pose.skip.x).toBe(x2);
+    // Each apex is the top of its hop's parabola (qb-hop's keyframe at 50 %). The long flight
+    // rises onto the raised floor as it goes, which lifts its highest instant ≈2 units above that.
+    for (const [hop, p] of [
+      [hop1, apex!.pose.flat],
+      [skip, apex!.pose.skip],
+    ] as const) {
+      expect(g.hopAt(g.APEX_T, hop.amp)).toBeCloseTo(hop.amp, 6);
+      for (let i = 0; i <= 100; i++) {
+        expect(g.hopAt(i / 100, hop.amp)).toBeLessThanOrEqual(hop.amp + 1e-9);
+        expect(g.poseAt(hop, i / 100).y).toBeGreaterThan(p.y - 3);
+      }
+    }
+    // Two different phases, and neither is a copy of the flier's own resting pose.
+    for (const v of ["flat", "skip"] as const) {
+      expect(takeoff!.pose[v].r).not.toBe(apex!.pose[v].r);
+      expect(apex!.pose[v].y).toBeLessThan(takeoff!.pose[v].y - 20);
+      for (const p of [takeoff!.pose[v], apex!.pose[v]]) expect(p.r).not.toBe(0);
+    }
+  });
+
+  it("each exposure develops when the flier passes it, left to right", async () => {
+    const g = await import("@/components/sections/quiz/geometry");
+    const [takeoff, apex] = g.EXPOSURES;
+    expect(takeoff!.delay).toBe(Math.round(0.12 * g.FLIGHT_MS));
+    expect(apex!.delay).toBe(g.FLIGHT_MS / 2);
+    expect(takeoff!.delaySkip).toBe(Math.round(0.12 * g.FLIGHT_LONG_MS));
+    expect(apex!.delaySkip).toBe(g.FLIGHT_LONG_MS / 2);
+    // Both are passed before the flier lands (the hop ends at its flight time).
+    expect(apex!.delay).toBeLessThan(g.FLIGHT_MS);
+    expect(apex!.delaySkip).toBeLessThan(g.FLIGHT_LONG_MS);
+    for (const key of ["delay", "delaySkip"] as const) {
+      const order = g.EXPOSURES.map((e) => e[key]);
+      expect([...order].sort((a, b) => a - b)).toEqual(order);
+    }
+    for (const v of ["flat", "skip"] as const) expect(takeoff!.pose[v].x).toBeLessThan(apex!.pose[v].x);
   });
 
   it("the stuck landing rests on its surface: the mat, the floor or the beam", async () => {
@@ -410,18 +451,39 @@ describe("quiz — strip print: exposures over the scene (QP3-05)", () => {
     expect(order).toEqual([...order].sort((a, b) => a - b));
   });
 
-  it("the occluder is an exact copy of the seven exposures (same classes, poses and delays)", async () => {
+  it("the occluder is an exact copy of the two exposures (same classes, poses and delays)", async () => {
     const { QuizBandArt } = await import("@/components/sections/quiz/QuizBandArt");
     const tags = exposureTags(renderToStaticMarkup(createElement(QuizBandArt, { occlude: true })));
-    expect(tags).toHaveLength(14);
-    expect(tags.slice(0, 7)).toEqual(tags.slice(7));
+    expect(tags).toHaveLength(4);
+    expect(tags.slice(0, 2)).toEqual(tags.slice(2));
+    expect(tags.slice(0, 2).map((t) => t.match(/qf--(\w+)/)?.[1])).toEqual(["takeoff", "apex"]);
   });
 
-  it("the no-JS guide's still print (no apparatus shown) carries no occluder", async () => {
+  it("the no-JS guide's still print (no apparatus shown) carries no occluder, and the same two exposures", async () => {
     const { QuizBandArt } = await import("@/components/sections/quiz/QuizBandArt");
     const html = renderToStaticMarkup(createElement(QuizBandArt, {}));
     expect(html).not.toContain("qb-occlude");
-    expect(exposureTags(html)).toHaveLength(7);
+    expect(exposureTags(html)).toHaveLength(2);
+    const { QuizGuide } = await import("@/components/sections/quiz/QuizGuide");
+    const guide = renderToStaticMarkup(createElement(QuizGuide));
+    expect(exposureTags(guide)).toEqual(exposureTags(html));
+    // One flier plus the two exposures: three silhouettes in the guide's print.
+    expect(guide.match(/href="#leap"/g)).toHaveLength(3);
+  });
+
+  it("the occluder is off while no apparatus is drawn, and leaves with the apparatus on a rewind", () => {
+    const css = readFileSync(new URL("../styles/sections/quiz.css", import.meta.url), "utf8");
+    expect(css).toMatch(/\.quiz-band:not\(\[data-app\]\) \.qb-occlude \{\s*visibility: hidden;\s*\}/);
+    const BACK = '.quiz-app:not([data-lite]) .quiz-band[data-dir="back"]';
+    const rule = (selector: string) => {
+      const at = css.indexOf(`${selector} {`);
+      expect(at, selector).toBeGreaterThan(-1);
+      return css.slice(at, css.indexOf("}", at));
+    };
+    const hideApp = rule(`${BACK} .qb-app`).match(/opacity 0s linear (\d+)ms/)?.[1];
+    const hideOcc = rule(`${BACK} .qb-occlude`).match(/visibility 0s linear (\d+)ms/)?.[1];
+    expect(hideApp).toBeDefined();
+    expect(hideOcc).toBe(hideApp);
   });
 
   it("the occluder is the strip's own navy, solid where a ghost is developed", () => {

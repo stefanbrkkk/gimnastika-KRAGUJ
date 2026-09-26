@@ -1,5 +1,4 @@
 import { Fragment, type CSSProperties } from "react";
-import { ChronoMark } from "@/components/ui/ChronoMark";
 import { programById } from "@/content/programs";
 import {
   activeDays,
@@ -341,10 +340,6 @@ export function DayPanels({ groups }: { groups: readonly ScheduleGroup[] }) {
                       data-flip-id={`${group.id}|${group.blocks.indexOf(block)}`}
                       style={swatch(programById(group.programId).color)}
                     >
-                      {/* „Now“ marker (today only, set after mount): the leap standing on the line. */}
-                      <svg className="sched-row__now" viewBox="0 0 230 150" aria-hidden="true" focusable="false">
-                        <use href="#leap" />
-                      </svg>
                       <span className="sched-row__time">
                         <Times block={block} stamp />
                       </span>
@@ -362,8 +357,6 @@ export function DayPanels({ groups }: { groups: readonly ScheduleGroup[] }) {
               </>
             ) : (
               <div className="sched-day__empty">
-                {/* The chronophotograph leap, landed; a user's pick of the weekend replays the leap toward Monday. */}
-                <ChronoMark className="sched-day__mark" land={false} />
                 <p>{typesetSr(day.iso >= 6 ? SCHEDULE_LOCATION.weekendEmpty : T.filteredEmpty)}</p>
               </div>
             )}

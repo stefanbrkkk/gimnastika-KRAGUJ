@@ -20,6 +20,7 @@
     "qa:trace": "node qa/trace.mjs",
     "qa:behavior": "node qa/behavior.mjs",
     "qa:axe": "node qa/axe.mjs",
+    "qa:figures": "node qa/figures.mjs",
     "qa:lighthouse": "node qa/lighthouse.mjs"
   },
   "dependencies": {

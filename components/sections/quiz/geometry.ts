@@ -10,8 +10,8 @@
  *   Y     a parabola: out-quad up to the apex at 50 %, in-quad down,
  *   base  the landing height changes linearly with X (a raised landing on greda/parter),
  *   pitch nose-up at take-off, level at the apex, nose-down into the landing, then level.
- * The seven exposures of the print (3 key frames + 2 in-betweens per hop) are samples of that
- * model, so every ghost sits exactly where — and appears exactly when — the flier passes it.
+ * The print's two exposures (the take-off at 01 and the apex of the leap) are samples of that
+ * model, so each ghost sits exactly where — and appears exactly when — the flier passes it.
  */
 
 /** The four landing variants of the print: flat (mat), a raised floor or beam, or the long single flight. */
@@ -219,16 +219,20 @@ export function poseAt(hop: Hop, t: number): Pose {
 
 const [X1, X2] = FRAME_X;
 const HOP1: Hop = { from: [X1, 0], to: [X2, 0], amp: HOP };
-const hop2 = (lift: number): Hop => ({ from: [X2, 0], to: [X3, lift], amp: HOP });
 const SKIP: Hop = { from: [X1, 0], to: [X3, LIFT.skip], amp: HOP_LONG };
 
-/* ---- The seven exposures ---- */
+/* ---- The two exposures ---- */
 
-export type ExposureId = "k1" | "a1" | "a2" | "k2" | "b1" | "b2" | "k3";
+/**
+ * Figure system R3 (docs/plan-figure-system.md §5.3): the print keeps two real phases of the
+ * leap, never a copy of the flier's own pose — the take-off at 01 and the apex. The landing is
+ * the flier herself.
+ */
+export type ExposureId = "takeoff" | "apex";
 
 export interface Exposure {
   id: ExposureId;
-  /** Key frames are the answers (01/02/03); the others are in-flight exposures. */
+  /** The take-off is the answer frame 01 (it develops lavender); the apex is in flight (ice). */
   key: boolean;
   /** Placement per variant. */
   pose: Readonly<Record<BandVariant, Pose>>;
@@ -238,45 +242,24 @@ export interface Exposure {
 }
 
 const VARIANTS: readonly BandVariant[] = ["flat", "parter", "greda", "skip"];
-const HOP_VARIANTS = ["flat", "parter", "greda"] as const;
+
+/** The apex of a hop: the top of the parabola (hopAt), half-way in time and in X. */
+export const APEX_T = 0.5;
 
 /**
- * `onHop(lift)`: the pose on the two-question path, for a landing `lift` above the mat.
- * `skip`: the pose and develop delay on the long flight; null = not exposed there (k2 keeps
- * its flat placement and fades out as the flier passes over it).
+ * Both phases are samples of the first leap: at progress `t` of hop 1 on the two-question path
+ * (01 → 02, the same on every landing variant) and of the one long flight 01 → 03 (`skip`),
+ * whose apex is over 02. Each develops when the flier passes it (t × flight time).
  */
-function exposure(
-  id: ExposureId,
-  key: boolean,
-  onHop: (lift: number) => Pose,
-  delay: number,
-  skip: { pose: Pose; delay: number } | null,
-): Exposure {
-  const pose = Object.fromEntries(HOP_VARIANTS.map((v) => [v, onHop(LIFT[v])])) as Record<BandVariant, Pose>;
-  pose.skip = skip ? skip.pose : onHop(LIFT.flat);
-  // Not exposed on the long flight: it fades as the flier passes over it (the apex).
-  const delaySkip = skip ? skip.delay : FLIGHT_LONG_MS / 2;
-  return { id, key, pose, delay: Math.round(delay), delaySkip: Math.round(delaySkip) };
+function exposure(id: ExposureId, key: boolean, t: number): Exposure {
+  const hop = poseAt(HOP1, t);
+  const pose = { flat: hop, parter: hop, greda: hop, skip: poseAt(SKIP, t) };
+  return { id, key, pose, delay: Math.round(t * FLIGHT_MS), delaySkip: Math.round(t * FLIGHT_LONG_MS) };
 }
 
 const rest = (x: number, lift = 0): Pose => ({ x, y: r1(REST_Y - lift), r: 0 });
-const onSkip = (t: number) => ({ pose: poseAt(SKIP, t), delay: t * FLIGHT_LONG_MS });
 
-/**
- * k1/k2 are the take-off instants of hop 1/2 (left behind as the flier leaves);
- * a1/a2 and b1/b2 the flier at 1/3 and 2/3 of each hop (1/5 … 4/5 of the long flight);
- * k3 the stuck landing (hidden under the flier; its delay is the touchdown). The long flight
- * does not expose k2 (the skipped frame).
- */
-export const EXPOSURES: readonly Exposure[] = [
-  exposure("k1", true, () => poseAt(HOP1, TAKEOFF_T), TAKEOFF_T * FLIGHT_MS, onSkip(TAKEOFF_T)),
-  exposure("a1", false, () => poseAt(HOP1, 1 / 3), FLIGHT_MS / 3, onSkip(1 / 5)),
-  exposure("a2", false, () => poseAt(HOP1, 2 / 3), (2 * FLIGHT_MS) / 3, onSkip(2 / 5)),
-  exposure("k2", true, (lift) => poseAt(hop2(lift), TAKEOFF_T), TAKEOFF_T * FLIGHT_MS, null),
-  exposure("b1", false, (lift) => poseAt(hop2(lift), 1 / 3), FLIGHT_MS / 3, onSkip(3 / 5)),
-  exposure("b2", false, (lift) => poseAt(hop2(lift), 2 / 3), (2 * FLIGHT_MS) / 3, onSkip(4 / 5)),
-  exposure("k3", true, (lift) => rest(X3, lift), FLIGHT_MS, { pose: rest(X3, LIFT.skip), delay: FLIGHT_LONG_MS }),
-];
+export const EXPOSURES: readonly Exposure[] = [exposure("takeoff", true, TAKEOFF_T), exposure("apex", false, APEX_T)];
 
 /** The flier's resting places: 01, 02 and the landing at 03 per variant. */
 export const FLIER = {

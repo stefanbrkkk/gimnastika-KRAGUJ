@@ -714,3 +714,55 @@ describe("programs: the rail's flier never leaves its track (round 4 regression)
     expect(browser).toMatch(/"--i": Math\.min\(page\.i, railN - 1\), "--n": railN/);
   });
 });
+
+describe("programs: no figure in the rail or under the photo (figure system §5.4, R5)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const css = readFileSync("styles/sections/programs.css", "utf8");
+  const browser = readFileSync("components/sections/programs/ProgramsBrowser.tsx", "utf8");
+  const programs = readFileSync("components/sections/programs/Programs.tsx", "utf8");
+  /** Declarations of the first rule for `selector` (top level or nested). */
+  const rule = (selector: string) => {
+    const at = css.indexOf(`${selector} {`);
+    expect(at, selector).toBeGreaterThan(-1);
+    return css.slice(at, css.indexOf("}", at));
+  };
+
+  it("the rail's marker is a lavender bead, not the silhouette", () => {
+    expect(browser).not.toMatch(/#leap/);
+    expect(browser).toMatch(/<span className="pg-rail__flier">\s*<span className="pg-rail__bead" \/>\s*<\/span>/);
+    const bead = rule(".pg-rail__bead");
+    expect(bead).toMatch(/width: 10px;/);
+    expect(bead).toMatch(/height: 10px;/);
+    expect(bead).toMatch(/background: var\(--color-lav-200\);/);
+    expect(bead).toMatch(/border-radius: var\(--radius-full\);/);
+    expect(css).not.toMatch(/pg-rail__leap|pg-hop-/);
+  });
+
+  it("slides on the flight ease and sticks its arrival on the land ease — motion only; reduced motion jumps", () => {
+    expect(rule(".pg-rail__flier")).toMatch(/transition: transform var\(--dur-base\) var\(--ease-flight\);/);
+    const start = css.indexOf("@media (prefers-reduced-motion: no-preference) {\n  html.js-motion .pg-rail");
+    expect(start).toBeGreaterThan(-1);
+    const motion = css.slice(start);
+    // The landing exists only inside the motion query (its first use is there).
+    for (const parity of ["0", "1"]) expect(css.indexOf(`.pg-rail[data-hop="${parity}"] .pg-rail__bead`)).toBeGreaterThan(start);
+    // The landing starts when the slide has arrived.
+    expect(motion).toMatch(/animation: pg-land-a var\(--dur-land\) var\(--ease-land\) var\(--dur-base\);/);
+    expect(motion).toMatch(/animation: pg-land-b var\(--dur-land\) var\(--ease-land\) var\(--dur-base\);/);
+    expect(browser).toMatch(/data-hop=\{page\.i % 2\}/);
+    // Reduced motion: no slide.
+    const reduce = css.slice(css.lastIndexOf("@media (prefers-reduced-motion: reduce) {"));
+    expect(reduce).toMatch(/\.pg-rail__flier \{\s*transition: none;/);
+  });
+
+  it("KR-04 has no trail: at every width its paper stretches to the row, the label at the foot", () => {
+    expect(programs).not.toMatch(/#leap|pg-photo__trail|PHOTO_TRAIL/);
+    expect(css).not.toMatch(/pg-photo__(trail|mat|ghost)/);
+    const frame = rule(".programs .pg-photo .frame");
+    expect(frame).toMatch(/flex: 1 1 auto;/);
+    expect(frame).not.toMatch(/max-height/);
+    expect(rule(".programs .pg-photo .frame-foot")).toMatch(/margin-top: auto;/);
+    // The print itself keeps the native/2 cap.
+    expect(css).toMatch(/\n\.pg-photo \{[^}]*--pg-photo-cap: 533px;/);
+    expect(rule(".programs .pg-photo .photo")).toMatch(/max-height: var\(--pg-photo-cap\);/);
+  });
+});

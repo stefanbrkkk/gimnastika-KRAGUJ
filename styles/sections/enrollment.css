@@ -311,7 +311,7 @@
   margin: 0 0 12px;
 }
 
-/* --kit-pad: the card's inline padding — also where the corner silhouette stands. */
+/* --kit-pad: the card's inline padding. */
 .en-kit {
   --kit-pad: 22px;
 }
@@ -322,11 +322,31 @@
   }
 }
 
-/* The title ends where the card ends, and wraps before the corner silhouette (its 40px + 12px
-   air), which stands on the card's top edge beside the title's last line. */
+/* The title ends where the card ends and keeps the measure it had beside the old corner
+   silhouette (figure system §5.9 removed it), so it wraps exactly as before. */
 .en-kit__title {
+  position: relative;
   max-width: 520px;
   padding-right: calc(var(--kit-pad) + 52px);
+}
+
+/* A full bag: every tick stays drawn, and the heading gets a short static lavender rule in the
+   gap above the card (absolute, so nothing moves). Unticking any item takes it away. CSS :has();
+   an engine without it simply shows no rule. */
+.en-kit__title::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  width: 40px;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: var(--color-lav-200);
+  opacity: 0;
+}
+
+.en-kit:not(:has(.en-check__input:not(:checked))) .en-kit__title::after {
+  opacity: 1;
 }
 
 /* The packing card. */
@@ -455,83 +475,6 @@
 @keyframes en-box-squash {
   from {
     scale: 1.06 0.9;
-  }
-  to {
-    scale: 1 1;
-  }
-}
-
-/* The card's top-right corner, at its inner padding (front foot over the end of the rules, feet
-   on the top edge): a ghost frame of the leap (accent at .25). A full bag = a stuck landing: the
-   solid silhouette leaps onto the ghost from one hop back (a 16px arc, fading in on the way up),
-   covers it at touchdown and sticks — compress and hold on the front foot (--ease-land).
-   Unticking any item brings the ghost back. CSS :has(); an engine without it keeps the ghost. */
-.en-kit__ghost,
-.en-kit__flier {
-  position: absolute;
-  right: var(--kit-pad);
-  bottom: 100%;
-  width: 40px;
-  height: auto;
-  overflow: visible;
-  color: var(--accent);
-  pointer-events: none;
-}
-
-.en-kit__ghost {
-  opacity: 0.25;
-}
-
-.en-kit__flier {
-  opacity: 0;
-  transform-origin: 96% 100%;
-}
-
-.en-kit__card:not(:has(.en-check__input:not(:checked))) .en-kit__ghost {
-  opacity: 0;
-}
-
-.en-kit__card:not(:has(.en-check__input:not(:checked))) .en-kit__flier {
-  opacity: 1;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .en-kit__ghost,
-  .en-kit__flier {
-    transition: opacity var(--dur-fast) linear;
-  }
-  /* The ghost goes at touchdown, under the landing silhouette. */
-  .en-kit__card:not(:has(.en-check__input:not(:checked))) .en-kit__ghost {
-    transition: opacity 0s linear 420ms;
-  }
-  .en-kit__card:not(:has(.en-check__input:not(:checked))) .en-kit__flier {
-    transition: none;
-    animation:
-      en-kit-hop 420ms linear both,
-      en-kit-stick var(--dur-land) var(--ease-land) 420ms;
-  }
-}
-
-@keyframes en-kit-hop {
-  0% {
-    translate: -24px 0;
-    opacity: 0;
-    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
-  }
-  50% {
-    translate: -12px -16px;
-    opacity: 1;
-    animation-timing-function: cubic-bezier(0.32, 0, 0.67, 0);
-  }
-  100% {
-    translate: 0 0;
-    opacity: 1;
-  }
-}
-
-@keyframes en-kit-stick {
-  from {
-    scale: 1.03 0.94;
   }
   to {
     scale: 1 1;

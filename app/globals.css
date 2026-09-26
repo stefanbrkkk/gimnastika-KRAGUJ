@@ -650,12 +650,6 @@
     text-align: center;
   }
 
-  .photo-placeholder__leap {
-    width: 38%;
-    max-width: 180px;
-    opacity: 0.55;
-  }
-
   .photo {
     position: relative;
     overflow: hidden;

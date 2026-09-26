@@ -7,7 +7,7 @@ import { SCHEDULE_UI } from "@/content/schedule";
 import { CTA, PRIMARY_PHONE } from "@/content/site";
 import { telHref } from "@/lib/links";
 import { typesetSr } from "@/lib/typeset";
-import { LEAP_SYMBOL, NARROW, WIDE } from "./leap-band";
+import { NARROW, WIDE } from "./leap-band";
 import { LeapBand } from "./LeapBand";
 import { LeapBandPlayer } from "./LeapBandPlayer";
 
@@ -36,8 +36,8 @@ function splitAtPhone(line: string, phone: string): [string, string] {
  *   lamps light like a scoreboard.
  * - „Šta poneti na prvi trening“: a real packing list — unticked checkboxes a
  *   parent can tick the evening before; each tick draws with a small box squash
- *   (CSS). A ghost frame stands on the card's top-right corner; a full bag lands
- *   the solid silhouette on it (CSS :has()).
+ *   (CSS). A full bag keeps every tick and underlines the heading with a short
+ *   static lavender rule (CSS :has()); no figure (figure system §5.9, R5).
  * - FAQ „Pitanja roditelja“: native <details>; + turns into ×; the answer opens
  *   0fr → 1fr in 280ms and settles in (CSS only); two answers end with their
  *   next action (maps, schedule).
@@ -97,19 +97,6 @@ export function Enrollment() {
               {typesetSr(ENROLLMENT.checklistHeading)}
             </h3>
             <div className="en-kit__card">
-              {/* The card's top-right corner holds a ghost frame of the leap; a full bag = a stuck
-                  landing: the solid flier leaps onto it from one hop back (CSS :has()). */}
-              {(["ghost", "flier"] as const).map((part) => (
-                <svg
-                  key={part}
-                  className={`en-kit__${part}`}
-                  viewBox={`${LEAP_SYMBOL.x} ${LEAP_SYMBOL.y} ${LEAP_SYMBOL.width} ${LEAP_SYMBOL.height}`}
-                  aria-hidden="true"
-                  focusable="false"
-                >
-                  <use href="#leap" x={LEAP_SYMBOL.x} y={LEAP_SYMBOL.y} width={LEAP_SYMBOL.width} height={LEAP_SYMBOL.height} />
-                </svg>
-              ))}
               <ul className="en-check" role="list">
                 {ENROLLMENT.checklist.map((item) => (
                   <li key={item}>

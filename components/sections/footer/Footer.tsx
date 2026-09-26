@@ -13,8 +13,8 @@ const typeset = (text: string) => typesetSr(text).replace(/ · /g, "\u00a0· ");
 
 /**
  * Footer (§5 FOOTER), darkroom navy-950. The white logo is the last frame of
- * the page's chronophotograph: the leap takes off again past the logo in fading
- * ghost frames. On mobile the bottom padding clears the sticky bottom bar.
+ * the page's chronophotograph. On mobile the bottom padding clears the sticky
+ * bottom bar.
  *
  * #meni — a compact page index mirroring the menu sheet (the six NAV links, the
  * trial CTA, the call — as quiet index links, so the doskok stays the finale). It is where the header's "Meni" leads without JS and

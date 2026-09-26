@@ -129,8 +129,8 @@ function unstick(el: Element): [number, number] {
   return [0, 0];
 }
 
-/** The chrono mark's viewBox (components/ui/ChronoMark.tsx): ghost 1 at (0, 52), the landed frame at (340, 58). */
-const MARK = { width: 570, first: [0, 52] as Pt, pitch: -10 } as const;
+/** The chrono mark's viewBox (components/ui/ChronoMark.tsx): ghost 1 at (0, 52), the landed frame at (60, 58). */
+const MARK = { width: 290, first: [0, 52] as Pt, pitch: -10 } as const;
 /** The second exposure: white on the hero, the mark's colour below it. */
 const EXPOSURE_OPACITY = 0.88;
 /** She never runs smaller than this share of the landed silhouette: where that does not fit, she is hidden instead. */
@@ -226,6 +226,7 @@ export function pinHero(ScrollTrigger: ScrollTriggerStatic, section: HTMLElement
   // ---- DOM: the spine and the exposure (created here, removed on cleanup) ----
   const spine = document.createElementNS(SVG_NS, "svg");
   spine.setAttribute("class", "hero-spine");
+  spine.setAttribute("data-figure", "brand:hero");
   spine.setAttribute("aria-hidden", "true");
   spine.setAttribute("focusable", "false");
   spine.innerHTML =

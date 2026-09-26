@@ -3,14 +3,11 @@
  * motion is allowed), so none of this is first-load JS. CSS does the animating;
  * this file only measures and sets attributes. No rAF loop, no scroll handler.
  *
- * 1. Nav spy (≥1024 with hover): one „you are here“ line under the desktop links
- *    that hops from link to link on an arc — x linear, y a small parabola, then
- *    a stuck landing (header.css .site-header__spy*). It replaces the per-link
- *    line while it runs. Under the hidden header it moves without a hop.
- * 2. Footer take-off (MO-05): when the footer mark first comes into view, the
- *    landed silhouette pushes off and the three ghost frames stream out past it.
- *    The pre-state is set only right before (and only if the mark is off screen),
- *    so a failed chunk never leaves the ghosts hidden.
+ * Nav spy (≥1024 with hover): one „you are here“ line under the desktop links
+ * that hops from link to link on an arc — x linear, y a small parabola, then a
+ * stuck landing (header.css .site-header__spy*). It replaces the per-link line
+ * while it runs. Under the hidden header it moves without a hop.
+ * (The footer logo is static: its take-off ghost stream is gone, plan §5.11.)
  */
 
 const WIDE = "(min-width: 1024px) and (hover: hover)";
@@ -89,30 +86,6 @@ function navSpy(): () => void {
   };
 }
 
-function footerTakeoff(): () => void {
-  const mark = document.querySelector<SVGSVGElement>("[data-footer-mark]");
-  if (!mark) return () => {};
-  const r = mark.getBoundingClientRect();
-  // Already on screen (deep link, short page): keep the static final state.
-  if (r.bottom > 0 && r.top < window.innerHeight) return () => {};
-
-  mark.setAttribute("data-armed", "");
-  const io = new IntersectionObserver(
-    (entries) => {
-      if (!entries.some((e) => e.isIntersecting && e.intersectionRatio >= 0.4)) return;
-      io.disconnect();
-      mark.setAttribute("data-played", "");
-    },
-    { threshold: 0.4 },
-  );
-  io.observe(mark);
-  return () => {
-    io.disconnect();
-    if (!mark.hasAttribute("data-played")) mark.removeAttribute("data-armed");
-  };
-}
-
 export function startChromeMotion(): () => void {
-  const stops = [navSpy(), footerTakeoff()];
-  return () => stops.forEach((stop) => stop());
+  return navSpy();
 }

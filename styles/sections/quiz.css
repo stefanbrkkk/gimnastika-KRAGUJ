@@ -289,11 +289,12 @@ html:not(.js) .quiz-app {
 }
 /* In a Marey print every exposure lies over the scene (QP3-05). The ghosts are faint, so a rail
    painted under one still cut through it like a fence. The occluder (QuizBandArt) is a copy of
-   the seven exposures painted right over the apparatus in the strip's own navy: solid wherever a
+   the two exposures painted right over the apparatus in the strip's own navy: solid wherever a
    ghost is developed, as one union at 60 %, so a rail keeps 40 % of its ink under a body. Its
    poses, develop delays and transitions are the visible print's (same classes, same inline
-   variables); a hidden exposure (the landing frame under the flier) occludes nothing, and over
-   the navy strip the occluder is invisible. Grid and mat are painted after it, untouched. */
+   variables); over the navy strip the occluder is invisible. Grid and mat are painted after it,
+   untouched. With no apparatus drawn (steps 01–02) there is nothing to occlude: it is off, so
+   no invisible copy of the figure lies in the strip. */
 .qb-occlude {
   --ghost-1: var(--color-navy-900);
   --ghost-2: var(--color-navy-900);
@@ -301,11 +302,15 @@ html:not(.js) .quiz-app {
   --ghost-2-o: 1;
   opacity: 0.6;
 }
+.quiz-band:not([data-app]) .qb-occlude {
+  visibility: hidden;
+}
 
-/* The seven exposures (k = the answers 01/02/03, a/b = in flight). Poses per landing
-   variant come inline (--t-*). A latent print: 10 % ice; passed in-flight frames develop
-   to ghost 1 (ice), passed key frames to ghost 2 (lavender); the frame the flier stands
-   on is hidden under it. */
+/* The two exposures (figure system R3): two real phases of the leap — the take-off at 01 and
+   the apex (over 02 on the long flight). Poses per landing variant come inline (--t-*). A latent
+   print: 10 % ice; once the flier has passed, the apex develops to ghost 1 (ice) and the
+   take-off, the answer frame 01, to ghost 2 (lavender). While she stands on 01 the take-off
+   lies hidden under her. */
 .qf {
   color: var(--ghost-1);
   opacity: 0.1;
@@ -320,18 +325,13 @@ html:not(.js) .quiz-app {
 .quiz-band[data-v="skip"] .qf {
   transform: var(--t-skip);
 }
-.quiz-band[data-step="0"] .qf--k1,
-.quiz-band[data-step="1"] .qf--k2,
-.quiz-band[data-step="2"] .qf--k3,
-.quiz-band[data-step="2"][data-v="skip"] .qf--k2 {
+.quiz-band[data-step="0"] .qf--takeoff {
   opacity: 0;
 }
-.quiz-band:not([data-step="0"]) :is(.qf--a1, .qf--a2),
-.quiz-band[data-step="2"] :is(.qf--b1, .qf--b2) {
+.quiz-band:not([data-step="0"]) .qf--apex {
   opacity: var(--ghost-1-o);
 }
-.quiz-band:not([data-step="0"]) .qf--k1,
-.quiz-band[data-step="2"]:not([data-v="skip"]) .qf--k2 {
+.quiz-band:not([data-step="0"]) .qf--takeoff {
   color: var(--ghost-2);
   opacity: var(--ghost-2-o);
 }
@@ -373,7 +373,7 @@ html:not(.js) .quiz-app {
   html.js-motion #kviz:not(:has(.chrono-mark[data-landed])) .quiz-app:not([data-lite]):not([data-entered]) .qf {
     opacity: 0;
   }
-  html.js-motion #kviz:has(.chrono-mark[data-landed]) .quiz-app:not([data-lite]):not([data-entered]) .qf:not(.qf--k1) {
+  html.js-motion #kviz:has(.chrono-mark[data-landed]) .quiz-app:not([data-lite]):not([data-entered]) .qf:not(.qf--takeoff) {
     animation: qf-surface 900ms var(--ease-stick) calc(560ms + var(--i) * 40ms) backwards;
   }
 
@@ -387,12 +387,11 @@ html:not(.js) .quiz-app {
   .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"] .qf {
     --qb-d: var(--d);
   }
+  /* The long flight: the latent print moves to its poses so that each exposure is in place
+     exactly when she passes it and develops (transform, opacity, color). */
   .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-step="2"][data-v="skip"] .qf {
     --qb-d: var(--ds);
-  }
-  /* 02 on the way in: hidden only when the flier lands on it. */
-  .quiz-app:not([data-lite]) .quiz-band[data-dir="fwd"][data-step="1"] .qf--k2 {
-    --qb-d: var(--qb-fly);
+    transition-duration: var(--ds), var(--dur-reveal), 0s;
   }
   .quiz-app:not([data-lite]) .quiz-band[data-dir="back"] .qf {
     transition:
@@ -453,6 +452,10 @@ html:not(.js) .quiz-app {
   }
   .quiz-app:not([data-lite]) .quiz-band[data-dir="back"] .qb-app path {
     transition: stroke-dashoffset 200ms var(--ease-takeoff) 160ms;
+  }
+  /* …and its occluder stays with it. */
+  .quiz-app:not([data-lite]) .quiz-band[data-dir="back"] .qb-occlude {
+    transition: visibility 0s linear 360ms;
   }
 
   .quiz-app:not([data-lite]) .quiz-band :is(.qb-mat--span, .qb-mat--air, .qb-tick--2) {

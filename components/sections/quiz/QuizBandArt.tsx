@@ -1,18 +1,22 @@
 /**
  * The darkroom strip's picture (server component, no client code): a Marey chronophotograph
- * of one tumbling pass drawn once — measuring grid, mat, the three apparatus drawings, seven
- * latent exposures of #leap and the flier. Every state is chosen by CSS from the data
- * attributes QuizBand sets (data-step / data-v / data-app / data-dir), so the quiz island
- * ships none of this geometry. Poses per variant and develop delays travel as inline custom
- * properties (geometry.ts); the motion itself is CSS (styles/sections/quiz.css).
+ * of one tumbling pass drawn once — measuring grid, mat, the three apparatus drawings, two
+ * latent exposures of #leap (the take-off at 01 and the apex: two real phases of the leap,
+ * figure system R3) and the flier. Every state is chosen by CSS from the data attributes
+ * QuizBand sets (data-step / data-v / data-app / data-dir), so the quiz island ships none of
+ * this geometry. Poses per variant and develop delays travel as inline custom properties
+ * (geometry.ts); the motion itself is CSS (styles/sections/quiz.css).
  *
  * Paint order is the print's: the scene (apparatus, grid, mat) → exposures → flier. The ghosts
  * are faint (18–28 %), so a steel rail under one would still cut through it like a fence; the
  * print therefore lays a navy occluder over the apparatus first (QP3-05): a second copy of the
- * seven exposures with the same classes and inline variables — every pose, develop delay and
+ * exposures with the same classes and inline variables — every pose, develop delay and
  * transition of the visible print drives it too — so a rail shows through a body only faintly.
  * Over the strip's own navy it is invisible, so it touches nothing but the apparatus. (Not an
  * SVG <mask>: Chromium keeps a mask's cached raster while CSS transitions move its content.)
+ * With two exposures only one crossing is left: on the bars result the low bar's left upright
+ * runs through the apex's front shin. Phase 3 of the figure plan redraws the landings so
+ * nothing needs masking; the occluder goes then.
  */
 import type { CSSProperties } from "react";
 import {
@@ -55,7 +59,7 @@ function Leap() {
   return <use href="#leap" x={USE_X} y={USE_Y} width={FIG_W} height={FIG_H} />;
 }
 
-/** The seven exposures (the visible print, and again as the apparatus occluder). */
+/** The two exposures (the visible print, and again as the apparatus occluder). */
 function Exposures() {
   return EXPOSURES.map((e, i) => {
     const style: Vars = {
@@ -81,7 +85,7 @@ function Exposures() {
  */
 export function QuizBandArt({ occlude = false }: { occlude?: boolean }) {
   return (
-    <svg className="quiz-band__svg" viewBox={`0 0 ${VB_W} ${VB_H}`} focusable="false" style={flierVars}>
+    <svg className="quiz-band__svg" viewBox={`0 0 ${VB_W} ${VB_H}`} focusable="false" style={flierVars} data-figure="brand:quiz">
       {/* The apparatus of the recommended program, drawn in under frame 03 as she lands. */}
       <g className="qb-apps">
         {APPS.map((id) => {

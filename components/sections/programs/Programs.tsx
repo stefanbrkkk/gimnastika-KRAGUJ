@@ -17,15 +17,6 @@ import { ProgramsBrowser, type BrowserChip } from "./ProgramsBrowser";
  * With MINOR_PHOTOS=false the photo is a placeholder, which must never open the row: it stays
  * the last frame at every width (data-placeholder).
  */
-/** Trail under KR-04 (viewBox 248×64): takeoff → apex → landing on the mat line (y 62.5). */
-const TRAIL_W = 72;
-const TRAIL_H = 47; // #leap is 230×150
-const PHOTO_TRAIL = [
-  { x: 0, y: 11 },
-  { x: 88, y: 0 },
-  { x: 176, y: 15.5 },
-] as const;
-
 export function Programs() {
   const programs = visiblePrograms(FLAGS.SHOW_TRAMPOLINE);
   const ids = programs.map((p) => p.id);
@@ -60,22 +51,15 @@ export function Programs() {
             {...(photoPlaceholder ? { "data-placeholder": "" } : {})}
           >
             {/* The drawn (cover-cropped) image is ≤533 CSS px: the box is ≤533px tall on phones and
-                in the ≥1024 sheet, and a square cover draws at the box's longer side. */}
+                in the ≥1024 sheet, and a square cover draws at the box's longer side. Where the row
+                is taller than that, the white paper stretches to the row and KR-04 sits at its foot
+                (programs.css). */}
             <Picture
               id="04"
               frame
               aspect={1}
               sizes="(min-width: 1280px) 533px, (min-width: 1024px) 460px, 533px"
             />
-            {/* Phones/tablets: the row is taller than the print may be drawn (≤533px), so the
-                slot ends on the leap that lands on its mat line — the flight in the photo,
-                continued as a chronophotograph toward the program cards. */}
-            <svg className="pg-photo__trail" viewBox="0 0 248 64" aria-hidden="true" focusable="false">
-              <line className="pg-photo__mat" x1="0" y1="62.5" x2="248" y2="62.5" />
-              {PHOTO_TRAIL.map((g, k) => (
-                <use key={k} href="#leap" className="pg-photo__ghost" x={g.x} y={g.y} width={TRAIL_W} height={TRAIL_H} />
-              ))}
-            </svg>
           </div>
         </ProgramsBrowser>
       </div>

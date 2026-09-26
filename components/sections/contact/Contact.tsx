@@ -113,7 +113,7 @@ export function Contact() {
                 ))}
               </ul>
 
-              <div className="doskok" data-doskok="">
+              <div className="doskok" data-doskok="" data-figure="brand:doskok">
                 <div className="doskok__arc" aria-hidden="true" data-doskok-arc="">
                   {GHOSTS.map((n) => (
                     <Leap key={n} className={`doskok__frame doskok__ghost doskok__ghost--${n}`} data-doskok-ghost={String(n)} />
