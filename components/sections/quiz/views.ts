@@ -209,6 +209,7 @@ export function buildQuizViewModel(): QuizViewModel {
       step2: typesetSr(QUIZ.step2),
       experience: QUIZ.experience,
       resultCta: ctaLabel(QUIZ.resultCta, true),
+      resultCtaPlural: ctaLabel(QUIZ.resultCtaPlural, true),
       finalNote: typesetSr(QUIZ.finalNote),
       hint: aerobicHint(),
       back: QUIZ_UI.back,

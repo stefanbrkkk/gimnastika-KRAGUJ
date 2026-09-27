@@ -79,7 +79,7 @@ function ChipGroup({
   );
 }
 
-function Result({ view, copy }: { view: QuizResultView; copy: QuizViewModel["copy"] }) {
+function Result({ view, copy, note }: { view: QuizResultView; copy: QuizViewModel["copy"]; note: string }) {
   return (
     <div className="quiz-result">
       <div className="quiz-result__main">
@@ -87,7 +87,8 @@ function Result({ view, copy }: { view: QuizResultView; copy: QuizViewModel["cop
       </div>
       <QuizActions
         booking={view.booking}
-        cta={copy.resultCta}
+        note={note}
+        cta={view.groups.length > 1 ? copy.resultCtaPlural : copy.resultCta}
         finalNote={copy.finalNote}
         hint={copy.hint}
       />
@@ -166,6 +167,12 @@ export function QuizApp({ vm, art }: { vm: QuizViewModel; art: ReactNode }) {
     age === null || step === 0
       ? []
       : [`${age} ${copy.ageUnit}`, step === 2 && asked && exp !== null ? (copy.experience[exp] ?? "") : ""].filter(Boolean);
+  // Age context for the booking sheet's Napomena: the known age travels with the
+  // message without inventing a birth year (K04). Empty until an age is chosen.
+  const ageNote =
+    age === null
+      ? ""
+      : `Anketa: ${age} ${copy.ageUnit}${asked && exp !== null && copy.experience[exp] ? ` · ${copy.experience[exp]}` : ""}`;
   const q1 = `${uid}-q1`;
   const q2 = `${uid}-q2`;
 
@@ -226,7 +233,7 @@ export function QuizApp({ vm, art }: { vm: QuizViewModel; art: ReactNode }) {
 
         {/* Persistent live region: the whole result is announced when it appears. */}
         <div className="quiz-live" aria-live="polite">
-          {view ? <Result view={view} copy={copy} /> : null}
+          {view ? <Result view={view} copy={copy} note={ageNote} /> : null}
         </div>
 
         {step > 0 ? (

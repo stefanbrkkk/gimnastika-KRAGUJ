@@ -219,6 +219,18 @@ export function applyGroupPrefill(prefill: string, current: GroupPrefill): Group
   return match === null ? { extraGroups: [label], group: label } : { extraGroups: [], group: match };
 }
 
+/**
+ * Age-context note prefill (quiz result → booking sheet).
+ * A non-empty prefill fills an empty note so the known age travels with the
+ * message without inventing a birth year; it never overwrites text the parent
+ * already typed. An empty prefill keeps the current note.
+ */
+export function applyNotePrefill(prefill: string, currentNote: string): string {
+  if (!clean(prefill)) return currentNote;
+  if (clean(currentNote)) return currentNote;
+  return clean(prefill);
+}
+
 export interface ScrollBox {
   scrollTop: number;
   clientHeight: number;

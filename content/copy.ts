@@ -40,6 +40,8 @@ export const QUIZ = {
   /** Every result. */
   aerobicHint: "Pitajte trenericu i za aerobnu gimnastiku.",
   resultCta: "Zakažite probni trening za ovu grupu",
+  /** Shown when the result recommends 2+ groups (age 8 beginner, competitive). */
+  resultCtaPlural: "Zakažite probni trening za ove grupe",
   finalNote: "Konačnu grupu predlaže trenerica posle probnog treninga.",
   competitiveTitle: "Takmičarske grupe (A, B i C program)",
   back: "Nazad",
@@ -156,8 +158,8 @@ export const BOOKING = {
   addNote: "Dodajte napomenu",
   privacy: "Sajt ne čuva vaše podatke — poruka ide direktno trenerici.",
   actions: {
-    sms: "Pošaljite SMS",
-    email: "Pošaljite email",
+    sms: "Otvorite SMS",
+    email: "Otvorite email",
     call: "Pozovite",
     viber: "Viber",
   },
@@ -172,7 +174,7 @@ export const BOOKING = {
     group: "grupa",
     note: "napomena",
   },
-  after: `Poruka je spremna — pošaljite je u aplikaciji. Ako vam se ne javimo, pozovite ${PRIMARY_PHONE.display}.`,
+  after: `Poruka je spremna — pošaljite je u aplikaciji. Termin dogovarate sa trenericom. Ako vam se ne javimo, pozovite ${PRIMARY_PHONE.display}.`,
   viberFailed: `Viber se nije otvorio — pozovite ${PRIMARY_PHONE.display} ili pošaljite SMS.`,
   close: "Zatvorite",
   /** "Grupa" select option when the parent has not chosen a group. */

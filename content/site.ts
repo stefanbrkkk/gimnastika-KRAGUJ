@@ -18,8 +18,8 @@ export const FLAGS = {
   SHOW_TRAMPOLINE: bool(process.env.NEXT_PUBLIC_SHOW_TRAMPOLINE, false),
   /** Membership fee not provided. */
   SHOW_FEES: bool(process.env.NEXT_PUBLIC_SHOW_FEES, false),
-  /** Viber not confirmed. When false, messaging uses SMS. */
-  SHOW_VIBER: bool(process.env.NEXT_PUBLIC_SHOW_VIBER, false),
+  /** Viber confirmed by owner: the club uses Viber on the primary number. */
+  SHOW_VIBER: bool(process.env.NEXT_PUBLIC_SHOW_VIBER, true),
   /** The Facebook page is only confirmed via the search index. */
   SHOW_FACEBOOK: bool(process.env.NEXT_PUBLIC_SHOW_FACEBOOK, false),
   /** New uneven bars (2026) are sourced only from an Instagram post. */
@@ -31,8 +31,8 @@ export const FLAGS = {
    * OR after the club confirms parental consent. noindex is NOT consent.
    */
   MINOR_PHOTOS: bool(process.env.NEXT_PUBLIC_MINOR_PHOTOS, true),
-  /** Photos 02 and 09 (camp groups, ~40 girls, possibly other clubs). */
-  CAMP_GROUP_PHOTOS: bool(process.env.NEXT_PUBLIC_CAMP_GROUP_PHOTOS, false),
+  /** Photos 02 and 09 (camp groups, ~40 girls, possibly other clubs). Consent confirmed by owner 2026-09-28 (club email on file). */
+  CAMP_GROUP_PHOTOS: bool(process.env.NEXT_PUBLIC_CAMP_GROUP_PHOTOS, true),
   /** Controls only <meta name="robots">, robots.txt and sitemap. */
   INDEXABLE: bool(process.env.NEXT_PUBLIC_INDEXABLE, false),
 } as const;

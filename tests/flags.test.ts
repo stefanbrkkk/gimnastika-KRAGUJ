@@ -38,11 +38,11 @@ describe("§0 defaults", () => {
       SHOW_SHIFT_NOTE: false,
       SHOW_TRAMPOLINE: false,
       SHOW_FEES: false,
-      SHOW_VIBER: false,
+      SHOW_VIBER: true,
       SHOW_FACEBOOK: false,
       SHOW_EQUIPMENT_2026: false,
       MINOR_PHOTOS: true,
-      CAMP_GROUP_PHOTOS: false,
+      CAMP_GROUP_PHOTOS: true,
       INDEXABLE: false,
     });
   });

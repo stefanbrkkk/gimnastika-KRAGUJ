@@ -1310,3 +1310,37 @@ docs/plan-figure-system.md; the owner approved it and the pose sheet (docs/poses
 14. New uneven bars 2026 (Instagram only) → `SHOW_EQUIPMENT_2026`
 15. May camp photo 16 (camp lunch) also appear in the S8 postcard stack? (§5 S8 lists 10 and 11 only.)
 16. Approve a small-size logo lockup (script + silhouette without the micro-text) for the header at ≤56px; the header renders the full logo until then.
+
+## 2026-09-28 — owner-confirmed inputs + audit fixes (no new facts)
+
+- **SHOW_VIBER=true** (`content/site.ts`). The owner confirmed the club uses Viber
+  on the primary number (060 028 7631), answering TODO 8 (Viber half; WhatsApp has
+  no implementation in the repo — no `whatsappHref`, no channel — and stays open).
+  Effect: sticky bar message button is Viber instead of SMS; the booking sheet gains
+  the Viber hand-off beside SMS/email (`BookingDialog.tsx`, `StickyBar.tsx`,
+  `lib/links.ts viberHref`). Verified: 771 tests, `qa:content` 60/60, export OK.
+- **Quiz plural CTA** (audit K05): `QUIZ.resultCtaPlural` ("…za ove grupe") is used
+  when a result recommends 2+ groups (`QuizApp.tsx`); singular kept for single-group
+  results. Mechanical copy only.
+- **Booking external-app honesty** (audit K02): send actions read "Otvorite SMS" /
+  "Otvorite email"; `BOOKING.after` adds "Termin dogovarate sa trenericom."
+- **Quiz age context** (audit K04): result CTAs carry `data-booking-note`
+  ("Anketa: 8 god. · Tek počinje") via `lib/events.ts BOOKING_NOTE_ATTR`; the sheet
+  prefills an empty Napomena only (`applyNotePrefill`, never overwrites, never
+  invents a birth year).
+- **Photos**: `MINOR_PHOTOS` default stays `true` so the local build (`npm run build`
+  + `npm start`, `out/img` 67 files) shows the finished site for the client review;
+  the public Vercel URL must keep `NEXT_PUBLIC_MINOR_PHOTOS=false` until written
+  parental consent exists (ZZPL <15) — `noindex` is not consent, `CAMP_GROUP_PHOTOS`
+  (02/09, possibly other clubs' children) stays `false`. Domain still unbought
+  (`SITE_URL` default, `INDEXABLE=false`).
+- **Photo consent granted 2026-09-28** (owner relayed club email: all parents asked,
+  all agreed, including other clubs' children in camp groups). `CAMP_GROUP_PHOTOS`
+  default `false→true` (`content/site.ts`, `tests/flags.test.ts`); `MINOR_PHOTOS`
+  default was already `true`. Verified: 771 tests, export OK, `qa:content` 58/60
+  checks adapted (2 campGroup-absent checks N/A), `images.hidden: none`, zero
+  "Fotografija uskoro" in `out/index.html`, `out/img` 67→79 files. Basis is the
+  owner's statement — keep the club's email archived and, per K20, a per-photo
+  display record; the other-club approval is secondhand and remains the residual
+  risk. Vercel still overrides `NEXT_PUBLIC_MINOR_PHOTOS=false`: remove that env
+  var (and set `NEXT_PUBLIC_CAMP_GROUP_PHOTOS=true` if set) + redeploy to publish.

@@ -3,6 +3,7 @@
  * card and the static no-JS guide (no hooks, no client-only code).
  */
 import type { CSSProperties, ReactNode } from "react";
+import { BOOKING_NOTE_ATTR } from "@/lib/events";
 import type { QuizResultView } from "./types";
 
 /** A time range („08:30–10:30“): never broken at its dash; lines wrap around „ ili “ instead. */
@@ -67,6 +68,8 @@ export function QuizGroups({ view, focusFirst = false }: QuizGroupsProps) {
 
 interface QuizActionsProps {
   booking: string;
+  /** Age context ("Anketa: 8 god.") prefilling Napomena only when empty. */
+  note: string;
   /** CTA label node (QuizCtaLabel; two levels on phones when it has a second part). */
   cta: ReactNode;
   finalNote: string;
@@ -75,10 +78,10 @@ interface QuizActionsProps {
 }
 
 /** CTA (prefills the booking sheet) + the small final line + the aerobic hint. */
-export function QuizActions({ booking, cta, finalNote, hint }: QuizActionsProps) {
+export function QuizActions({ booking, note, cta, finalNote, hint }: QuizActionsProps) {
   return (
     <div className="quiz-result__act">
-      <a href="#kontakt" data-booking={booking} className="btn btn-primary quiz-cta">
+      <a href="#kontakt" data-booking={booking} {...(note ? { [BOOKING_NOTE_ATTR]: note } : null)} className="btn btn-primary quiz-cta">
         {cta}
       </a>
       <p className="quiz-final">{finalNote}</p>

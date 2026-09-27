@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { QuietBoundary } from "@/components/ui/QuietBoundary";
-import { BOOKING_ATTR, BOOKING_EVENT, type BookingDetail } from "@/lib/events";
+import { BOOKING_ATTR, BOOKING_EVENT, BOOKING_NOTE_ATTR, type BookingDetail } from "@/lib/events";
 import { prefersLessMotion } from "@/lib/motion-env";
 import type { BookingRequest } from "./types";
 
@@ -69,8 +69,8 @@ export function BookingSheet() {
       setDialog(() => m.BookingDialog);
     };
 
-    const open = (group: string, opener: HTMLElement | null) => {
-      const next: BookingRequest = { id: ++seq, group, opener };
+    const open = (group: string, note: string, opener: HTMLElement | null) => {
+      const next: BookingRequest = { id: ++seq, group, note, opener };
       if (loaded) {
         setRequest(next);
         return;
@@ -92,13 +92,13 @@ export function BookingSheet() {
       const target = event.target instanceof Element ? event.target.closest(`[${BOOKING_ATTR}]`) : null;
       if (!(target instanceof HTMLElement)) return;
       event.preventDefault();
-      open(target.getAttribute(BOOKING_ATTR) ?? "", target);
+      open(target.getAttribute(BOOKING_ATTR) ?? "", target.getAttribute(BOOKING_NOTE_ATTR) ?? "", target);
     };
 
     const onEvent = (event: Event) => {
       const detail = (event as CustomEvent<BookingDetail>).detail;
       const active = document.activeElement;
-      open(detail?.group ?? "", active instanceof HTMLElement && active !== document.body ? active : null);
+      open(detail?.group ?? "", detail?.note ?? "", active instanceof HTMLElement && active !== document.body ? active : null);
     };
 
     let warming = false;

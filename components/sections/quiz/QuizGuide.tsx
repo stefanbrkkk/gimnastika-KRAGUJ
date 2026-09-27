@@ -50,6 +50,7 @@ export function QuizGuide() {
         {/* The guide lists every rule, so its CTA names no single group („… za ovu grupu“ is the result card's). */}
         <QuizActions
           booking=""
+          note=""
           cta={ctaLabel(CTA.trial, false)}
           finalNote={typesetSr(QUIZ.finalNote)}
           hint={aerobicHint()}

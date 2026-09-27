@@ -22,6 +22,7 @@ import {
   EMPTY_BOOKING,
   GROUP_UNDECIDED,
   applyGroupPrefill,
+  applyNotePrefill,
   belgradeYear,
   birthYearOptions,
   bookingHrefs,
@@ -260,6 +261,11 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
     const next = applyGroupPrefill(request.group, { extraGroups, group: values.group });
     if (next.extraGroups !== extraGroups) setExtraGroups(next.extraGroups);
     if (next.group !== values.group) setValues((v) => ({ ...v, group: next.group }));
+    const nextNote = applyNotePrefill(request.note ?? "", values.note);
+    if (nextNote !== values.note) {
+      setValues((v) => ({ ...v, note: nextNote }));
+      if (nextNote) setNoteOpen(true);
+    }
   }
 
   // The salute for the „landed“ card, fetched once the sheet exists (see loadPose).

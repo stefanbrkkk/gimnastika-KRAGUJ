@@ -11,6 +11,7 @@
  * #raspored and filters it to that program (delegated by the schedule island).
  */
 export const BOOKING_ATTR = "data-booking";
+export const BOOKING_NOTE_ATTR = "data-booking-note";
 export const SCHEDULE_PROGRAM_ATTR = "data-schedule-program";
 
 export const BOOKING_EVENT = "kraguj:booking";
@@ -19,6 +20,8 @@ export const SCHEDULE_FILTER_EVENT = "kraguj:schedule-filter";
 export interface BookingDetail {
   /** Group label to prefill in the sheet's "Grupa" field. */
   group?: string;
+  /** Age context (e.g. "Anketa: 8 god.") to prefill "Napomena" only when empty. */
+  note?: string;
 }
 
 export interface ScheduleFilterDetail {

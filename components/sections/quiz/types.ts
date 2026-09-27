@@ -67,6 +67,8 @@ export interface QuizCopy {
   experience: readonly string[];
   /** Result CTA label (QuizCtaLabel): „Zakažite probni trening“ / „za ovu grupu“. */
   resultCta: ReactNode;
+  /** Plural variant used when the result recommends 2+ groups: „za ove grupe“. */
+  resultCtaPlural: ReactNode;
   finalNote: string;
   /** „Pitajte trenericu i za aerobnu gimnastiku.“ with the aerobic plate (QuizHint). */
   hint: ReactNode;
