@@ -17,3 +17,6 @@ qa/variants/
 # If this repo is ever made public, also ignore the internal dossier and logo originals:
 # docs/dosije.md
 # assets-source/logo/*original*
+# figure rig (tools/figure-rig): local Python venv and bytecode
+tools/figure-rig/.venv/
+__pycache__/

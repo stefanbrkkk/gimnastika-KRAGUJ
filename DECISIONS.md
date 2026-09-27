@@ -163,7 +163,7 @@ anything undecided was decided here and can be reverted by the club.
   *Current (after round 1 AD-02 and design v2):* S3 programs dark · S5 about light with a dark „Hronologija“ band · S9 gallery darker; dark sections enter on a diagonal edge.
 - **D-21 · Section titles carry a small chronophotograph mark** (three ghost frames landing as the solid
   silhouette) — the "silhouette lands on section titles" idea from §1, done in CSS with one
-  IntersectionObserver for the whole page. Titles alternate left/right on desktop (the floor diagonal). *(amended by D-43: the ghost frames show only during the hop)*
+  IntersectionObserver for the whole page. Titles alternate left/right on desktop (the floor diagonal).
 
 ## Build-time decisions per area
 
@@ -272,7 +272,7 @@ Recorded by the area implementations (M1–M5); each line is one decision.
 - D-S7-5 · Motion is one sequencer (title mask → digit flip → podium draw → brush draw). Each step waits for its own element and for the running step to finish. Anything already visible when the motion arms keeps its final state. The SplitText revert puts the ChronoMark node back (HeadingLandings keeps observing it).
 - D-S7-6 · The brush annotation over photo 01 is a five-layer dry-brush swoosh across the empty floor in the lower right, drawn in the photo's 960×720 space so it never touches a person.
 - D-S8-1 · Postcards are a fanned stack of contact-sheet frames: flick the top card either way to send it to the back, or use prev/next. Without JS they fall back to a scroll-snap row. The stack CSS is scoped to html.js (set pre-paint), so there is no CLS on hydration.
-- D-S8-2 · The beam → wave static state (no JS, mobile, coarse pointer, reduced motion) is the WAVE, the scrub's final state. On desktop the scrub starts as a balance beam with A-frame legs that fade out while the line morphs.
+- D-S8-2 · The beam → wave static state (no JS, mobile, coarse pointer, reduced motion) is the WAVE, the scrub's final state. On desktop the scrub starts as a balance beam with A-frame legs that fade out while the line morphs. *(superseded by D-S8-2 v2, then D-60: scrubbed on every device)*
 - D-S8-3 · The phone number in the camp note is a tel: link, split out of the exact CAMP.note text so the copy stays editable in content/copy.ts.
 - D-S8-4 · Postcards have no captions (frame labels only), so nothing implies a photo was taken in Greece.
 - D-S8-5 · CampIsland reads the note cutoff from data-until instead of importing content/copy, which keeps copy strings out of the first-load bundle.
@@ -683,7 +683,7 @@ eight fixers implemented the accepted ones. Where a line below contradicts an ea
 ### Programs (S3) — design v2
 
 - Programs icons (QP-05): every apparatus stands on the floor y=42 of its 48-unit drawing, the height of the plate's mat line. Stroke weight is ≈2.8 CSS px at every size (--sw 1.6/1.4/1.06 user-unit px at 84/96/132px). Uneven-bar rails are heavier (×1.4) than their uprights (×0.82).
-- ProgramIcon structure is a contract: .pi-latent (static print), .pi-part[data-part] with data-draw paths, .pi-fx (trails), stroke classes .pi-thin/.pi-rail/.pi-post and a head <circle>. The quiz's views.ts iconArt() reads the rendered tree, so these names must stay stable.
+- ProgramIcon structure is a contract: .pi-latent (static print), .pi-part[data-part] with data-draw paths, .pi-fx (trails), stroke classes .pi-thin/.pi-rail/.pi-post and a head <circle>. The quiz's views.ts iconArt() reads the rendered tree, so these names must stay stable. *(amended by D-53: .pi-fx is gone; the pose figure holds the exercise's .ex-ghost / .ex-solid, and iconArt still reads only .pi-latent)*
 - Programs motion lives in the lazy chunk programs-motion.ts (1.7 KB gz), loaded when the section is ≤1 viewport away and motion is allowed. It never imports @/lib/motion statically: a static import made Turbopack put gsap's MotionPath helpers (paths.js/matrix.js) in this chunk, so the hero intro started downloading it. gsap is reached only through loadMotion() for the filter Flip.
 - The icon draw no longer waits for the section-title landing (+800ms); it only goes through queuePrimaryMotion (≤250ms wait), in line with the v2 rule that content is never held behind decoration. The latent print covers the wait.
 - Every drawing performs once right after its draw. Phones perform again on snap (IntersectionObserver ≥0.85, ≥4s apart); hover devices on pointer enter or keyboard focus from outside the card. The hover answer is the perform (it includes the apparatus's own compression), not a squash held while hovering. *(superseded by design round 2: D-P2 round 2: scene plates, apparatus-only performs)*
@@ -753,8 +753,8 @@ eight fixers implemented the accepted ones. Where a line below contradicts an ea
 - D-S7-15 (RC-03/RC-11/RC-15/RC-17): S7 izvor links are quiet footnotes (steel-300 / 560, lav-200 on hover or focus) placed 6px under the label. The stat izvor focus ring hugs the word, not the 48px target. „oko“ is a field tag in the window corner. The numerals get a static LED bloom and the windows an inset bezel. Display order is 42 · 12 · oko 120 · 2007 (the year tile goes last; content unchanged). From 1024 up the numeral scales from 58px at 1024 to 84px at 1440 so „2007“ keeps air in its window.
 - D-S7-16 (RC-09): from 1024 up the trust row sits under photo 01 in the photo column; below 1024 it closes the section. The photo is not sticky, because the trust row shares its column.
 - D-S7-17 (MI-06): below 1024, photo 01 opens like a shutter from a slit when it enters (only if off-screen when the code arms).
-- D-S8-2 (v2, RC-07/MD-07/MI-04, a deviation from the §4 desktop scrub): the beam is a real one (10px bar on splayed legs), and a one-shot „last beam routine“ plays on every device where motion is allowed: leap with ghost frames → stuck landing and balance wobble → legs fold and bar fades → MorphSVG to the sea → echo swells ripple out. One morphing path, no ScrollTrigger in S8. The pre-state is set only if the horizon is off-screen when the code arms. The static state (no JS, reduced motion, Save-Data) is the wave plus echoes. The wobble is on the gymnast, not the beam, because rotating inside the stretched SVG distorts. *(figures amended by D-48: star take-off, scale landing)*
-- D-S8-7 (v2): superseded — the in-view guard now means „horizon on screen when the code arms → keep the static wave, no routine“.
+- D-S8-2 (v2, RC-07/MD-07/MI-04, a deviation from the §4 desktop scrub): the beam is a real one (10px bar on splayed legs), and a one-shot „last beam routine“ plays on every device where motion is allowed: leap with ghost frames → stuck landing and balance wobble → legs fold and bar fades → MorphSVG to the sea → echo swells ripple out. One morphing path, no ScrollTrigger in S8. The pre-state is set only if the horizon is off-screen when the code arms. The static state (no JS, reduced motion, Save-Data) is the wave plus echoes. The wobble is on the gymnast, not the beam, because rotating inside the stretched SVG distorts. *(figures amended by D-48: star take-off, scale landing)* *(superseded by D-60: scrubbed by the scroll, no one-shot)*
+- D-S8-7 (v2): superseded — the in-view guard now means „horizon on screen when the code arms → keep the static wave, no routine“. *(superseded by D-60: it keeps the static wave until the horizon has left the view once, then the routine is scrubbed — D-S8-7's first rule, as D-52)*
 - D-S8-13 (RC-13): the sea has two static echo swells behind the wave (royal-500 .45/2px, steel-300 .5/1.5px). The horizon viewBox is 1440×80 and the SVG is 56/64/80px tall at phone/tablet/desktop, with margins re-anchored so the wave keeps its place.
 - D-S8-14 (RC-06): from 1024 up, the camp lead is a postcard headline (30–38px, 620, 112% width, max 13em) under the title, and the note stands at the base of the text column, 112px above the column bottom (not 88) so the leap has clear air. The lead glues short prepositions and its last word.
 - D-S8-15 (RC-08): from 1024 up, postcard exits are asymmetric — right exits go 0.62 of the stage width; left throws, prev and drags are bounded by the measured room beside the text column (never over the lead or note), with the z-index swap at the apex. The left flick threshold scales with that room. Phones are unchanged.
@@ -847,11 +847,11 @@ a `var()` easing inside `@keyframes` as linear, so keyframe easings must be lite
 - D-P2-01 · Phone row pager (QP2-01): the prev/next target is the pure pagerTarget() in components/sections/programs/pager.ts. It sorts the snap starts (the photo is last in the DOM but first on screen) and clamps to the row; unit-tested with starts measured at 320 and 390.
 - D-P2-02 · No dead white above CTAs (QP2-04, ruling version): at every width the card plate takes the row's spare height (flex 1000 0 auto, no cap); the body does not grow. No CSS order and no subgrid. CTAs align per row; titles may start at different heights across a desktop row.
 - D-P2-03 · Plate scene (QP2-05): .pc-plate is a size container. The icon is clamp(84/96px, 64cqh, 132px), and the Marey grid lives on ::after, because container units resolve only for the plate's descendants. The user-unit stroke steps down through container queries so the line stays 2.6–3.0 CSS px. Non-scaling strokes were rejected: they break the pathLength=1 draw in Chromium. The posed #leap silhouette shows when the plate is ≥160px (container content ≥150px).
-- D-P2-04 · Card mount (QP2-05): a scene plate's first draw plays the sheet's mount instead of the first perform (hop at +450ms, stick at +950ms, data-mount, through queuePrimaryMotion, once per card). The card hop is −10 units (sheet −14.5) so her back foot stays on the print. Performs are blocked while a card mounts.
+- D-P2-04 · Card mount (QP2-05): a scene plate's first draw plays the sheet's mount instead of the first perform (hop at +450ms, stick at +950ms, data-mount, through queuePrimaryMotion, once per card). The card hop is −10 units (sheet −14.5) so her back foot stays on the print. Performs are blocked while a card mounts. *(superseded by D-54: the card scrubs the exercise with the scroll; no mount)*
 - D-P2-05 · Aerobik (QP2-06): the drawing is the sprite's exact #leap (<use>), 48 units wide with the front toe on the floor y=42. It is revealed with clip-path from the floor up (600ms ease-stick). Its static print (.pi-latent) is a simplified path in icon units (leap-icon.ts, 668 chars, ≤0.2 units from the logo, tested), so the quiz's iconArt keeps reading paths. The scene (sheet, and card plates ≥160px) adds a mirrored partner 30 units (62% of a body) to the right, hopping in from the right. *(superseded by D-45: the aerobic drawing is the high-kick pose; leap-icon.ts and the partner are gone)*
 - D-P2-06 · Filter Flip stacking (QP2-09): stayers and arrivals get z-index 1 and leavers 0 during the Flip. A leaver is data-out or computed display:none (the photo dropped by the sheet's count rule).
 - D-P2-07 · KR-04 paper (QP2-10): at ≥1024 the frame stretches to its row and the KR-04 foot sits at the bottom (margin-top:auto); the print keeps its 533px cap. The ≥1280 re-show rule uses display:flex (block dropped the column).
-- D-P2-08 · Card performs are the apparatus's own physics only (QP2-11): beam vertical flex (beam translateY + legs scaleY, same wobble), rail flex (scaleY .94/.92 about the feet), springboard/table spring, floor give, aerobic jump. .pi-fx is rendered only in the detail sheet, where the trail plays at 560ms beside the landing silhouette.
+- D-P2-08 · Card performs are the apparatus's own physics only (QP2-11): beam vertical flex (beam translateY + legs scaleY, same wobble), rail flex (scaleY .94/.92 about the feet), springboard/table spring, floor give, aerobic jump. .pi-fx is rendered only in the detail sheet, where the trail plays at 560ms beside the landing silhouette. *(superseded by D-54 and D-55: no performs, no trails; the sheet plays the exercise)*
 - D-P2-09 · Literal keyframe easings (MD2-01): programs.css @keyframes carry the linear() lists of styles/motion-tokens.css after a rebound cubic-bezier fallback, and literal spring/land cubic-beziers. tests/programs.test.ts pins the lists to motion-tokens.css and fails on any var() keyframe easing.
 - First-load impact: module first-load JS measured 156.9 KB gz in a clean clone build of the current tree (≤160); GSAP not in first load; the programs-motion chunk is 2.0 KB gz (was 1.7) and still reaches gsap only through loadMotion().
 
@@ -888,8 +888,8 @@ a `var()` easing inside `@keyframes` as linear, so keyframe easings must be lite
 - D-S7-14 (v3, RC2-03): below 640 every LED window is a fixed 72 px face, centred beside its caption. Below 360 the window is 92 px (6 px side padding, Doto 32 px) and the caption is 14/1.32.
 - D-S7-15 addendum (RC2-04): from 640 up the caption plate sits at the foot of each tile (label margin-top:auto), so labels end on one shared line and every izvor sits on one row. From 1024 the label uses the full tile width (no 24ch cap). 1024–1279 uses a 16 px caption with balanced lines.
 - D-S8-14 (v3, RC2-05/MD2-08): the camp lead also glues the coordinated pair ('treninzi i druženje'), presentation only. From 1024 the note stands 146 px above the column bottom (was 112), leaving about 90 px of clear air over the beam for the 48 px flier.
-- D-S8-2 (v3, RC2-07/MD2-08): the last beam routine takes off from the bar (crouch scaleY .9 → 1, EASE.takeoff). It flies one split leap with ghosts, sticks the landing and wobbles. When the bar lets go she drops 18 px through the beam line (clipped) and fades with her ghosts while the bar fades and the legs fold, all within DUR.fast. Only then does the line morph into the sea (DUR.reveal) and the echoes swell. Total 1.9 s. She is never on screen during the morph.
-- D-S8-19 (MD2-08): the flier is 34/40/48 px (phones, tablets, ≥1024). Her lane and arc are measured at play time against the postcards' exact rotated frames and the text column (6 px vertical and 12 px horizontal clearance, lift 0.5–0.75 body height). She is drawn smaller where the room is tight (29 px at 320, 25 px in phone landscape); if nothing fits, the beam simply lets go into the sea. For the room, the horizon's margin-top is −22 px on phones (was −47) and −40 px at 640–1023 (was −58).
+- D-S8-2 (v3, RC2-07/MD2-08): the last beam routine takes off from the bar (crouch scaleY .9 → 1, EASE.takeoff). It flies one split leap with ghosts, sticks the landing and wobbles. When the bar lets go she drops 18 px through the beam line (clipped) and fades with her ghosts while the bar fades and the legs fold, all within DUR.fast. Only then does the line morph into the sea (DUR.reveal) and the echoes swell. Total 1.9 s. She is never on screen during the morph. *(superseded by D-60: the same sequence on the scroll's clock)*
+- D-S8-19 (MD2-08): the flier is 34/40/48 px (phones, tablets, ≥1024). Her lane and arc are measured at play time against the postcards' exact rotated frames and the text column (6 px vertical and 12 px horizontal clearance, lift 0.5–0.75 body height). She is drawn smaller where the room is tight (29 px at 320, 25 px in phone landscape); if nothing fits, the beam simply lets go into the sea. *(amended by D-60: measured at arm time, off-screen, and again after a new layout or a restacked pile)* For the room, the horizon's margin-top is −22 px on phones (was −47) and −40 px at 640–1023 (was −58).
 - D-S8-18 (RC2-06): phone landscape (orientation landscape, max-height 540 px). The postcard stack is min(70vw, (100svh − 160px) × 1.3) wide and centred, the no-JS cards are capped at (100svh − 130px) × 1.33 (440 px cap kept ≥1024), and the pager moves 40 px up (<1024). Photo 01's column is capped at (100svh − 110px) × 1.33, with the same crop and the native/2 cap kept. The whole card, its caption and the pager fit on one screen above the sticky bar.
 
 ### Gallery (S9) and enrollment + FAQ (S10) — round 2
@@ -954,7 +954,7 @@ The 404 font preload is a postbuild step (scripts/font-preloads.mjs) because Nex
 - D-P3-01 (QP3-01) · The filter Flip ends on the final layout. The end state is measured with leavers already display:none. absoluteOnLeave takes them out of flow from the first frame, and Flip tweens stayers' width/height (scale:false, never scale transforms) inside the same DUR.base / EASE.stick glide, so a card's plate grows or shrinks with the flight and nothing changes size after the landing. Cause of the jolt: with absoluteOnLeave, Flip pins non-leaving targets at their old size inline, and scale:true never tweened that size.
 - D-P3-02 (QP3-02, supersedes the ≥160px threshold of D-P2-03) · Every card plate is the scene: the club silhouette is always posed over the apparatus, and the whole scene scales with the plate: --icon = clamp(84/96px, min(64cqh, --fit), 176px). --fit is the scene's width budget per apparatus (data-apparatus on the plate): bars 42cqw, vault 55cqw, floor and beam 60cqw, aerobik 58cqw. This keeps the pose ≥8px clear of the bib and the + at 320–1920. The vault needs 55cqw because a vault drawing between 89 and 110px would bring her post-flight within 8px of the A·B bib; on phones the A·B plate always shares its row with the taller C card (≥197px plate, drawing ≥120px).
 - D-P3-03 · The card drawing sits in span.pc-scene, which the plate sizes (container units) and which is itself a size container (container: pc-scene / size). The user-unit stroke steps query that box (90/99/109/120/132/144/156/171px), so the line stays 2.7–3.0 CSS px at every drawing size (tested). Unnamed @container rules must not target anything inside .pc-scene.
-- D-P3-04 · The card mount's apex is --fig-rise −3 drawing units (the sheet keeps −10; ps-fig-y reads var(--fig-rise, -10px)), so on a 116–124px plate her hands stay ≥4px inside the print during the hop.
+- D-P3-04 · The card mount's apex is --fig-rise −3 drawing units (the sheet keeps −10; ps-fig-y reads var(--fig-rise, -10px)), so on a 116–124px plate her hands stay ≥4px inside the print during the hop. *(obsolete with D-54: no mount)*
 - D-P3-05 (supersedes the QP-10 stamp placement) · The quiz recommendation stamp straddles the plate's lower edge, left-aligned with the title: 11px into the plate, ≥9px under the mat line, 7px above the title. The plate's upper area belongs to the scene on every card now. The stamp lives in .pc-body (absolute), because the plate clips its overflow.
 - D-P3-06 (QP3-03) · From 1024 every card description reserves three lines (min-height: 3lh, with a calc(3 × 1.5em) fallback). Within a desktop row, titles now start level (Mlađa/Starija at 1280–1920) or differ by a clear step of ≥48px (1024 A·B/Aerobik 57), for every chip.
 - First-load impact: clean clone build (node_modules copied with APFS clonefile, clone deleted afterwards). qa/bundle: first-load module JS 157.4 KB gz (≤160), GSAP not in first load, initial animation chunk 43 KB (≤45), hero SVG 7.2 KB. programs-motion chunk still ≈2.0 KB gz.
@@ -985,13 +985,13 @@ The 404 font preload is a postbuild step (scripts/font-preloads.mjs) because Nex
 - D-S7-5 (v4, RC3-01): the medal ceremony starts only once the „Medalje“ title stands wholly above a line: below 1024, the sticky dock's measured cover plus 36 px of air (−104 px by default); from 1024 up, 12% above the fold. The MD-02 safety net and the RC2-01 'seen' clock for this step use the same title and line. The podium band stays the element for off-screen finish and release. Only the podium decoration waits; the medal list is never hidden.
 - D-S8-16 addendum (RC3-02): below 640, a landscape card in the back slot sits at translate(14%, −9%) rotate(5°) scale(.88), in the CSS pre-JS stack and in camp-postcards.ts. Its right edge stays 13–19 px inside the viewport at 320–639. The landing starts at the card's current scale ×1.02, so a card never jumps in size.
 - D-S8-21 (RC3-02): postcard transform-origins are fixed by role: the top card uses 50% 100% (landing and squash), back cards use 50% 50% (as in the CSS). Every switch is measured and paid back in x/y, so a card that has landed returns exactly to the pre-JS back slot. The beam's obstacle mapping reads each card's real transform-origin.
-- D-S8-2 (v4, RC3-03/MD3-04): the beam flier flies at constant forward speed with only Y eased, a ballistic parabola in time (4u(1−u)), the same model as the title marks and S10. It replaces the whole path on „hang“, which stalled her over the apex; with hang on Y alone, the ghosts became a flat line. Ghost frames sit on her exact arc and fade in 30 ms after she passes their spot. Exit: she sinks 18 px on power1.in over 240 ms, clipped at the bar top so her feet go first, and fades linearly from +40 ms, gone exactly as the morph starts. LET_GO = landing + 0.26 s; the total is still 1.9 s.
+- D-S8-2 (v4, RC3-03/MD3-04): the beam flier flies at constant forward speed with only Y eased, a ballistic parabola in time (4u(1−u)), the same model as the title marks and S10. It replaces the whole path on „hang“, which stalled her over the apex; with hang on Y alone, the ghosts became a flat line. Ghost frames sit on her exact arc and fade in 30 ms after she passes their spot. Exit: she sinks 18 px on power1.in over 240 ms, clipped at the bar top so her feet go first, and fades linearly from +40 ms, gone exactly as the morph starts. LET_GO = landing + 0.26 s; the total is still 1.9 s. *(superseded by D-60: the model is kept, the timing is the scroll's)*
 - D-S8-20 (RC3-04): at 1024–1279 the horizon's margin-top is calc(−70px + (1280px − 100vw) × 0.07), from −52 px at 1024 to −70 px at 1279. The top postcard floats 15–16 px above the wave crest, as at 1280; before, it overlapped the crest by 4 px at 1024.
 - D-S7-15 addendum (RC3-05): at 640–1023 the stat caption uses the full tile width with balanced lines (no 26ch cap). The two long labels set alike: 2 lines each at 640–900, 1 line at 1000.
 - D-S7-5 (v4, RC3-01): the medal ceremony (podium outline, blocks, medals, brush) starts only once the „Medalje“ title stands wholly above a line. Below 1024 the line is the sticky dock's measured cover plus 36 px of air (−104 px by default); from 1024 up it is 12% above the fold. The MD-02 safety net for this step watches the same title with the same margin (wholly above the line for 300 ms), and the RC2-01 'seen' clock runs on that gate. The podium band stays the element for off-screen finish and release. Only the podium decoration waits; the medal list is never hidden.
 - D-S8-16 addendum (RC3-02): below 640, a landscape card in the back slot sits at translate(14%, −9%) rotate(5°) scale(.88) (camp.css pre-JS stack + camp-postcards.ts), so its right edge stays 13–19 px inside the viewport at 320–639. The landing starts at the card's current scale ×1.02 (no jump in size).
 - D-S8-21 (RC3-02): postcard transform-origins are fixed by role: top card 50% 100% (landing and squash), back cards 50% 50% (as in the CSS). Every switch is measured and paid back in x/y, so a card that has landed returns exactly to the pre-JS back slot. Before, it sat about 10 px further right and was cut by the screen edge after one cycle, also at 640–768. The beam's obstacle mapping reads the real origin.
-- D-S8-2 (v4, RC3-03/MD3-04): the beam flier flies at constant forward speed with only Y eased: a ballistic parabola in time (4u(1−u)), the title marks' and S10's model. Ghost frames sit on her exact arc and fade in 30 ms after she passes their spot, never ahead of her. Exit: she sinks 18 px on power1.in over 240 ms (clipped at the bar top, feet first) while fading linearly from +40 ms, gone exactly as the morph starts. LET_GO = landing + 0.26 s; the total is still 1.9 s.
+- D-S8-2 (v4, RC3-03/MD3-04): the beam flier flies at constant forward speed with only Y eased: a ballistic parabola in time (4u(1−u)), the title marks' and S10's model. Ghost frames sit on her exact arc and fade in 30 ms after she passes their spot, never ahead of her. Exit: she sinks 18 px on power1.in over 240 ms (clipped at the bar top, feet first) while fading linearly from +40 ms, gone exactly as the morph starts. LET_GO = landing + 0.26 s; the total is still 1.9 s. *(superseded by D-60: the model is kept, the timing is the scroll's)*
 - D-S8-20 (RC3-04): at 1024–1279 the horizon's margin-top is calc(−70px + (1280px − 100vw) × 0.07), so the top postcard floats 15–16 px above the wave crest as at 1280 (it overlapped by 4 px at 1024).
 - D-S7-15 addendum (RC3-05): at 640–1023 the stat caption uses the full tile width with balanced lines (no 26ch cap), so the two long labels set alike (2 lines each at 640–900, 1 line at 1000).
 
@@ -1132,10 +1132,12 @@ docs/plan-figure-system.md; the owner approved it and the pose sheet (docs/poses
   POSES map: a client chunk imports only the poses it draws (camp: 2). ≤600 B gz per pose, and the
   script fails over it; tests/poses.test.ts checks contacts and sizes. Forward roll, bridge, push-up,
   bar swing and the profile arms-up salute were drawn and rejected (plan §4).
-- **D-43 · Section-title marks keep the logo leap, ghosts only in flight.** At rest a title shows one
-  figure; the two ghost frames appear only during the hop. The hop's viewBox is tightened to
-  290×208 (--mark-box, --mark-solid 1.21em / 1.05em; contact title 0.81em) so the resting figure
-  hugs the word.
+- **D-43 · Section-title marks keep the logo leap and their three ghost frames** (owner,
+  2026-09-26: "the leftover frames behind are really cool — bring them back"; the complaint was
+  the repeated girl elsewhere, not the marks' afterimages). The phase-2 "ghosts only in flight"
+  change and its tightened 290×208 hop are reverted to the round-4 mark (570×208, ghosts at rest).
+  qa/figures.mjs counts a mark with its ghosts as one figure (a chronophotograph, like the hero
+  rig).
 - **D-44 · Figures removed from UI chrome (R5).** Photo placeholders show an aperture icon; the
   footer shows only the logo; the menu's current row is a lavender bar; the schedule uses a clock
   icon and a now-dot (no weekend figure); the timeline has ringed dots and a bead; the programs
@@ -1161,7 +1163,7 @@ docs/plan-figure-system.md; the owner approved it and the pose sheet (docs/poses
 - **D-48 · Camp routine: a star take-off, a scale landing.** The flight is a faint star exposure; at
   the landing it cuts to the solid scale on the beam, which then wobbles about the standing foot and
   lets go into the sea (D-S8-2's sequence is unchanged). The lane is measured at play time, including
-  390px on the public build.
+  390px on the public build. *(amended by D-60: scrubbed by the scroll; the lane is measured off-screen at arm time)*
 - **D-49 · 404: the scale on the beam, swaying about the ankle.** The pose is cut just above the foot
   (two overlapping clip paths): the foot stays on the beam and the body rotates about the ankle. There
   are no lagging ghosts. MAX_TILT is 18°, so the forward arm stays clear of the judges' board at
@@ -1172,6 +1174,123 @@ docs/plan-figure-system.md; the owner approved it and the pose sheet (docs/poses
   the sheet mounts.
 - **D-51 · Gallery clips horizontal overflow** (.gallery { overflow-x: clip }). The hung print's
   swing briefly widened the public build by 6px at 390px.
+
+- **D-52 · Exercises follow the scroll** (owner, 2026-09-26: "movements as you scroll — full
+  exercises — that stop mid-motion when the scroll stops"). Each gymnast is a flipbook of ONE
+  continuous exercise that ends exactly in her approved pose:
+  - Frames: tools/figure-rig/exercises.py (the pose rig, now in the repo) →
+    assets-source/exercises/*.json → scripts/exercises.mjs →
+    components/brand/exercises/<id>.generated.ts, one module per exercise. Every frame is in the
+    final pose's own units, so a scene keeps its placement and draws the frames in its pose svg
+    with overflow visible.
+  - Engine: lib/exercise-scrub.ts, with no GSAP. One passive capture scroll listener and one rAF
+    read every scene's rect first, then set one `d` per scene. Scenes more than a viewport away,
+    or not rendered, are skipped.
+  - A scene not on screen at arm time is set to its scroll position at once. On screen means
+    inside the viewport on both axes, so a card waiting off to the right of the phone row is not
+    on screen.
+  - Scrubbing: the trigger's centre moving from the bottom edge to 40 % from the top (per-scene
+    lines) maps linearly onto the frames. Scrolling back rewinds; a stopped scroll holds her.
+  - Ghosts: the key phases she passes stay as ghosts (data-shown) and vanish again when rewound.
+  - Static state (no JS, reduced motion, Save-Data): the finished exercise, all ghosts shown.
+  - A scene already on screen when its chunk arms keeps that static state until it has left the
+    view once, so nothing jumps under the reader's eyes.
+  - Frame data only ever reaches the client in the sections' lazy chunks.
+  - Enrollment band: enrollCartwheel (cart1 → cart2 → cart3 → salute, 31 frames) is one figure
+    in the salute's svg.
+    - leap-band.ts keyShifts moves each key phase onto its step, and between keys the flier
+      blends the shifts (keyedOffset), so she wheels from step to step.
+    - Ticks and numerals light as she reaches their step (data-reached).
+    - She sticks the salute (CSS squash about her feet), and the month lamps post the first time
+      she arrives.
+    - The timed gsap sequence (fragments, drop, lamps timeline) is gone; the chunk has no gsap.
+  - Coach plate: coachScale (stand → tendu → the leg lifts into the scale, lines 1 → 0.45); the
+    develop (opacity + rise) is gone, and the stamp press no longer waits for it.
+
+- **D-53 · Program exercises: the markup, the ghosts and the lazy frames.** Each program's gymnast
+  is the end of one D-52 exercise (components/sections/programs/program-exercises.ts): starJump
+  (parter), beamCartwheel (greda), barCast (razboj), vaultHandspring (preskok), aerobicKick
+  (aerobik).
+  - ProgramIcon's pose figure (`.pi-pose > svg[data-figure="pose:<id>"]`, overflow visible, still one
+    figure for qa/figures) holds the ghost frames (`.ex-ghost`, data-frame, oldest first) and the
+    final pose (`.ex-solid`). The `.pi-ride` / `.pi-stick` groups and the `--at` origin are gone.
+  - The HTML carries only the ghosts and the final pose (the server card imports the module). The
+    full frame arrays reach the client only in one lazy chunk, a dynamic import() of
+    program-exercises (35.5 KB raw, 14.2 KB gz), fetched when the card scrub arms or the sheet plays.
+    The sheet copies the card's ghost paths from the card's DOM, so its own chunk has no frames.
+    tests/programs.test.ts walks the static imports of the programs and quiz client modules.
+  - Ghosts: the plate's own figure ink (currentColor) at fill-opacity .30 (newest) / .22 / .15
+    (oldest) inside the pose svg's .9, stepped like the title marks and readable on all five plate
+    colours. fill-opacity, not opacity: the scrub's show/hide (styles/ui.css) stays its own.
+  - On a scene plate the latent print's pose is hidden (the gymnast is always there, so it would
+    stand in her final place ahead of her). The quiz reads .pi-latent as before and never .pi-pose:
+    its plates and strip are byte-identical to the previous build.
+- **D-54 · Program cards scrub the exercise with the scroll and with the phone row's swipe**
+  (card-exercises.ts, armed by programs-motion).
+  - Trigger: the plate; lines 0.95 → 0.45 of the viewport height (the default 1 → 0.4 started her
+    while she was still below the fold and finished her late on the short desktop plates).
+  - Phones/tablets: gate = how far the plate has slid into the row's visible box from the right
+    (slideIn), so progress = min(scroll, swipe). One-sided: a card the row has passed (off to the
+    left) stays finished, like a card scrolled up past the viewport; swiping back rewinds the card
+    that slides back out to the right. The ≥1024 grid's gate is always 1.
+  - Removed, because the scrub replaces them: the pose's mount drop (data-mount, pi-drop, pi-stick)
+    and the performs (data-perform; the beam, bar, board and table physics with the pose riding
+    them; the phone snap, hover and focus triggers). Apparatus-only performs were dropped too: a
+    bounce on a timer under a gymnast the scroll holds mid-run is incoherent, and an apparatus that
+    dips without her opens a 1.2–2.8 unit gap at her hands or feet. The apparatus draw-in over its
+    latent print, the filter Flip, the rail, the stamp and the seam are unchanged.
+  - When the scrub arms, off-screen cards start at the frame the scroll puts them on (a card waiting
+    to the right of the row: her first frame), not on the final pose. The engine does this itself
+    (D-52: every scene not on screen on both axes is set at arm time, and every scroll frame
+    updates the scenes within a viewport, the row's horizontal scroll included). So a card slid
+    in after a filter never shows a stale frame.
+  - Measured at 4× CPU throttle (scrolling and swiping): scrub rAF ≤ 0.8 ms, no long tasks, frame
+    gaps p95 18.4 ms.
+- **D-55 · The detail sheet plays the exercise as it opens** (playExercise, 1.4 s ≈ 70 ms a frame,
+  the preview sheets' rate). It starts before showModal, so the first painted frame is her start
+  pose, not ghosts fading out of the static print, and it ends in the final pose with every ghost
+  as the apparatus's 300–800 ms draw has long finished. Reduced motion: the static print. The
+  .pi-fx trails and their CSS (pi-trail, pi-hop) are removed: the tumbling hops and the swing-up
+  arc described other skills than the star jump and the cast, and the vault's pre-flight arc
+  repeated what her pre-flight frames now show.
+- **D-56 · Plate headroom covers the whole exercise, not only the final pose.** pose-scene
+  headroom(icon, top) takes the highest point in pose units. The tests measure every frame's ink:
+  greda --head 8 → 12 (11.6: the cartwheel starts upright, arms raised), parter 2 (1.35; the
+  pose's box 1.65), razboj 23 (22.1), preskok 19 (18.8), aerobik 0. A unit test keeps every frame
+  inside the plate for 84–176 px drawings and every content width: the vault's run-up reaches
+  −3.2 units into the 12/14 px left pad. A browser check at 22 widths from 320 to 1920 px (cards)
+  and 12 viewports (the sheet, landscape phones included) found nothing clipped. The closest
+  frames are 1.9 px from an edge (the run-up at 320 px) and 6.4 px under the top.
+
+- **D-60 · The last beam routine follows the scroll** (owner, 2026-09-26, D-52's rule for S8). The
+  one-shot (≤1.9 s, played once at a line) is one paused GSAP timeline whose moment the scroll picks
+  (camp-beam.ts; clock and lines in beam-scrub.ts): scrolling plays it, scrolling back rewinds it (the
+  sea turns back into the beam, she rises out of it and flies back), a stopped scroll holds her
+  mid-flight or mid-balance. The choreography is D-48's.
+  - Range: the beam line (the lowered beam on phones) from 24 px above the bottom edge or the phone
+    dock to 50 % of the viewport, linear (scrubProgress's map): 426 px of scroll at 1440×900, 330 at
+    390×844, at least 200 (phone landscape ends at 25 %). At 45 % the stack touched the top at 1440.
+    The sea and its echoes are done with the postcards wholly in view.
+  - Clock, rebalanced for the scroll: flight 30 %, landing + balance 25 %, let-go 12 %, sea 32 %.
+  - The elastic wobble reversed every 20–30 px of scroll: a twitch at reading speed. It is a damped
+    sway now, over 25 % of the range: −6° × (1 − t)² cos 2.5πt (past upright to +2.2°, back −0.2°,
+    still before the beam lets go). The landing squash and the beam's give are `to` steps; a fromTo
+    snaps back to its start values on a rewind.
+  - Morph and echoes use sine.out, not stick: stick left most of its scroll with nothing moving. The
+    echoes start when the wave is ~60 % formed, so no swell crosses a flat line.
+  - Lanes are measured when the routine is built: at arm time, off-screen. A new layout (resize,
+    rotation) rebuilds it 150 ms after the last resize, at the same moment; a height-only change (the
+    phone URL bar) does not. A restacked pile (full build: the portrait card on top hangs lower) is
+    re-measured once the cards have landed and she is off screen; with the horizon in view, only if
+    the beam need not move.
+  - Kept: built only while the horizon is off-screen. An on-screen horizon at arm time (a #kamp deep
+    link) keeps the static wave until it has left the view once. Reduced motion, Save-Data and no JS
+    get the static wave; a live switch reverts at once. One path morph, transform/opacity only.
+  - No ScrollTrigger: one passive scroll listener and one rAF, live within 50 % of the viewport. No
+    primary-motion slot (the reader drives it); S9's GE4-01 check still reads .camp__routine-solid.
+  - Bundle: the lazy camp chunk is 8.1 KB gz (was 7.6); first load and the initial animation chunk
+    are unchanged. scrubProgress is repeated in beam-scrub.ts, not imported: Turbopack carried all of
+    lib/exercise-scrub.ts into the chunk (+1 KB gz). tests/camp-beam.test.ts pins the two equal.
 
 ## TODO for the club (dosije §7) — nothing here is shown in the UI
 

@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "images": "node scripts/images.mjs",
-    "svg": "node scripts/svg.mjs",
+    "svg": "node scripts/svg.mjs && node scripts/exercises.mjs",
     "qa": "node qa/run-all.mjs",
     "postbuild": "node scripts/prune-out.ts && node scripts/defer-scripts.mjs && node scripts/slim-flight.mjs && node scripts/font-preloads.mjs",
     "qa:bundle": "node qa/bundle.mjs",

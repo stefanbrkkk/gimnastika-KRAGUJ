@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import type { ApparatusIcon } from "@/content/programs";
 import { PROGRAM_POSES, posePlacement, poseTransform } from "./pose-scene";
 
@@ -13,23 +12,25 @@ import { PROGRAM_POSES, posePlacement, poseTransform } from "./pose-scene";
  *   aerobik — no apparatus: the high-kick pose standing on the mat line is the drawing
  * Each program's gymnast is its own pose of the figure family on its apparatus (plan §5.4,
  * ./pose-scene): star over the floor, cartwheel on the beam, handstand on the high rail,
- * handspring on the vault table, high kick on the mat.
+ * handspring on the vault table, high kick on the mat — the end of her exercise (D-53,
+ * ./program-exercises), which the card scrubs with the scroll and the sheet plays as it opens.
  *
  * Structure (styles/sections/programs.css; quiz/views.ts iconArt reads it, keep it stable):
  * - `.pi-latent`: a faint static print of the whole scene (QP-14) — the apparatus paths and the
  *   pose as one filled `.pi-solid` path (with its placement transform) — so a plate is never
- *   empty while its draw waits. Shown only while motion is on. Paths only: the quiz plates read it.
- * - `.pi-part[data-part]`: the drawing, split into the pieces that "perform" (MD-06): each stroked
- *   path has pathLength=1 and draws with stroke-dashoffset; a part moves as one (beam flex, rails
- *   flex, springboard compression, floor give).
- * - `.pi-fx`: the gymnast's path into her pose (the swing up to the handstand, the vault's
- *   pre-flight, the tumbling hops), only in the detail sheet (QP2-11); invisible at rest.
- * - `.pi-pose > .pi-ride > .pi-stick > svg[data-figure="pose:<id>"]`: the pose (sheet and card:
- *   always). The mount drops `.pi-pose` in, a perform moves `.pi-ride` with the apparatus it
- *   holds, the landing squash scales `.pi-stick` about the contact (--at). The nested <svg> is
- *   the figure (qa/figures.mjs counts one per such svg); on a card the whole scene scales with
- *   its plate (QP3-02).
- * Without motion (no JS, reduced motion, Save-Data) it is simply the finished scene.
+ *   empty while its draw waits. Shown only while motion is on. Paths only: the quiz plates read
+ *   it (never the exercise: its ghosts live in the pose figure below, not here).
+ * - `.pi-part[data-part]`: the drawing, split into its pieces; each stroked path has
+ *   pathLength=1 and draws with stroke-dashoffset.
+ * - `.pi-pose > svg[data-figure="pose:<id>"]` (card and sheet only): the gymnast. The nested
+ *   <svg> is the figure (qa/figures.mjs counts one per such svg, her ghosts included), with
+ *   overflow visible, because the exercise's earlier frames reach outside the pose's box. It
+ *   holds the exercise's static print (lib/exercise-scrub.ts contract): the ghost frames
+ *   (`.ex-ghost`, data-frame, oldest first) and the final pose (`.ex-solid`). The frames between
+ *   them come only from the lazy chunk (./program-exercises); on a card the whole scene scales
+ *   with its plate (QP3-02).
+ * Without motion (no JS, reduced motion, Save-Data) it is simply the finished scene: the
+ * apparatus, every ghost frame and the pose.
  */
 
 type Stroke = "base" | "thin" | "rail" | "post";
@@ -43,7 +44,6 @@ interface Part {
 }
 interface IconSpec {
   parts: readonly Part[];
-  fx?: readonly string[];
 }
 
 const SPECS: Record<ApparatusIcon, IconSpec> = {
@@ -55,8 +55,6 @@ const SPECS: Record<ApparatusIcon, IconSpec> = {
       },
       { part: "diag", paths: [{ d: "M7 38.8L40.9 25.2" }] },
     ],
-    // Three hops of a tumbling pass along the diagonal, into the star jump over the floor.
-    fx: ["M9.7 37.7Q14.5 17.8 19.2 33.9", "M19.2 33.9Q24 14 28.7 30.1", "M28.7 30.1Q33.5 10.2 38.2 26.3"],
   },
   greda: {
     parts: [
@@ -84,8 +82,6 @@ const SPECS: Record<ApparatusIcon, IconSpec> = {
         ],
       },
     ],
-    // The swing up into the handstand: her hips' half-circle about the high rail.
-    fx: ["M35.5 27.5A16 16 0 0 0 35.5 -4.5"],
   },
   preskok: {
     parts: [
@@ -99,13 +95,17 @@ const SPECS: Record<ApparatusIcon, IconSpec> = {
         ],
       },
     ],
-    // Pre-flight from the springboard onto the table, where her hands take it.
-    fx: ["M20 37Q24 18 33.5 13.5"],
   },
   aerobik: { parts: [] },
 };
 
 const kindClass = (kind: Stroke | undefined) => (kind && kind !== "base" ? `pi-${kind}` : undefined);
+
+/** The static print of the program's exercise (./program-exercises exercisePrint): its ghost
+ *  frames, oldest first. The frame index rides along as data-frame for the scrub. */
+export interface ExercisePrint {
+  readonly ghosts: readonly { readonly frame: number; readonly d: string }[];
+}
 
 interface ProgramIconProps {
   icon: ApparatusIcon;
@@ -113,44 +113,42 @@ interface ProgramIconProps {
   label: string;
   className?: string;
   /**
-   * The scene: the program's pose on its apparatus. "card": the pose (every plate, QP3-02);
-   * "sheet": the pose and the gymnast's path into it (.pi-fx). Without it: the bare apparatus
-   * with its latent print (the quiz reads that print, never a scene).
+   * The scene: the program's pose on its apparatus, with its exercise's ghost frames (`exercise`).
+   * "card": every plate (QP3-02); "sheet": the detail sheet's plate. Without it: the bare
+   * apparatus with its latent print (the quiz reads that print, never a scene).
    */
   scene?: "card" | "sheet";
+  exercise?: ExercisePrint;
 }
 
-type Vars = CSSProperties & Record<`--${string}`, string>;
-
-/** The program's pose, placed on its apparatus: its own <svg data-figure="pose:<id>">. */
-function PoseFigure({ icon }: { icon: ApparatusIcon }) {
+/** The program's pose, placed on its apparatus: its own <svg data-figure="pose:<id>">, holding
+ *  the exercise's ghost frames and the final pose (the scrub's .ex-ghost / .ex-solid). */
+function PoseFigure({ icon, exercise }: { icon: ApparatusIcon; exercise?: ExercisePrint }) {
   const p = posePlacement(icon);
   const { d, viewBox: vb } = PROGRAM_POSES[p.id];
-  const [ax, ay] = p.at;
   return (
-    <g className="pi-pose" style={{ "--at": `${ax}px ${ay}px` } as Vars}>
-      <g className="pi-ride">
-        <g className="pi-stick">
-          <svg
-            data-figure={`pose:${p.id}`}
-            x={p.box.x}
-            y={p.box.y}
-            width={p.box.width}
-            height={p.box.height}
-            viewBox={`${vb.x} ${vb.y} ${vb.width} ${vb.height}`}
-            overflow="visible"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <path d={d} />
-          </svg>
-        </g>
-      </g>
+    <g className="pi-pose">
+      <svg
+        data-figure={`pose:${p.id}`}
+        x={p.box.x}
+        y={p.box.y}
+        width={p.box.width}
+        height={p.box.height}
+        viewBox={`${vb.x} ${vb.y} ${vb.width} ${vb.height}`}
+        overflow="visible"
+        aria-hidden="true"
+        focusable="false"
+      >
+        {exercise?.ghosts.map((g) => (
+          <path key={g.frame} className="ex-ghost" data-frame={g.frame} d={g.d} />
+        ))}
+        <path className="ex-solid" d={d} />
+      </svg>
     </g>
   );
 }
 
-export function ProgramIcon({ icon, label, className, scene }: ProgramIconProps) {
+export function ProgramIcon({ icon, label, className, scene, exercise }: ProgramIconProps) {
   const spec = SPECS[icon];
   const pose = posePlacement(icon);
   return (
@@ -173,14 +171,7 @@ export function ProgramIcon({ icon, label, className, scene }: ProgramIconProps)
           ))}
         </g>
       ))}
-      {scene === "sheet" && spec.fx ? (
-        <g className="pi-fx">
-          {spec.fx.map((d, k) => (
-            <path key={d} d={d} pathLength={1} style={{ "--k": k } as CSSProperties} />
-          ))}
-        </g>
-      ) : null}
-      {scene ? <PoseFigure icon={icon} /> : null}
+      {scene ? <PoseFigure icon={icon} exercise={exercise} /> : null}
     </svg>
   );
 }

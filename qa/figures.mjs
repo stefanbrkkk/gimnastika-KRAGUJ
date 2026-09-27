@@ -6,9 +6,12 @@
 //   - a <use> whose href ends in "#leap" (the logo split leap, components/brand/Sprite.tsx).
 //     Several clipped <use> that draw ONE body are one figure: the hero rig
 //     ([data-hero-ghost], [data-hero-leap]: torso + back leg + front leg) and the hero's
-//     scroll runner (.hero-spine: two clip halves) — see GROUPS;
-//   - an <svg data-figure="pose:<id>"> (a pose from the plan's §4 family), whatever it draws.
-//     A #leap inside a pose svg is not counted twice (the pose is the figure).
+//     scroll runner (.hero-spine: two clip halves). A section-title mark (.chrono-mark: the
+//     landed leap and its three ghost frames) is one chronophotograph, so one figure: the
+//     owner wants those afterimages (DECISIONS D-43) — see GROUPS;
+//   - an <svg data-figure="pose:<id>"> (a pose from the plan's §4 family), whatever it draws:
+//     an exercise's moving figure and the phase ghosts it leaves are one figure. A #leap
+//     inside a pose svg is not counted twice (the pose is the figure).
 //
 // CONTRACT (the attribute the components carry; the checks are selectors, not heuristics):
 //   data-figure="brand:logo"     the Logo component (header, menu sheet, footer, 404)
@@ -59,7 +62,7 @@ const ON_SCREEN = 0.5;
 /** A figure seen at least this much inside the viewport while scrolling was seen by the visitor. */
 const SEEN = 0.15;
 /** Groups of clipped #leap uses that draw one body. */
-const GROUPS = "[data-hero-ghost], [data-hero-leap], .hero-spine";
+const GROUPS = "[data-hero-ghost], [data-hero-leap], .hero-spine, .chrono-mark";
 const SIZES = ["390x844", "1440x900"];
 
 // ── in-page collector (installed with addInitScript; ids are stable per page) ──────

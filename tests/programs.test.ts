@@ -186,8 +186,6 @@ describe("programs: phone row pager (QP2-01)", async () => {
 describe("programs: keyframe easings are literal (MD2-01)", async () => {
   const { readFileSync } = await import("node:fs");
   const css = readFileSync("styles/sections/programs.css", "utf8");
-  const tokens = readFileSync("styles/motion-tokens.css", "utf8");
-  const token = (name: string) => tokens.match(new RegExp(`--ease-${name}:\\s*(linear\\([^)]*\\))`))?.[1];
   const keyframes = (name: string) => {
     const start = css.indexOf(`@keyframes ${name} {`);
     if (start < 0) return "";
@@ -201,32 +199,8 @@ describe("programs: keyframe easings are literal (MD2-01)", async () => {
   const names = [...css.matchAll(/@keyframes\s+([\w-]+)/g)].map((m) => m[1] ?? "");
 
   it("never uses var() for an easing inside @keyframes (Chromium plays it linear)", () => {
-    expect(names.length).toBeGreaterThan(10);
+    expect(names).toContain("pi-draw");
     for (const name of names) expect(keyframes(name), name).not.toMatch(/animation-timing-function\s*:\s*var\(/);
-  });
-
-  it("beam and bars carry the wobble / swing curves of styles/motion-tokens.css, after a rebound fallback", () => {
-    const wobble = token("wobble");
-    const swing = token("swing");
-    expect(wobble).toMatch(/^linear\(0, /);
-    expect(swing).toMatch(/^linear\(0, /);
-    for (const [name, curve] of [
-      ["pi-beam", wobble],
-      ["pi-beam-legs", wobble],
-      ["pi-bars", swing],
-      ["pi-rail-ride", swing],
-    ] as const) {
-      const body = keyframes(name);
-      expect(body, name).toContain(`animation-timing-function: ${curve};`);
-      const fallback = body.indexOf("animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);");
-      expect(fallback, name).toBeGreaterThan(-1);
-      expect(fallback, name).toBeLessThan(body.indexOf(`animation-timing-function: ${curve}`));
-    }
-  });
-
-  it("the beam flexes vertically, never rotates (QP2-11)", () => {
-    expect(keyframes("pi-beam")).not.toMatch(/rotate/);
-    expect(keyframes("pi-beam-legs")).toMatch(/scaleY/);
   });
 });
 
@@ -334,14 +308,50 @@ describe("programs: each program's pose on its apparatus (plan §5.4)", async ()
     expect(headroom("aerobik")).toBe(0);
   });
 
-  it("the plates reserve each pose's headroom (programs.css --head ≥ headroom, whole units)", async () => {
+  it("the plates reserve the whole exercise's headroom, not only the pose's (programs.css --head, whole units)", async () => {
     const { readFileSync } = await import("node:fs");
+    const { PROGRAM_EXERCISES } = await import("@/components/sections/programs/program-exercises");
     const css = readFileSync("styles/sections/programs.css", "utf8");
     const head = (icon: string) =>
       Number(css.match(new RegExp(`\\.pc-plate\\[data-apparatus="${icon}"\\],\\s*\\.ps-plate\\[data-apparatus="${icon}"\\]\\s*\\{\\s*--head:\\s*(\\d+);`))?.[1] ?? 0);
     for (const i of ICONS) {
-      expect(head(i), i).toBeGreaterThanOrEqual(headroom(i));
-      expect(head(i), i).toBeLessThan(headroom(i) + 1.5);
+      // Every frame's highest ink, measured on the frames themselves (not the generated bounds).
+      const top = Math.min(...PROGRAM_EXERCISES[i].frames.flatMap((d) => polyline(d).map((pt) => pt[1])));
+      const need = headroom(i, top);
+      expect(need, i).toBeCloseTo(headroom(i, PROGRAM_EXERCISES[i].bounds[1]), 1);
+      expect(head(i), i).toBeGreaterThanOrEqual(need);
+      expect(head(i), i).toBeGreaterThanOrEqual(headroom(i)); // …and the pose's own box
+      expect(head(i), i).toBeLessThan(need + 1.5);
+    }
+    // The beam cartwheel starts upright in cart1's arms-up stance: 11.6 units, 4 more than its pose.
+    expect(headroom("greda", PROGRAM_EXERCISES.greda.bounds[1])).toBeGreaterThan(headroom("greda") + 4);
+    expect(head("greda")).toBe(12);
+  });
+
+  it("no frame of any exercise leaves its plate, at every drawing size (84–176px) and plate width", async () => {
+    const { PROGRAM_EXERCISES } = await import("@/components/sections/programs/program-exercises");
+    const { readFileSync } = await import("node:fs");
+    const css = readFileSync("styles/sections/programs.css", "utf8");
+    // The card's width budget per apparatus: --fit = (content width − b) × 48 / reach (aerobik: none).
+    const fit = (icon: Icon) => {
+      const m = css.match(new RegExp(`\\.pc-plate\\[data-apparatus="${icon}"\\] \\{\\s*--fit: calc\\(\\(100cqw - (\\d+)px\\) \\* 48 / ([\\d.]+)\\);`));
+      return m ? (w: number) => ((w - Number(m[1])) * 48) / Number(m[2]) : (w: number) => w;
+    };
+    for (const i of ICONS) {
+      const ink = PROGRAM_EXERCISES[i].frames.flatMap((d) => polyline(d).map((pt) => onDrawing(i, pt)));
+      const [x0, x1] = [Math.min(...ink.map((p) => p[0])), Math.max(...ink.map((p) => p[0]))];
+      const y1 = Math.max(...ink.map((p) => p[1]));
+      // Below the drawing: the 6 units under the floor, then the plate's bottom pad.
+      expect(y1, i).toBeLessThanOrEqual(48);
+      // Content widths from the 320px card (224px) up; the drawing is clamp(84px, ≤ --fit, 176px)
+      // (64cqh only ever makes it smaller, which keeps every frame further inside).
+      for (let w = 224; w <= 700; w += 4) {
+        for (const padX of [12, 14]) {
+          const size = Math.min(176, Math.max(84, fit(i)(w)));
+          expect((x0 * size) / 48, `${i} left, ${w}px`).toBeGreaterThanOrEqual(-padX); // into the left pad, never past it
+          expect((x1 * size) / 48, `${i} right, ${w}px`).toBeLessThanOrEqual(w + padX);
+        }
+      }
     }
   });
 
@@ -359,7 +369,7 @@ describe("programs: each program's pose on its apparatus (plan §5.4)", async ()
   });
 });
 
-describe("programs: plate scene (QP2-05, QP2-11)", async () => {
+describe("programs: plate scene (QP2-05, D-53)", async () => {
   const { isValidElement } = await import("react");
   const { ProgramIcon } = await import("@/components/sections/programs/ProgramIcon");
   type Props = { className?: unknown; href?: unknown; children?: unknown };
@@ -374,27 +384,22 @@ describe("programs: plate scene (QP2-05, QP2-11)", async () => {
   const render = (icon: Parameters<typeof ProgramIcon>[0]["icon"], scene?: "card" | "sheet") =>
     classes(ProgramIcon({ icon, label: "", scene }));
 
-  it("cards get the pose but no trails; the sheet gets both", () => {
-    for (const icon of ["parter", "razboj", "preskok"] as const) {
-      expect(render(icon, "card"), icon).toContain("pi-pose");
-      expect(render(icon, "card"), icon).not.toContain("pi-fx");
-      expect(render(icon, "sheet"), icon).toContain("pi-fx");
+  it("cards and the sheet get the pose figure; no trails anywhere (a real exercise leads into the pose now)", () => {
+    for (const icon of ["parter", "greda", "razboj", "preskok", "aerobik"] as const) {
+      for (const scene of ["card", "sheet"] as const) {
+        expect(render(icon, scene).filter((c) => c === "pi-pose"), `${icon} ${scene}`).toHaveLength(1);
+        expect(render(icon, scene), `${icon} ${scene}`).not.toContain("pi-fx");
+        expect(render(icon, scene), `${icon} ${scene}`).not.toContain("pi-ride"); // nothing rides an apparatus
+      }
     }
-    expect(render("greda", "card")).toContain("pi-pose");
-    expect(render("greda", "sheet")).not.toContain("pi-fx"); // the beam has no trail
+    expect(render("aerobik")).not.toContain("pi-part"); // the high kick is the whole drawing
   });
 
-  it("aerobik: the high kick is the drawing — one pose, no partner, no trail", () => {
-    expect(render("aerobik", "card").filter((c) => c === "pi-pose")).toHaveLength(1);
-    expect(render("aerobik", "sheet").filter((c) => c === "pi-pose")).toHaveLength(1);
-    expect(render("aerobik", "sheet")).not.toContain("pi-fx");
-    expect(render("aerobik")).not.toContain("pi-part");
-  });
-
-  it("the bare drawing (the quiz's print) has neither the pose figure nor trails", () => {
+  it("the bare drawing (the quiz's print) has no pose figure and no exercise", () => {
     for (const icon of ["parter", "greda", "razboj", "preskok", "aerobik"] as const) {
       expect(render(icon)).not.toContain("pi-pose");
-      expect(render(icon)).not.toContain("pi-fx");
+      expect(render(icon)).not.toContain("ex-ghost");
+      expect(render(icon)).not.toContain("ex-solid");
       expect(render(icon)).toContain("pi-solid"); // …but the latent print carries the pose
     }
   });
@@ -412,6 +417,36 @@ describe("programs: plate scene (QP2-05, QP2-11)", async () => {
       expect(figs[0]).toContain(`data-figure="pose:${PROGRAM_POSE[program.icon].id}"`);
       expect(figs[0]).toContain(`x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}"`);
       expect(html).not.toMatch(/href="#leap"/); // no logo figure on a program plate (R1)
+    }
+  });
+
+  it("the card's pose figure is the exercise's static print: its ghost frames, then the final pose, overflow visible", async () => {
+    const { createElement } = await import("react");
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { ProgramCard } = await import("@/components/sections/programs/ProgramCard");
+    const { PROGRAM_POSE } = await import("@/components/sections/programs/pose-scene");
+    const { PROGRAM_EXERCISES } = await import("@/components/sections/programs/program-exercises");
+    const { POSES } = await import("@/components/brand/poses.generated");
+    for (const program of visiblePrograms(false)) {
+      const ex = PROGRAM_EXERCISES[program.icon];
+      expect(ex.pose, program.id).toBe(PROGRAM_POSE[program.icon].id); // the exercise ends in the card's pose
+      const html = renderToStaticMarkup(createElement(ProgramCard, { program }));
+      const fig = html.slice(html.indexOf("<svg data-figure=\"pose:"), html.indexOf("</svg>", html.indexOf("<svg data-figure=\"pose:")));
+      expect(fig, program.id).toMatch(/^<svg data-figure="pose:\w+"[^>]* overflow="visible"/);
+      const paths = [...fig.matchAll(/<path class="(ex-ghost|ex-solid)"(?: data-frame="(\d+)")? d="([^"]+)"><\/path>/g)];
+      // One path per ghost frame, oldest first, and the solid last: nothing else in the figure.
+      expect(fig.match(/<path /g)?.length, program.id).toBe(ex.ghosts.length + 1);
+      expect(paths.map((m) => m[1]), program.id).toEqual([...ex.ghosts.map(() => "ex-ghost"), "ex-solid"]);
+      ex.ghosts.forEach((g, k) => {
+        expect(Number(paths[k]?.[2]), program.id).toBe(g);
+        expect(paths[k]?.[3], `${program.id} ghost ${g}`).toBe(ex.frames[g]);
+      });
+      const solid = paths.at(-1)?.[3];
+      expect(solid, program.id).toBe(POSES[ex.pose].d);
+      expect(solid, program.id).toBe(ex.frames.at(-1));
+      // Only the ghosts and the final pose are in the HTML: no in-between frame.
+      const shipped = new Set([...ex.ghosts.map((g) => ex.frames[g]), ex.frames.at(-1)]);
+      for (const f of ex.frames) if (!shipped.has(f)) expect(html.includes(f), program.id).toBe(false);
     }
   });
 });
@@ -563,10 +598,9 @@ describe("programs: the filter glides the row to its rest (QP4-01)", async () =>
     expect(flip).toMatch(/if \(on\) arrive\(tl, el, HOP_ON, drop, false\)/);
   });
 
-  it("lets cards that land in view draw or perform only after the flight has landed", () => {
+  it("lets cards that land in view draw only after the flight has landed", () => {
     expect(flip).toMatch(/flightUntil = performance\.now\(\) \+ Math\.max\(flip\.duration\(\), hop\?\.duration\(\) \?\? 0\) \* 1000;/);
     expect(src).toMatch(/if \(flying > 0\) later\(drawBatch, flying\);/);
-    expect(src).toMatch(/if \(flying\) later\(\(\) => perform\(card, delay\), flying\);/);
   });
 
   it("takes off on the next tick, so the first frame is the take-off and not ≈50ms (most of a stick flight) in", () => {
@@ -705,7 +739,17 @@ describe("programs: detail sheet (QP4-02, QP4-03)", async () => {
     }
     return "";
   };
-  const html = renderToStaticMarkup(createElement(ProgramSheet, { programId: "c-program", card: {} as HTMLElement, onClosed: () => {} }));
+  const { PROGRAM_EXERCISES } = await import("@/components/sections/programs/program-exercises");
+  /** The opener card: the sheet reads the card's server-rendered ghost frames (.pc-icon .ex-ghost). */
+  const cardOf = (icon: keyof typeof PROGRAM_EXERCISES) =>
+    ({
+      querySelectorAll: (sel: string) => {
+        expect(sel).toBe(".pc-icon .ex-ghost");
+        const ex = PROGRAM_EXERCISES[icon];
+        return ex.ghosts.map((f) => ({ dataset: { frame: String(f) }, getAttribute: (a: string) => (a === "d" ? ex.frames[f] : null) }));
+      },
+    }) as unknown as HTMLElement;
+  const html = renderToStaticMarkup(createElement(ProgramSheet, { programId: "c-program", card: cardOf("razboj"), onClosed: () => {} }));
 
   it("keeps the way out in view: the close is the panel's first child and sticky in its scroller", () => {
     expect(html).toMatch(/<div class="ps-panel"><button type="button" class="ps-close" data-sheet-close="" aria-label="[^"]+">/);
@@ -715,6 +759,18 @@ describe("programs: detail sheet (QP4-02, QP4-03)", async () => {
   it("gives the scene its apparatus and a size-container box", () => {
     expect(html).toMatch(/<div class="ps-plate" data-apparatus="razboj"><span class="ps-scene"><svg class="pi ps-icon"/);
     expect(css).toMatch(/\.ps-scene \{[^}]*container: ps-scene \/ size;/);
+  });
+
+  it("draws the card's ghost frames and the final pose, so the sheet's static state is the finished exercise", async () => {
+    const { POSES } = await import("@/components/brand/poses.generated");
+    for (const [programId, icon] of [["ab-program", "preskok"], ["starija", "greda"]] as const) {
+      const sheet = renderToStaticMarkup(createElement(ProgramSheet, { programId, card: cardOf(icon), onClosed: () => {} }));
+      const ex = PROGRAM_EXERCISES[icon];
+      const ghosts = [...sheet.matchAll(/<path class="ex-ghost" data-frame="(\d+)" d="([^"]+)"><\/path>/g)];
+      expect(ghosts.map((m) => Number(m[1])), programId).toEqual([...ex.ghosts]);
+      ghosts.forEach((m) => expect(m[2]).toBe(ex.frames[Number(m[1])]));
+      expect(sheet).toContain(`<path class="ex-solid" d="${POSES[ex.pose].d}"></path>`);
+    }
   });
 
   it("lays a landscape phone out in two columns: scene over CTAs left, the text alone scrolling right", () => {
@@ -810,67 +866,134 @@ describe("programs: no figure in the rail or under the photo (figure system §5.
   });
 });
 
-describe("programs: the pose rides its apparatus; the mount drops it and sticks (plan §5.4)", async () => {
+describe("programs: the scroll plays each card's whole exercise (D-54)", async () => {
   const { readFileSync } = await import("node:fs");
+  const { CARD_SCRUB, slideIn } = await import("@/components/sections/programs/card-exercises");
   const css = readFileSync("styles/sections/programs.css", "utf8");
-  const keyframes = (name: string) => {
-    const start = css.indexOf(`@keyframes ${name} {`);
-    if (start < 0) return "";
-    let depth = 0;
-    for (let i = css.indexOf("{", start); i < css.length; i++) {
-      if (css[i] === "{") depth++;
-      else if (css[i] === "}" && --depth === 0) return css.slice(start, i + 1);
-    }
-    return "";
-  };
-  const stop = (name: string, pct: number) => keyframes(name).match(new RegExp(`${pct}% \\{[^}]*\\}`))?.[0] ?? "";
-  const px = (s: string) => Number(s.match(/translateY\((-?[\d.]+)px\)/)?.[1]);
-  const rule = (selector: string) => {
-    const at = css.indexOf(`${selector} {`);
-    expect(at, selector).toBeGreaterThan(-1);
-    return css.slice(at, css.indexOf("}", at));
-  };
+  const motion = readFileSync("components/sections/programs/programs-motion.ts", "utf8");
+  const scenes = readFileSync("components/sections/programs/card-exercises.ts", "utf8");
 
-  it("rides the beam, the high rail and the table by exactly their dip, on their timing", () => {
-    // Cartwheel: the beam's own keyframes, one rule for both.
-    expect(css).toMatch(
-      /html\.js-motion \[data-perform\] \[data-part="beam"\],\s*html\.js-motion \[data-perform\] \.pi\[data-icon="greda"\] \.pi-ride \{\s*animation: pi-beam /,
-    );
-    // Handstand: the high rail (y 11.5) flexes scaleY(0.94) about the floor (y 42).
-    const high = rule('html.js-motion [data-perform] [data-part="high"]');
-    const flex = Number(high.match(/--flex: ([\d.]+);/)?.[1]);
-    expect(px(stop("pi-rail-ride", 13))).toBeCloseTo((42 - 11.5) * (1 - flex), 2);
-    expect(stop("pi-bars", 13)).toContain("scaleY(var(--flex, 0.92))");
-    const timing = (r: string) => r.match(/animation: [\w-]+ (calc\([^)]*\)|[^ ]+) linear (.+) both;/)?.slice(1);
-    expect(timing(rule('html.js-motion [data-perform] .pi[data-icon="razboj"] .pi-ride'))).toEqual(timing(high));
-    // Handspring: the table (top y 14) gives scaleY(0.9) about the floor.
-    expect(stop("pi-table", 20)).toContain("scaleY(0.9)");
-    expect(px(stop("pi-table-ride", 20))).toBeCloseTo((42 - 14) * (1 - 0.9), 2);
-    expect(timing(rule('html.js-motion [data-perform] .pi[data-icon="preskok"] .pi-ride'))).toEqual(
-      timing(rule('html.js-motion [data-perform] [data-part="table"]')),
-    );
-    // Star: rides the floor's give (the same 0.8 units at 22 %), then springs above her pose.
-    expect(px(stop("pi-star", 22))).toBe(px(stop("pi-floor", 22)));
-    expect(px(stop("pi-star", 58))).toBeLessThan(0);
-    // High kick: crouch, spring and stick on her standing foot.
-    expect(rule('html.js-motion [data-perform] .pi[data-icon="aerobik"] .pi-ride')).toMatch(/animation: pi-jump /);
+  it("starts once the plate is nearly whole on screen and lands before it reaches the middle", () => {
+    expect(CARD_SCRUB).toEqual({ from: 0.95, to: 0.45 });
+    expect(scenes).toMatch(/scenes\.push\(\{ trigger: plate, figure, data, \.\.\.CARD_SCRUB, gate \}\)/);
   });
 
-  it("moves the pose about its contact (--at), and the mount drops it in and sticks on --ease-land (no leap hop)", () => {
-    expect(css).toMatch(/\.pi-pose,\s*\.pi-ride,\s*\.pi-stick \{\s*transform-box: view-box;\s*transform-origin: var\(--at, 50% 87\.5%\);/);
-    expect(css).not.toMatch(/ps-fig-x|ps-fig-y|pi-fig/);
-    for (const [pose, stick] of [
-      ["html.js-motion .program-card[data-mount] .pc-icon .pi-pose", "html.js-motion .program-card[data-mount] .pc-icon .pi-stick"],
-      ["html.js-motion .program-sheet[data-scene] .pi-pose", "html.js-motion .program-sheet[data-scene] .pi-stick"],
-    ] as const) {
-      const drop = rule(pose).match(/animation: pi-drop (\d+)ms cubic-bezier\([^)]*\) (?:calc\(var\(--draw-delay, 0s\) \+ )?(\d+)ms\)? both;/);
-      expect(drop, pose).not.toBeNull();
-      const [dur, delay] = [Number(drop?.[1]), Number(drop?.[2])];
-      const land = rule(stick).match(/animation: pi-stick var\(--dur-land\) var\(--ease-land\) (?:calc\(var\(--draw-delay, 0s\) \+ )?(\d+)ms\)?;/);
-      expect(land, stick).not.toBeNull();
-      expect(Number(land?.[1])).toBe(delay + dur); // the stick starts as she touches down
+  it("phone row: a card plays as it slides in from the right; a passed card stays finished", () => {
+    // 390px row, 306px plates: waiting off to the right, peeking, half in, wholly in, passed left.
+    expect(slideIn(616, 306, 390)).toBe(0);
+    expect(slideIn(390, 306, 390)).toBe(0);
+    expect(slideIn(286, 306, 390)).toBeCloseTo(104 / 306, 9);
+    expect(slideIn(237, 306, 390)).toBeCloseTo(0.5, 9);
+    expect(slideIn(66, 306, 390)).toBe(1);
+    expect(slideIn(-264, 306, 390)).toBe(1);
+    expect(slideIn(0, 0, 390)).toBe(1); // a hidden plate never limits anything
+    // Monotonic in the swipe: never a frame backwards while the row moves one way.
+    let prev = -1;
+    for (let left = 700; left >= -400; left -= 7) {
+      const g = slideIn(left, 306, 390);
+      expect(g).toBeGreaterThanOrEqual(prev);
+      prev = g;
     }
-    expect(stop("pi-drop", 0)).toMatch(/translateY\(var\(--drop, -6px\)\)/);
-    expect(keyframes("pi-stick")).toMatch(/0% \{\s*transform: scale\(1\.05, 0\.9\);/);
+    // The progress is the smaller of the scroll's and the swipe's.
+    expect(scenes).toMatch(/const gate = \(\) => \{\s*const r = plate\.getBoundingClientRect\(\);\s*return slideIn\(r\.left, r\.width, boxRight\(\)\);/);
+  });
+
+  it("replaces the pose's mount and the performs: no card motion moves the gymnast any more", () => {
+    expect(motion).toMatch(/const unscrub = armCardExercises\(strip\);/);
+    expect(motion).not.toMatch(/data-perform|data-mount|pointerenter|focusin|PERFORM_MS|MOUNT_MS/);
+    expect(css).not.toMatch(/data-perform|data-mount|pi-ride|pi-stick|pi-drop|pi-trail|pi-hop|pi-fx|--drop|--at\b/);
+    // The pose no longer waits for the draw: she is there, mid-exercise, from the first frame.
+    expect(css).not.toMatch(/\.pi-pose\s*\{[^}]*opacity:\s*0;/);
+    // The apparatus still draws itself over its latent print…
+    expect(css).toMatch(/html\.js-motion \.program-card:not\(\[data-drawn\]\) \.pc-icon \[data-draw\] \{\s*stroke-dashoffset: 1\.05;/);
+    // …whose pose is hidden on a scene: the gymnast is always there, so it would stand ahead of her.
+    expect(css).toMatch(/:is\(\.pc-icon, \.ps-icon\) \.pi-latent \.pi-solid \{\s*display: none;/);
+  });
+
+  it("ghosts are the plate's own ink, stepped like the title marks' (newest strongest), and leave opacity to the scrub", () => {
+    const fill = (sel: string) => Number(css.match(new RegExp(`${sel.replace(/[.()]/g, "\\$&")} \\{\\s*fill-opacity: ([\\d.]+);`))?.[1]);
+    const [newest, older, oldest] = [fill(".pi-pose .ex-ghost"), fill(".pi-pose .ex-ghost:nth-last-child(3)"), fill(".pi-pose .ex-ghost:nth-last-child(4)")];
+    expect(oldest).toBeGreaterThan(0.1);
+    expect(oldest).toBeLessThan(older);
+    expect(older).toBeLessThan(newest);
+    expect(newest).toBeLessThanOrEqual(0.35);
+    // The scrub hides a ghost with opacity (styles/ui.css): nothing here may set it.
+    for (const m of css.matchAll(/([^{}]*\.ex-ghost[^{}]*)\{([^}]*)\}/g)) expect(m[2], m[1]).not.toMatch(/(^|[^-])opacity:/);
+    // Filled with the plate's figure ink (currentColor), like the pose itself.
+    expect(css).toMatch(/\.pi \.pi-solid,\s*\.pi-pose path \{\s*fill: currentColor;/);
+  });
+
+  it("a live switch to reduced motion restores the static print", () => {
+    expect(scenes).toMatch(/const onReduce = \(\) => \{\s*if \(reduce\.matches\) halt\(\);/);
+  });
+});
+
+describe("programs: the detail sheet plays the exercise as it opens (D-55)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync("components/sections/programs/ProgramSheet.tsx", "utf8");
+
+  it("plays the whole exercise in ≈1.4s, started before the dialog shows, only on the motion branch", () => {
+    const ms = Number(src.match(/const SHEET_PLAY_MS = (\d+);/)?.[1]);
+    expect(ms).toBeGreaterThanOrEqual(1200);
+    expect(ms).toBeLessThanOrEqual(1600);
+    const motion = src.slice(src.indexOf("if (motionAllowed()) {"), src.indexOf("} else {", src.indexOf("if (motionAllowed()) {")));
+    expect(motion).toMatch(/playExercise\(figure, exercises\[program\.icon\], SHEET_PLAY_MS/);
+    expect(motion.indexOf("playExercise(")).toBeLessThan(motion.indexOf("show();"));
+    expect(src.match(/playExercise\(/g)).toHaveLength(1); // reduced motion: the static print, nothing plays
+    // A live switch to reduced motion or a close mid-play ends on the final pose.
+    expect(src).toMatch(/if \(reduce\.matches\) stopPlay\?\.\(\);/);
+    expect(src).toMatch(/cancelled = true;[^]*?stopPlay\?\.\(\);/);
+  });
+});
+
+describe("programs: the exercise frames reach the client only in their own lazy chunk (D-53)", async () => {
+  const { existsSync, readFileSync } = await import("node:fs");
+  const { dirname, join, relative, resolve } = await import("node:path");
+  const root = process.cwd();
+  /** The modules a file imports statically (import/export … from; never `import type` or import()). */
+  const deps = (file: string): string[] => {
+    const src = readFileSync(file, "utf8");
+    const specs = [...src.matchAll(/^\s*(?:import|export)\s+(?!type\b)(?:[^'"]*?\sfrom\s+)?["']([^"']+)["'];?/gm)].map((m) => m[1] ?? "");
+    return specs
+      .map((spec) => (spec.startsWith("@/") ? join(root, spec.slice(2)) : spec.startsWith(".") ? resolve(dirname(file), spec) : null))
+      .flatMap((base) => (base ? [`${base}.ts`, `${base}.tsx`, join(base, "index.ts")].filter(existsSync).slice(0, 1) : []));
+  };
+  const reach = (entry: string) => {
+    const seen = new Set<string>();
+    const walk = (f: string) => {
+      if (seen.has(f)) return;
+      seen.add(f);
+      deps(f).forEach(walk);
+    };
+    walk(join(root, entry));
+    return [...seen].map((f) => relative(root, f));
+  };
+  const FRAMES = /^components\/(brand\/exercises\/\w+\.generated\.ts|sections\/programs\/program-exercises\.ts)$/;
+
+  it("no client module of the programs or the quiz imports the frames statically", () => {
+    const entries = [
+      "components/sections/programs/ProgramsBrowser.tsx", // first load
+      "components/sections/programs/ProgramSheet.tsx", // lazy sheet chunk
+      "components/sections/programs/programs-motion.ts", // lazy motion chunk
+      "components/sections/programs/card-exercises.ts",
+      "components/sections/programs/ProgramIcon.tsx", // rendered by the sheet on the client
+      "components/sections/quiz/QuizApp.tsx",
+    ];
+    for (const e of entries) {
+      const hit = reach(e).filter((f) => FRAMES.test(f));
+      expect(hit, e).toEqual([]);
+    }
+    // The walker does see static imports: the server card reaches the frames through its print.
+    expect(reach("components/sections/programs/ProgramCard.tsx")).toContain("components/sections/programs/program-exercises.ts");
+    expect(reach("components/sections/programs/ProgramCard.tsx")).toContain("components/brand/exercises/vaultHandspring.generated.ts");
+  });
+
+  it("the scrub and the sheet load them with a dynamic import() of one module (one chunk), which holds data only", () => {
+    for (const f of ["components/sections/programs/card-exercises.ts", "components/sections/programs/ProgramSheet.tsx"]) {
+      expect(readFileSync(f, "utf8"), f).toMatch(/import\("\.\/program-exercises"\)/);
+    }
+    const data = deps(join(root, "components/sections/programs/program-exercises.ts")).map((f) => relative(root, f));
+    expect(data.length).toBe(5);
+    for (const f of data) expect(f).toMatch(/^components\/brand\/exercises\/\w+\.generated\.ts$/);
   });
 });

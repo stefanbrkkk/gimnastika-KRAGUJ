@@ -1,7 +1,12 @@
+import { EXERCISE_ENROLL_CARTWHEEL } from "@/components/brand/exercises/enrollCartwheel.generated";
 import { POSES } from "@/components/brand/poses.generated";
-import { buildBand, r1, type BandSpec } from "./leap-band";
+import { keyedOffset } from "@/lib/exercise-scrub";
+import { buildBand, keyShifts, r1, type BandSpec } from "./leap-band";
 
 const TICK = { wide: 10, narrow: 6 } as const;
+const EXERCISE = EXERCISE_ENROLL_CARTWHEEL;
+
+const pair = ([x, y]: readonly [number, number]) => `${r1(x)} ${r1(y)}`;
 
 /**
  * „Jedna zvezda, tri koraka“ — the enrollment chronophotograph (plan §5.9): the three steps as
@@ -9,15 +14,22 @@ const TICK = { wide: 10, narrow: 6 } as const;
  * rule: a tick under each step's support (cart1's foot, cart2's hands, the salute's feet), aligned
  * with the step numerals. Static final composition (server-rendered, aria-hidden): the three
  * phases are ghosts in the shared --ghost-1/2/3 tokens, the salute is the solid accent.
- * Each figure is its own <svg data-figure="pose:<id>"> (the figure budget counts four), inside
- * a <g> the motion moves (leap-motion.ts: the fragments' travel, the salute's squash about
- * data-origin, its feet on the mat). `variant`: wide (≥640, over the three step columns) or
- * narrow (<640, a compact plate above the step list, ticks numbered 1–3).
+ * All four are frames of ONE exercise (enrollCartwheel, D-52) in the salute's nested <svg
+ * data-figure="pose:salute" overflow="visible"> (the figure budget counts one): each ghost is its
+ * key frame moved onto its step (keyShifts). With motion, leap-motion.ts scrubs the whole
+ * cartwheel with the scroll — the flier wheels from step to step (the shifts blended between
+ * keys, read from data-shifts / data-keys), each phase she passes stays as its ghost, and she
+ * sticks the salute over step 3. `variant`: wide (≥640, over the three step columns) or narrow
+ * (<640, a compact plate above the step list, ticks numbered 1–3).
  */
 export function LeapBand({ spec, variant }: { spec: BandSpec; variant: "wide" | "narrow" }) {
   const band = buildBand(spec);
   const { w, h, mat, ticks } = spec;
   const tick = TICK[variant];
+  const salute = band.figures[3];
+  const vb = POSES[EXERCISE.pose].viewBox;
+  const shifts = keyShifts(band, EXERCISE.keyOrigins);
+  const shiftAt = keyedOffset(EXERCISE.keys, shifts);
 
   return (
     <svg className="en-band" data-variant={variant} viewBox={`0 0 ${w} ${h}`} aria-hidden="true" focusable="false">
@@ -32,25 +44,35 @@ export function LeapBand({ spec, variant }: { spec: BandSpec; variant: "wide" | 
             </text>
           ))
         : null}
-      {band.figures.map((f) => {
-        const { d, viewBox: vb } = POSES[f.id];
-        return (
-          <g key={f.id} className="en-band__frame" data-frame={f.id} data-origin={`${r1(f.support.x)} ${r1(f.support.y)}`}>
-            <svg
-              data-figure={`pose:${f.id}`}
-              x={r1(f.x)}
-              y={r1(f.y)}
-              width={r1(f.width)}
-              height={r1(f.height)}
-              viewBox={`${vb.x} ${vb.y} ${vb.width} ${vb.height}`}
-              aria-hidden="true"
-              focusable="false"
-            >
-              <path d={d} fill="currentColor" />
-            </svg>
-          </g>
-        );
-      })}
+      <svg
+        className="en-band__figure"
+        data-figure={`pose:${EXERCISE.pose}`}
+        x={r1(salute.x)}
+        y={r1(salute.y)}
+        width={r1(salute.width)}
+        height={r1(salute.height)}
+        viewBox={`${vb.x} ${vb.y} ${vb.width} ${vb.height}`}
+        overflow="visible"
+        data-keys={EXERCISE.keys.join(" ")}
+        data-shifts={shifts.map(pair).join(",")}
+        aria-hidden="true"
+        focusable="false"
+      >
+        {EXERCISE.ghosts.map((f, i) => (
+          <path
+            key={f}
+            className="ex-ghost en-band__ghost"
+            data-phase={i + 1}
+            data-frame={f}
+            d={EXERCISE.frames[f]}
+            transform={`translate(${pair(shiftAt(f))})`}
+            fill="currentColor"
+          />
+        ))}
+        <g className="en-band__stick">
+          <path className="ex-solid en-band__solid" d={POSES[EXERCISE.pose].d} fill="currentColor" />
+        </g>
+      </svg>
     </svg>
   );
 }

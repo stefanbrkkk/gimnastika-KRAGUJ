@@ -5,8 +5,9 @@
    The program cards are white prints carrying the light tokens (data-theme="light"); each plate
    is a small apparatus print: the drawing stands on a mat line over a Marey measuring grid.
    Motion vocabulary (components/sections/programs/programs-motion.ts): draw over a latent print,
-   the apparatus performs (wobble · swing · spring · tumble · jump), take-off/landing filter.
-   Only transform, opacity, clip-path, stroke-dashoffset animate. Every :hover is gated. */
+   the gymnast's whole exercise scrubbed with the scroll (card-exercises.ts, D-54) and played as
+   the detail sheet opens (D-55), take-off/landing filter. Only transform, opacity, clip-path,
+   stroke-dashoffset (and the scrub's path data) animate. Every :hover is gated. */
 
 /* --------------------------------------------------------------------------
    Seam (MI-07): the cut's mat line draws bottom-left → top-right on desktop. The pre-state is
@@ -436,11 +437,13 @@ html.js .program-card {
    sheet's scene: the program's pose on its apparatus (QP3-02, plan §5.4). The whole scene scales
    with the plate — 64% of its height, within the width it needs (--fit), 84/96px → 176px (the
    sheet's scene size) — instead of switching at a threshold.
-   Headroom (--head, icon units, components/sections/programs/pose-scene.ts headroom()): the
-   handstand on the high rail and the handspring on the table rise 22.4 and 18.4 units above the
-   48-unit drawing, the cartwheel 7.5, the star 1.7. The drawing never grows past what leaves
-   the pose --top clear of the plate's top edge, and a plate is never shorter than its smallest
-   drawing plus its headroom, so no pose is ever cut. */
+   Headroom (--head, icon units: pose-scene.ts headroom() over every frame, D-56): the
+   plate reserves what the whole exercise the gymnast performs on it rises above the 48-unit
+   drawing, not only her final pose — the cast to handstand 22.1 units, the handspring vault
+   18.8, the beam cartwheel 11.6 (she starts upright, arms raised, in cart1's stance), the star
+   jump 1.35 (1.65 for its pose's box). The drawing never grows past what leaves the exercise
+   --top clear of the plate's top edge, and a plate is never shorter than its smallest drawing
+   plus its headroom, so no frame is ever cut. */
 .pc-plate,
 .ps-plate {
   --head: 0;
@@ -454,7 +457,7 @@ html.js .program-card {
 
 .pc-plate[data-apparatus="greda"],
 .ps-plate[data-apparatus="greda"] {
-  --head: 8;
+  --head: 12;
 }
 
 .pc-plate[data-apparatus="razboj"],
@@ -661,7 +664,7 @@ html.js .program-card {
 }
 
 /* --------------------------------------------------------------------------
-   Apparatus drawings (ProgramIcon): stroke system, latent print, draw, perform
+   Apparatus drawings (ProgramIcon): stroke system, latent print, draw, the exercise's ghosts
    -------------------------------------------------------------------------- */
 .pi {
   /* In user units (px = 1/48 of the drawing): ≈2.8 CSS px at 84px; every size keeps that
@@ -698,18 +701,24 @@ html.js .program-card {
   stroke: none;
 }
 
-/* The pose's three groups move about its contact on the drawing (--at, icon units, set inline):
-   the mount drops .pi-pose in, a perform moves .pi-ride with its apparatus, the landing squash
-   scales .pi-stick. */
-.pi-pose,
-.pi-ride,
-.pi-stick {
-  transform-box: view-box;
-  transform-origin: var(--at, 50% 87.5%);
-}
-
 .pi-pose svg {
   opacity: 0.9;
+}
+
+/* The exercise's ghost frames (D-53): the key phases she passed, left behind in the plate's own
+   figure ink, faint and stepped like the title marks' — the newest phase the strongest (the
+   solid pose is the svg's last child, so the newest ghost is the one before it). fill-opacity,
+   not opacity: the scrub's show/hide and its fade (styles/ui.css, data-shown) stay its own. */
+.pi-pose .ex-ghost {
+  fill-opacity: 0.3;
+}
+
+.pi-pose .ex-ghost:nth-last-child(3) {
+  fill-opacity: 0.22;
+}
+
+.pi-pose .ex-ghost:nth-last-child(4) {
+  fill-opacity: 0.15;
 }
 
 /* The card drawing scales with its plate (84 → 176px): the user-unit stroke steps down with
@@ -763,9 +772,6 @@ html.js .program-card {
 }
 
 .pc-icon {
-  /* Mount drop, in drawing units (pi-drop): short on a card, whose pose may stand 6px under the
-     plate's top edge (the headroom rule); the sheet drops her from higher. */
-  --drop: -5px;
   width: 100%;
   height: 100%;
   /* Press (MI-04): the apparatus takes the weight — compresses onto its floor (y = 42/48). */
@@ -781,8 +787,9 @@ html.js .program-card {
 }
 
 /* Latent print (QP-14): the same drawing at 18%, shown only while motion is on, so a plate
-   waiting for its draw already shows a faint apparatus. During a perform it stays put as the
-   rest-pose ghost frame under the moving parts. */
+   waiting for its draw already shows a faint apparatus. On a scene (card, sheet) the gymnast is
+   always there, running through her exercise: the print's pose would stand in her final place
+   ahead of her, so only its apparatus shows (the quiz still reads the whole print). */
 .pi-latent {
   display: none;
 }
@@ -792,6 +799,10 @@ html.js .program-card {
     display: inline;
     opacity: 0.18;
   }
+}
+
+:is(.pc-icon, .ps-icon) .pi-latent .pi-solid {
+  display: none;
 }
 
 /* Draw once on enter (.6s): pathLength=1 dashes; hidden offset 1.05 so round caps leave no
@@ -807,289 +818,6 @@ html.js .program-card {
   }
   html.js-motion .program-card .pc-icon [data-draw] {
     transition: stroke-dashoffset var(--dur-reveal) var(--ease-stick) var(--draw-delay, 0s);
-  }
-  /* The pose waits for its mount (QP2-05). */
-  html.js-motion .program-card:not([data-drawn]) .pc-icon .pi-pose {
-    opacity: 0;
-  }
-  /* Mount (the detail sheet's MI-08, on a scene plate): as the line completes she drops onto her
-     apparatus and sticks it — compress about the contact and hold (--ease-land). No split-leap
-     hop: the pose is already the movement. data-mount is set by programs-motion with data-drawn. */
-  html.js-motion .program-card[data-mount] .pc-icon .pi-pose {
-    animation: pi-drop 320ms cubic-bezier(0.5, 0, 0.75, 0.3) calc(var(--draw-delay, 0s) + 450ms) both;
-  }
-  html.js-motion .program-card[data-mount] .pc-icon .pi-stick {
-    animation: pi-stick var(--dur-land) var(--ease-land) calc(var(--draw-delay, 0s) + 770ms);
-  }
-}
-
-/* Parts move as one piece around their own box (feet or centre). */
-.pi-part {
-  transform-box: fill-box;
-  transform-origin: 50% 100%;
-}
-
-/* The gymnast's path (detail sheet only): invisible at rest (the dash sits off the path). */
-.pi-fx path {
-  stroke-width: calc(var(--sw) * 0.8);
-  stroke-dasharray: 0.3 1.6;
-  stroke-dashoffset: 0.36;
-}
-
-.pi[data-icon="parter"] .pi-fx path {
-  stroke-dasharray: 1 3;
-  stroke-dashoffset: 1.05;
-}
-
-/* Perform (MD-06, QP2-11): set by programs-motion (data-perform, --perform-delay). The
-   apparatus's own physics, and the pose rides what she holds (plan §5.4): the beam dips under
-   her hands, the high rail flexes under the handstand, the table gives under the handspring,
-   the sprung floor gives and bounces the star; the high kick crouches, springs and sticks. No
-   trails on the cards. Easings inside @keyframes are literal (MD2-01): Chromium plays a var()
-   keyframe easing as linear. The linear() lists are styles/motion-tokens.css --ease-wobble /
-   --ease-swing (tests/programs.test.ts keeps them identical), each after a rebound cubic-bezier
-   for engines without linear(). */
-@media (prefers-reduced-motion: no-preference) {
-  html.js-motion .program-card[data-perform] .pi {
-    --d: var(--perform-delay, 0s);
-  }
-
-  /* Beam: the beam flexes down on its legs, then balances out and settles (no rotation). The
-     legs shorten by exactly the beam's dip, so the two stay joined; her hands ride the top. */
-  html.js-motion [data-perform] [data-part="beam"],
-  html.js-motion [data-perform] .pi[data-icon="greda"] .pi-ride {
-    animation: pi-beam calc(var(--dur-wobble) + 100ms) linear var(--d) both;
-  }
-  html.js-motion [data-perform] [data-part="legs"] {
-    animation: pi-beam-legs calc(var(--dur-wobble) + 100ms) linear var(--d) both;
-  }
-
-  /* Bars: each rail flexes down on its uprights and springs back, the high rail first — her
-     handstand rides it (the rail at y 11.5 dips (42 − 11.5) × (1 − 0.94) = 1.83 units). */
-  html.js-motion [data-perform] [data-part="high"] {
-    --flex: 0.94;
-    animation: pi-bars calc(var(--dur-swing) + 120ms) linear var(--d) both;
-  }
-  html.js-motion [data-perform] .pi[data-icon="razboj"] .pi-ride {
-    animation: pi-rail-ride calc(var(--dur-swing) + 120ms) linear var(--d) both;
-  }
-  html.js-motion [data-perform] [data-part="low"] {
-    --flex: 0.92;
-    animation: pi-bars calc(var(--dur-swing) + 120ms) linear calc(var(--d) + 80ms) both;
-  }
-
-  /* Vault: the board compresses and springs, then the table takes her hands — the table top
-     (y 14) gives (42 − 14) × (1 − 0.9) = 2.8 units and she rides it. */
-  html.js-motion [data-perform] [data-part="board"] {
-    animation: pi-board calc(var(--dur-spring) + 80ms) linear var(--d) both;
-  }
-  html.js-motion [data-perform] [data-part="table"] {
-    animation: pi-table var(--dur-spring) linear calc(var(--d) + 220ms) both;
-  }
-  html.js-motion [data-perform] .pi[data-icon="preskok"] .pi-ride {
-    animation: pi-table-ride var(--dur-spring) linear calc(var(--d) + 220ms) both;
-  }
-
-  /* Floor: the sprung floor gives and comes back; the star rides the give and springs higher. */
-  html.js-motion [data-perform] [data-icon="parter"] .pi-part {
-    animation: pi-floor 520ms linear var(--d) both;
-  }
-  html.js-motion [data-perform] .pi[data-icon="parter"] .pi-ride {
-    animation: pi-star 520ms linear var(--d) both;
-  }
-
-  /* Aerobic: the high kick crouches, springs off her standing foot and sticks the landing. */
-  html.js-motion [data-perform] .pi[data-icon="aerobik"] .pi-ride {
-    animation: pi-jump 620ms linear var(--d) both;
-  }
-}
-
-@keyframes pi-beam {
-  0% {
-    transform: translateY(0);
-    animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
-  }
-  12% {
-    transform: translateY(1.2px);
-    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
-    animation-timing-function: linear(0, 0.3193, 0.64, 0.9233, 1.1448, 1.2934, 1.3696, 1.3824, 1.3461, 1.2776, 1.1929, 1.1064, 1.0289, 0.9673, 0.9251, 0.9025, 0.8972, 0.9055, 0.9231, 0.9455, 0.9688, 0.99, 1.007, 1.019, 1.0257, 1.0276, 1.0257, 1.0213, 1.0154, 1.0091, 1.0033, 0.9986, 0.9952, 0.9933, 0.9926, 0.993, 0.9941, 0.9957, 0.9974, 0.9989, 1.0002, 1.0012, 1.0018, 1.002, 1.0019, 1.0016, 1.0012, 1.0008, 1);
-  }
-  100% {
-    transform: translateY(0);
-  }
-}
-
-@keyframes pi-beam-legs {
-  0% {
-    transform: scaleY(1);
-    animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
-  }
-  12% {
-    transform: scaleY(0.927);
-    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
-    animation-timing-function: linear(0, 0.3193, 0.64, 0.9233, 1.1448, 1.2934, 1.3696, 1.3824, 1.3461, 1.2776, 1.1929, 1.1064, 1.0289, 0.9673, 0.9251, 0.9025, 0.8972, 0.9055, 0.9231, 0.9455, 0.9688, 0.99, 1.007, 1.019, 1.0257, 1.0276, 1.0257, 1.0213, 1.0154, 1.0091, 1.0033, 0.9986, 0.9952, 0.9933, 0.9926, 0.993, 0.9941, 0.9957, 0.9974, 0.9989, 1.0002, 1.0012, 1.0018, 1.002, 1.0019, 1.0016, 1.0012, 1.0008, 1);
-  }
-  100% {
-    transform: scaleY(1);
-  }
-}
-
-@keyframes pi-bars {
-  0% {
-    transform: scaleY(1);
-    animation-timing-function: cubic-bezier(0.3, 0.6, 0.4, 1);
-  }
-  13% {
-    transform: scaleY(var(--flex, 0.92));
-    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
-    animation-timing-function: linear(0, 0.1589, 0.3341, 0.51, 0.6745, 0.8195, 0.9402, 1.0346, 1.103, 1.1474, 1.1708, 1.1769, 1.1696, 1.1528, 1.13, 1.1043, 1.078, 1.0531, 1.0309, 1.0122, 0.9974, 0.9864, 0.9791, 0.9751, 0.9737, 0.9744, 0.9767, 0.9799, 0.9837, 0.9876, 0.9914, 0.9948, 0.9977, 1, 1.0017, 1.0029, 1.0036, 1.0039, 1.0038, 1.0035, 1.0031, 1.0025, 1.002, 1.0014, 1.0009, 1.0004, 1.0001, 0.9998, 1);
-  }
-  100% {
-    transform: scaleY(1);
-  }
-}
-
-/* The handstand on the high rail: the rail's dip as a translation (pi-bars at --flex 0.94). */
-@keyframes pi-rail-ride {
-  0% {
-    transform: translateY(0);
-    animation-timing-function: cubic-bezier(0.3, 0.6, 0.4, 1);
-  }
-  13% {
-    transform: translateY(1.83px);
-    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
-    animation-timing-function: linear(0, 0.1589, 0.3341, 0.51, 0.6745, 0.8195, 0.9402, 1.0346, 1.103, 1.1474, 1.1708, 1.1769, 1.1696, 1.1528, 1.13, 1.1043, 1.078, 1.0531, 1.0309, 1.0122, 0.9974, 0.9864, 0.9791, 0.9751, 0.9737, 0.9744, 0.9767, 0.9799, 0.9837, 0.9876, 0.9914, 0.9948, 0.9977, 1, 1.0017, 1.0029, 1.0036, 1.0039, 1.0038, 1.0035, 1.0031, 1.0025, 1.002, 1.0014, 1.0009, 1.0004, 1.0001, 0.9998, 1);
-  }
-  100% {
-    transform: translateY(0);
-  }
-}
-
-@keyframes pi-board {
-  0% {
-    transform: scaleY(1);
-    animation-timing-function: cubic-bezier(0.5, 0, 0.8, 0.4);
-  }
-  16% {
-    transform: scaleY(0.62);
-    animation-timing-function: cubic-bezier(0.34, 1.8, 0.5, 1); /* --ease-spring */
-  }
-  100% {
-    transform: scaleY(1);
-  }
-}
-
-@keyframes pi-table {
-  0% {
-    transform: scaleY(1);
-    animation-timing-function: cubic-bezier(0.3, 0.6, 0.4, 1);
-  }
-  20% {
-    transform: scaleY(0.9);
-    animation-timing-function: cubic-bezier(0.34, 1.8, 0.5, 1); /* --ease-spring */
-  }
-  100% {
-    transform: scaleY(1);
-  }
-}
-
-/* The handspring on the table: the table top's give as a translation (pi-table). */
-@keyframes pi-table-ride {
-  0% {
-    transform: translateY(0);
-    animation-timing-function: cubic-bezier(0.3, 0.6, 0.4, 1);
-  }
-  20% {
-    transform: translateY(2.8px);
-    animation-timing-function: cubic-bezier(0.34, 1.8, 0.5, 1); /* --ease-spring */
-  }
-  100% {
-    transform: translateY(0);
-  }
-}
-
-@keyframes pi-floor {
-  0% {
-    transform: none;
-    animation-timing-function: cubic-bezier(0.5, 0, 0.8, 0.4);
-  }
-  22% {
-    transform: translateY(0.8px) scaleX(1.01);
-    animation-timing-function: cubic-bezier(0.22, 1.12, 0.36, 1); /* --ease-land */
-  }
-  100% {
-    transform: none;
-  }
-}
-
-/* The star rides the floor's give (pi-floor, 0.8 units at 22%), is sprung 2.4 units higher by
-   its rebound and floats back to her pose. */
-@keyframes pi-star {
-  0% {
-    transform: translateY(0);
-    animation-timing-function: cubic-bezier(0.5, 0, 0.8, 0.4);
-  }
-  22% {
-    transform: translateY(0.8px);
-    animation-timing-function: cubic-bezier(0.25, 0.6, 0.45, 1);
-  }
-  58% {
-    transform: translateY(-2.4px);
-    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); /* --ease-flight */
-  }
-  100% {
-    transform: translateY(0);
-  }
-}
-
-@keyframes pi-jump {
-  0% {
-    transform: none;
-    animation-timing-function: cubic-bezier(0.3, 0, 0.6, 1);
-  }
-  16% {
-    transform: scale(1.05, 0.92);
-    animation-timing-function: cubic-bezier(0.25, 0.6, 0.45, 1);
-  }
-  50% {
-    transform: translateY(-4.5px) scale(0.97, 1.04);
-    animation-timing-function: cubic-bezier(0.55, 0, 0.8, 0.45);
-  }
-  78% {
-    transform: scale(1.06, 0.9);
-    animation-timing-function: cubic-bezier(0.22, 1.12, 0.36, 1); /* --ease-land */
-  }
-  100% {
-    transform: none;
-  }
-}
-
-/* The gymnast's path in the detail sheet (dash along a pathLength=1 path). */
-@keyframes pi-trail {
-  from {
-    stroke-dashoffset: 0.36;
-  }
-  to {
-    stroke-dashoffset: -1.02;
-  }
-}
-
-@keyframes pi-hop {
-  0% {
-    stroke-dashoffset: 1.05;
-    opacity: 1;
-    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
-  }
-  40% {
-    stroke-dashoffset: 0;
-    opacity: 1;
-  }
-  70% {
-    opacity: 1;
-  }
-  100% {
-    stroke-dashoffset: 0;
-    opacity: 0;
   }
 }
 
@@ -1652,7 +1380,6 @@ html.js .program-card {
 
 .ps-icon {
   --sw: 1.02px; /* ≈2.8 CSS px at 132px */
-  --drop: -9px; /* mount drop, in drawing units (≈25px at 132px) */
   width: 100%;
   height: 100%;
 }
@@ -1694,25 +1421,12 @@ html.js .program-card {
     0 0 0 5px var(--color-violet-600);
 }
 
-/* The mount (MI-08): the drawing traces itself as the window opens, her path (the swing up, the
-   pre-flight, the tumbling hops) traces into her pose, and she drops onto the apparatus and
-   sticks it — compress about the contact and hold (--ease-land). No split-leap hop. ≤1.5s; only
-   with motion (data-scene is set by the sheet's motion branch). */
+/* The scene opening (MI-08, D-55): the drawing traces itself as the window opens, while the
+   gymnast performs her whole exercise into her pose (ProgramSheet: playExercise, 1.4s). Only with
+   motion (data-scene is set by the sheet's motion branch). */
 @media (prefers-reduced-motion: no-preference) {
   html.js-motion .program-sheet[data-scene] .ps-icon [data-draw] {
     animation: pi-draw 500ms var(--ease-stick) 300ms both;
-  }
-  html.js-motion .program-sheet[data-scene] .ps-icon .pi-fx path {
-    animation: pi-trail 560ms var(--ease-flight) 560ms both;
-  }
-  html.js-motion .program-sheet[data-scene] .ps-icon[data-icon="parter"] .pi-fx path {
-    animation: pi-hop 360ms linear calc(560ms + var(--k) * 110ms) both;
-  }
-  html.js-motion .program-sheet[data-scene] .pi-pose {
-    animation: pi-drop 320ms cubic-bezier(0.5, 0, 0.75, 0.3) 800ms both;
-  }
-  html.js-motion .program-sheet[data-scene] .pi-stick {
-    animation: pi-stick var(--dur-land) var(--ease-land) 1120ms;
   }
 }
 
@@ -1722,31 +1436,6 @@ html.js .program-card {
   }
   to {
     stroke-dashoffset: 0;
-  }
-}
-
-/* The mount's drop (--drop: drawing units above her pose), fading in over its first third. */
-@keyframes pi-drop {
-  0% {
-    transform: translateY(var(--drop, -6px));
-    opacity: 0;
-  }
-  30% {
-    opacity: 1;
-  }
-  100% {
-    transform: none;
-    opacity: 1;
-  }
-}
-
-/* The stuck landing: compress about the contact and hold (the pose's --at). */
-@keyframes pi-stick {
-  0% {
-    transform: scale(1.05, 0.9);
-  }
-  100% {
-    transform: none;
   }
 }
 
@@ -1841,8 +1530,7 @@ html.js .program-card {
   .ps-plate::before,
   .ps-plate::after,
   .ps-plate .pc-bib,
-  .ps-plate:not([data-apparatus="aerobik"]) .ps-icon .pi-pose,
-  .ps-icon .pi-fx {
+  .ps-plate:not([data-apparatus="aerobik"]) .ps-icon .pi-pose {
     display: none;
   }
   .ps-icon {

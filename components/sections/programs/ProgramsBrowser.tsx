@@ -25,8 +25,9 @@ import { pagerTarget, restTarget } from "./pager";
  *   colour, a lavender bead sliding over to it) · next. Native scrolling stays the primary input.
  * - Quiz hand-off (QP-10): on „kraguj:recommend“ the recommended cards get a stamp and, while
  *   the row is off-screen, the phone row opens on the first of them.
- * - Motion (icon draw + perform or scene mount, seam line, stamp-in, filter Flip) lives in ./programs-motion,
- *   loaded when the section is ≤1 viewport away and motion is allowed.
+ * - Motion (apparatus draw, the gymnasts' scroll-scrubbed exercises, seam line, stamp-in,
+ *   filter Flip) lives in ./programs-motion, loaded when the section is ≤1 viewport away and
+ *   motion is allowed.
  * Without JS: chips, rail and + buttons are hidden by CSS; every card is visible and drawn.
  */
 
@@ -178,7 +179,7 @@ export function ProgramsBrowser({ heading, chips, dots, filtersLabel, pager, sta
     let disposed = false;
     let disarm: (() => void) | null = null;
     /* ≤1 viewport away: warm up the sheet chunk and, with motion, arm the section's motion
-       (icon draw/perform, seam line) and preload Flip. If the motion chunk cannot load, the
+       (apparatus draw, exercise scrub, seam line) and preload Flip. If the motion chunk cannot load, the
        drawings are shown finished instead of waiting for a draw that never comes. */
     const stopNear = whenNear(root, () => {
       void loadSheet();

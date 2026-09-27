@@ -49,38 +49,66 @@
   fill: var(--muted);
 }
 
-/* Three cartwheel phases in the shared ghost tokens (oldest faintest), the salute in the solid
-   accent — the same solid as the title marks' landed flier. Each figure is a nested pose <svg>;
-   its <g> carries the colour, the ghost opacity and the motion's transforms. */
-.en-band__frame[data-frame="cart1"] {
+/* One cartwheel (the enrollCartwheel exercise, D-52): its three phase ghosts in the shared ghost
+   tokens (oldest faintest), the flier and the salute in the solid accent — the same solid as the
+   title marks' landed flier. The salute's <g> sticks the landing about her feet. */
+.en-band__ghost[data-phase="1"] {
   color: var(--ghost-1);
   opacity: var(--ghost-1-o);
 }
-.en-band__frame[data-frame="cart2"] {
+.en-band__ghost[data-phase="2"] {
   color: var(--ghost-2);
   opacity: var(--ghost-2-o);
 }
-.en-band__frame[data-frame="cart3"] {
+.en-band__ghost[data-phase="3"] {
   color: var(--ghost-3);
   opacity: var(--ghost-3-o);
 }
-.en-band__frame[data-frame="salute"] {
+.en-band__solid {
   color: var(--accent);
 }
+.en-band__stick {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
 
-/* Pre-state while the band waits below the fold (LeapBandPlayer sets data-leap="armed"; the
-   motion keeps "play" until the salute sticks, then "done"). Decoration only — every step text,
-   the year line and the actions stay visible; numerals wait at .35. Reduced motion: never. */
+/* Scrubbed by the scroll (leap-motion.ts sets data-leap="scrub" once the flier moves; a band on
+   screen when the motion arms keeps this static composition until it has left the view). A mat
+   tick lights and a step numeral darkens as she reaches its step (data-reached), the salute
+   sticks as she arrives (data-stuck), and the twelve month lamps post once, the first time she
+   gets there (data-posted). Decoration only — every step text, the year line and the actions stay
+   visible. Reduced motion / no JS: never. */
 @media (prefers-reduced-motion: no-preference) {
-  html.js-motion .en-leap:is([data-leap="armed"], [data-leap="play"]) :is(.en-band__frame, .en-band__tick) {
+  html.js-motion .en-leap[data-leap="scrub"] .en-band__tick:not([data-reached]) {
     opacity: 0;
   }
-  html.js-motion .en-leap:is([data-leap="armed"], [data-leap="play"]) :is(.en-step__num, .en-band__num) {
+  html.js-motion .en-leap[data-leap="scrub"] :is(.en-step__num, .en-band__num):not([data-reached]) {
     opacity: 0.35;
   }
-  html.js-motion .en-leap:is([data-leap="armed"], [data-leap="play"]) .en-month__lamp {
+  html.js-motion .en-leap[data-leap="scrub"] :is(.en-band__tick, .en-step__num, .en-band__num) {
+    transition: opacity var(--dur-fast) linear;
+  }
+  html.js-motion .en-leap[data-leap="scrub"]:not([data-posted]) .en-month__lamp {
     opacity: 0.2;
     transform: scale(0.6);
+  }
+  /* The score: the lamps post one after another (25 ms apart), like an LED board. */
+  html.js-motion .en-leap[data-leap="scrub"] .en-month__lamp {
+    transition:
+      opacity var(--dur-fast) steps(2, end) calc(var(--m) * 25ms),
+      transform var(--dur-fast) var(--ease-stick) calc(var(--m) * 25ms);
+  }
+  html.js-motion .en-leap [data-stuck] .en-band__stick {
+    animation: en-stick var(--dur-land) var(--ease-land);
+  }
+}
+
+@keyframes en-stick {
+  from {
+    transform: scale(1.05, 0.9);
+  }
+  to {
+    transform: none;
   }
 }
 

@@ -10,8 +10,8 @@ import type { PostcardsController } from "./camp-postcards";
  * 1. hides the camp note after mount once Europe/Belgrade is past its data-until (CAMP.noteUntil, D-19);
  * 2. loads the postcard stack (gsap + Draggable/Inertia) when the section is ≤1 viewport
  *    away — or on the first prev/next click, whichever comes first;
- * 3. when motion is allowed (any device), loads the one-shot „last beam routine“
- *    (MorphSVG, no ScrollTrigger) when the horizon is near.
+ * 3. when motion is allowed (any device), loads the „last beam routine“ when the horizon is
+ *    near: scrubbed by the scroll (MorphSVG, no ScrollTrigger; camp-beam.ts, D-60).
  */
 export function CampIsland() {
   useEffect(() => {

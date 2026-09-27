@@ -3,52 +3,43 @@ import { LEAP_VIEWBOX } from "@/components/brand/sprite-paths.generated";
 const W = LEAP_VIEWBOX.width;
 const H = LEAP_VIEWBOX.height;
 
-/**
- * The hop's span (leap-box units): how far left of the landed figure it takes off. Short, so at
- * rest the figure sits about 0.4em after the title's last word (with the .chrono-mark margin);
- * styles/ui.css flies .chrono-fly over the same 60 and hero/scrub.ts (MARK) hands its runner
- * over to the first ghost.
- */
-const HOP = 60;
-/**
- * Ghost frames of the hop (takeoff → apex → descent): x where the linear flier is at 0, 180 and
- * 360 ms of its 520 ms (0, 35 and 69 % of HOP), y on its parabola. They overlap: motion, not
- * separate poses.
- */
+/** Ghost frames along one leap arc (takeoff → apex → descent), in leap-box units. */
 const GHOSTS = [
-  { x: 0, y: 52 },
-  { x: 21, y: 6 },
-  { x: 42, y: 18 },
+  { x: 0, y: 52, o: 0.16 },
+  { x: 118, y: 6, o: 0.24 },
+  { x: 236, y: 18, o: 0.34 },
 ] as const;
-const LANDED = { x: HOP, y: 58 } as const;
-const BOX_W = LANDED.x + W;
-/** The viewBox width over the landed figure's box: the CSS width is --mark-solid × this. */
-const MARK_BOX = (BOX_W / W).toFixed(4);
+const LANDED = { x: 340, y: 58 } as const;
 
 /**
- * Chronophotograph mark: the club silhouette landed on the section title. Static
- * by default; components/ui/HeadingLandings.tsx plays the landing once on enter:
- * the flier takes off from the first ghost, peaks over the second and lands
- * (520 ms), each ghost developing as it passes. The ghosts exist only in flight
- * (plan-figure-system §5.1, R3): they fade out 400 ms after the touchdown, so at
- * rest — and without JS or motion — the title carries ONE figure. They stay in
- * the markup so the box (and the title's line) never changes size.
- * `land={false}` renders the landed state only (a section whose own motion is
- * its landing, e.g. the S11 doskok).
+ * Chronophotograph mark: ghost frames of the club silhouette along a leap arc,
+ * landing as the solid silhouette on the section title. Static by default;
+ * components/ui/HeadingLandings.tsx plays the landing once on enter: the flier
+ * takes off from the first ghost, peaks over the second and lands (600 ms), and
+ * each ghost appears as it passes. `land={false}` renders the landed state only
+ * (a section whose own motion is its landing, e.g. the S11 doskok).
  */
 export function ChronoMark({ className, land = true }: { className?: string; land?: boolean }) {
   return (
     <svg
       className={["chrono-mark", className].filter(Boolean).join(" ")}
-      viewBox={`0 0 ${BOX_W} ${LANDED.y + H}`}
-      style={{ ["--mark-box" as string]: MARK_BOX }}
+      viewBox={`0 0 ${LANDED.x + W} ${LANDED.y + H}`}
       aria-hidden="true"
       focusable="false"
       data-figure="brand:mark"
       {...(land ? { "data-land": "" } : { "data-landed": "" })}
     >
       {GHOSTS.map((g, i) => (
-        <use key={i} href="#leap" className="chrono-ghost" x={g.x} y={g.y} width={W} height={H} style={{ ["--i" as string]: i }} />
+        <use
+          key={i}
+          href="#leap"
+          className="chrono-ghost"
+          x={g.x}
+          y={g.y}
+          width={W}
+          height={H}
+          style={{ ["--o" as string]: g.o, ["--i" as string]: i }}
+        />
       ))}
       {/* The flier: X travels linearly (.chrono-fly), Y follows the leap's parabola (.chrono-solid). */}
       <g className="chrono-fly">

@@ -6,15 +6,9 @@
 import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import { optimize } from "svgo";
 import { gzipSync } from "node:zlib";
+import { svgoConfig } from "./svgo-config.mjs";
 
 const SRC = "assets-source/logo";
-const svgoConfig = {
-  floatPrecision: 1,
-  multipass: true,
-  plugins: [
-    { name: "preset-default", params: { overrides: { cleanupIds: false } } },
-  ],
-};
 
 function pathData(svg, file) {
   const d = svg.match(/<path[^>]*\sd="([^"]+)"/)?.[1];

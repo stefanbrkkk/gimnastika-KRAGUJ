@@ -72,42 +72,35 @@
 }
 
 /* The mark sits on the title's last line, feet on the baseline, as if the leap landed on
-   the word, about 0.4em after it (the hop's span + the margin). --mark-solid is the landed
-   figure's 230-unit box, sized so the flier is about the cap height (design review v2, MD-01);
-   ChronoMark sets --mark-box, its viewBox width over that box, so the hop's span to the left
-   of the figure scales with it. A context sets --mark-solid, never the width. */
+   the word. Sized so the flier is about the cap height (design review v2, MD-01). */
 .chrono-mark {
-  --mark-solid: 1.21em;
   display: inline-block;
-  width: calc(var(--mark-solid) * var(--mark-box, 1.2609));
+  width: 3em;
   height: auto;
-  margin-left: 0.14em;
+  margin-left: 0.2em;
   vertical-align: -0.02em;
   overflow: visible;
   color: var(--accent);
 }
 @media (min-width: 640px) {
   .chrono-mark {
-    --mark-solid: 1.05em;
+    width: 2.6em;
   }
 }
-/* The ghost frames exist only in flight (plan-figure-system §5.1, R3): at rest, without JS and
-   under reduced motion the title carries ONE figure. They keep their place in the box, so
-   nothing moves when they fade. */
 .chrono-ghost {
-  opacity: 0;
+  opacity: 1;
 }
 .chrono-ghost:nth-of-type(1) {
   color: var(--ghost-1);
-  --ghost-o: var(--ghost-1-o);
+  opacity: var(--ghost-1-o);
 }
 .chrono-ghost:nth-of-type(2) {
   color: var(--ghost-2);
-  --ghost-o: var(--ghost-2-o);
+  opacity: var(--ghost-2-o);
 }
 .chrono-ghost:nth-of-type(3) {
   color: var(--ghost-3);
-  --ghost-o: var(--ghost-3-o);
+  opacity: var(--ghost-3-o);
 }
 .chrono-solid {
   color: var(--accent);
@@ -120,15 +113,13 @@
 /* Landing (HeadingLandings sets data-landing + data-landed in the reading zone). A real leap:
    X linear, Y a parabola (one out-of-range cubic-bezier on translateY: takeoff at ghost 1, apex
    over ghost 2, touchdown), torso pitch in flight, then a STUCK landing — compress and hold
-   (--ease-land, no bounce). Each ghost develops as the flier passes it; at the touchdown
-   HeadingLandings sets data-landed-rest and the afterimages fade out 400 ms later, oldest
-   first. Units are the mark's viewBox (the flier's 60 = ChronoMark's HOP). No-JS / reduced
-   motion / land={false}: the solid figure alone (static final state). */
-html.js-motion .chrono-mark[data-landing]:not([data-landed-rest]) .chrono-ghost {
-  opacity: var(--ghost-o);
+   (--ease-land, no bounce). Each ghost appears as the flier passes it. Units are the mark's
+   viewBox. No-JS / reduced motion / land={false}: static final state. */
+html.js-motion .chrono-mark:not([data-landed]) .chrono-ghost {
+  opacity: 0;
 }
 html.js-motion .chrono-mark:not([data-landed]) .chrono-fly {
-  transform: translateX(-60px);
+  transform: translateX(-340px);
 }
 html.js-motion .chrono-mark:not([data-landed]) .chrono-solid {
   opacity: 0;
@@ -136,9 +127,6 @@ html.js-motion .chrono-mark:not([data-landed]) .chrono-solid {
 }
 html.js-motion .chrono-mark .chrono-ghost {
   transition: opacity var(--dur-fast) linear calc(var(--i) * 180ms);
-}
-html.js-motion .chrono-mark[data-landed-rest] .chrono-ghost {
-  transition: opacity var(--dur-reveal) linear calc(400ms + var(--i) * 60ms);
 }
 html.js-motion .chrono-mark .chrono-fly {
   transition: transform 520ms linear;
@@ -171,6 +159,16 @@ html.js-motion .chrono-mark[data-landing] .chrono-pitch {
   100% {
     scale: 1 1;
   }
+}
+
+/* Scroll-scrubbed exercises (lib/exercise-scrub.ts, D-52): the static state is the finished
+   exercise, every ghost frame shown. While the engine scrubs a figure (data-scrub) a ghost shows
+   only once she has passed its phase (data-shown), and fades in as a print develops. */
+svg[data-scrub] .ex-ghost:not([data-shown]) {
+  opacity: 0;
+}
+html.js-motion .ex-ghost {
+  transition: opacity var(--dur-fast) linear;
 }
 
 /* „Fotografija uskoro“ (components/ui/Picture.tsx): a 28px aperture glyph over the caption,

@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BOOKING } from "@/content/copy";
 import { programById } from "@/content/programs";
 import { SCHEDULE_LOCATION, type ProgramId } from "@/content/schedule";
 import { CTA } from "@/content/site";
+import { playExercise } from "@/lib/exercise-scrub";
 import { loadMotion } from "@/lib/load-motion";
-import { DUR, EASE, motionAllowed } from "@/lib/motion-env";
+import { DUR, EASE, MQ, motionAllowed } from "@/lib/motion-env";
 import { typesetSr } from "@/lib/typeset";
 import { PROGRAM_BIB, programSchedule, programStyle, PROGRAMS_UI } from "./model";
-import { ProgramIcon } from "./ProgramIcon";
+import { ProgramIcon, type ExercisePrint } from "./ProgramIcon";
 import { ScheduleLines } from "./ScheduleLines";
 
 /**
@@ -24,7 +25,9 @@ import { ScheduleLines } from "./ScheduleLines";
  * takeoff, fully opaque); the card reappears in the frame the sheet closes, so the
  * two are never printed over each other. Reduced motion: 150ms crossfade.
  * The plate is the apparatus scene (QP-21): a large drawing on the mat line and Marey grid with
- * the program's pose on it (plan §5.4); with motion it performs the mount (MI-08, ≤1.5s).
+ * the program's pose on it (plan §5.4). With motion the apparatus draws as the window opens and
+ * the gymnast performs her whole exercise into the pose, the key phases staying behind as ghost
+ * frames (playExercise, D-55: SHEET_PLAY_MS). Without motion: the finished exercise.
  * The sheet is a light print even though it lives inside the dark S3 section
  * (data-theme="light" on the dialog; .ps-panel sets its own tokens).
  * Links inside (booking / schedule) close the sheet synchronously and let the
@@ -32,6 +35,11 @@ import { ScheduleLines } from "./ScheduleLines";
  */
 
 const OPEN_DURATION = 0.42; // between DUR.base and DUR.reveal: a large shared-element move
+/** The exercise plays from the first frame of the opening and lands after the apparatus's line
+ *  is complete (draw 300–800ms): 18–22 frames at ≈70ms, the preview sheets' rate (D-55). */
+const SHEET_PLAY_MS = 1400;
+/** The exercise's frames: their own lazy chunk (shared with the card scrub, D-53). */
+const loadExercises = () => import("./program-exercises").then((m) => m.PROGRAM_EXERCISES);
 /** Display-only: the school's name and the street address never split across lines
  *  (typesetSr has no fixed phrases); SCHEDULE_LOCATION.sub itself is unchanged. */
 const glueVenue = (text: string) =>
@@ -51,6 +59,16 @@ const radiiOf = (el: Element) => {
   );
 };
 
+/** The card's static print of the exercise (its server-rendered ghost frames): the sheet draws
+ *  the same ghosts without shipping the frames in its own chunk. Their `d` never changes (the
+ *  scrub only shows and hides them). */
+const printOf = (card: HTMLElement): ExercisePrint => ({
+  ghosts: Array.from(card.querySelectorAll<SVGPathElement>(".pc-icon .ex-ghost"), (g) => ({
+    frame: Number(g.dataset.frame),
+    d: g.getAttribute("d") ?? "",
+  })),
+});
+
 interface ProgramSheetProps {
   programId: string;
   card: HTMLElement;
@@ -63,6 +81,7 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
   const panelRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const onClosedRef = useRef(onClosed);
+  const [exercise] = useState(() => printOf(card));
 
   useEffect(() => {
     onClosedRef.current = onClosed;
@@ -76,6 +95,7 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
     const opener = card.querySelector<HTMLElement>("[data-program-open]");
     const root = document.documentElement;
     let gsap: Gsap | null = null;
+    let stopPlay: (() => void) | null = null;
     let cancelled = false;
     let closing = false;
     let done = false;
@@ -146,12 +166,17 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
 
     (async () => {
       if (motionAllowed()) {
-        const m = await loadMotion();
+        const [m, exercises] = await Promise.all([loadMotion(), loadExercises().catch(() => null)]);
         if (cancelled) return;
         gsap = m.gsap;
+        // The scene: the apparatus draws on the plate as the window opens (programs.css) and the
+        // gymnast performs her exercise into the pose. It starts while the dialog is still
+        // closed (display: none), so her first frame and the ghosts still to come are there from
+        // the first painted frame instead of fading out of the static print. Without its chunk
+        // she simply stands in her pose.
+        const figure = panel.querySelector<SVGSVGElement>(".ps-icon svg[data-figure]");
+        if (figure && exercises) stopPlay = playExercise(figure, exercises[program.icon], SHEET_PLAY_MS, () => (stopPlay = null));
         show();
-        // The scene (MI-08): the apparatus draws on the plate as the window opens, then the
-        // program's pose drops onto it and sticks the landing (programs.css).
         dialog.setAttribute("data-scene", "");
         const from = onCard();
         card.style.setProperty("visibility", "hidden");
@@ -204,6 +229,13 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
       if (target.closest("a[href]")) close(false);
     };
 
+    // A live switch to reduced motion ends the exercise at once, on its final pose.
+    const reduce = window.matchMedia(MQ.reduce);
+    const onReduce = () => {
+      if (reduce.matches) stopPlay?.();
+    };
+    reduce.addEventListener("change", onReduce);
+
     dialog.addEventListener("keydown", onKeyDown);
     dialog.addEventListener("cancel", onCancel);
     dialog.addEventListener("close", onNativeClose);
@@ -211,6 +243,8 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
 
     return () => {
       cancelled = true;
+      reduce.removeEventListener("change", onReduce);
+      stopPlay?.();
       dialog.removeEventListener("keydown", onKeyDown);
       dialog.removeEventListener("cancel", onCancel);
       dialog.removeEventListener("close", onNativeClose);
@@ -220,7 +254,7 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
       unlock();
       if (dialog.open) dialog.close();
     };
-  }, [card]);
+  }, [card, program.icon]);
 
   const groups = programSchedule(program);
   const bib = PROGRAM_BIB[program.id];
@@ -245,7 +279,7 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
           <div className="ps-plate" data-apparatus={program.icon}>
             {/* The scene's box (a size container): the stroke steps with the drawing's size. */}
             <span className="ps-scene">
-              <ProgramIcon icon={program.icon} label={program.iconLabel} className="ps-icon" scene="sheet" />
+              <ProgramIcon icon={program.icon} label={program.iconLabel} className="ps-icon" scene="sheet" exercise={exercise} />
             </span>
             {bib ? (
               <span className="pc-bib" aria-hidden="true">

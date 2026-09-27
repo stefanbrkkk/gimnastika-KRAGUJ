@@ -3,21 +3,17 @@
  * is ≤1 viewport away and motion is allowed — never in the first-load JS.
  *
  * Every motion is a phase of the sport (styles/sections/programs.css holds the keyframes):
+ *  - Exercise (D-53, D-54, ./card-exercises): each card's gymnast performs her whole exercise
+ *    with the scroll — the star jump, the beam cartwheel, the cast to handstand, the handspring
+ *    vault, the high kick — and the key phases she passes stay behind as ghost frames. On the
+ *    phone row a card also plays as it is swiped in. It replaces the cards' pose mount (the
+ *    drop onto the apparatus) and the performs (the apparatus's own physics with the pose riding
+ *    it): a time-based bounce under a gymnast the scroll holds mid-run would be incoherent, and
+ *    an apparatus that dips without her would open a gap at her hands or feet.
  *  - Draw (QP-14/MI-04): each apparatus is traced over its faint latent print when its plate is
  *    in view (0.6s stick, stagger .06s ≤ .24s), through queuePrimaryMotion (one primary motion
  *    per viewport). Plates are observed, not cards, so a desktop row draws as one batch and the
- *    off-screen cards of the phone row never draw unseen.
- *  - Perform (MD-06/MI-02, QP2-11): a drawn apparatus performs with its own physics, and the
- *    program's pose rides what she holds (plan §5.4) — the beam dips under the cartwheel's hands,
- *    the high rail flexes under the handstand, the springboard compresses and the table gives
- *    under the handspring, the floor gives and bounces the star, the high kick crouches, springs
- *    and sticks. No trails on the cards (at 84–132px a body-less arc reads as a scratch); they
- *    live in the detail sheet, leading into the pose.
- *    Phones: the card that snaps fully into view performs again (≥4s apart), so only one card
- *    per viewport moves. Hover devices: on pointer enter / keyboard focus.
- *  - Mount (QP2-05, QP3-02): every plate is a scene (the pose scales with it), so the first draw
- *    plays the detail sheet's mount instead of a perform — the drawing traces itself, then the
- *    pose drops onto the apparatus and sticks it on EASE.land. Once per card.
+ *    off-screen cards of the phone row never draw unseen. The gymnast is not part of the draw.
  *  - Seam (MI-07): on desktop the floor-diagonal mat line of the section's cut draws from
  *    bottom-left to top-right (clip-path wipe, 0.9s flight) as the cut crosses 80% of the view.
  *  - Filter (MI-06): leaving cards take off (up, smaller, gone in 0.18s); staying cards glide
@@ -30,42 +26,37 @@
  *    frame is held where it stood on screen; each then glides at ≤0.8px/ms on a bounded ease
  *    (./flight), or — when that would cross more than a frame of the row — hops: takes off in
  *    place and lands at its rest. The flight starts on the next tick, so its first frame is the
- *    take-off. Cards that land in view draw or perform only after the flight has landed.
+ *    take-off. Cards that land in view draw only after the flight has landed.
  *  - Stamp (QP-10): the quiz recommendation stamp presses on when its plate is in view.
  * Pre-states are CSS scoped under html.js-motion or set by JS right before a motion; a live
- * switch to reduced motion drops html.js-motion, which resolves all of them to the final state.
- * Only transform, opacity, clip-path and stroke-dashoffset animate; no rAF loop of its own.
+ * switch to reduced motion drops html.js-motion, which resolves all of them to the final state
+ * (the exercise scrub restores its static print itself). Only transform, opacity, clip-path and
+ * stroke-dashoffset animate, plus the gymnast's path data; no rAF loop of its own (the scrub
+ * engine runs one rAF per scroll frame).
  * gsap is reached only through loadMotion() (filter Flip): a static "@/lib/motion" import would
  * make this chunk share gsap's MotionPath helpers with the hero intro, which then downloads it.
  */
 import { loadMotion } from "@/lib/load-motion";
 import { DUR, EASE, MQ, OFFSET, STAGGER, motionAllowed, queuePrimaryMotion } from "@/lib/motion-env";
+import { armCardExercises } from "./card-exercises";
 import { glideEase, glideReach, glideTime, planRow, type Hop } from "./flight";
 
 const CARD = "[data-program-card]";
 const PLATE = ".pc-plate";
 const DRAW_MS = DUR.reveal * 1000;
-/** Longest perform (bars: the low rail's 0.97s flex, 80ms after the high one) — programs.css. */
-const PERFORM_MS = 1100;
-/** Card mount after the draw starts: drop from +450ms (0.32s), stick from +770ms (--dur-land
- *  0.26s) — programs.css. */
-const MOUNT_MS = 1100;
-/** Phones: a card performs again only after this long. */
-const REARM_MS = 4000;
-/** Draw / perform stagger: .06s per plate, ≤ .24s in total (QP-14). */
+/** Draw stagger: .06s per plate, ≤ .24s in total (QP-14). */
 const staggerOf = (k: number) => Math.min(k * STAGGER.cards, 0.24);
 
 export const warmFlip = (): Promise<void> => loadMotion().then((m) => m.loadFlip().then(() => undefined));
 
 /** When the filter flight in the air lands (performance.now() ms). A card that lands in view
- *  draws or performs only after it: the row's flight is the one motion on it, and no draw starts
- *  (a heavy frame) in the middle of the glide. */
+ *  draws only after it: the row's flight is the one motion on it, and no draw starts (a heavy
+ *  frame) in the middle of the glide. */
 let flightUntil = 0;
 
 export function armPrograms(root: HTMLElement, strip: HTMLElement): () => void {
   const section = root.closest("section");
   const cards = Array.from(strip.querySelectorAll<HTMLElement>(CARD));
-  const hoverable = window.matchMedia("(hover: hover)").matches;
   const timers = new Set<number>();
   const later = (fn: () => void, ms: number) => {
     const t = window.setTimeout(() => {
@@ -74,21 +65,12 @@ export function armPrograms(root: HTMLElement, strip: HTMLElement): () => void {
     }, ms);
     timers.add(t);
   };
-  const lastPerform = new WeakMap<HTMLElement, number>();
   let disposed = false;
 
-  /** The plate is a scene: the program's pose is part of its drawing (every card, QP3-02). */
-  const isScene = (card: HTMLElement) => !!card.querySelector(".pc-icon .pi-pose");
+  /* --- Exercises: scrubbed with the scroll (and the phone row's swipe) ------------------- */
+  const unscrub = armCardExercises(strip);
 
-  const perform = (card: HTMLElement, delay = 0) => {
-    if (disposed || !motionAllowed() || !card.hasAttribute("data-drawn") || card.matches("[data-perform], [data-mount]")) return;
-    card.style.setProperty("--perform-delay", `${delay}s`);
-    card.setAttribute("data-perform", "");
-    lastPerform.set(card, performance.now() + delay * 1000);
-    later(() => card.removeAttribute("data-perform"), PERFORM_MS + delay * 1000);
-  };
-
-  /* --- Draw on enter, then perform once ------------------------------------------------ */
+  /* --- Draw on enter ---------------------------------------------------------------------- */
   let pending: HTMLElement[] = [];
   let waiting = false;
   const drawIO = new IntersectionObserver(
@@ -109,74 +91,20 @@ export function armPrograms(root: HTMLElement, strip: HTMLElement): () => void {
     { threshold: 0.6 },
   );
   function drawBatch() {
-    const total = staggerOf(pending.length - 1) * 1000 + Math.max(DRAW_MS + PERFORM_MS, MOUNT_MS);
-    void queuePrimaryMotion(total).then(() => {
+    void queuePrimaryMotion(staggerOf(pending.length - 1) * 1000 + DRAW_MS).then(() => {
       const batch = pending;
       pending = [];
       waiting = false;
       if (disposed) return;
-      const scenes = batch.map(isScene);
       batch.forEach((card, k) => {
         card.style.setProperty("--draw-delay", `${staggerOf(k)}s`);
-        // A scene plate mounts: the pose drops on as the line completes (CSS, data-mount).
-        if (scenes[k]) {
-          card.setAttribute("data-mount", "");
-          lastPerform.set(card, performance.now());
-        }
         card.setAttribute("data-drawn", "");
       });
-      // The apparatus comes alive the moment its line is complete (plain plates).
-      later(
-        () =>
-          batch.forEach((card, k) => {
-            if (!scenes[k]) perform(card, staggerOf(k));
-          }),
-        DRAW_MS,
-      );
-      // The mount ends on the final pose: dropping the attribute changes nothing on screen.
-      later(() => batch.forEach((card) => card.removeAttribute("data-mount")), MOUNT_MS + staggerOf(batch.length - 1) * 1000);
     });
   }
 
-  /* --- Perform again when a drawn plate snaps fully into view (phones) ------------------- */
-  const performIO = new IntersectionObserver(
-    (entries) => {
-      let k = 0;
-      const flying = Math.max(0, flightUntil - performance.now());
-      for (const e of entries) {
-        if (!e.isIntersecting) continue;
-        const card = e.target.closest<HTMLElement>(CARD);
-        if (!card || !card.hasAttribute("data-drawn")) continue; // the draw chains its own perform
-        const last = lastPerform.get(card);
-        if (last !== undefined && (hoverable || performance.now() - last < REARM_MS)) continue;
-        const delay = staggerOf(k++);
-        if (flying) later(() => perform(card, delay), flying);
-        else perform(card, delay);
-      }
-    },
-    { threshold: 0.85 },
-  );
-
   for (const card of cards) {
-    const plate = card.querySelector(PLATE) ?? card;
-    if (!card.hasAttribute("data-drawn")) drawIO.observe(plate);
-    performIO.observe(plate);
-  }
-
-  /* --- Hover / keyboard focus (hover devices) ------------------------------------------- */
-  const onPointerEnter = (e: PointerEvent) => {
-    if (e.pointerType === "mouse") perform(e.currentTarget as HTMLElement);
-  };
-  const onFocusIn = (e: FocusEvent) => {
-    const card = e.currentTarget as HTMLElement;
-    if (e.relatedTarget instanceof Node && card.contains(e.relatedTarget)) return;
-    perform(card);
-  };
-  if (hoverable) {
-    for (const card of cards) {
-      card.addEventListener("pointerenter", onPointerEnter);
-      card.addEventListener("focusin", onFocusIn);
-    }
+    if (!card.hasAttribute("data-drawn")) drawIO.observe(card.querySelector(PLATE) ?? card);
   }
 
   /* --- Seam: the floor diagonal draws along the section's cut (desktop) ------------------ */
@@ -200,16 +128,10 @@ export function armPrograms(root: HTMLElement, strip: HTMLElement): () => void {
 
   return () => {
     disposed = true;
+    unscrub();
     drawIO.disconnect();
-    performIO.disconnect();
     seamIO?.disconnect();
     timers.forEach((t) => clearTimeout(t));
-    for (const card of cards) {
-      card.removeEventListener("pointerenter", onPointerEnter);
-      card.removeEventListener("focusin", onFocusIn);
-      card.removeAttribute("data-perform");
-      card.removeAttribute("data-mount");
-    }
     if (section?.getAttribute("data-seam") === "wait") section.removeAttribute("data-seam");
   };
 }
@@ -417,7 +339,7 @@ export async function flipFilter({ items, strip, apply, commit, done }: FlipFilt
   // Take-off on the next tick. A tween is stamped with the time of the last tick, so one created
   // at the end of the tap's work (≈50ms of layout) would show its first frame that far into the
   // flight — a jump. The ticker renders the root first, then this listener starts the flight at
-  // that tick: the first frame is the take-off. Draws and performs wait until it has landed.
+  // that tick: the first frame is the take-off. Draws wait until it has landed.
   const go = () => {
     if (launch !== go) return;
     launch = null;

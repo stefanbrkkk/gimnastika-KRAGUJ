@@ -123,7 +123,7 @@ postcard layout leaves no lane for it).
   - the 404 is a separate page.
 - **R3 Trails show phases.** A ghost trail always shows different phases of one movement. Static
   trails stay only in the hero (existing phases), the enrollment band (cartwheel) and the contact
-  doskok (existing). Title-mark ghosts exist only during the hop.
+  doskok (existing) and the title marks, whose three ghost frames stay at rest (owner, 2026-09-26; DECISIONS D-43).
 - **R4 One lead figure per screen** besides the title mark. The only exception is the program grid,
   where each card carries a different pose.
 - **R5 No figure in UI chrome.** Chips, markers, rails, menu indicators and photo placeholders never

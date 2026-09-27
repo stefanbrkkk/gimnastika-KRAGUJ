@@ -10,9 +10,11 @@
  * figures stand closer than ≈70% of the wider one (the pose sheet's legibility rule).
  *
  * Units: the band's own viewBox. The figures are the pose family (components/brand/
- * poses.generated.ts) scaled by `s`; each is its own nested <svg data-figure="pose:<id>">.
- * The motion chunk (leap-motion.ts) never imports this module (it would pull the path strings):
- * it reads the few numbers it needs from the markup (data-origin).
+ * poses.generated.ts) scaled by `s`. With motion the band is ONE cartwheel scrubbed by the scroll
+ * (the enrollCartwheel exercise, D-52): all four are frames of it, drawn in the salute's nested
+ * <svg data-figure="pose:salute" overflow="visible">; `keyShifts` moves each phase from the
+ * exercise's natural travel onto its step. The motion chunk (leap-motion.ts) never imports this
+ * module (it would pull the path strings): it reads the shifts from the markup (data-shifts).
  */
 import { POSES, type PoseData } from "@/components/brand/poses.generated";
 
@@ -116,3 +118,22 @@ export function buildBand(spec: BandSpec): Band {
 
 /** Band units rounded to 0.1 for the markup. */
 export const r1 = (n: number) => Math.round(n * 10) / 10;
+
+/**
+ * Per key phase (cart1, cart2, cart3, salute), the translation in exercise units (the salute's
+ * pose units) that moves the exercise's key frame — the approved pose at `keyOrigins[k]` of the
+ * natural travel — onto the figure `buildBand` places over its step. The salute's is [0, 0]: the
+ * exercise ends exactly on it. Between keys the flier blends them (keyedOffset), so she travels
+ * from step to step as she wheels.
+ */
+export function keyShifts(band: Band, keyOrigins: readonly (readonly [number, number])[]): [number, number][] {
+  const { s } = band.spec;
+  const last = band.figures[3];
+  const lastVb = pose(last.id).viewBox;
+  return band.figures.map((f, k) => {
+    const vb = pose(f.id).viewBox;
+    const o = keyOrigins[k];
+    if (!o) throw new Error(`no key origin for ${f.id}`);
+    return [(f.x - last.x) / s - vb.x + lastVb.x - o[0], (f.y - last.y) / s - vb.y + lastVb.y - o[1]];
+  });
+}

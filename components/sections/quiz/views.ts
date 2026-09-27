@@ -55,10 +55,11 @@ const r1 = (n: number) => Math.round(n * 10) / 10;
  * The print of S3's ProgramIcon (48-unit box), read from the component itself so the quiz's
  * plates and strip always draw exactly what the program cards draw: the static print of the
  * whole scene (.pi-latent) — the apparatus paths and the program's pose, one filled .pi-solid
- * path placed on it (data-pose + transform). Motion trails (.pi-fx) and the card's own figure
- * are left out. Server side only: the strings reach the island as props, never the icon module.
- * The pose is returned as a nested-svg box (pose-scene placement, checked against the print's
- * transform), so every plate draws it as its own <svg data-figure="pose:<id>">.
+ * path placed on it (data-pose + transform). The card's own figure (.pi-pose: the pose with its
+ * exercise's ghost frames, .ex-ghost / .ex-solid, D-53) is never read: the quiz shows the
+ * finished pose alone. Server side only: the strings reach the island as props, never the icon
+ * module. The pose is returned as a nested-svg box (pose-scene placement, checked against the
+ * print's transform), so every plate draws it as its own <svg data-figure="pose:<id>">.
  */
 export function iconArt(icon: ApparatusIcon): QuizIconArt {
   const svg = ProgramIcon({ icon, label: "" });
@@ -73,7 +74,7 @@ export function iconArt(icon: ApparatusIcon): QuizIconArt {
   let solid: { d: string; id: unknown; transform: unknown } | null = null;
   walk(scope, (type, props) => {
     const cls = classOf(props).split(" ");
-    if (cls.includes("pi-fx") || type === "use") return false;
+    if (cls.includes("pi-pose") || cls.includes("ex-ghost") || type === "use") return false;
     if (type === "path" && typeof props.d === "string" && cls.includes("pi-solid")) {
       solid = { d: props.d, id: props["data-pose"], transform: props.transform };
       return;

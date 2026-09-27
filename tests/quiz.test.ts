@@ -245,6 +245,28 @@ describe("quiz — result views (S3 hand-off, plates, strip landing)", () => {
     }
   });
 
+  it("the quiz never picks up the cards' exercises: the print is the final pose alone, no ghost frame (D-53)", async () => {
+    const { iconArt, plateOf } = await import("@/components/sections/quiz/views");
+    const { QuizPlate } = await import("@/components/sections/quiz/QuizPlate");
+    const { QuizBandArt } = await import("@/components/sections/quiz/QuizBandArt");
+    const { PROGRAM_EXERCISES } = await import("@/components/sections/programs/program-exercises");
+    const { programById } = await import("@/content/programs");
+    for (const icon of ["parter", "greda", "razboj", "preskok", "aerobik"] as const) {
+      const art = iconArt(icon);
+      const ex = PROGRAM_EXERCISES[icon];
+      expect(art.pose.d, icon).toBe(ex.frames.at(-1)); // the finished pose…
+      const drawn = [art.pose.d, ...art.paths.map((p) => p.d)];
+      for (const f of ex.frames.slice(0, -1)) expect(drawn, icon).not.toContain(f); // …and no other frame
+    }
+    const plates = ["mladja", "starija", "c-program", "ab-program", "aerobik"] as const;
+    for (const id of plates) {
+      const html = renderToStaticMarkup(createElement(QuizPlate, plateOf(programById(id))));
+      expect(html, id).not.toMatch(/ex-ghost|ex-solid|data-scrub/);
+      expect(html.match(/<svg data-figure="pose:/g), id).toHaveLength(1);
+    }
+    expect(renderToStaticMarkup(createElement(QuizBandArt))).not.toMatch(/ex-ghost|ex-solid/);
+  });
+
   it("the strip's apparatus anchors still match S3's drawings (floor y 42, beam top 21.5, table top 14)", async () => {
     const { iconArt } = await import("@/components/sections/quiz/views");
     // The apparatus paths only (the print's pose is returned apart and never matched here).

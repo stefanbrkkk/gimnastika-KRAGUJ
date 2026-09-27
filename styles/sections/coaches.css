@@ -164,6 +164,11 @@
   color: var(--color-white);
 }
 
+/* The exercise's afterimage (the leg lifting): a faint print of the same white. */
+.coach__plate-pose .ex-ghost {
+  opacity: 0.26;
+}
+
 /* --------------------------------------------------------------------------
    „Licenca GSS“ stamp — an inked impression near the print's lower-right corner.
    No z-index: the stamp must not form a stacking context, so its ink layer can multiply

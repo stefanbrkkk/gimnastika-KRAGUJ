@@ -2,6 +2,7 @@ import type { Program } from "@/content/programs";
 import { CTA } from "@/content/site";
 import { typesetSr } from "@/lib/typeset";
 import { PROGRAM_BIB, PROGRAMS_UI, programDays, programSchedule, programStyle } from "./model";
+import { exercisePrint } from "./program-exercises";
 import { ProgramIcon } from "./ProgramIcon";
 import { ScheduleLines } from "./ScheduleLines";
 
@@ -13,6 +14,9 @@ import { ScheduleLines } from "./ScheduleLines";
  * always the detail sheet's scene — the program's own pose on its apparatus — and the
  * whole scene scales with the plate (QP3-02): .pc-scene is sized by the plate (container units)
  * and is itself a size container, so the line weight follows the drawing's real size.
+ * The gymnast is the end of her exercise (D-53): the HTML carries its static print — the ghost
+ * frames and the final pose — and the island scrubs the whole exercise with the scroll (a
+ * server component: the exercise's frames never reach the client from here).
  * The quiz stamp straddles the plate's lower edge, below the mat line, where no scene reaches.
  * Body: title, age, description, the week row + days/times, then ONE filled action and a quiet
  * tertiary link (QP-12). Server-rendered and complete without JS; the island
@@ -33,7 +37,13 @@ export function ProgramCard({ program }: { program: Program }) {
     >
       <div className="pc-plate" data-apparatus={program.icon}>
         <span className="pc-scene">
-          <ProgramIcon icon={program.icon} label={program.iconLabel} className="pc-icon" scene="card" />
+          <ProgramIcon
+            icon={program.icon}
+            label={program.iconLabel}
+            className="pc-icon"
+            scene="card"
+            exercise={exercisePrint(program.icon)}
+          />
         </span>
         {bib ? (
           <span className="pc-bib" aria-hidden="true">

@@ -3,7 +3,7 @@
  * One morphing path, two shapes with the SAME command structure (M + n × C), so MorphSVG
  * interpolates point-for-point: the beam is the wave's curve flattened and compressed
  * between its two ends. Around it: the beam's 10px bar and its splayed legs (visible only
- * before the one-shot routine) and two echo swell lines behind the wave (the sea's depth).
+ * while the scrubbed routine has not let go) and two echo swell lines behind the wave (the sea's depth).
  * Shared by the server markup (wave + echoes = the static final state) and the lazy
  * routine (camp-beam.ts). The SVG stretches (preserveAspectRatio="none"); every stroke is
  * non-scaling, so weights stay true on any width.

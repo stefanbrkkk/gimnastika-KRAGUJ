@@ -102,7 +102,7 @@ export interface PosePlacement {
   oy: number;
   /** The nested <svg>'s box on the drawing (icon units). */
   box: { x: number; y: number; width: number; height: number };
-  /** The contact on the drawing (icon units): the stick squashes about it, the ride moves it. */
+  /** The contact on the drawing (icon units): the quiz strip sticks its landing about it. */
   at: readonly [number, number];
 }
 
@@ -128,8 +128,13 @@ export function posePlacement(icon: ApparatusIcon): PosePlacement {
 export const poseTransform = (p: PosePlacement): string => `translate(${p.ox} ${p.oy}) scale(${r3(p.k)})`;
 
 /**
- * Headroom of a scene: how far its pose rises above the 48-unit drawing (icon units, ≥ 0). The
- * card plates reserve it (programs.css --head), so the handstand and the handspring are never
- * cut by the plate's top edge.
+ * Headroom of a scene: how far it rises above the 48-unit drawing (icon units, ≥ 0). The plates
+ * reserve it (programs.css --head), so nothing is cut by the plate's top edge. `top`: the
+ * highest point of what the scene draws, in pose units: the highest ink over every frame of the
+ * exercise the plate plays (D-56; tests/programs.test.ts measures it), or the pose's own top
+ * when omitted.
  */
-export const headroom = (icon: ApparatusIcon): number => Math.max(0, -posePlacement(icon).box.y);
+export const headroom = (icon: ApparatusIcon, top?: number): number => {
+  const p = posePlacement(icon);
+  return Math.max(0, -(p.oy + (top ?? PROGRAM_POSES[p.id].viewBox.y) * p.k));
+};

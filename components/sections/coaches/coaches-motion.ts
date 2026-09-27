@@ -3,15 +3,15 @@
  * CoachesMotion — never in the first-load JS.
  *  - Portrait „from a crouch“: the whole print (paper included) rises out of the card —
  *    clip-path inset(100% 0 0 0) → inset(0), y 12 → 0, the image 1.08 → 1 — .6 s ease stick.
- *  - KR-07 plate (no portrait yet, plan-figure-system §5.7): the scale figure on the navy
- *    plate develops once — opacity 0 → 1 and a 10 px rise, .5 s EASE.land — on the same 20 %
- *    trigger as a portrait (the plate, frame and mat line never move). Then the stamp press,
+ *  - KR-07 plate (no portrait yet, plan-figure-system §5.7): the gymnast on the navy plate
+ *    rises into the scale with the scroll — standing, tendu, the free leg lifting (the
+ *    coachScale exercise, scrubbed by lib/exercise-scrub.ts, D-52): scrolling plays it,
+ *    scrolling back rewinds it, a stopped scroll holds her mid-move. Then the stamp press,
  *    armed by the stamp's OWN visibility (AC3-01): it comes down once the whole stamp is in
  *    view, clear of the mobile dock (its height + 24 px) or above the lowest 12 % of the
  *    viewport from 1024 px up (and below the fixed header when scrolled back into view from
- *    above), after the figure has developed and the „Trenerice“ title mark has finished
- *    landing (≤800 ms). A stamp left at least half in view for 900 ms (the reader stopped
- *    short of it) is pressed then. A plate already on screen at arm time stays developed.
+ *    above), after the „Trenerice“ title mark has finished landing (≤800 ms). A stamp left at
+ *    least half in view for 900 ms (the reader stopped short of it) is pressed then.
  *  - „Licenca GSS“ stamp press: the stamp comes down fast (scale 1.35 → .94, rotate −8° → 0,
  *    EASE.takeoff), settles (.94 → 1, EASE.land), a one-off ink ring spreads from the rim and
  *    the print under it gives 1.5 px. On the portrait card it is a motion of its own (AC4-01):
@@ -39,6 +39,8 @@
  * scroll keep the static final state). gsap.matchMedia reverts everything if reduced motion is
  * switched on. Only clip-path, transform, opacity and stroke-dashoffset animate; no rAF loop.
  */
+import { EXERCISE_COACH_SCALE } from "@/components/brand/exercises/coachScale.generated";
+import { scrubExercises } from "@/lib/exercise-scrub";
 import { DUR, EASE, MQ, gsap, loadDrawSVG, queuePrimaryMotion, registerMotion } from "@/lib/motion";
 
 const REVEAL_THRESHOLD = 0.2;
@@ -61,9 +63,11 @@ const STAMP_LINGER_MS = 900;
 const TITLE_WAIT_MS = 800;
 /** Stamp downstroke / ink ring. */
 const PRESS = 0.14;
-/** The plate figure's develop (s) and its rise (px). */
-const DEVELOP = 0.5;
-const DEVELOP_RISE = 10;
+/**
+ * The plate's exercise runs while the plate's centre crosses from the bottom edge to 45 % from
+ * the top: she stands in the scale by the time the plate is well in view.
+ */
+const PLATE_SCRUB = { from: 1, to: 0.45 } as const;
 /** Minimum gap between two cards' stamp presses (ms). */
 const STAMP_STAGGER_MS = 140;
 /** The print's clip reaches past its box at the end, so its hairline and shadow are never cut. */
@@ -102,11 +106,11 @@ type State = "pending" | "queued" | "playing" | "done";
 
 /**
  * One motion of a coach card. A portrait card has two: the print's reveal (armed by the card)
- * and then its stamp's press (armed by the stamp, AC4-01). The KR-07 plate card has the
- * figure's develop (armed by the card) and the press (armed by the stamp, AC3-01).
+ * and then its stamp's press (armed by the stamp, AC4-01). The KR-07 plate card has only the
+ * press (armed by the stamp, AC3-01): its figure is scrubbed by the scroll.
  */
 interface Motion {
-  /** What arms it: the card (a portrait reveal, a plate develop) or the stamp (a press). */
+  /** What arms it: the card (a portrait reveal) or the stamp (a press). */
   anchor: HTMLElement;
   kind: "reveal" | "press";
   /** The KR-07 plate's press: after the title mark's landing, with a half-in-view net. */
@@ -159,6 +163,13 @@ export function armCoaches(root: HTMLElement): () => void {
     const motions: Motion[] = [];
     let lastPress = -Infinity;
 
+    // The KR-07 plate's exercise follows the scroll (reversible; a plate on screen at arm time
+    // keeps its finished pose until it has left the viewport once).
+    const platePose = root.querySelector<SVGSVGElement>("[data-coach-plate] .coach__plate-pose");
+    const plateEl = platePose?.closest<HTMLElement>("[data-coach-plate]");
+    const unscrub =
+      platePose && plateEl ? scrubExercises([{ trigger: plateEl, figure: platePose, data: EXERCISE_COACH_SCALE, ...PLATE_SCRUB }]) : undefined;
+
     // The stamps' press line (AC3-01, AC4-01): the whole stamp below the fixed header, and above
     // the lowest 12 % of the viewport from 1024 px up, or clear of the dock (+ 24 px) below that.
     const wide = window.matchMedia("(min-width: 1024px)").matches;
@@ -180,14 +191,12 @@ export function armCoaches(root: HTMLElement): () => void {
       const splash = stamp?.querySelector<SVGElement>("[data-stamp-splash]");
       if (!frame || !stamp || layers.length === 0 || !splash) return;
 
-      // The KR-07 plate (no portrait yet): its figure develops, then the stamp presses.
+      // The KR-07 plate (no portrait yet): its figure is scrubbed (below), then the stamp presses.
       const plate = el.querySelector<HTMLElement>("[data-coach-plate]");
       const img = plate ? null : frame.querySelector<HTMLElement>("img");
       if (!plate && !img) return;
       // On screen at arm time (the card, or on the plate card its stamp): keep the static final state.
       if (inView(plate ? stamp : el)) return;
-      // The plate's figure develops only if the plate itself is still off-screen.
-      const pose = plate && !inView(plate) ? plate.querySelector<HTMLElement>("[data-coach-pose]") : null;
       const clear = (els: Element[]) => gsap.set(els, { clearProps: "transform,opacity,visibility,clipPath" });
       const stampParts = [stamp, ...layers, splash];
 
@@ -196,12 +205,11 @@ export function armCoaches(root: HTMLElement): () => void {
         gsap.set(frame, { clipPath: `inset(${frame.offsetHeight}px -${CLIP_BLEED}px 0px -${CLIP_BLEED}px)`, y: 12 });
         gsap.set(img, { scale: 1.08, transformOrigin: "50% 100%" });
       }
-      if (pose) gsap.set(pose, { autoAlpha: 0, y: DEVELOP_RISE });
       gsap.set(layers, { autoAlpha: 0, scale: 1.35, rotation: -8, y: -10, transformOrigin: "50% 50%" });
 
       // --- The portrait's rise (its 20 % trigger) -----------------------------------------
-      // The print under the stamp is there once the portrait's reveal (or the plate figure's
-      // develop) has landed or been shown static — at once on a plate already on screen.
+      // The print under the stamp is there once the portrait's reveal has landed or been shown
+      // static — at once on the plate, whose figure is always there.
       let landedAt = -Infinity;
       let markLanded = () => {};
       const landed = new Promise<void>((resolve) => {
@@ -238,35 +246,8 @@ export function armCoaches(root: HTMLElement): () => void {
           },
         };
         motions.push(print);
-      } else if (pose) {
-        // --- The plate figure's develop (the card's 20 % trigger, like a portrait's rise) ----
-        motions.push({
-          anchor: el,
-          kind: "reveal",
-          plate: false,
-          state: "pending",
-          duration: DEVELOP,
-          ready: () => Promise.resolve(),
-          play: (onDone) => {
-            gsap.to(pose, {
-              autoAlpha: 1,
-              y: 0,
-              duration: DEVELOP,
-              ease: EASE.land,
-              onComplete: () => {
-                clear([pose]);
-                markLanded();
-                onDone();
-              },
-            });
-          },
-          showStatic: () => {
-            clear([pose]);
-            markLanded();
-          },
-        });
       } else {
-        markLanded(); // the plate was already on screen: its figure is there
+        markLanded(); // the plate's figure is always there (scrubbed, never hidden)
       }
 
       // --- The stamp's press (its own visibility) -----------------------------------------
@@ -277,8 +258,8 @@ export function armCoaches(root: HTMLElement): () => void {
         print,
         state: "pending",
         duration: (plate ? PLATE_STAMP_GAP : STAMP_GAP) + PRESS + Math.max(DUR.base, DUR.land),
-        // The plate's stamp follows the figure's develop and the „Trenerice“ mark's landing
-        // instead of overlapping them; a portrait's stamp waits for its print to land.
+        // The plate's stamp follows the „Trenerice“ mark's landing instead of overlapping it;
+        // a portrait's stamp waits for its print to land.
         ready: () => (plate ? Promise.all([landed, titleLanded(root, TITLE_WAIT_MS)]).then(() => undefined) : landed),
         play: (onDone) => {
           // STAMP_GAP after the print has landed; at once (PLATE_STAMP_GAP) on a print long there.
@@ -530,6 +511,7 @@ export function armCoaches(root: HTMLElement): () => void {
 
     return () => {
       live = false;
+      unscrub?.();
       revealIo.disconnect();
       safetyIo.disconnect();
       pressIo.disconnect();

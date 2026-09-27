@@ -398,8 +398,8 @@ describe("menu fallback", () => {
 
 /**
  * The figure grammar in the page chrome (docs/plan-figure-system.md R1, R3, R5): the logo
- * girl only as the brand, never as a UI indicator, and the title marks' ghost frames only
- * while the mark is in flight. qa/figures.mjs counts the rendered result; these pin the markup.
+ * girl only as the brand, never as a UI indicator; a title mark is the landed leap with its
+ * three ghost frames. qa/figures.mjs counts the rendered result; these pin the markup.
  */
 describe("figures in the page chrome (plan §5.1, §5.11, §5.12)", () => {
   afterEach(() => {
@@ -443,7 +443,7 @@ describe("figures in the page chrome (plan §5.1, §5.11, §5.12)", () => {
     expect(html).toContain(PHOTOS[id!].frame);
   });
 
-  it("a title mark keeps its three ghost frames in the box, shown only in flight (R3)", async () => {
+  it("a title mark is the leap landing with its three ghost frames, which stay at rest (owner, D-43)", async () => {
     const { ChronoMark } = await import("@/components/ui/ChronoMark");
     const html = renderToStaticMarkup(createElement(ChronoMark, {}));
     expect(html).toContain('data-figure="brand:mark"');
@@ -453,19 +453,19 @@ describe("figures in the page chrome (plan §5.1, §5.11, §5.12)", () => {
     // (ui.css) and the hero's hand-off onto the first ghost (scrub.ts MARK).
     const boxW = Number(/viewBox="0 0 (\d+) 208"/.exec(html)?.[1]);
     expect(boxW).toBeGreaterThan(230);
-    expect(html).toContain(`--mark-box:${(boxW / 230).toFixed(4)}`);
     expect(html).toMatch(/<use href="#leap" class="chrono-ghost" x="0" y="52"/);
     expect(readFileSync("styles/ui.css", "utf8")).toContain(`transform: translateX(-${boxW - 230}px);`);
     expect(/const MARK = \{ width: (\d+), first: \[0, 52\] as Pt/.exec(readFileSync("components/sections/hero/scrub.ts", "utf8"))?.[1]).toBe(String(boxW));
-    // Every rule that gives a ghost a non-zero opacity is the in-flight state, and the base is 0
-    // (no-JS, reduced motion, land={false} and at rest: the solid figure alone).
+    // At rest (no JS, reduced motion, land={false}, after the landing) every ghost shows at its
+    // token opacity; only the motion pre-state before the landing hides them.
     const css = readFileSync("styles/ui.css", "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
     const rules = Array.from(css.matchAll(/([^{}]+)\{([^{}]*)\}/g), (m) => ({ sel: m[1]!.trim(), body: m[2]! }));
-    const ghostOpacity = rules.filter((r) => r.sel.includes(".chrono-ghost") && /(^|;)\s*opacity\s*:/.test(r.body));
-    expect(ghostOpacity.find((r) => r.sel === ".chrono-ghost")?.body).toMatch(/opacity:\s*0;/);
-    const shown = ghostOpacity.filter((r) => !/opacity:\s*0;/.test(r.body));
-    expect(shown.length).toBeGreaterThan(0);
-    for (const r of shown) expect(r.sel).toContain("html.js-motion .chrono-mark[data-landing]:not([data-landed-rest])");
+    for (const n of [1, 2, 3]) {
+      expect(rules.find((r) => r.sel === `.chrono-ghost:nth-of-type(${n})`)?.body).toMatch(new RegExp(`opacity:\\s*var\\(--ghost-${n}-o\\)`));
+    }
+    const hidden = rules.filter((r) => r.sel.includes(".chrono-ghost") && /(^|;)\s*opacity\s*:\s*0;/.test(r.body));
+    expect(hidden.length).toBeGreaterThan(0);
+    for (const r of hidden) expect(r.sel).toContain("html.js-motion .chrono-mark:not([data-landed])");
   });
 });
 

@@ -6,7 +6,7 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { SourceLink } from "@/components/ui/SourceLink";
 import { COACHES, COACHES_COPY, type Coach } from "@/content/copy";
 import { PHOTOS } from "@/content/photos";
-import { Pose } from "@/components/brand/Pose";
+import { EXERCISE_COACH_SCALE } from "@/components/brand/exercises/coachScale.generated";
 import { POSES } from "@/components/brand/poses.generated";
 import { typesetSr } from "@/lib/typeset";
 import { BrushStroke } from "./BrushStroke";
@@ -20,8 +20,9 @@ const PORTRAIT_ASPECT = 4 / 5;
 const TEAM_PHOTO = "05" as const;
 const TEAM_ASPECT = 3 / 2;
 
-/** The plate's pose: the scale (vaga, plan-figure-system P7) — balance suits a judge. */
-const PLATE_POSE = POSES.scale;
+/** The plate's exercise: rising into the scale (vaga, plan-figure-system P7) — balance suits a judge. */
+const PLATE_EXERCISE = EXERCISE_COACH_SCALE;
+const PLATE_POSE = POSES[PLATE_EXERCISE.pose];
 /** Share of the pose box below its lowest ink (its standing foot): the figure sinks by it onto the mat line. */
 const POSE_SINK = 1 - (PLATE_POSE.floor ?? PLATE_POSE.viewBox.height) / PLATE_POSE.viewBox.height;
 
@@ -31,8 +32,9 @@ const POSE_SINK = 1 - (PLATE_POSE.floor ?? PLATE_POSE.viewBox.height) / PLATE_PO
  * (she is also the club's licensed judge). When the club sends her portrait, the photo
  * replaces it. Marked only with its frame code (the empty slot of excluded photo 07) — no
  * promise in the UI. Purely decorative, hidden from assistive tech (the name and roles carry
- * the card). Static and complete without JS; coaches-motion.ts develops the figure once
- * (opacity + a small rise) before the stamp press.
+ * the card). Static and complete without JS: the finished scale with the ghost of her leg
+ * lifting. With motion, coaches-motion.ts scrubs the whole exercise with the scroll (standing →
+ * tendu → the leg lifts into the scale; lib/exercise-scrub.ts, D-52).
  * TODO(klub): request a portrait in club kit (dosije §7, item 7) → then set photoId in content/copy.ts.
  */
 function PortraitPending() {
@@ -41,8 +43,20 @@ function PortraitPending() {
     <div className="frame coach__frame" aria-hidden="true">
       <div className="photo photo-placeholder coach__plate" data-theme="dark" style={{ aspectRatio: String(PORTRAIT_ASPECT) }} data-coach-plate="">
         <span className="coach__plate-mat" />
-        <span className="coach__plate-subject" style={sink} data-coach-pose="">
-          <Pose id="scale" className="coach__plate-pose" />
+        <span className="coach__plate-subject" style={sink}>
+          <svg
+            className="coach__plate-pose"
+            viewBox={`${PLATE_POSE.viewBox.x} ${PLATE_POSE.viewBox.y} ${PLATE_POSE.viewBox.width} ${PLATE_POSE.viewBox.height}`}
+            overflow="visible"
+            data-figure={`pose:${PLATE_EXERCISE.pose}`}
+            aria-hidden="true"
+            focusable="false"
+          >
+            {PLATE_EXERCISE.ghosts.map((f) => (
+              <path key={f} className="ex-ghost" data-frame={f} d={PLATE_EXERCISE.frames[f]} fill="currentColor" />
+            ))}
+            <path className="ex-solid" d={PLATE_POSE.d} fill="currentColor" />
+          </svg>
         </span>
       </div>
       <div className="frame-foot">
