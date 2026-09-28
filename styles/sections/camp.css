@@ -387,10 +387,17 @@ html:not(.js) .postcards__controls {
     letter-spacing: -0.018em;
   }
   /* Near the base of the column, above the horizon — with ≥ 90px of clear air over the beam
-     for the routine's 48px flier and its leap (MD2-08). */
+     for the routine's 48px flier and its leap (MD2-08). The inquiry button is the
+     column's last element, so it carries the bottom clearance, not the note. */
   .camp__note {
     margin-top: auto;
+    margin-bottom: 0;
+  }
+  .camp__inquiry {
+    margin-top: 20px;
     margin-bottom: 146px;
+    align-self: flex-start;
+    max-width: 100%;
   }
   .postcards {
     /* No-JS row: both postcards fit side by side in the 7-column slot. */

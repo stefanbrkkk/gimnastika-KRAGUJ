@@ -1,7 +1,29 @@
 import type { CSSProperties } from "react";
-import { dayByCode, SCHEDULE_LOCATION, SCHEDULE_UI } from "@/content/schedule";
+import { Fragment } from "react";
+import { dayByCode, SCHEDULE_LOCATION, SCHEDULE_UI, SHIFT_NOTE } from "@/content/schedule";
 import { typesetSr } from "@/lib/typeset";
 import type { DayStripRow } from "./model";
+
+/** The shift note glued with no-break spaces, so it never wraps mid-phrase. */
+const GLUED_NOTE = SHIFT_NOTE.replace(/ /g, "\u00A0");
+
+/**
+ * Times with exactly one kind of line break: around „ ili “. Ranges never split
+ * (no spaces inside) and the glued shift note travels whole.
+ */
+function TimeParts({ times }: { times: string }) {
+  const parts = times.replace(SHIFT_NOTE, GLUED_NOTE).split(" ili ");
+  return (
+    <>
+      {parts.map((part, i) => (
+        <Fragment key={`${i}${part}`}>
+          {i > 0 ? <span className="pg-ts__or"> ili </span> : null}
+          <span className="pg-ts__range">{part}</span>
+        </Fragment>
+      ))}
+    </>
+  );
+}
 
 /**
  * Optional by-day cross-check inside „Programi i termini“. The cards give each
@@ -36,7 +58,9 @@ export function ProgramTimes({ rows }: { rows: readonly DayStripRow[] }) {
                 {row.sessions.map((s) => (
                   <li key={`${s.groupId}${s.times}`} className="pg-ts__session">
                     <span className="pg-ts__swatch" style={{ "--sw": s.color } as CSSProperties} aria-hidden="true" />
-                    <span className="pg-ts__time tabular">{typesetSr(s.times)}</span>{" "}
+                    <span className="pg-ts__time tabular">
+                      <TimeParts times={s.times} />
+                    </span>{" "}
                     <span className="pg-ts__group">{typesetSr(s.groupName)}</span>
                   </li>
                 ))}

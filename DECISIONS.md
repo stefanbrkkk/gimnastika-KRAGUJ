@@ -1363,3 +1363,15 @@ docs/plan-figure-system.md; the owner approved it and the pose sheet (docs/poses
 - Test stewardship: 771 → 702 explained (`images` 98→24 on fewer emitted files with
   stronger rights asserts; +boundary/+malformed/+rights tests). No coverage deleted
   to hide failures; every removed assertion has a recorded replacement.
+
+## 2026-09-28 — camp overlap + day-strip redesign (parent-visible fixes)
+
+- Camp inquiry button overlapped the horizon wave at ≥1024px (new button had no
+  margin rules inside the flex column whose note carries the bottom clearance).
+  Fix: the 146px bottom clearance moved from `.camp__note` to `.camp__inquiry`
+  (verified: button bottom 74px above wave top, no overlap; mobile unchanged).
+- Day overview disclosure redesigned from flat text to structured UI: full-width
+  button-row summary, day rows as cards (today row outlined), times bold tabular
+  with breaks only around „ ili “, shift note glued with no-break spaces
+  (`TimeParts` + `GLUED_NOTE`), program swatches kept. Verified 1440/390,
+  no overflow, zero console errors.
