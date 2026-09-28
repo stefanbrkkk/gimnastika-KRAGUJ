@@ -1,11 +1,11 @@
 /**
  * S10 „Jedna zvezda, tri koraka“ — geometry of the enrollment band (pure, no DOM; plan §5.9).
- * The three steps are phases of ONE cartwheel on a Marey plate, finishing in the salute over
- * step 3 („Ako se detetu dopadne, postaje član kluba“): a routine ends with a salute.
+ * The three steps are phases of ONE cartwheel on a Marey plate, finishing in the salute
+ * beyond step 3 at the end of the line: a routine ends with a salute.
  *   cart1 (the start, one foot down)      over step 1 — its foot on tick 1
  *   cart2 (through the handstand)         over step 2 — its hands centred on tick 2
  *   cart3 (the landing lunge)             approaching step 3
- *   salute (feet together, arms in a V)   over step 3 — its feet on tick 3
+ *   salute (feet together, arms in a V)   beyond step 3 — its feet at `finish`
  * Every support lands ahead of the previous one (foot → hands → lunge foot → feet), and no two
  * figures stand closer than ≈70% of the wider one (the pose sheet's legibility rule).
  *
@@ -40,6 +40,8 @@ export interface BandSpec {
    * salute's feet stand on them.
    */
   ticks: readonly [number, number, number];
+  /** Final salute support: beyond tick 3, near the end of the mat. */
+  finish: number;
   /** Centre distance from cart3 to the salute, in widths of the wider of the two (≥ .7). */
   landGap: number;
 }
@@ -50,9 +52,9 @@ export interface BandSpec {
  * 1280 → 14 · 428 · 836, 1024 → 16 · 432 · 844, 768 → 19 · 435 · 846 band units. 14 / 428 / 837
  * keep every tick within ≈4px of its numeral on desktop (≤8px at 640).
  */
-export const WIDE: BandSpec = { w: 1200, h: 200, mat: 186, s: 0.64, ticks: [14, 428, 837], landGap: 0.85 };
+export const WIDE: BandSpec = { w: 1200, h: 200, mat: 186, s: 0.64, ticks: [14, 428, 837], finish: 1130, landGap: 0.85 };
 /** <640px: a compact plate above the step list; the ticks carry the step numbers 1–3. */
-export const NARROW: BandSpec = { w: 350, h: 108, mat: 92, s: 0.36, ticks: [16, 142, 306], landGap: 0.8 };
+export const NARROW: BandSpec = { w: 350, h: 108, mat: 92, s: 0.36, ticks: [16, 142, 306], finish: 326, landGap: 0.8 };
 
 export interface BandFigure {
   id: FigureId;
@@ -105,10 +107,10 @@ function place(id: FigureId, supportX: number, { s, mat }: BandSpec): BandFigure
 const centre = (f: BandFigure) => f.x + f.width / 2;
 
 export function buildBand(spec: BandSpec): Band {
-  const [t1, t2, t3] = spec.ticks;
+  const [t1, t2] = spec.ticks;
   const cart1 = place("cart1", t1, spec);
   const cart2 = place("cart2", t2, spec);
-  const salute = place("salute", t3, spec);
+  const salute = place("salute", spec.finish, spec);
   // cart3 approaches step 3: its centre `landGap` widths (of the wider figure) before the salute's.
   const probe = place("cart3", 0, spec);
   const cx = centre(salute) - spec.landGap * Math.max(probe.width, salute.width);

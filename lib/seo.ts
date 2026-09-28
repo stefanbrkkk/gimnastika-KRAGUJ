@@ -14,7 +14,7 @@
  *           photos; no Sitemap line; sitemap.xml is an empty <urlset>.
  *   true  → index, follow; robots.txt allows everything and points to the
  *           sitemap; sitemap.xml lists SITE_URL/.
- * noindex is NOT consent: MINOR_PHOTOS / Cloudflare Access decide who sees photos.
+ * noindex is NOT consent: per-image publication rights and the photo flags decide what is emitted.
  */
 import type { Metadata, MetadataRoute } from "next";
 import { visibleFaq, type FaqItem } from "@/content/faq";

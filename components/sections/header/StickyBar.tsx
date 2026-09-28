@@ -1,5 +1,5 @@
 import { STICKY_BAR } from "@/content/copy";
-import { FLAGS, PRIMARY_PHONE } from "@/content/site";
+import { FLAGS, PHONES, PRIMARY_PHONE, VIBER_PHONE_E164 } from "@/content/site";
 import { smsHref, telHref, viberHref } from "@/lib/links";
 import { MessageIcon, PhoneIcon, ScheduleIcon, ViberIcon } from "./icons";
 import { HEADER_COPY } from "./header-copy";
@@ -16,9 +16,14 @@ import { StickyBarBehavior } from "./StickyBarBehavior";
  * mobile (CSS), so a parent can still call in one tap.
  */
 export function StickyBar() {
-  const message = FLAGS.SHOW_VIBER
-    ? { href: viberHref(PRIMARY_PHONE.e164), label: STICKY_BAR.viber, Icon: ViberIcon }
-    : { href: smsHref(PRIMARY_PHONE.e164), label: STICKY_BAR.sms, Icon: MessageIcon };
+  const message = FLAGS.SHOW_VIBER && VIBER_PHONE_E164
+    ? {
+        href: viberHref(VIBER_PHONE_E164),
+        label: STICKY_BAR.viber,
+        number: PHONES.find((p) => p.e164 === VIBER_PHONE_E164)?.display ?? VIBER_PHONE_E164,
+        Icon: ViberIcon,
+      }
+    : { href: smsHref(PRIMARY_PHONE.e164), label: STICKY_BAR.sms, number: PRIMARY_PHONE.display, Icon: MessageIcon };
 
   return (
     <nav aria-label={HEADER_COPY.stickyLabel} data-sticky-bar="" data-visible="false" data-theme="dark" className="sticky-bar">
@@ -37,7 +42,7 @@ export function StickyBar() {
             <message.Icon />
             <span>
               {message.label}
-              <span className="sr-only"> {PRIMARY_PHONE.display}</span>
+              <span className="sr-only"> {message.number}</span>
             </span>
           </a>
         </li>

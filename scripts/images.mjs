@@ -6,18 +6,15 @@
 // Run: npm run images
 import { readFile, writeFile, mkdir, rm } from "node:fs/promises";
 import sharp from "sharp";
+import { PHOTOS, mayPublishPhoto } from "../content/photos.ts";
+import { FLAGS } from "../content/site.ts";
 
 const OUT_DIR = "public/img";
 const MANIFEST = "content/images.generated.json";
 const WIDTHS = [480, 960, 1600];
 const ALLOWED = /^assets-source\/slike\/(web|rezerva)\/[\w-]+\.jpg$/;
 
-// Parse the registry (slug + file) from content/photos.ts without a TS toolchain.
-const registry = await readFile("content/photos.ts", "utf8");
-const entries = [...registry.matchAll(/slug:\s*"([^"]+)",\s*\n\s*file:\s*"([^"]+)"/g)].map((m) => ({
-  slug: m[1],
-  file: m[2],
-}));
+const entries = Object.values(PHOTOS).filter((p) => mayPublishPhoto(p, FLAGS));
 if (entries.length === 0) throw new Error("No photos found in content/photos.ts");
 
 // Very light cool grade, identical for every photo (contact-sheet consistency).

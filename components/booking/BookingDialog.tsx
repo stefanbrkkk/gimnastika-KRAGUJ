@@ -15,7 +15,7 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import { BOOKING } from "@/content/copy";
-import { FLAGS, PRIMARY_PHONE } from "@/content/site";
+import { FLAGS, PRIMARY_PHONE, VIBER_PHONE_E164 } from "@/content/site";
 import {
   BOOKING_GROUPS,
   BOOKING_REQUIRED,
@@ -763,13 +763,13 @@ export function BookingDialog({ request }: { request: BookingRequest }) {
               </a>
             ))}
             {FLAGS.SHOW_VIBER ? (
-              touchFirst ? (
+              touchFirst && hrefs.viber ? (
                 <a className="btn btn-secondary booking__send booking__send--wide" href={hrefs.viber} onClick={onViber}>
                   {BOOKING.actions.viber}
                 </a>
               ) : (
                 <p className="booking__viber-number">
-                  {BOOKING.actions.viber}: <span>{typesetSr(PRIMARY_PHONE.display)}</span>
+                  {hrefs.viber ? `${BOOKING.actions.viber}: ` : ""}<span>{typesetSr(hrefs.viber ? VIBER_PHONE_E164 ?? "" : BOOKING.viberPending)}</span>
                 </p>
               )
             ) : null}

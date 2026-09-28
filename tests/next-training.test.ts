@@ -6,7 +6,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DAYS, isFixed, SCHEDULE, type ScheduleGroup } from "@/content/schedule";
-import { earliestNext, formatNextDay, formatNextTraining, groupSlots, nextTraining, type Slot } from "@/lib/schedule-logic";
+import { earliestNext, formatBoardNext, formatNextDay, formatNextTraining, groupSlots, nextTraining, type Slot } from "@/lib/schedule-logic";
 import { belgradeNow } from "@/lib/time";
 
 const ACC = DAYS.map((d) => d.accusative);
@@ -161,6 +161,16 @@ describe("„Sledeći trening“ scoreboard — earliest next training across th
   const BOARD: readonly ScheduleGroup["id"][] = ["mladja", "starija", "c-starije", "c-mladje", "ab", "aerobik"];
   const C: readonly ScheduleGroup["id"][] = ["c-starije", "c-mladje"];
   const AB: readonly ScheduleGroup["id"][] = ["ab"];
+
+  it("does not call an already-passed morning option the next start", () => {
+    at("2026-09-28T12:00:00+02:00");
+    const best = earliestNext(BOARD.map((id) => groupSlots(group(id), isFixed)), belgradeNow());
+    expect(best).not.toBeNull();
+    expect(formatBoardNext(best!.next, ACC)).toBe("danas, mogući početak u 16:00 (po školskoj smeni)");
+    at("2026-09-28T16:00:00+02:00");
+    const after = earliestNext(BOARD.map((id) => groupSlots(group(id), isFixed)), belgradeNow());
+    expect(formatBoardNext(after!.next, ACC)).toBe("danas u 18:00");
+  });
   /**
    * "group · day · start[ ili alt]"; a start that has already begun today (an „ili“ slot whose
    * later option is still ahead) is marked with "*".

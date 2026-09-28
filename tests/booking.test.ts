@@ -196,9 +196,9 @@ describe("bookingHrefs — action links", () => {
     expect(hrefs.email).toBe(`mailto:sladjanakovacevickg@gmail.com?subject=Probni%20trening&body=${encoded}`);
   });
 
-  it("call and Viber use the primary number", () => {
+  it("keeps the call target but withholds a Viber deep link until its endpoint is confirmed", () => {
     expect(hrefs.tel).toBe("tel:+381600287631");
-    expect(hrefs.viber).toBe("viber://chat?number=%2B381600287631");
+    expect(hrefs.viber).toBeNull();
   });
 
   it("bodies are encodeURIComponent (%20, never +) and decode back to the message", () => {

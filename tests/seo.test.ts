@@ -119,11 +119,11 @@ describe("JSON-LD SportsClub (§5 SEO)", () => {
 });
 
 describe("JSON-LD FAQPage", () => {
-  it("lists the seven visible FAQ items with their exact text (fees/free trial hidden by default)", () => {
+  it("lists the eight visible FAQ items with the confirmed free-trial answer (fees stay hidden)", () => {
     const faq = buildFaqPage(visibleFaq(), SITE);
     const main = faq.mainEntity as { "@type": string; name: string; acceptedAnswer: { "@type": string; text: string } }[];
     expect(faq["@type"]).toBe("FAQPage");
-    expect(main).toHaveLength(7);
+    expect(main).toHaveLength(8);
     expect(main[0]).toEqual({
       "@type": "Question",
       name: "Od koliko godina dete može da počne?",
@@ -137,8 +137,10 @@ describe("JSON-LD FAQPage", () => {
       "Gde se održavaju treninzi?",
       "Da li su trenerice licencirane?",
       "Da li klub ide na takmičenja?",
+      "Da li je probni trening besplatan?",
     ]);
-    expect(JSON.stringify(faq)).not.toMatch(/besplatn|članarin/i);
+    expect(JSON.stringify(faq)).toMatch(/besplat/);
+    expect(JSON.stringify(faq)).not.toMatch(/članarin/i);
   });
 
   it("never emits a question without an answer (flagged items with no copy)", () => {

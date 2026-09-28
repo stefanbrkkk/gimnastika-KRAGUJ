@@ -306,7 +306,13 @@ changes (5.1).
 - **D ✓ A ✓ F ✓.** **Fn** 404 physics: only the pivot point moves. **Do ✓.** **CQ +** (the footer and
   menu families shrink).
 
-### 5.12 Photo placeholders ("Fotografija uskoro")
+### 5.12 Photo placeholders (release illustration — supersedes the no-figure rule below)
+**Change:** pending frames render the brand leap as one ghost exposure over a short
+mat line (print language shared with the program plates), aria-hidden, with no
+"Fotografija uskoro" text. The KR frame code stays. Reason: release candidates must
+read finished while frames await consent; a wall of "coming soon" boxes reads more
+broken than an honest illustration. File: `components/ui/Picture.tsx`.
+Original rule (kept for UI chrome, not photo slots):
 **Change:** no figure. The navy frame keeps its KR frame code and the caption, plus a small 1.5 px
 aperture line icon from the `.ui-icon` set. File: `components/ui/Picture.tsx:79-81`.
 - **D ✓** these are temporary and read as broken images when they carry a mascot. **A ✓ F ✓** (contact-sheet

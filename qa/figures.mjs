@@ -19,6 +19,7 @@
 //   data-figure="brand:hero"     the hero art (and anything the hero adds at runtime,
 //                                e.g. the .hero-spine runner that scrub.ts prepends to the section)
 //   data-figure="brand:quiz"     the quiz band's flight to the child's program (plan §5.3)
+//   data-figure="brand:timeline" one authentic split-logo silhouette riding the year rail
 //   data-figure="brand:doskok"   the contact finale (doskok frames)
 //   data-figure="brand:booking"  the booking-sheet head
 //   data-figure="pose:<id>"      on the <svg> of every pose figure (P1…P8)

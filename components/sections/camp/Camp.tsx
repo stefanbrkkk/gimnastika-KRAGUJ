@@ -3,9 +3,8 @@ import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { CAMP } from "@/content/copy";
 import type { PhotoId } from "@/content/photos";
-import { PRIMARY_PHONE } from "@/content/site";
-import { telHref } from "@/lib/links";
-import { belgradeNow } from "@/lib/time";
+import { EMAIL, PRIMARY_PHONE } from "@/content/site";
+import { mailtoHref, telHref } from "@/lib/links";
 import { typesetSr } from "@/lib/typeset";
 import { postcardCounter } from "./camp-copy";
 import { CampIsland } from "./CampIsland";
@@ -33,7 +32,7 @@ function CampNote() {
   const [before = "", after] = CAMP.note.split(PRIMARY_PHONE.display);
   const hasPhone = after !== undefined;
   return (
-    <p className="camp__note" data-camp-note="" data-until={CAMP.noteUntil}>
+    <p className="camp__note" data-camp-note="">
       <svg className="camp__postmark" viewBox="0 0 44 44" aria-hidden="true" focusable="false">
         <circle className="camp__postmark-ring" cx="22" cy="22" r="20" />
         <g className="camp__note-icon ui-icon" transform="translate(10 10)">
@@ -88,8 +87,7 @@ function Arrow({ dir }: { dir: "prev" | "next" }) {
  *   finds her balance in a scale, then the beam lets go and becomes the summer sea (scrubbed by
  *   the scroll on every device when motion is allowed; camp-beam.ts, D-60). The static state
  *   is the wave + its echoes, which is also where the routine ends.
- * - Camp note: rendered while the BUILD date ≤ CAMP_NOTE_UNTIL and hidden after mount
- *   when the visitor's Europe/Belgrade date is past it (DECISIONS D-19).
+ * - Camp note: evergreen contact information without an unconfirmed 2027 claim.
  */
 export function Camp() {
   // Never a stack of identical „Fotografija uskoro“ cards to flick through: placeholders
@@ -97,7 +95,6 @@ export function Camp() {
   const visible = POSTCARDS.filter((c) => isPhotoVisible(c.id));
   const real = visible.filter((c) => !isPhotoPlaceholder(c.id));
   const cards = real.length > 0 ? real : visible.slice(0, 1);
-  const showNote = belgradeNow().ymd <= CAMP.noteUntil;
   const multiple = cards.length > 1;
 
   return (
@@ -108,7 +105,10 @@ export function Camp() {
         <div className="camp__layout" data-camp="">
           <div className="camp__text">
             <p className="camp__lead measure">{keepPrepositions(typesetSr(CAMP.lead))}</p>
-            {showNote ? <CampNote /> : null}
+            <CampNote />
+            <a className="btn btn-secondary camp__inquiry" href={mailtoHref(EMAIL, CAMP.inquirySubject, CAMP.inquiryBody)}>
+              {CAMP.inquiry}
+            </a>
           </div>
 
           <ul className="postcards" id="kamp-razglednice" data-postcards="" data-count={cards.length}>

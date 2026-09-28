@@ -171,12 +171,24 @@ html.js-motion .ex-ghost {
   transition: opacity var(--dur-fast) linear;
 }
 
-/* „Fotografija uskoro“ (components/ui/Picture.tsx): a 28px aperture glyph over the caption,
-   in the placeholder's steel ink — no figure (plan-figure-system §5.12). */
-.photo-placeholder__icon {
+/* Pending-photo illustration (components/ui/Picture.tsx): one ghost leap exposure
+   over a short mat line — print language, no photo promise, no mascot. */
+.photo-placeholder__figure {
   flex: none;
-  width: 28px;
-  height: 28px;
+  width: min(58%, 210px);
+  height: auto;
+  display: block;
+  color: var(--color-ice-50);
+  opacity: 0.38;
+}
+
+.photo-placeholder__mat {
+  flex: none;
+  width: 72px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-steel-300);
+  opacity: 0.5;
 }
 
 /* Dark sections cut their top edge on the floor diagonal (the page's spine; design review v2).

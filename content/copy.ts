@@ -3,7 +3,7 @@
  * Quotes are always „…“. Coaches use feminine forms (trenerica, sutkinja, predsednica, članica).
  * Edit copy here — components only render it.
  */
-import { CAMP_NOTE_UNTIL, PRIMARY_PHONE, SOURCES } from "./site";
+import { PRIMARY_PHONE, SOURCES } from "./site";
 
 export const SKIP_LINK = "Preskoči na sadržaj";
 
@@ -111,9 +111,10 @@ export const COACHES: readonly Coach[] = [
 export const CAMP = {
   heading: "Gimnastički kamp",
   lead: "Leto sa ekipom: treninzi i druženje na gimnastičkom kampu.",
-  /** Only while today (Europe/Belgrade) ≤ CAMP_NOTE_UNTIL. */
-  note: `Prijave za kamp u Grčkoj 2027. su u toku — pozovite ${PRIMARY_PHONE.display}.`,
-  noteUntil: CAMP_NOTE_UNTIL,
+  note: `Za informacije o narednom kampu pozovite ${PRIMARY_PHONE.display}.`,
+  inquiry: "Pošaljite pitanje o kampu",
+  inquirySubject: "Pitanje o gimnastičkom kampu",
+  inquiryBody: "Dobar dan, zanimaju me informacije o gimnastičkom kampu.",
   prev: "Prethodna fotografija",
   next: "Sledeća fotografija",
 } as const;
@@ -176,6 +177,7 @@ export const BOOKING = {
   },
   after: `Poruka je spremna — pošaljite je u aplikaciji. Termin dogovarate sa trenericom. Ako vam se ne javimo, pozovite ${PRIMARY_PHONE.display}.`,
   viberFailed: `Viber se nije otvorio — pozovite ${PRIMARY_PHONE.display} ili pošaljite SMS.`,
+  viberPending: "Klub uglavnom koristi Viber. Za tačan broj pozovite klub.",
   close: "Zatvorite",
   /** "Grupa" select option when the parent has not chosen a group. */
   groupUndecided: "Neka trenerica predloži",

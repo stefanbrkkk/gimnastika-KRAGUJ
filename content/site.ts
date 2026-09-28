@@ -16,35 +16,31 @@ const bool = (value: string | undefined, fallback: boolean): boolean => {
 };
 
 export const FLAGS = {
-  /** The club never said the trial is free: copy says „probni trening“, never „besplatan“. */
-  FREE_TRIAL: bool(process.env.NEXT_PUBLIC_FREE_TRIAL, false),
+  /** Confirmed by the club on 28 September 2026. */
+  FREE_TRIAL: bool(process.env.NEXT_PUBLIC_FREE_TRIAL, true),
   /** Append " · po školskoj smeni" to the "08:30–10:30 ili 16:00–18:00" slots. */
-  SHOW_SHIFT_NOTE: bool(process.env.NEXT_PUBLIC_SHOW_SHIFT_NOTE, false),
+  SHOW_SHIFT_NOTE: bool(process.env.NEXT_PUBLIC_SHOW_SHIFT_NOTE, true),
   /** Trampolina is only in the Instagram bio — not confirmed by the club. */
   SHOW_TRAMPOLINE: bool(process.env.NEXT_PUBLIC_SHOW_TRAMPOLINE, false),
   /** Membership fee not provided. */
   SHOW_FEES: bool(process.env.NEXT_PUBLIC_SHOW_FEES, false),
-  /** Viber confirmed by owner: the club uses Viber on the primary number. */
+  /** Viber is used by the club; the number for direct chat still needs confirmation. */
   SHOW_VIBER: bool(process.env.NEXT_PUBLIC_SHOW_VIBER, true),
   /** The Facebook page is only confirmed via the search index. */
   SHOW_FACEBOOK: bool(process.env.NEXT_PUBLIC_SHOW_FACEBOOK, false),
   /** New uneven bars (2026) are sourced only from an Instagram post. */
   SHOW_EQUIPMENT_2026: bool(process.env.NEXT_PUBLIC_SHOW_EQUIPMENT_2026, false),
   /**
-   * Photos showing children render normally when true. When false, every photo
-   * with a minor renders as a navy contact-sheet placeholder.
-   * A PUBLIC URL (including *.pages.dev) is allowed only with MINOR_PHOTOS=false
-   * OR after the club confirms parental consent. noindex is NOT consent.
+ * Global gate for photos showing children. The per-image publication decision in
+ * content/photos.ts is authoritative; flags can only restrict an image further.
+ * Missing or malformed values fail closed. noindex is NOT consent.
    */
-  MINOR_PHOTOS: bool(process.env.NEXT_PUBLIC_MINOR_PHOTOS, true),
-  /** Photos 02 and 09 (camp groups, ~40 girls, possibly other clubs). Consent confirmed by owner 2026-09-28 (club email on file). */
-  CAMP_GROUP_PHOTOS: bool(process.env.NEXT_PUBLIC_CAMP_GROUP_PHOTOS, true),
+  MINOR_PHOTOS: bool(process.env.NEXT_PUBLIC_MINOR_PHOTOS, false),
+  /** An extra gate for individually cleared camp images; 02 and 09 are excluded regardless. */
+  CAMP_GROUP_PHOTOS: bool(process.env.NEXT_PUBLIC_CAMP_GROUP_PHOTOS, false),
   /** Controls only <meta name="robots">, robots.txt and sitemap. */
   INDEXABLE: bool(process.env.NEXT_PUBLIC_INDEXABLE, false),
 } as const;
-
-/** After this date (Europe/Belgrade), the 2027 camp-registration sentence is hidden. */
-export const CAMP_NOTE_UNTIL = "2027-06-30";
 
 /** Canonical origin. The domain is not bought yet. */
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "https://gimnastikakraguj.rs").replace(/\/$/, "");
@@ -73,8 +69,13 @@ export const PHONES: readonly Phone[] = [
   { display: "061 422 4386", e164: "+381614224386" },
 ];
 
-/** Primary number: used for SMS, the hero call CTA, Viber and fallbacks. */
+/** Primary public call/SMS number. The Viber endpoint is separate and unconfirmed. */
 export const PRIMARY_PHONE: Phone = { display: "060 028 7631", e164: "+381600287631" };
+
+const viberTarget = process.env.NEXT_PUBLIC_VIBER_PHONE_E164 || "";
+if (viberTarget && !/^\+[1-9]\d{7,14}$/.test(viberTarget)) throw new Error("Invalid Viber endpoint: expected E.164");
+/** Set only after the club confirms which public number receives Viber chats. */
+export const VIBER_PHONE_E164: string | null = viberTarget || null;
 
 export const EMAIL = "sladjanakovacevickg@gmail.com";
 

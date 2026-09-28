@@ -327,6 +327,18 @@ html.js-motion .about__ghost + .about__ghost {
     0 0 14px 3px color-mix(in oklab, var(--color-lav-200) 50%, transparent);
 }
 
+/* One moving exposure of the club's actual split-logo silhouette, recovered from
+   assets-source/logo and the pre-D-47 timeline. The year nodes stay quiet dots. */
+.timeline__leap {
+  position: absolute;
+  width: 42px;
+  height: 28px;
+  left: -12px;
+  bottom: calc(100% + 4px);
+  overflow: visible;
+  color: var(--color-lav-200);
+}
+
 .timeline[data-armed] .timeline__flier {
   display: block;
   will-change: transform;

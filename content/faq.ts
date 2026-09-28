@@ -45,8 +45,7 @@ export const FAQ: readonly FaqItem[] = [
   },
   // TODO(klub): fee amount not provided — answer stays empty until SHOW_FEES and copy exist.
   { q: "Koliko košta članarina?", a: "", flag: "SHOW_FEES" },
-  // TODO(klub): confirm whether the trial is free before enabling FREE_TRIAL.
-  { q: "Da li je probni trening besplatan?", a: "", flag: "FREE_TRIAL" },
+  { q: "Da li je probni trening besplatan?", a: "Da. Probni trening je besplatan; javite se trenerici da dogovorite dolazak.", flag: "FREE_TRIAL" },
 ];
 
 /** FAQ items visible under the current flags (flagged items also need copy). */

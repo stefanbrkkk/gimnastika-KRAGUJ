@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/images.mjs",
     "build": "next build",
     "start": "serve out -l 4173",
     "lint": "eslint .",

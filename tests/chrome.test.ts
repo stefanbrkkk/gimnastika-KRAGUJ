@@ -49,7 +49,7 @@ import {
 import { MAX_TILT, POINTER_TILT, SETTLE_KICK, createBalance, isSettled, pointerTarget, stepBalance } from "@/components/notfound/tilt";
 import { POSES } from "@/components/brand/poses.generated";
 import { titlePhrases } from "@/components/notfound/title";
-import { NOT_FOUND, PHOTO_PLACEHOLDER } from "@/content/copy";
+import { NOT_FOUND } from "@/content/copy";
 import type { PhotoId } from "@/content/photos";
 import { CLUB, NAV } from "@/content/site";
 
@@ -428,7 +428,7 @@ describe("figures in the page chrome (plan §5.1, §5.11, §5.12)", () => {
     expect(count(html, /href="#wordmark"/g)).toBe(1);
   });
 
-  it("a photo placeholder carries the aperture glyph and its frame code, not the gymnast (R5)", async () => {
+  it("a photo placeholder is an aria-hidden ghost illustration with its frame code, never a photo promise (release illustration, supersedes R5)", async () => {
     vi.resetModules();
     vi.stubEnv("NEXT_PUBLIC_MINOR_PHOTOS", "false");
     const { Picture, isPhotoPlaceholder } = await import("@/components/ui/Picture");
@@ -437,9 +437,11 @@ describe("figures in the page chrome (plan §5.1, §5.11, §5.12)", () => {
     expect(id).toBeDefined();
     const html = renderToStaticMarkup(createElement(Picture, { id: id!, sizes: "100vw", frame: true }));
     expect(html).toContain("data-placeholder");
-    expect(html).not.toContain("#leap");
-    expect(html).toMatch(/<svg class="ui-icon photo-placeholder__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/);
-    expect(html).toContain(PHOTO_PLACEHOLDER);
+    expect(html).toContain('aria-hidden="true"');
+    expect(html).toContain('class="photo-placeholder__figure"');
+    expect(html).toContain('href="#leap"');
+    expect(html).not.toContain("Fotografija uskoro");
+    expect(html).not.toContain('role="img"');
     expect(html).toContain(PHOTOS[id!].frame);
   });
 

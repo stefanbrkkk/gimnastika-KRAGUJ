@@ -1,7 +1,7 @@
 // Playwright helpers shared by shots/trace/behavior/axe.
 import { chromium } from "playwright";
 
-/** The four §7 layout sizes. Below 1024 px we emulate a touch phone/tablet. */
+/** The four §7 layout sizes. Below 1024 px we use touch input at exact CSS pixel sizes. */
 export const SIZES = [
   { id: "360x800", width: 360, height: 800, mobile: true },
   { id: "390x844", width: 390, height: 844, mobile: true },
@@ -17,7 +17,11 @@ export function contextOptions(size, { dpr, ...extra } = {}) {
   return {
     viewport: { width: size.width, height: size.height },
     deviceScaleFactor: dpr ?? (size.mobile ? 2 : 1),
-    isMobile: size.mobile,
+    // Chromium's isMobile emulation can report a larger layout viewport than
+    // the requested CSS size (390×844 became innerWidth 605, innerHeight 1310),
+    // masking clipped text and altering fixed-bar behavior. Touch input plus
+    // an exact CSS viewport measures the page the screenshots actually show.
+    isMobile: false,
     hasTouch: size.mobile,
     locale: "sr-RS",
     timezoneId: "Europe/Belgrade",

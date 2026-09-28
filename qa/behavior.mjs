@@ -250,7 +250,7 @@ async function heroDeepLink(browser, url, report) {
       for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value;
     }).observe({ type: "layout-shift", buffered: true });
   });
-  for (const hash of ["#programi", "#uspesi"]) {
+  for (const hash of ["#programi", "#raspored", "#uspesi"]) {
     await page.goto(`${url}/${hash}`, { waitUntil: "load" });
     await page.waitForTimeout(3500);
     const r = await page.evaluate((h) => ({
@@ -258,7 +258,8 @@ async function heroDeepLink(browser, url, report) {
       pin: !!document.querySelector(".pin-spacer"),
       cls: window.__cls,
     }), hash);
-    report.check(`hero.deepLink${hash}`, Math.abs(r.top - 88) <= 8 && !r.pin && r.cls < 0.05, `${hash}: top ${r.top}px (want 88±8), pin-spacer ${r.pin}, CLS ${r.cls.toFixed(3)}`, r);
+    const expectedTop = 88;
+    report.check(`hero.deepLink${hash}`, Math.abs(r.top - expectedTop) <= 8 && !r.pin && r.cls < 0.05, `${hash}: top ${r.top}px (want ${expectedTop}±8), pin-spacer ${r.pin}, CLS ${r.cls.toFixed(3)}`, r);
   }
   await context.close();
 }

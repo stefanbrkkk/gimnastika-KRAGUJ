@@ -96,8 +96,7 @@
   color: var(--color-steel-300);
 }
 
-/* Lit, not printed: a faint LED bloom (static; nothing animates here). inline-block so the
-   score-posting scan (results-motion.ts) can clip it by dot rows. */
+/* Lit, not printed: a faint LED bloom. Values stay visible through scroll motion. */
 .stat__num {
   display: inline-block;
   font-size: 2.5rem;

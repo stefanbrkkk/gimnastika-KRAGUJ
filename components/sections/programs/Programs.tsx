@@ -74,6 +74,7 @@ export function Programs() {
             />
           </div>
         </ProgramsBrowser>
+        <span id="raspored" className="pg-anchor-alias" aria-hidden="true" />
         <ProgramTimes rows={dayStripRows(programs)} />
       </div>
     </Section>

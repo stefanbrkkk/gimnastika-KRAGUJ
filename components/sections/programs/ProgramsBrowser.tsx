@@ -15,7 +15,7 @@ import { flushSync } from "react-dom";
 import { SCHEDULE_PROGRAM_ATTR } from "@/lib/events";
 import { belgradeNow } from "@/lib/time";
 import { motionAllowed, prefersLessMotion, whenNear } from "@/lib/motion-env";
-import { earliestNext, formatNextTraining, ISO_BY_DAY, type Slot } from "@/lib/schedule-logic";
+import { earliestNext, formatBoardNext, ISO_BY_DAY, type Slot } from "@/lib/schedule-logic";
 import type { DayCode } from "@/content/schedule";
 import { pagerTarget, restTarget } from "./pager";
 
@@ -242,30 +242,36 @@ export function ProgramsBrowser({ heading, chips, dots, filtersLabel, pager, sta
     return () => window.removeEventListener(RECOMMEND_EVENT, onRecommend);
   }, [stamp.unit]);
 
-  /* Merged day overview: mark today and fill the next-training line once, from the
-     parent's clock (server text never goes stale; no content strings ship here —
-     names/accusatives arrive as props, like the S4 board's DayOption/BoardGroup). */
+  /* Merged day overview: refresh the parent's Belgrade clock while the tab is open. */
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-    const now = belgradeNow(new Date());
-    const code = (Object.keys(ISO_BY_DAY) as DayCode[]).find((k) => ISO_BY_DAY[k] === now.isoWeekday);
-    if (code)
+    const refresh = () => {
+      const now = belgradeNow(new Date());
+      const code = (Object.keys(ISO_BY_DAY) as DayCode[]).find((k) => ISO_BY_DAY[k] === now.isoWeekday);
       root.parentElement?.querySelectorAll<HTMLElement>("[data-ts-day]").forEach((el) => {
         const on = el.getAttribute("data-ts-day") === code;
         el.toggleAttribute("data-today", on);
-        if (on) el.querySelector("[data-ts-today]")?.removeAttribute("hidden");
+        el.querySelector("[data-ts-today]")?.toggleAttribute("hidden", !on);
       });
-    const found = earliestNext(times.slots, now);
-    const line = root.parentElement?.querySelector<HTMLElement>("[data-nextline]");
-    const text = line?.querySelector("[data-nextline-text]");
-    if (line && text && found) {
-      const names = found.tied.map((i) => times.names[i]).filter(Boolean).join(" · ");
-      // An „ili“ slot names every option („danas u 08:30 ili 16:00“) — never one guessed time.
-      const alt = found.next.alt.length > 0 ? ` ili ${found.next.alt.join(" ili ")}` : "";
-      text.textContent = `${formatNextTraining(found.next, times.accusatives)}${alt}${names ? ` · ${names}` : ""}`;
-      line.removeAttribute("hidden");
-    }
+      const found = earliestNext(times.slots, now);
+      const line = root.parentElement?.querySelector<HTMLElement>("[data-nextline]");
+      const text = line?.querySelector("[data-nextline-text]");
+      if (line && text) {
+        line.toggleAttribute("hidden", !found);
+        if (found) {
+          const names = found.tied.map((i) => times.names[i]).filter(Boolean).join(" · ");
+          text.textContent = `${formatBoardNext(found.next, times.accusatives)}${names ? ` · ${names}` : ""}`;
+        }
+      }
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 15_000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [times]);
 
   const applyFilter = useCallback(

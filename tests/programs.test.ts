@@ -71,6 +71,7 @@ describe("programs: age chips", () => {
     expect(ids("3-8")).toEqual(["mladja"]);
     expect(ids("8+")).toEqual(["starija", "c-program", "ab-program"]);
     expect(ids("takmicarke")).toEqual(["c-program", "ab-program"]);
+    expect(ids("aerobik")).toEqual(["aerobik"]);
   });
 
   it("never matches a program that is not visible (e.g. trampolina behind its flag)", () => {
@@ -80,8 +81,8 @@ describe("programs: age chips", () => {
   });
 
   it("drops chips that would produce an empty row", () => {
-    expect(usableChips(VISIBLE).map((c) => c.key)).toEqual(["svi", "3-8", "8+", "takmicarke"]);
-    expect(usableChips(["aerobik"]).map((c) => c.key)).toEqual(["svi"]);
+    expect(usableChips(VISIBLE).map((c) => c.key)).toEqual(["svi", "3-8", "8+", "takmicarke", "aerobik"]);
+    expect(usableChips(["aerobik"]).map((c) => c.key)).toEqual(["svi", "aerobik"]);
   });
 
   it("announces what is shown and keeps aerobic gymnastics findable", () => {

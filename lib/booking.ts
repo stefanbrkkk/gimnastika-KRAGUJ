@@ -17,7 +17,7 @@
  */
 import { BOOKING } from "@/content/copy";
 import { visiblePrograms } from "@/content/programs";
-import { EMAIL, FLAGS, PRIMARY_PHONE } from "@/content/site";
+import { EMAIL, FLAGS, PRIMARY_PHONE, VIBER_PHONE_E164 } from "@/content/site";
 import { mailtoHref, smsHref, telHref, viberHref } from "@/lib/links";
 import { belgradeNow } from "@/lib/time";
 
@@ -82,16 +82,16 @@ export interface BookingHrefs {
   sms: string;
   email: string;
   tel: string;
-  viber: string;
+  viber: string | null;
 }
 
-/** Action links for one message. SMS/Viber/tel go to the primary number (060 028 7631). */
+/** The unconfirmed Viber endpoint never falls back to the call/SMS number. */
 export function bookingHrefs(message: string): BookingHrefs {
   return {
     sms: smsHref(PRIMARY_PHONE.e164, message),
     email: mailtoHref(EMAIL, BOOKING.emailSubject, message),
     tel: telHref(PRIMARY_PHONE.e164),
-    viber: viberHref(PRIMARY_PHONE.e164),
+    viber: FLAGS.SHOW_VIBER && VIBER_PHONE_E164 ? viberHref(VIBER_PHONE_E164) : null,
   };
 }
 

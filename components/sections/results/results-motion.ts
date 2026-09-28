@@ -6,14 +6,10 @@
  *     The chronophotograph mark then lands like every other title (HeadingLandings, an
  *     accent); the split is reverted only when no landing is running.
  *   · Primary steps, one at a time (§4 „Sequence these, never overlap“):
- *     1. the scores POST on the judges' LED board: each numeral re-lights dot row by dot row,
- *        top → bottom (the Doto cell is 7 rows), then the board gives one „hold“ blink.
- *        Nothing is hidden in advance; a partly lit numeral is only ever the top rows of the
- *        correct digits (SOURCE RULE, never another number, no count-up);
- *     2. phones only (<1024, and only where the whole frame fits between the header and the
+ *     1. phones only (<1024, and only where the whole frame fits between the header and the
  *        dock line — not in phone landscape): photo 01's shutter opens from a slit (scroll = the
  *        camera);
- *     3. the medal ceremony: the podium outline draws, the blocks rise out of the panel, the
+ *     2. the medal ceremony: the podium outline draws, the blocks rise out of the panel, the
  *        medals drop onto their steps bronze → silver → gold and stick the landing, then the
  *        white brush underline sweeps under „Medalje“.
  *   A step starts when its element crosses the −18% line and the running step has finished,
@@ -28,7 +24,7 @@
  *       the viewport completes invisibly the moment another step is waiting, and a step whose
  *       element is off-screen when its turn comes is finished without animating;
  *     · a visible step that has been ≥50% in view for more than 600 ms by its turn plays a
- *       compressed version instead (the scan and the shutter at 2.5× speed, the ceremony as a
+ *       compressed version instead (the shutter at 2.5× speed, the ceremony as a
  *       ≤700 ms short form) — never a jump cut from ghost to final state.
  *
  * Hidden pre-states (title lines, photo slit, podium parts, brush) are set by JS only for
@@ -59,30 +55,12 @@ const CEREMONY_LINE_WIDE = "0px 0px -12% 0px";
 const DOCK_COVER_FALLBACK = 68;
 /** RC2-01: ≥50% in view for longer than this by its turn → the step plays compressed. */
 const MAX_SEQUENCE_WAIT_MS = 600;
-/** The compressed scan and shutter run this much faster (the shutter ≈ 240 ms). */
+/** The compressed shutter runs this much faster (≈ 240 ms). */
 const FAST = 2.5;
 /** MD-02 safety net: ≥50% in view for this long without playing → play now / show. */
 const SAFETY_MS = 300;
 /** The chrono mark's hop in styles/ui.css (520 ms flight + 260 ms stick) plus a margin. */
 const LANDING_MS = 850;
-
-/* --- Score posting (Doto geometry) --------------------------------------------------------
-   Doto digits sit on a 5 × 7 dot grid, row pitch 0.1em. In .stat__num (inline-block,
-   line-height .9) the 1.2em content area is centred, so the baseline is at 0.8em and the dot
-   rows are centred at 0.15em … 0.75em from the box top. k lit rows = clip below the midline
-   between row k and row k + 1. Side and top insets are negative so the LED bloom is kept. */
-const ROWS = 7;
-const BLOOM = "-0.4em";
-const litRows = (k: number): string => {
-  if (k >= ROWS) return `inset(${BLOOM} ${BLOOM} ${BLOOM} ${BLOOM})`;
-  const bottom = k <= 0 ? 1.3 : 0.9 - (0.2 + 0.1 * (k - 1));
-  return `inset(${BLOOM} ${BLOOM} ${bottom.toFixed(2)}em ${BLOOM})`;
-};
-/** One numeral's scan (one step per dot row), the stagger across the board, the hold blink. */
-const SCAN = 0.35;
-const SCAN_STAGGER = 0.08;
-const BLINK_DIM = 0.07;
-const BLINK_BACK = 0.09;
 
 /* --- Photo 01 shutter (phones) ---------------------------------------------------------------
    Symmetric insets in the browser's own two-value serialization (RC4-01), so every frame is
@@ -257,8 +235,6 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
 
   const title = root.querySelector<HTMLElement>(".section-heading__title");
   const mark = title?.querySelector<SVGElement>(".chrono-mark") ?? null;
-  const scoreboard = root.querySelector<HTMLElement>("[data-scoreboard]");
-  const scores = qsa<HTMLElement>(root, "[data-score]");
   const photo = root.querySelector<HTMLElement>("[data-results-photo]");
   const band = root.querySelector<HTMLElement>("[data-medals-band]");
   const podiumLine = root.querySelector<SVGPathElement>("[data-podium-line]");
@@ -343,35 +319,10 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
     // --- Primary steps ------------------------------------------------------------------
     const steps: Step[] = [];
 
-    // 1 — the scores post. Never pre-hidden: until its turn the board shows the static,
-    // correct numerals; at its turn each window refreshes and re-lights row by row.
-    if (scoreboard && scores.length && !inView(scoreboard)) {
-      const n = scores.length;
-      const blinkAt = (n - 1) * SCAN_STAGGER + SCAN + 0.07;
-      const block = (n - 1) * SCAN_STAGGER + SCAN;
-      steps.push({
-        el: scoreboard,
-        hidden: false,
-        block,
-        fastBlock: block / FAST,
-        state: "idle",
-        seenAt: 0,
-        build: (fast) => {
-          const tl = gsap.timeline({ onComplete: () => void gsap.set(scores, { clearProps: "clipPath,opacity" }) });
-          scores.forEach((score, i) => {
-            const at = i * SCAN_STAGGER;
-            for (let k = 0; k <= ROWS; k++) tl.set(score, { clipPath: litRows(k) }, at + (k * SCAN) / ROWS);
-          });
-          // The score holds: one blink of the whole board (a single flash, far below 3/s).
-          tl.to(scores, { opacity: 0.55, duration: BLINK_DIM, ease: "none" }, blinkAt);
-          tl.to(scores, { opacity: 1, duration: BLINK_BACK, ease: "none" }, blinkAt + BLINK_DIM);
-          return fast ? tl.timeScale(FAST) : tl;
-        },
-        finish: () => void gsap.set(scores, { clearProps: "clipPath,opacity" }),
-      });
-    }
+    // Numbers stay legible throughout. A scan after static digits have appeared
+    // would erase the final values and redraw them on scroll.
 
-    // 2 — phones: photo 01 opens like a shutter, then its KR-01 frame label appears.
+    // 1 — phones: photo 01 opens like a shutter, then its KR-01 frame label appears.
     const shutterBox = photo?.querySelector<HTMLElement>(".photo") ?? null;
     const frameLabel = photo?.querySelector<HTMLElement>(".frame-label") ?? null;
     const phone = window.matchMedia("(max-width: 1023.98px)").matches;
@@ -405,7 +356,7 @@ export async function armResults(root: HTMLElement): Promise<() => void> {
       });
     }
 
-    // 3 — the medal ceremony, closed by the brush underline under „Medalje“.
+    // 2 — the medal ceremony, closed by the brush underline under „Medalje“.
     if (band && podiumLine && !inView(band)) {
       const byKind = (kind: string) => medals.find((m) => m.dataset.podiumMedal === kind);
       const ceremony = CEREMONY_ORDER.map(byKind).filter((m): m is SVGGElement => m !== undefined);

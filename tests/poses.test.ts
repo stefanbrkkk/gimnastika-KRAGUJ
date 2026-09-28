@@ -232,13 +232,15 @@ describe("poses: the enrollment band (plan §5.9: cartwheel → salute)", async 
       }
     });
 
-    it("stands cart1's foot, cart2's hands and the salute's feet on the step ticks (GE2-09)", () => {
+    it("lands past step 3 at the end of the mat", () => {
       expect(contact("cart1", "foot")[0]).toBeCloseTo(ticks[0], 1);
       const [l, r] = [contact("cart2", "handL")[0], contact("cart2", "handR")[0]];
       expect((l + r) / 2).toBeCloseTo(ticks[1], 1);
       const salute = fig("salute");
-      expect(salute.x + salute.width / 2).toBeCloseTo(ticks[2], 1);
-      expect(salute.support).toEqual({ x: ticks[2], y: mat });
+      expect(salute.x + salute.width / 2).toBeCloseTo(spec.finish, 1);
+      expect(salute.support).toEqual({ x: spec.finish, y: mat });
+      expect(spec.finish).toBeGreaterThan(ticks[2]);
+      expect(w - spec.finish).toBeLessThan(w * 0.08);
     });
 
     it("lands every support ahead of the previous one", () => {

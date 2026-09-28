@@ -80,8 +80,8 @@ function ExternalIcon() {
 /**
  * S7 — „Uspesi“ (§5 S7, §4 Results). Darker theme: the judges' scoreboard, its top edge cut
  * on the floor diagonal. Everything here is the complete final state; ResultsMotion (lazy,
- * motion allowed only) plays, one at a time: the title's line mask → the scores post on the
- * LED board → (phones) the photo's shutter opens → the medal ceremony on the podium, closed
+ * motion allowed only) plays, one at a time: the title's line mask → (phones) the photo's
+ * shutter opens → the medal ceremony on the podium, closed
  * by the brush underline under „Medalje“.
  */
 export function Results() {

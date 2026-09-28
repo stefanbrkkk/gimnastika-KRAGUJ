@@ -18,7 +18,7 @@ npm install
 npm run dev          # razvoj: http://localhost:3000
 npm run lint         # ESLint (next build više ne pokreće lint)
 npm test             # Vitest (kviz, raspored, .ics, linkovi, SEO, sadržaj, slike)
-npm run build        # statički sajt u out/ (postbuild uklanja skrivene fotografije iz out/)
+npm run build        # statički sajt u out/ (Turbopack; prebuild generiše samo odobrene fotografije, postbuild uklanja skrivene iz out/)
 npm start            # služi out/ na http://localhost:4173
 npm run qa           # cela provera iz master prompta §10: lint, testovi, 3 builda, bundle,
                      # sadržaj/EXIF, screenshotovi, trace, axe, Lighthouse (vidi qa/README-qa.md)
@@ -68,24 +68,24 @@ zadati i kroz promenljivu okruženja: `NEXT_PUBLIC_<IME>=true|false npm run buil
 
 | Prekidač | Podrazumevano | Šta radi |
 |---|---|---|
-| `FREE_TRIAL` | `false` | Klub nije rekao da je probni trening besplatan. Dok je `false`, na sajtu nigde ne piše „besplatan“. `true` uključuje FAQ pitanje (tek kad se upiše odgovor u `content/faq.ts`). |
-| `SHOW_SHIFT_NOTE` | `false` | Dodaje „ · po školskoj smeni“ terminima „08:30–10:30 ili 16:00–18:00“. |
+| `FREE_TRIAL` | `true` | Probni trening je potvrđeno besplatan; FAQ i CTA ga navode bez obećanja trajanja ili rezervacije. |
+| `SHOW_SHIFT_NOTE` | `true` | Objašnjava da se opcija „08:30–10:30 ili 16:00–18:00“ bira prema školskoj smeni. |
 | `SHOW_TRAMPOLINE` | `false` | Program „Trampolina“ (pominje se samo u Instagram biu). Traži i opis u `content/programs.ts`. |
 | `SHOW_FEES` | `false` | FAQ o članarini (traži i odgovor u `content/faq.ts`). |
-| `SHOW_VIBER` | `false` | U donjoj traci Viber zamenjuje SMS; u formi za probni trening Viber se dodaje pored SMS-a i emaila. |
+| `SHOW_VIBER` | `true` | Klub uglavnom koristi Viber. Direktan Viber link se prikazuje tek kada `NEXT_PUBLIC_VIBER_PHONE_E164` potvrdi stvarni javni broj; do tada je vidljiv poziv/SMS fallback. |
 | `SHOW_FACEBOOK` | `false` | Link ka Facebook stranici (i u JSON-LD `sameAs`). |
 | `SHOW_EQUIPMENT_2026` | `false` | Stavka „novi dvovisinski razboj uz podršku Grada“ u hronologiji. |
-| `MINOR_PHOTOS` | `true` | Fotografije na kojima su deca. Kad je `false`, svaka takva fotografija se prikazuje kao tamnoplavi okvir sa siluetom i natpisom „Fotografija uskoro“, a fajl se ne kopira u `out/`. |
-| `CAMP_GROUP_PHOTOS` | `false` | Grupne fotografije sa kampa (02 i 09, oko 40 devojčica, možda i iz drugih klubova). |
+| `MINOR_PHOTOS` | `false` | Dodatna globalna kapija za fotografije dece. Objavljuju se samo konkretni kadrovi sa `publication: "approved"`; svi ostali ostaju placeholderi i ne ulaze u `out/`. |
+| `CAMP_GROUP_PHOTOS` | `false` | Dodatna kapija za pojedinačno odobrene kamp kadrove; 02 i 09 su trajno isključeni jer mešaju klubove. |
 | `INDEXABLE` | `false` | Samo `<meta name="robots">`, `robots.txt` i `sitemap.xml`. `false` → `noindex, nofollow, noimageindex`; `robots.txt` dozvoljava HTML (da bi pretraživač video `noindex`), ali zabranjuje `/img/`; bez linije `Sitemap`; prazan `sitemap.xml`. `true` → `index, follow`; `robots.txt` sa `Sitemap`; `sitemap.xml` sadrži `SITE_URL/`. |
-| `CAMP_NOTE_UNTIL` | `2027-06-30` | Posle ovog datuma se ne prikazuje rečenica o prijavama za kamp 2027. |
 | `SITE_URL` (env) | `https://gimnastikakraguj.rs` | Kanonska adresa (domen još nije kupljen). |
 | `CREDIT_NAME` | `Stefan Brkljačić` | Ime u footeru („Izrada sajta: …“). |
 | `CREDIT_URL` | `""` | Opcioni link iza imena u footeru; prazno = bez linka. |
 
-> **Pravilo saglasnosti — obavezno.** Javni URL (uključujući `*.pages.dev`) je dozvoljen samo
-> sa `MINOR_PHOTOS=false` **ili** pošto klub potvrdi da ima saglasnost roditelja za objavu
-> fotografija dece (ZZPL: za dete mlađe od 15 godina saglasnost daje roditelj).
+> **Pravilo saglasnosti — obavezno.** Javni URL (uključujući `*.pages.dev`) sme da emituje samo
+> fotografije sa `publication: "approved"`, uz uključene odgovarajuće kapije. Saglasnost za
+> jednu konkretnu fotografiju ne odobrava druge kadrove (ZZPL: za dete mlađe od 15 godina
+> saglasnost daje roditelj).
 > `noindex` **nije** saglasnost: stranica sa `noindex` je i dalje javno dostupna.
 
 ## Objavljivanje na Cloudflare Pages

@@ -23,6 +23,7 @@ async function loadSite(env: Record<string, string> = {}) {
   for (const name of FLAG_NAMES) vi.stubEnv(`NEXT_PUBLIC_${name}`, env[`NEXT_PUBLIC_${name}`] ?? "");
   vi.stubEnv("NEXT_PUBLIC_SITE_URL", env.NEXT_PUBLIC_SITE_URL ?? "");
   vi.stubEnv("SITE_URL", env.SITE_URL ?? "");
+  vi.stubEnv("NEXT_PUBLIC_VIBER_PHONE_E164", env.NEXT_PUBLIC_VIBER_PHONE_E164 ?? "");
   return import("@/content/site");
 }
 
@@ -34,15 +35,15 @@ describe("§0 defaults", () => {
   it("every flag has the master prompt's default", async () => {
     const { FLAGS } = await loadSite();
     expect(FLAGS).toEqual({
-      FREE_TRIAL: false,
-      SHOW_SHIFT_NOTE: false,
+      FREE_TRIAL: true,
+      SHOW_SHIFT_NOTE: true,
       SHOW_TRAMPOLINE: false,
       SHOW_FEES: false,
       SHOW_VIBER: true,
       SHOW_FACEBOOK: false,
       SHOW_EQUIPMENT_2026: false,
-      MINOR_PHOTOS: true,
-      CAMP_GROUP_PHOTOS: true,
+      MINOR_PHOTOS: false,
+      CAMP_GROUP_PHOTOS: false,
       INDEXABLE: false,
     });
   });
@@ -52,12 +53,17 @@ describe("§0 defaults", () => {
     await expect(loadSite({ NEXT_PUBLIC_SHOW_VIBER: "True" })).rejects.toThrow(/Invalid boolean env value/);
   });
 
-  it("camp note cutoff, site URL and credit", async () => {
+  it("site URL and credit", async () => {
     const site = await loadSite();
-    expect(site.CAMP_NOTE_UNTIL).toBe("2027-06-30");
     expect(site.SITE_URL).toBe("https://gimnastikakraguj.rs");
     expect(site.CREDIT_NAME).toBe("Stefan Brkljačić");
     expect(site.CREDIT_URL).toBe("");
+  });
+
+  it("requires an explicit valid Viber endpoint before exposing direct chat", async () => {
+    expect((await loadSite()).VIBER_PHONE_E164).toBeNull();
+    expect((await loadSite({ NEXT_PUBLIC_VIBER_PHONE_E164: "+381614224386" })).VIBER_PHONE_E164).toBe("+381614224386");
+    await expect(loadSite({ NEXT_PUBLIC_VIBER_PHONE_E164: "060 028 7631" })).rejects.toThrow(/Invalid Viber/);
   });
 });
 

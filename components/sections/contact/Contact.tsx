@@ -3,7 +3,7 @@ import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { BOOKING, CONTACT, HERO } from "@/content/copy";
 import { SCHEDULE_UI } from "@/content/schedule";
-import { CTA, EMAIL, FLAGS, PHONES, PRIMARY_PHONE, SOCIAL, VENUE } from "@/content/site";
+import { CTA, EMAIL, FLAGS, PHONES, PRIMARY_PHONE, SOCIAL, VENUE, VIBER_PHONE_E164 } from "@/content/site";
 import { mailtoHref, smsHref, telHref } from "@/lib/links";
 import { typesetSr } from "@/lib/typeset";
 import { ContactDoskok } from "./ContactDoskok";
@@ -188,6 +188,7 @@ export function Contact() {
                 </li>
               ))}
             </ul>
+            {FLAGS.SHOW_VIBER && !VIBER_PHONE_E164 ? <p className="text-small">{typesetSr(BOOKING.viberPending)}</p> : null}
           </address>
         </div>
 

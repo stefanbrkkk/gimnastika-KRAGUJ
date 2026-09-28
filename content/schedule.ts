@@ -153,6 +153,7 @@ export const SCHEDULE_UI = {
   viewsLabel: "Prikaz rasporeda",
   byGroup: "Po grupi",
   byDay: "Po danu",
+  dayOverview: "Pogledajte sve termine po danima",
   filterLabel: "Program",
   all: "Sve",
   next: "Sledeći trening",

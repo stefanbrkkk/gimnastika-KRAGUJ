@@ -1,7 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import manifest from "@/content/images.generated.json";
-import { PHOTO_PLACEHOLDER } from "@/content/copy";
-import { PHOTOS, type Photo, type PhotoId } from "@/content/photos";
+import { PHOTOS, mayPublishPhoto, type Photo, type PhotoId } from "@/content/photos";
 import { FLAGS } from "@/content/site";
 
 interface ManifestEntry {
@@ -16,15 +15,17 @@ const MANIFEST = manifest as Record<string, ManifestEntry>;
 export const photoEntry = (id: PhotoId): { photo: Photo; meta: ManifestEntry } => {
   const photo = PHOTOS[id];
   const meta = MANIFEST[photo.slug];
-  if (!meta) throw new Error(`Photo ${id} (${photo.slug}) missing from images.generated.json — run npm run images`);
-  return { photo, meta };
+  if (!meta && mayPublishPhoto(photo, FLAGS)) throw new Error(`Photo ${id} (${photo.slug}) missing from images.generated.json — run npm run images`);
+  // Generic paper proportions for a hidden frame; no image-derived thumbnail or
+  // metadata for this frame is bundled in the public build.
+  return { photo, meta: meta ?? { width: 1200, height: 900, widths: [], blur: "" } };
 };
 
 /** Whether a photo may appear at all (camp-group photos are hidden unless flagged on). */
-export const isPhotoVisible = (id: PhotoId): boolean => !(PHOTOS[id].campGroup && !FLAGS.CAMP_GROUP_PHOTOS);
+export const isPhotoVisible = (id: PhotoId): boolean => PHOTOS[id].publication !== "excluded" && !(PHOTOS[id].campGroup && !FLAGS.CAMP_GROUP_PHOTOS);
 
-/** Whether a photo renders as the navy placeholder (minor + MINOR_PHOTOS=false). */
-export const isPhotoPlaceholder = (id: PhotoId): boolean => PHOTOS[id].hasMinors && !FLAGS.MINOR_PHOTOS;
+/** Whether a photo renders as the navy placeholder (not publishable under the current gates). */
+export const isPhotoPlaceholder = (id: PhotoId): boolean => !mayPublishPhoto(PHOTOS[id], FLAGS);
 
 /**
  * Largest CSS width at which a photo may render: native px / 2 (so DPR 2 never
@@ -57,26 +58,21 @@ interface PictureProps {
 }
 
 /**
- * The placeholder's glyph: a lens aperture in the .ui-icon stroke family (24px grid, 1.5
- * stroke, round caps, currentColor). No figure: a photo slot is UI chrome (plan-figure-system
- * §5.12, R5) — the frame code and the caption say the rest.
+ * Pending-photo illustration: the brand leap as a single ghost exposure on the
+ * navy's contact sheet, over a short mat line. Deliberate print language (the
+ * program plates), not a mascot and not a photo promise — release candidates
+ * must read finished while frames await consent, so no "Fotografija uskoro"
+ * text is rendered. Supersedes plan-figure-system §5.12 for pending slots only;
+ * the KR frame code (frame foot) stays as the discreet archive tag.
  */
-function ApertureIcon() {
+function PendingFigure() {
   return (
-    <svg
-      className="ui-icon photo-placeholder__icon"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <circle cx="12" cy="12" r="8.5" />
-      <path d="M15.93 12 11.05 20.45M13.96 15.4H4.21M10.04 15.4 5.16 6.95M8.07 12l4.88-8.45M10.04 8.6h9.75M13.96 8.6l4.88 8.45" />
-    </svg>
+    <>
+      <svg className="photo-placeholder__figure" viewBox="0 0 230 150" aria-hidden="true" focusable="false">
+        <use href="#leap" width="230" height="150" />
+      </svg>
+      <span className="photo-placeholder__mat" aria-hidden="true" />
+    </>
   );
 }
 
@@ -99,9 +95,8 @@ export function Picture({ id, sizes, aspect, frame, caption, className, position
   };
 
   const media = placeholder ? (
-    <div className="photo photo-placeholder" style={boxStyle} role="img" aria-label={PHOTO_PLACEHOLDER} data-photo-id={photo.id} data-placeholder="">
-      <ApertureIcon />
-      <span className="photo-placeholder__text label-caps">{PHOTO_PLACEHOLDER}</span>
+    <div className="photo photo-placeholder" style={boxStyle} data-photo-id={photo.id} data-placeholder="" aria-hidden="true">
+      <PendingFigure />
     </div>
   ) : (
     <div className="photo" style={boxStyle} data-photo-id={photo.id} {...(photo.noCrop ? { "data-nocrop": "" } : {})} {...dataAttrs}>

@@ -4,21 +4,23 @@ import { typesetSr } from "@/lib/typeset";
 import type { DayStripRow } from "./model";
 
 /**
- * Compact by-day overview inside „Programi i termini“ (the merged S4 day view).
- * Server-rendered text that never goes stale; the island only marks today
- * (unhides the row's „danas“ tag) and fills the next-training line.
- * Without JS the next line stays hidden — the cards above carry every time.
+ * Optional by-day cross-check inside „Programi i termini“. The cards give each
+ * parent their group's schedule; this native disclosure answers the different
+ * question „what is happening on Tuesday?" without making everyone read the
+ * same long timetable twice. The island only marks today and fills the next line.
+ * Without JS the disclosure still works and the cards carry every time.
  */
 export function ProgramTimes({ rows }: { rows: readonly DayStripRow[] }) {
   const days = rows.filter((r) => r.sessions.length > 0);
   return (
     <div className="pg-times">
-      <h3 className="pg-times__title label-caps">{SCHEDULE_UI.byDay}</h3>
       <p className="pg-next" data-nextline="" hidden>
         <span className="pg-next__label">{typesetSr(`${SCHEDULE_UI.next}: `)}</span>
         <span data-nextline-text="" />
       </p>
-      <ol className="pg-ts">
+      <details className="pg-times__details">
+        <summary className="pg-times__summary">{SCHEDULE_UI.dayOverview}</summary>
+        <ol className="pg-ts">
         {days.map((row) => {
           const d = dayByCode(row.day);
           return (
@@ -42,8 +44,9 @@ export function ProgramTimes({ rows }: { rows: readonly DayStripRow[] }) {
             </li>
           );
         })}
-      </ol>
-      <p className="pg-times__weekend">{typesetSr(SCHEDULE_LOCATION.weekendEmpty)}</p>
+        </ol>
+        <p className="pg-times__weekend">{typesetSr(SCHEDULE_LOCATION.weekendEmpty)}</p>
+      </details>
     </div>
   );
 }

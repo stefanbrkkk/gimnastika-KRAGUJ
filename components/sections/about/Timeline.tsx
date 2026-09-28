@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { LEAP_VIEWBOX } from "@/components/brand/sprite-paths.generated";
 import { Picture, isPhotoVisible } from "@/components/ui/Picture";
 import { SourceLink } from "@/components/ui/SourceLink";
 import { FLAGS, SOURCES } from "@/content/site";
@@ -67,7 +68,7 @@ function Entry({ item }: { item: TimelineItem }) {
 
 /**
  * „Hronologija“: an ordered list of years on a vertical rail, one ringed dot per year (UI
- * chrome, no figure: plan-figure-system R5). The static markup is the final state — full rail,
+ * chrome, plus one authentic logo silhouette that travels with the bead). The static markup is the final state — full rail,
  * every year's dot filled. timeline-motion.ts then lets a lavender bead ride the rail year by
  * year (take-off, flight, stuck landing), each ring filling as the bead reaches it. The
  * 2007 → 2017 leg carries an axis break (ten years compressed; about.css).
@@ -85,6 +86,9 @@ export function Timeline({ labelledBy }: { labelledBy: string }) {
       {/* The bead (motion only): CSS keeps it hidden until the timeline motion arms. */}
       <span className="timeline__flier" aria-hidden="true" data-timeline-flier="">
         <span className="timeline__bead" data-timeline-bead="" />
+        <svg className="timeline__leap" data-figure="brand:timeline" viewBox={`${LEAP_VIEWBOX.x} ${LEAP_VIEWBOX.y} ${LEAP_VIEWBOX.width} ${LEAP_VIEWBOX.height}`} focusable="false">
+          <use href="#leap" width={LEAP_VIEWBOX.width} height={LEAP_VIEWBOX.height} />
+        </svg>
       </span>
       <ol className="timeline__list" aria-labelledby={labelledBy}>
         {groups.map((group) => (

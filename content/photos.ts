@@ -3,7 +3,7 @@
  * (from assets-source/slike/{web,rezerva}) — keep `file` paths in sync.
  *
  * Alt texts are descriptive and never contain names.
- * hasMinors → rendered as a placeholder when FLAGS.MINOR_PHOTOS is false.
+ * publication → per-image rights decision; flags can only restrict an approved image.
  * campGroup → hidden entirely while FLAGS.CAMP_GROUP_PHOTOS is false.
  */
 
@@ -21,6 +21,8 @@ export interface Photo {
   frame: `KR-${string}`;
   alt: string;
   hasMinors: boolean;
+  /** A separate decision for each frame. Flags never override pending/excluded. */
+  publication: "approved" | "pending" | "excluded";
   campGroup?: boolean;
   /**
    * Photo 08: one face is strongly pixelated. Never un-blur it, never crop so
@@ -37,6 +39,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-01",
     alt: "Šest takmičarki u klupskim trikoima sa medaljama oko vrata i trenerica koja čuči ispred njih u sportskoj hali",
     hasMinors: true,
+    publication: "pending",
   },
   "02": {
     id: "02",
@@ -46,6 +49,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     alt: "Velika grupa devojčica u majicama gimnastičkog kampa sa sertifikatima u rukama, u gimnastičkoj sali",
     hasMinors: true,
     campGroup: true,
+    publication: "excluded",
   },
   "03": {
     id: "03",
@@ -54,6 +58,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-03",
     alt: "Članice kluba u trikoima i trenerkama stoje u redu ispod plavog klupskog banera „Gimnastički klub Kraguj“",
     hasMinors: true,
+    publication: "pending",
   },
   "04": {
     id: "04",
@@ -62,6 +67,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-04",
     alt: "Gimnastičarka u skoku sa raširenim rukama na naduvanoj stazi tokom treninga, u pozadini klupski baner",
     hasMinors: true,
+    publication: "pending",
   },
   "05": {
     id: "05",
@@ -69,7 +75,8 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     file: "assets-source/slike/web/05-treneri-zajedno.jpg",
     frame: "KR-05",
     alt: "Dve trenerice u plavim klupskim jaknama zagrljene u sportskoj hali na takmičenju",
-    hasMinors: false,
+    hasMinors: true,
+    publication: "pending",
   },
   "06": {
     id: "06",
@@ -78,6 +85,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-06",
     alt: "Portret trenerice u plavoj klupskoj jakni sa belim potezima na rukavima",
     hasMinors: false,
+    publication: "approved",
   },
   "08": {
     id: "08",
@@ -87,6 +95,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     alt: "Takmičarke aerobne gimnastike u crnim trikoima i trenerica prave zajednički selfi",
     hasMinors: true,
     noCrop: true,
+    publication: "pending",
   },
   "09": {
     id: "09",
@@ -96,6 +105,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     alt: "Devojčice i trenerice u majicama gimnastičkog kampa sede na klupi u sali i drže sertifikate",
     hasMinors: true,
     campGroup: true,
+    publication: "excluded",
   },
   "10": {
     id: "10",
@@ -104,6 +114,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-10",
     alt: "Trenerica pravi selfi sa grupom nasmejanih devojčica na stazi u parku",
     hasMinors: true,
+    publication: "pending",
   },
   "11": {
     id: "11",
@@ -112,6 +123,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-11",
     alt: "Dve devojčice sa kacigama i pojasevima za penjanje u avanturističkom parku",
     hasMinors: true,
+    publication: "pending",
   },
   "12": {
     id: "12",
@@ -120,6 +132,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-12",
     alt: "Gimnastičarke poziraju na gredi ispred šarenog geometrijskog murala",
     hasMinors: true,
+    publication: "pending",
   },
   "14": {
     id: "14",
@@ -128,6 +141,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-14",
     alt: "Gimnastičarke stoje na gredi ispred šarenog murala, a trenerica ispred njih",
     hasMinors: true,
+    publication: "pending",
   },
   "15": {
     id: "15",
@@ -136,6 +150,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-15",
     alt: "Gimnastičarka u uporu na dvovisinskom razboju tokom treninga",
     hasMinors: true,
+    publication: "pending",
   },
   "16": {
     id: "16",
@@ -144,6 +159,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-16",
     alt: "Zajednički ručak na kampu za dugim stolom pod tendom",
     hasMinors: true,
+    publication: "pending",
   },
   "17": {
     id: "17",
@@ -152,7 +168,17 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-17",
     alt: "Rođendanska torta sa ružama i natpisom „Srećan rođendan Kraguj“",
     hasMinors: false,
+    publication: "approved",
   },
 };
 
 export const photo = (id: PhotoId): Photo => PHOTOS[id];
+
+/** The only publication gate used by markup, image generation and export pruning. */
+export function mayPublishPhoto(
+  p: Photo,
+  flags: { MINOR_PHOTOS: boolean; CAMP_GROUP_PHOTOS: boolean },
+): boolean {
+  return p.publication === "approved" &&
+    (!p.hasMinors || (flags.MINOR_PHOTOS && (!p.campGroup || flags.CAMP_GROUP_PHOTOS)));
+}

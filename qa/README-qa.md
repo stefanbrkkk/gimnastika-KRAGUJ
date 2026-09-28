@@ -62,8 +62,8 @@ Unit tests owned by QA (run by `npm test`):
 
 ### Rules worth knowing
 
-- **Sizes.** 360×800, 390×844, 768×1024 are emulated touch devices (`isMobile`,
-  `hasTouch`); 1440×900 is a desktop with a fine pointer. `shots` renders at DPR 2 and
+- **Sizes.** 360×800, 390×844, 768×1024 use touch input at exact CSS viewport sizes;
+  1440×900 is a desktop with a fine pointer. `shots` renders at DPR 2 and
   saves CSS-pixel screenshots. Pages taller than 16 384 px are captured in slices and
   stitched (Chromium leaves one capture blank beyond that height).
   At 1440×900 the full-page shot shows an empty band under the hero: that is the

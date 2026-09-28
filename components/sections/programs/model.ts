@@ -173,7 +173,7 @@ export function programSlotTable(programs: readonly Program[]): Slot[][] {
    line then repeats the quiz hint about it. „Sve“ + the ✓ pressed state are the
    filter vocabulary shared with S4 (program pills) and S9 (gallery chips).
    -------------------------------------------------------------------------- */
-export type ChipKey = "svi" | "3-8" | "8+" | "takmicarke";
+export type ChipKey = "svi" | "3-8" | "8+" | "takmicarke" | "aerobik";
 
 export interface ProgramChip {
   key: ChipKey;
@@ -187,6 +187,7 @@ export const PROGRAM_CHIPS: readonly ProgramChip[] = [
   { key: "3-8", label: "3–8 godina", ids: ["mladja"] },
   { key: "8+", label: "Od 8 godina", ids: ["starija", "c-program", "ab-program"] },
   { key: "takmicarke", label: "Takmičarke", ids: ["c-program", "ab-program"] },
+  { key: "aerobik", label: "Aerobik", ids: ["aerobik"] },
 ];
 
 export function chipByKey(key: ChipKey): ProgramChip {

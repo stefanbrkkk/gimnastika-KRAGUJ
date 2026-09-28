@@ -27,7 +27,7 @@ function splitAtPhone(line: string, phone: string): [string, string] {
 /**
  * S10 „Upis i prvi trening“ (§5 S10). Server-rendered, complete without JS.
  * - „Jedna zvezda, tri koraka“: one chronophotograph band above the three steps —
- *   a cartwheel in three phases (ghosts) finishing in the salute over step 3
+ *   a cartwheel in three phases (ghosts) finishing in the salute past step 3
  *   („postaje član kluba“, plan §5.9). The numerals follow the same ghost → solid
  *   progression. S10's primary motion (LeapBandPlayer → lazy chunk) develops the
  *   phases and sticks the salute once, then the twelve month lamps light like a

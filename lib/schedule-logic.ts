@@ -95,6 +95,15 @@ export interface BoardNext extends NextTraining {
   started: boolean;
 }
 
+/** Public scoreboard copy. A passed morning alternative is never presented as next. */
+export function formatBoardNext(next: BoardNext, accusatives: readonly string[]): string {
+  if (next.started && next.alt.length > 0) {
+    return `${formatNextDay(next, accusatives)}, mogući početak u ${next.alt.join(" ili ")} (po školskoj smeni)`;
+  }
+  const alt = next.alt.length > 0 ? ` ili ${next.alt.join(" ili ")}` : "";
+  return `${formatNextTraining(next, accusatives)}${alt}`;
+}
+
 /**
  * A group's next training for the scoreboard: every slot (fixed or „ili“) with a start
  * strictly after `now`. An „ili“ slot counts while any of its options is still ahead and

@@ -1,44 +1,29 @@
-# Photo consent ledger — GSU „Kraguj“ website
+# Photo publication ledger — GSU „Kraguj“
 
-Per-image authorization record (brief rule: explicit ledger, fail closed).
-Display mapping is as of `df23f5d`; re-verify after the Programs×Schedule merge.
+Release decision, 28 September 2026. `publication` in `content/photos.ts` is the per-ID source of truth. `NEXT_PUBLIC_MINOR_PHOTOS` and `NEXT_PUBLIC_CAMP_GROUP_PHOTOS` are additional gates; neither can approve a pending or excluded frame. Source files stay outside `public/` and `out/`.
 
-## Basis
+The club permits photos of **its own children at the seaside camp**, for which it says signed photo/video consent exists. The reply did not identify those frames by ID, and the files have no reliable location or consent mapping. Outdoor camp frames therefore remain pending until that mapping is supplied. Permission to download Instagram photos does not authorize publication; written parental permissions are pending. The mixed-club white-shirt image is excluded.
 
-- Owner relay 2026-09-28: the club emailed that it asked all parents and everyone
-  agreed to children's photos on the website (club children and other clubs'
-  children in camp groups alike), as a sports/achievement presentation.
-- The email itself is archived by the owner and was **not inspected in this repo**.
-- Photos 02/09 approval is therefore **secondhand** (via our club, not the other
-  clubs' parents in writing) — highest residual risk; pull first if disputed.
-- No names, birth dates, or per-child records are stored in the repo (alts are
-  descriptive, names allow-list enforced by `qa/content.mjs`).
+| ID | Visual match / provenance | Publication |
+|----|---------------------------|-------------|
+| 01 | Coach kneeling with young medalists; exact "coach with her gymnasts" reference uncertain | Pending child consent |
+| 02 | Indoor white-shirt “Gimnastički kamp 2026” certificate group, mixed-club risk | **Excluded**, regardless of flags |
+| 03 | Club lineup under banner; Instagram-sized source | Pending written parent permission |
+| 04 | Gymnast on airtrack; Instagram-sized source | Pending written parent permission |
+| 05 | Two coaches foreground, **children visible behind them** | Pending child consent; not adults-only |
+| 06 | Single coach portrait | Approved (adult) |
+| 08 | Aerobic team selfie with a pixelated face | Pending child consent; never undo pixelation |
+| 09 | Coach with white-shirt camp gymnasts and certificates indoors | **Excluded**, regardless of flags |
+| 10 | Coach and girls outdoors in a park; seaside-camp ID unproven | Pending exact camp-photo match |
+| 11 | Two girls at an outdoor climbing park; seaside-camp ID unproven | Pending exact camp-photo match |
+| 12 | Gymnasts on beam before mural | Pending child consent |
+| 14 | Gymnasts and coach before mural | Pending child consent |
+| 15 | One gymnast on uneven bars | Pending child consent |
+| 16 | Camp meal with children and adults; seaside-camp ID unproven | Pending exact camp-photo match |
+| 17 | Birthday cake with no people | Approved (no people) |
 
-## Images
+ID 07 is an excluded beauty-studio portrait; Slađana has no uniform portrait yet. Reserve IDs 13/18/19 and Instagram screenshot 5657 are not registered for generation. The club cannot supply the exact 2023 medal count.
 
-| ID | Frame | Subjects | Source file | Approved display |
-|----|-------|----------|-------------|------------------|
-| 01 | KR-01 | minors (team + medals) + 1 adult | `assets-source/slike/web/01-uspeh-medalje-ekipa.jpg` | Results photo, gallery |
-| 02 | KR-02 | minors (camp group + certificates, ~40 girls, possibly other clubs) | `assets-source/slike/web/02-zajednica-kamp-grupa.jpg` | About pair, gallery (needs `CAMP_GROUP_PHOTOS`) |
-| 03 | KR-03 | minors (club lineup under banner) | `assets-source/slike/web/03-hala-ceo-klub-baner.jpg` | About print, gallery |
-| 04 | KR-04 | 1 minor (airtrack jump) | `assets-source/slike/web/04-trening-airtrack-skok.jpg` | Programs frame, gallery |
-| 05 | KR-05 | adults only (master prompt; background distant) | `assets-source/slike/web/05-treneri-zajedno.jpg` | Coaches team photo, gallery (never gated) |
-| 06 | KR-06 | adult (coach portrait) | `assets-source/slike/web/06-trener-portret-mladja.jpg` | Coaches card (never gated) |
-| 08 | KR-08 | minors (aerobic team selfie, 1 face pixelated at source) | `assets-source/slike/web/08-aerobik-tim-selfie.jpg` | Gallery (always `noCrop`, never un-blur) |
-| 09 | KR-09 | minors (camp group + certificates, possibly other clubs) | `assets-source/slike/web/09-kamp-hala-sertifikati.jpg` | Camp postcards, gallery (needs `CAMP_GROUP_PHOTOS`) |
-| 10 | KR-10 | minors (camp park selfie) | `assets-source/slike/web/10-kamp-selfie-park.jpg` | Camp postcards, gallery |
-| 11 | KR-11 | minors (camp climbing park) | `assets-source/slike/web/11-kamp-penjanje.jpg` | Camp postcards, gallery |
-| 12 | KR-12 | minors (beam mural pose) | `assets-source/slike/web/12-greda-mural-poze.jpg` | Gallery |
-| 14 | KR-14 | minors (beam mural + coach) | `assets-source/slike/rezerva/14-greda-mural-sa-trenerom.jpg` | Gallery |
-| 15 | KR-15 | 1 minor (uneven bars) | `assets-source/slike/rezerva/15-razboj-trening-mutna.jpg` | Gallery |
-| 16 | KR-16 | minors (camp lunch) | `assets-source/slike/rezerva/16-kamp-rucak.jpg` | Gallery (not in camp stack — needs club OK per DECISIONS) |
-| 17 | KR-17 | no children (birthday cake) | `assets-source/slike/rezerva/17-torta-rodjendan-kluba-2019.jpg` | Timeline item (never gated) |
+## Release check
 
-Excluded: candidate 07 (Slađana portrait slot — beauty-studio rights, never use);
-reserve 13/18/19 are not registered in `content/photos.ts` and never build.
-
-## Release rule
-
-- Public URL requires `MINOR_PHOTOS=true` effective **and** this ledger's basis intact.
-  `scripts/prune-out.ts` strips hidden files from `out/`; unknown flag values fail
-  the build (`content/site.ts` strict parser). `noindex` is not consent.
+Default build and malformed photo flags must not emit child images. Even `MINOR_PHOTOS=true` is insufficient until a child frame's `publication` changes with per-ID evidence. Image generation runs before every build and clears `public/img`; the export pruner checks the same predicate. Inspect `public/img`, `content/images.generated.json`, `out/img`, rendered HTML, RSC/JS payloads and direct URLs before any public deployment. `noindex` is not photo authorization.

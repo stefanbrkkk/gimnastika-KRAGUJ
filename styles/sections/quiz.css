@@ -616,7 +616,6 @@ html:not(.js) .quiz-app {
 /* §4 offset token: 16px mobile / 24px desktop (--offset-reveal). */
 @keyframes quiz-in {
   from {
-    opacity: 0;
     transform: translateY(var(--offset-reveal));
   }
 }

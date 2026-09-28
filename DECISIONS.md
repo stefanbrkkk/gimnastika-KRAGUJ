@@ -1,8 +1,8 @@
 # DECISIONS — GSU „Kraguj“ website
 
-Every decision and assumption made while building from `docs/master-prompt.md` (the binding
-spec) and `docs/dosije.md` (facts). The master prompt forbids questions to the user, so
-anything undecided was decided here and can be reverted by the club.
+Historical decision log from `docs/master-prompt.md` and `docs/dosije.md`.
+Later entries supersede earlier ones. The current photo publication decision is in
+`docs/photo-consent.md`; the current release state is in `docs/release-candidate.md`.
 
 ## Process
 
@@ -75,8 +75,8 @@ anything undecided was decided here and can be reverted by the club.
 - **D-29 · Coach licence lines link their ✅ GSS sources** (registered coaches list, licensed judges list — docs/dosije.md §3).
   The Slađana placeholder frame is labelled „KR-07“ — the slot of the excluded photo 07 — instead of a promise
   („Portret uskoro“) in the UI.
-- **D-30 · Photo 05 stays "adults only"** as the master prompt says: the girls in the background are small,
-  distant and not identifiable. If the club disagrees, set `hasMinors: true` for 05 in `content/photos.ts`.
+- **D-30 · Superseded by the 2026-09-28 pixel review.** Children are visible behind the
+  two coaches in photo 05; `hasMinors: true` and publication remains pending.
 - **D-31 · Program 5's short label is „Aerobna gimnastika“** (was „Aerobik“), so the schedule pills, the program
   titles and the section copy use one name.
 - **D-32 · The inline RSC payload no longer repeats the stylesheet** (`scripts/slim-flight.mjs`, postbuild).
@@ -119,9 +119,9 @@ anything undecided was decided here and can be reverted by the club.
   Pages instead; the owner asked for Vercel on 2026-09-26). Project `gimnastika-kraguj` is linked to the private GitHub
   repo `stefanbrkkk/gimnastika-KRAGUJ`, and every push to `main` deploys production at https://gimnastika-kraguj.vercel.app.
   Settings: framework "Other", build `npm run build` (so the postbuild steps run), output `out`, Node 24.x. The public
-  production URL is allowed only because of the project env var **`NEXT_PUBLIC_MINOR_PHOTOS=false`** (all environments):
-  all 12 photos showing children are placeholders and their files are not deployed. Do not remove that variable until the
-  club confirms parental consent (TODO 2); noindex is not consent. `NEXT_PUBLIC_SITE_URL=https://gimnastika-kraguj.vercel.app`
+  production URL was protected by the project env var **`NEXT_PUBLIC_MINOR_PHOTOS=false`** (all environments).
+  This was a historical deployment safeguard; the current release also requires per-ID approval, with a safe missing-variable default.
+  Keep the Vercel variable set to `false` until the photo ledger is updated; noindex is not consent. `NEXT_PUBLIC_SITE_URL=https://gimnastika-kraguj.vercel.app`
   keeps canonical and OG URLs on the live host; INDEXABLE stays false. Verified on the live URL: qa/content (privacy
   checks on a mirror of the deployment), behavior 27/27, axe 7/7, Lighthouse 98/100/100 with LCP 1949 ms.
 
@@ -135,8 +135,8 @@ anything undecided was decided here and can be reverted by the club.
 - **D-12 · Hidden photos are also removed from `out/`** (`scripts/prune-out.ts`, postbuild). Without it,
   a photo hidden by `CAMP_GROUP_PHOTOS=false` or `MINOR_PHOTOS=false` would still sit at a guessable
   `/img/...` URL. With MINOR_PHOTOS=false the blur placeholder of a minor's photo is not inlined either.
-- **D-13 · Minor classification of the reserve photos:** 13 (three adults), 17 (cake) and 19 (cookies)
-  show no children; 14, 15, 16, 18 do. 05 and 06 are adults only (per the master prompt).
+- **D-13 · Reserve photo classification (historical).** Current registered IDs are in
+  `content/photos.ts`; 05 includes children, 06 is an adult portrait, 17 shows only a cake.
 - **D-14 · Photo 08 always renders uncropped** (`object-fit: contain`, `noCrop`), so the pixelated face
   can never look like an accidental crop, and no sharpening is ever applied.
 
@@ -151,8 +151,8 @@ anything undecided was decided here and can be reverted by the club.
   master prompt; wording to be confirmed with the club (no marker in the UI).
 - **D-18 · Program icons follow the master prompt's list in card order:** 1 parter (square),
   2 greda (long line), 3 dvovisinski razboj (two bars), 4 preskok (vault table), 5 aerobik (figure).
-- **D-19 · Camp note (valid until 2027-06-30)** is rendered into the static HTML when the build date is
-  before the cutoff and hidden after mount if the visitor's Europe/Belgrade date is past it.
+- **D-19 · Superseded.** The Greece 2027 status is unconfirmed; the specific note was
+  removed from public copy. Camp inquiries now carry camp context.
 
 ## Layout
 
@@ -1292,24 +1292,16 @@ docs/plan-figure-system.md; the owner approved it and the pose sheet (docs/poses
     are unchanged. scrubProgress is repeated in beam-scrub.ts, not imported: Turbopack carried all of
     lib/exercise-scrub.ts into the chunk (+1 KB gz). tests/camp-beam.test.ts pins the two equal.
 
-## TODO for the club (dosije §7) — nothing here is shown in the UI
+## Remaining club inputs (28 September 2026)
 
-1. Is the trial training free? → `FREE_TRIAL`
-2. Parental consent for children's photos (and whether competitors' names may be shown) → `MINOR_PHOTOS`, `CAMP_GROUP_PHOTOS`
-3. History wording 2007 / 2017 (Sokolsko društvo Kragujevac?) → `content/copy.ts`, `content/timeline.ts`
-4. Does „08:30–10:30 ili 16:00–18:00“ depend on the school shift? → `SHOW_SHIFT_NOTE`
-5. Trampoline (Instagram bio) and D program? → `SHOW_TRAMPOLINE` + copy in `content/programs.ts`
-6. Seat address (GSS lists Cara Dušana 21) — the site shows only the training hall.
-7. Who is who in photos 401/402; a portrait of Slađana Kovačević in club kit; one line per coach.
-8. Who answers which phone; Viber / WhatsApp? → `SHOW_VIBER`
-9. Membership fee public? → `SHOW_FEES` + `content/faq.ts`
-10. 2023 finals: medal count and apparatus; which competition is photo 01 (Valjevo, 30. 5. 2026)?
-11. Camp photos: Greece or another camp? Dates/price for 2027.
-12. Facebook page and Google Business profile → `SHOW_FACEBOOK`
-13. Domain (.rs / .org.rs) → `SITE_URL`
-14. New uneven bars 2026 (Instagram only) → `SHOW_EQUIPMENT_2026`
-15. May camp photo 16 (camp lunch) also appear in the S8 postcard stack? (§5 S8 lists 10 and 11 only.)
-16. Approve a small-size logo lockup (script + silhouette without the micro-text) for the header at ≤56px; the header renders the full logo until then.
+- First training: duration, arrival time and whether a parent stays.
+- Whether C program and aerobic gymnastics are suitable for the child asking.
+- Greece 2027 camp status; do not publish dates or a destination yet.
+- Which public number actually receives Viber messages.
+- Exact ID mapping for the seaside-camp photos whose children have signed consent;
+  written parental permissions for any Instagram photos intended for publication.
+- A uniform portrait of Slađana when available. Competitor names/results need exact
+  supplied facts; the 2023 medal count remains unknown and is not shown.
 
 ## 2026-09-28 — Programs×Schedule merge (owner-ordered)
 
@@ -1335,12 +1327,11 @@ docs/plan-figure-system.md; the owner approved it and the pose sheet (docs/poses
 
 ## 2026-09-28 — owner-confirmed inputs + audit fixes (no new facts)
 
-- **SHOW_VIBER=true** (`content/site.ts`). The owner confirmed the club uses Viber
-  on the primary number (060 028 7631), answering TODO 8 (Viber half; WhatsApp has
-  no implementation in the repo — no `whatsappHref`, no channel — and stays open).
-  Effect: sticky bar message button is Viber instead of SMS; the booking sheet gains
-  the Viber hand-off beside SMS/email (`BookingDialog.tsx`, `StickyBar.tsx`,
-  `lib/links.ts viberHref`). Verified: 771 tests, `qa:content` 60/60, export OK.
+- **SHOW_VIBER=true** (`content/site.ts`). The owner confirmed the club mainly uses
+  Viber, but did not confirm which public number receives Viber chats. The direct
+  `viber://` hand-off therefore stays disabled until `NEXT_PUBLIC_VIBER_PHONE_E164`
+  is supplied and device-tested; the UI keeps a visible call/SMS fallback. WhatsApp
+  has no implementation in the repo and stays open.
 - **Quiz plural CTA** (audit K05): `QUIZ.resultCtaPlural` ("…za ove grupe") is used
   when a result recommends 2+ groups (`QuizApp.tsx`); singular kept for single-group
   results. Mechanical copy only.
@@ -1350,19 +1341,25 @@ docs/plan-figure-system.md; the owner approved it and the pose sheet (docs/poses
   ("Anketa: 8 god. · Tek počinje") via `lib/events.ts BOOKING_NOTE_ATTR`; the sheet
   prefills an empty Napomena only (`applyNotePrefill`, never overwrites, never
   invents a birth year).
-- **Photos**: `MINOR_PHOTOS` default stays `true` so the local build (`npm run build`
-  + `npm start`, `out/img` 67 files) shows the finished site for the client review;
-  the public Vercel URL must keep `NEXT_PUBLIC_MINOR_PHOTOS=false` until written
-  parental consent exists (ZZPL <15) — `noindex` is not consent, `CAMP_GROUP_PHOTOS`
-  (02/09, possibly other clubs' children) stays `false`. Domain still unbought
+- **Photos**: release defaults are fail-closed (`MINOR_PHOTOS=false`,
+  `CAMP_GROUP_PHOTOS=false`). Publication is also allowlisted per image in
+  `content/photos.ts`; only adult portrait 06 and cake 17 are currently approved.
+  Pending child frames remain placeholders and are never generated into `public/img`,
+  `out/img`, metadata or social assets. White-shirt mixed-club frames 02/09 are
+  excluded regardless of flags. The exact ledger and evidence are in
+  `docs/photo-consent.md`; `noindex` is not consent. Domain still unbought
   (`SITE_URL` default, `INDEXABLE=false`).
-- **Photo consent granted 2026-09-28** (owner relayed club email: all parents asked,
-  all agreed, including other clubs' children in camp groups). `CAMP_GROUP_PHOTOS`
-  default `false→true` (`content/site.ts`, `tests/flags.test.ts`); `MINOR_PHOTOS`
-  default was already `true`. Verified: 771 tests, export OK, `qa:content` 58/60
-  checks adapted (2 campGroup-absent checks N/A), `images.hidden: none`, zero
-  "Fotografija uskoro" in `out/index.html`, `out/img` 67→79 files. Basis is the
-  owner's statement — keep the club's email archived and, per K20, a per-photo
-  display record; the other-club approval is secondhand and remains the residual
-  risk. Vercel still overrides `NEXT_PUBLIC_MINOR_PHOTOS=false`: remove that env
-  var (and set `NEXT_PUBLIC_CAMP_GROUP_PHOTOS=true` if set) + redeploy to publish.
+
+## 2026-09-28 — release-candidate review pass (no push)
+
+- Pending-photo illustration: ghost leap + mat line, aria-hidden, no text promise
+  (`Picture.tsx`, `ui.css`); KR frame kept. Deliberate override of figure-system
+  R5/§5.12 for pending slots only — release must read finished while frames await
+  consent. `chrome.test.ts` placeholder test rewritten to the new contract.
+- Build stays canonical Turbopack `next build` (the `--webpack` switch fixed only a
+  sandbox bind failure; plain build verified here). `prebuild` image gate kept.
+- `#raspored` alias lands at the uniform 88px anchor (global scroll-padding; the
+  alias's own 100px margin stacked to 188 — fixed, `behavior` 28/28).
+- Test stewardship: 771 → 702 explained (`images` 98→24 on fewer emitted files with
+  stronger rights asserts; +boundary/+malformed/+rights tests). No coverage deleted
+  to hide failures; every removed assertion has a recorded replacement.

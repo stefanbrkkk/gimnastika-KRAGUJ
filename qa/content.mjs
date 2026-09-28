@@ -15,6 +15,7 @@ import { IMAGE_EXT, inspectMetadata } from "./lib/exif.mjs";
 import { decodeEntities, jsonLdBlocks, tags, textOf, walk } from "./lib/html.mjs";
 import { checkPhoto08 } from "./lib/pixelation.mjs";
 import { runScript } from "./lib/report.mjs";
+import { mayPublishPhoto } from "../content/photos.ts";
 
 const L = "\\p{L}\\p{N}_";
 /** Whole-word, Unicode-aware (JS \b is ASCII-only: it breaks on č ć š ž đ). */
@@ -409,8 +410,8 @@ await runScript("content", { target: OUT }, async (report) => {
     report.check(`images.photo08.${basename(f, extname(f))}${extname(f)}`, r.pixelated && r.controlLooksNatural, `pixelated face stays pixelated (median block σ ${r.mosaic.medianStd}, edge ratio ${r.mosaic.ratio})`, r);
   }
 
-  const hidden = Object.values(PHOTOS).filter((p) => (p.campGroup && !FLAGS.CAMP_GROUP_PHOTOS) || (p.hasMinors && !FLAGS.MINOR_PHOTOS));
-  report.info("images.hidden", `photos hidden by the flags: ${hidden.map((p) => p.id).join(", ") || "none"}`);
+  const hidden = Object.values(PHOTOS).filter((p) => !mayPublishPhoto(p, FLAGS));
+  report.info("images.hidden", `photos withheld by per-ID publication rights and flags: ${hidden.map((p) => p.id).join(", ") || "none"}`);
   const leftovers = imageFiles.filter((f) => hidden.some((p) => basename(f).startsWith(`${p.slug}-`)));
   report.check("images.hiddenPruned", leftovers.length === 0, `files of hidden photos left in out/: ${leftovers.length}`, leftovers.map(rel));
   const referenced = [];
