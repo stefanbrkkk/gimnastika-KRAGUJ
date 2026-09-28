@@ -448,7 +448,12 @@ await runScript("content", { target: OUT }, async (report) => {
     }
     report.check(`ics.${basename(f)}`, problems.length === 0, "parses with ical.js, VTIMEZONE Europe/Belgrade, CRLF, ≤75-octet lines, weekly RRULE", [...new Set(problems)]);
   }
-  const gcal = [...indexHtml.matchAll(/href="(https:\/\/calendar\.google\.com\/[^"]*)"/g)].map((m) => decodeEntities(m[1]));
+  // Google links live in rendered hrefs (S4 era) and, since the Programs×Schedule
+  // merge, in the RSC flight payload of the detail sheets (`href":"…`, `&` as \u0026).
+  const gcal = [
+    ...indexHtml.matchAll(/href="(https:\/\/calendar\.google\.com\/[^"]*)"/g),
+    ...indexHtml.matchAll(/href\\":\\?"?(https:\/\/calendar\.google\.com\/(?:[^"\\]|\\u0026)*)/g),
+  ].map((m) => decodeEntities(m[1].replace(/\\u0026/g, "&")));
   const badGcal = gcal.filter((href) => {
     const u = new URL(href);
     const q = u.searchParams;

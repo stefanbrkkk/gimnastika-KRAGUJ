@@ -12,7 +12,11 @@ import {
   type ReactNode,
 } from "react";
 import { flushSync } from "react-dom";
+import { SCHEDULE_PROGRAM_ATTR } from "@/lib/events";
+import { belgradeNow } from "@/lib/time";
 import { motionAllowed, prefersLessMotion, whenNear } from "@/lib/motion-env";
+import { earliestNext, formatNextTraining, ISO_BY_DAY, type Slot } from "@/lib/schedule-logic";
+import type { DayCode } from "@/content/schedule";
 import { pagerTarget, restTarget } from "./pager";
 
 /**
@@ -68,6 +72,10 @@ interface ProgramsBrowserProps {
   pager: { prev: string; next: string };
   stamp: { unit: string };
   total: number;
+  /** Numeric slot table for the next-training line (server-computed, no copy). */
+  times: { slots: Slot[][]; names: string[]; accusatives: string[]; nextLabel: string };
+  /** Server-rendered per-program calendar blocks for the detail sheets. */
+  calendars: Record<string, ReactNode>;
   /** Server-rendered cards (+ the photo frame). */
   children: ReactNode;
 }
@@ -98,7 +106,7 @@ const restOf = (strip: HTMLElement, first: HTMLElement | undefined) => {
   return restTarget(first ? first.offsetLeft - padStart(strip) : null, end + (parseFloat(cs.paddingRight) || 0), strip.clientWidth);
 };
 
-export function ProgramsBrowser({ heading, chips, dots, filtersLabel, pager, stamp, total, children }: ProgramsBrowserProps) {
+export function ProgramsBrowser({ heading, chips, dots, filtersLabel, pager, stamp, total, times, calendars, children }: ProgramsBrowserProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
   const filterRun = useRef(0);
@@ -234,6 +242,32 @@ export function ProgramsBrowser({ heading, chips, dots, filtersLabel, pager, sta
     return () => window.removeEventListener(RECOMMEND_EVENT, onRecommend);
   }, [stamp.unit]);
 
+  /* Merged day overview: mark today and fill the next-training line once, from the
+     parent's clock (server text never goes stale; no content strings ship here —
+     names/accusatives arrive as props, like the S4 board's DayOption/BoardGroup). */
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const now = belgradeNow(new Date());
+    const code = (Object.keys(ISO_BY_DAY) as DayCode[]).find((k) => ISO_BY_DAY[k] === now.isoWeekday);
+    if (code)
+      root.parentElement?.querySelectorAll<HTMLElement>("[data-ts-day]").forEach((el) => {
+        const on = el.getAttribute("data-ts-day") === code;
+        el.toggleAttribute("data-today", on);
+        if (on) el.querySelector("[data-ts-today]")?.removeAttribute("hidden");
+      });
+    const found = earliestNext(times.slots, now);
+    const line = root.parentElement?.querySelector<HTMLElement>("[data-nextline]");
+    const text = line?.querySelector("[data-nextline-text]");
+    if (line && text && found) {
+      const names = found.tied.map((i) => times.names[i]).filter(Boolean).join(" · ");
+      // An „ili“ slot names every option („danas u 08:30 ili 16:00“) — never one guessed time.
+      const alt = found.next.alt.length > 0 ? ` ili ${found.next.alt.join(" ili ")}` : "";
+      text.textContent = `${formatNextTraining(found.next, times.accusatives)}${alt}${names ? ` · ${names}` : ""}`;
+      line.removeAttribute("hidden");
+    }
+  }, [times]);
+
   const applyFilter = useCallback(
     async (chip: BrowserChip) => {
       const strip = stripRef.current;
@@ -305,8 +339,34 @@ export function ProgramsBrowser({ heading, chips, dots, filtersLabel, pager, sta
     [measure, total],
   );
 
-  const onStripClick = (e: MouseEvent<HTMLDivElement>) => {
-    const target = e.target as Element;
+  /* Merged schedule contract: [data-schedule-program="<programId>"] (cards, sheets,
+     FAQ) scrolls to that program's card. A chip that hides the card is lifted first;
+     the card flashes once so the jump lands visibly. */
+  useEffect(() => {
+    const onClick = (event: globalThis.MouseEvent) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const target = event.target instanceof Element ? event.target.closest<HTMLElement>(`[${SCHEDULE_PROGRAM_ATTR}]`) : null;
+      if (!target) return;
+      const id = target.getAttribute(SCHEDULE_PROGRAM_ATTR) ?? "";
+      const strip = stripRef.current;
+      const card = strip?.querySelector<HTMLElement>(`${CARD}[data-program-id="${CSS.escape(id)}"]`);
+      if (!strip || !card) return;
+      event.preventDefault();
+      const show = () => {
+        card.scrollIntoView({ behavior: prefersLessMotion() ? "auto" : "smooth", block: "nearest" });
+        card.setAttribute("data-flash", "");
+        window.setTimeout(() => card.removeAttribute("data-flash"), 1300);
+      };
+      if (!card.hidden) return show();
+      const chip = chips.find((c) => c.ids.includes(id)) ?? chips[0];
+      if (!chip) return show();
+      void applyFilter(chip).then(show);
+    };
+    window.addEventListener("click", onClick, { capture: true });
+    return () => window.removeEventListener("click", onClick, { capture: true });
+  }, [applyFilter, chips]);
+
+  const onStripClick = (e: MouseEvent<HTMLDivElement>) => {    const target = e.target as Element;
     const card = target.closest<HTMLElement>(CARD);
     if (!card || !stripRef.current?.contains(card)) return;
     if (target.closest("a")) return; // CTAs are handled by the booking/schedule delegates
@@ -424,7 +484,7 @@ export function ProgramsBrowser({ heading, chips, dots, filtersLabel, pager, sta
         </p>
       ) : null}
 
-      {open && Sheet ? <Sheet programId={open.id} card={open.card} onClosed={() => setOpen(null)} /> : null}
+      {open && Sheet ? <Sheet programId={open.id} card={open.card} onClosed={() => setOpen(null)} calendar={calendars[open.id]} /> : null}
     </div>
   );
 }

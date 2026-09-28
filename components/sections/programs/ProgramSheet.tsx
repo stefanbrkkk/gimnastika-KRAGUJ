@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { BOOKING } from "@/content/copy";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { BOOKING, HERO } from "@/content/copy";
 import { programById } from "@/content/programs";
-import { SCHEDULE_LOCATION, type ProgramId } from "@/content/schedule";
-import { CTA } from "@/content/site";
+import { SCHEDULE_LOCATION, type DayCode, type ProgramId } from "@/content/schedule";
+import { CTA, PRIMARY_PHONE } from "@/content/site";
 import { playExercise } from "@/lib/exercise-scrub";
+import { telHref } from "@/lib/links";
 import { loadMotion } from "@/lib/load-motion";
 import { DUR, EASE, MQ, motionAllowed } from "@/lib/motion-env";
+import { occurrenceDates, withGcalDates } from "@/lib/schedule-logic";
+import { belgradeNow } from "@/lib/time";
 import { typesetSr } from "@/lib/typeset";
 import { PROGRAM_BIB, programSchedule, programStyle, PROGRAMS_UI } from "./model";
 import { ProgramIcon, type ExercisePrint } from "./ProgramIcon";
@@ -73,9 +76,11 @@ interface ProgramSheetProps {
   programId: string;
   card: HTMLElement;
   onClosed: () => void;
+  /** Server-rendered calendar actions of this program (fixed slots only). */
+  calendar?: ReactNode;
 }
 
-export default function ProgramSheet({ programId, card, onClosed }: ProgramSheetProps) {
+export default function ProgramSheet({ programId, card, onClosed, calendar }: ProgramSheetProps) {
   const program = programById(programId as ProgramId);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -236,6 +241,17 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
     };
     reduce.addEventListener("change", onReduce);
 
+    // Google links carry the build-date occurrence; re-date them to the next
+    // occurrence from today, so an old sheet never opens a past event.
+    panel.querySelectorAll<HTMLAnchorElement>("a[data-gcal]").forEach((a) => {
+      const [days, start, end] = (a.getAttribute("data-gcal") ?? "").split("|");
+      if (!days || !start || !end) return;
+      a.href = withGcalDates(
+        a.href,
+        occurrenceDates(days.split(",") as DayCode[], start, end, belgradeNow(new Date()), true),
+      );
+    });
+
     dialog.addEventListener("keydown", onKeyDown);
     dialog.addEventListener("cancel", onCancel);
     dialog.addEventListener("close", onNativeClose);
@@ -299,6 +315,7 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
               </h3>
               <ScheduleLines groups={groups} week className="ps-sched" />
               <p className="ps-where text-small">{glueVenue(typesetSr(SCHEDULE_LOCATION.sub))}</p>
+              {calendar}
             </section>
           </div>
           {/* After the text, outside its scroller: pinned under it in portrait, under the scene in
@@ -307,8 +324,8 @@ export default function ProgramSheet({ programId, card, onClosed }: ProgramSheet
             <a href="#kontakt" data-booking={program.title} className="btn btn-primary">
               {CTA.trial}
             </a>
-            <a href="#raspored" data-schedule-program={program.id} className="btn btn-secondary">
-              {CTA.viewSchedule}
+            <a href={telHref(PRIMARY_PHONE.e164)} className="btn btn-secondary">
+              {typesetSr(HERO.ctaSecondary)}
             </a>
           </div>
         </div>

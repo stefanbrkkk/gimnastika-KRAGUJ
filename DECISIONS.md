@@ -1311,6 +1311,28 @@ docs/plan-figure-system.md; the owner approved it and the pose sheet (docs/poses
 15. May camp photo 16 (camp lunch) also appear in the S8 postcard stack? (§5 S8 lists 10 and 11 only.)
 16. Approve a small-size logo lockup (script + silhouette without the micro-text) for the header at ≤56px; the header renders the full logo until then.
 
+## 2026-09-28 — Programs×Schedule merge (owner-ordered)
+
+- S3+S4 are one section, „Programi i termini“ (`PROGRAMS_COPY` heading + intro
+  `content/programs.ts:137`): section shell, filters, day tabs/pills, scoreboard
+  chrome, location card and `styles/sections/schedule.css` deleted; `app/page.tsx`
+  renders Programs → About. NAV/Footer/Menu drop „Raspored“ (via `NAV`).
+- Preserved, with proof: day overview → compact `ProgramTimes` strip
+  (`dayStripRows`/`daySessions` order, weekend note kept); next training → one
+  client-computed line (`earliestNext`, „ili“ options always named, tied groups
+  joined); calendar → per-program `ProgramCalendar` in the detail sheet (fixed
+  blocks only, `fixedOnly`/`noFixed` + call fallback verbatim, Google `dates`
+  rewritten to the next occurrence in the sheet chunk); venue line stays in the
+  sheet; `.ics` paths/UIDs unchanged, DESCRIPTION/URL now `#programi`.
+- `data-schedule-program` = program id → card scroll + flash (ProgramsBrowser
+  delegate; chip lifted first). Retargeted: StickyBar, FAQ, ics, `qa/behavior`
+  probes, `qa/shots` no-JS probe (now reads `#programi`).
+- Accepted tradeoffs: no-JS keeps all times readable but calendar import needs JS
+  (like booking/quiz/filters); next line computes once on arm, not minutely;
+  card tertiary link removed (times + booking + sheet affordance remain).
+- `qa/content` googleCalendar check reads rendered hrefs and the RSC flight
+  payload. Bundle improved 157.7 → 154.2 KB (deleted S4 outweighs new imports).
+
 ## 2026-09-28 — owner-confirmed inputs + audit fixes (no new facts)
 
 - **SHOW_VIBER=true** (`content/site.ts`). The owner confirmed the club uses Viber

@@ -47,6 +47,11 @@ describe("§0 defaults", () => {
     });
   });
 
+  it("malformed values fail closed and loudly (never silently flip a flag)", async () => {
+    await expect(loadSite({ NEXT_PUBLIC_MINOR_PHOTOS: "yes" })).rejects.toThrow(/Invalid boolean env value/);
+    await expect(loadSite({ NEXT_PUBLIC_SHOW_VIBER: "True" })).rejects.toThrow(/Invalid boolean env value/);
+  });
+
   it("camp note cutoff, site URL and credit", async () => {
     const site = await loadSite();
     expect(site.CAMP_NOTE_UNTIL).toBe("2027-06-30");

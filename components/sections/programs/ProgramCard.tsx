@@ -79,12 +79,6 @@ export function ProgramCard({ program }: { program: Program }) {
           <a href="#kontakt" data-booking={program.title} className="btn btn-primary">
             {typesetSr(CTA.trial)}
           </a>
-          <a href="#raspored" data-schedule-program={program.id} className="pc-more">
-            <span>{typesetSr(CTA.viewSchedule)}</span>
-            <svg className="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M5 12h13m-5-5 5 5-5 5" />
-            </svg>
-          </a>
         </div>
       </div>
     </article>

@@ -16,12 +16,15 @@ export const FAQ: readonly FaqItem[] = [
   {
     q: "Od koliko godina dete može da počne?",
     a: "Već od 3. godine, u mlađoj početnoj grupi (3–8 godina).",
-    link: { label: CTA.viewSchedule, href: "#raspored", program: "mladja" },
+    link: { label: CTA.viewSchedule, href: "#programi", program: "mladja" },
   },
-  { q: "Kada može da se upiše?", a: "Tokom cele godine." },
+  {
+    q: "Kada može da se upiše?",
+    a: "Tokom cele godine — javite se telefonom ili porukom, pa dođite na probni trening.",
+  },
   {
     q: "Kako izgleda prvi trening?",
-    a: "Dete dolazi na probni trening, a ako mu se dopadne, postaje član kluba.",
+    a: "Javite se unapred telefonom ili porukom, pa dovedite dete na probni trening; ako mu se dopadne, postaje član kluba.",
   },
   {
     q: "Šta dete treba da ponese?",

@@ -135,5 +135,6 @@ export const visiblePrograms = (showTrampoline: boolean): readonly Program[] =>
   PROGRAMS.filter((p) => (p.id === "trampolina" ? showTrampoline && p.description !== "" : !p.hidden));
 
 export const PROGRAMS_COPY = {
-  heading: "Programi",
+  heading: "Programi i termini",
+  intro: "Izaberite grupu za svoje dete — uzrast, dane, satnicu i sledeći korak.",
 } as const;

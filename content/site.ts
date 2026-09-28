@@ -6,8 +6,14 @@
  * NEXT_PUBLIC_MINOR_PHOTOS=false npm run build). The club edits the defaults.
  */
 
-const bool = (value: string | undefined, fallback: boolean): boolean =>
-  value === undefined || value === "" ? fallback : value === "true" || value === "1";
+const bool = (value: string | undefined, fallback: boolean): boolean => {
+  if (value === undefined || value === "") return fallback;
+  if (value === "true" || value === "1") return true;
+  if (value === "false" || value === "0") return false;
+  // Fail closed and loudly: a typo ("True", "yes") must break the build, never
+  // silently flip a consent or channel flag. See docs/photo-consent.md.
+  throw new Error(`Invalid boolean env value ${JSON.stringify(value)} (expected "true"/"1"/"false"/"0")`);
+};
 
 export const FLAGS = {
   /** The club never said the trial is free: copy says „probni trening“, never „besplatan“. */
@@ -123,7 +129,6 @@ export const SEO = {
 /** Header / anchor navigation (order as in §5 HEADER). */
 export const NAV = [
   { href: "#programi", label: "Programi" },
-  { href: "#raspored", label: "Raspored" },
   { href: "#treneri", label: "Trenerice" },
   { href: "#uspesi", label: "Uspesi" },
   { href: "#kamp", label: "Kamp" },

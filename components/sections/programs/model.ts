@@ -8,15 +8,19 @@ import { QUIZ } from "@/content/copy";
 import type { Program } from "@/content/programs";
 import {
   dayByCode,
+  DAYS,
   formatBlock,
   formatDays,
   formatTimes,
   groupById,
+  isFixed,
+  SCHEDULE,
   type DayCode,
   type ProgramId,
   type ScheduleBlock,
   type ScheduleGroup,
 } from "@/content/schedule";
+import { daySessions, groupSlots, type Slot } from "@/lib/schedule-logic";
 
 /* --------------------------------------------------------------------------
    Mechanical UI strings (not in the master prompt; listed in newCopy).
@@ -109,9 +113,57 @@ export function programSchedule(program: Program, showShiftNote?: boolean): Prog
       label,
       group,
       blocks: group.blocks.map((b) => blockParts(b, showShiftNote)),
-      days: new Set(group.blocks.flatMap((b) => b.days)),
+      days: new Set(group.blocks.map((b) => b.days).flat()),
     };
   });
+}
+
+/* --------------------------------------------------------------------------
+   Merged day overview ("Po danu", compact). Server-rendered text; the island
+   only marks today and fills the next-training line (client clock).
+   -------------------------------------------------------------------------- */
+
+/** One training in the day strip: text + which group (swatch + name). */
+export interface DayStripSession {
+  /** "Po, Sr, Pe 18:00–19:00" — exactly formatBlock(). */
+  text: string;
+  /** "18:00–19:00" (or "08:30–10:30 ili 16:00–18:00") — the times alone. */
+  times: string;
+  groupId: string;
+  groupName: string;
+  programId: string;
+  color: string;
+}
+
+export interface DayStripRow {
+  day: DayCode;
+  sessions: DayStripSession[];
+}
+
+/** Week rows, Monday first (SCHEDULE order, ties keep group order). */
+export function dayStripRows(programs: readonly Program[]): DayStripRow[] {
+  const colorOf = new Map<string, { programId: string; color: string }>();
+  for (const p of programs)
+    for (const { id } of p.groups) {
+      const g = groupById(id);
+      colorOf.set(g.id, { programId: p.id, color: p.color });
+    }
+  return DAYS.map((d) => ({
+    day: d.code,
+    sessions: daySessions(SCHEDULE, d.code).map(({ group, block }) => ({
+      text: formatBlock(block),
+      times: formatTimes(block),
+      groupId: group.id,
+      groupName: group.name,
+      programId: colorOf.get(group.id)?.programId ?? "",
+      color: colorOf.get(group.id)?.color ?? "",
+    })),
+  }));
+}
+
+/** Numeric slot table for the client's next-training line (no copy, only numbers). */
+export function programSlotTable(programs: readonly Program[]): Slot[][] {
+  return programs.map((p) => p.groups.flatMap(({ id }) => groupSlots(groupById(id), isFixed)));
 }
 
 /* --------------------------------------------------------------------------

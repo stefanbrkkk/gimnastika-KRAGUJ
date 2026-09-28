@@ -13,11 +13,10 @@ import { Hero } from "@/components/sections/hero/Hero";
 import { Programs } from "@/components/sections/programs/Programs";
 import { Quiz } from "@/components/sections/quiz/Quiz";
 import { Results } from "@/components/sections/results/Results";
-import { Schedule } from "@/components/sections/schedule/Schedule";
 
 /**
  * One page (§5). Section order, ids and themes:
- * S1 #top dark · S2 #kviz light · S3 #programi dark · S4 #raspored light ·
+ * S1 #top dark · S2 #kviz light · S3 #programi dark (programs + times) ·
  * S5 #o-nama light (dark „Hronologija“ band) · S6 #treneri light · S7 #uspesi darker · S8 #kamp light ·
  * S9 #galerija darker (edge up) · S10 #upis light · S11 #kontakt dark
  */
@@ -29,7 +28,6 @@ export default function HomePage() {
         <Hero />
         <Quiz />
         <Programs />
-        <Schedule />
         <About />
         <Coaches />
         <Results />

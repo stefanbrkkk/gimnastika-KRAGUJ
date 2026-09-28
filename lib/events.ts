@@ -7,15 +7,15 @@
  * Exception: the S11 doskok button uses an sms: href with the §5 intro as its
  * own no-JS action; JS intercepts it the same way.
  *
- * Schedule: any link with data-schedule-program="<ProgramId>" scrolls to
- * #raspored and filters it to that program (delegated by the schedule island).
+ * Schedule: any link with data-schedule-program="<ProgramId>" scrolls to that
+ * program's card in #programi (delegated by the programs island) and flashes
+ * it once. The value is always a program id (beginner group ids match theirs).
  */
 export const BOOKING_ATTR = "data-booking";
 export const BOOKING_NOTE_ATTR = "data-booking-note";
 export const SCHEDULE_PROGRAM_ATTR = "data-schedule-program";
 
 export const BOOKING_EVENT = "kraguj:booking";
-export const SCHEDULE_FILTER_EVENT = "kraguj:schedule-filter";
 
 export interface BookingDetail {
   /** Group label to prefill in the sheet's "Grupa" field. */
@@ -24,14 +24,6 @@ export interface BookingDetail {
   note?: string;
 }
 
-export interface ScheduleFilterDetail {
-  programId: string;
-}
-
 export function openBooking(detail: BookingDetail = {}): void {
   window.dispatchEvent(new CustomEvent<BookingDetail>(BOOKING_EVENT, { detail }));
-}
-
-export function filterSchedule(detail: ScheduleFilterDetail): void {
-  window.dispatchEvent(new CustomEvent<ScheduleFilterDetail>(SCHEDULE_FILTER_EVENT, { detail }));
 }

@@ -273,7 +273,7 @@ export default function HeroMotion() {
     // ---- Desktop only: pin + scrub after the intro ----
     // The pin inserts 50vh of spacing after the hero. It is created only while
     // the page rests at the top, so it never shifts a scrolled viewport, never
-    // cuts off a smooth hash scroll (deep link /#raspored, a nav click during
+    // cuts off a smooth hash scroll (deep link /#programi, a nav click during
     // the intro) and never snaps back a visitor who scrolled during the intro.
     // Otherwise it is armed the first time the page returns to the top.
     let scrollStarted = false;

@@ -56,8 +56,8 @@ export const eventTitle = (group: ScheduleGroup): string => `${CLUB.shortName} �
 /** "Trgovinsko-ugostiteljska škola „Toza Dragović“, Save Kovačevića 25, Kragujevac" */
 export const eventLocation = (): string => `${VENUE.name}, ${VENUE.street}, ${VENUE.city}`;
 
-/** Hall line (§5 S4 sub) + call line + link back to the schedule. */
-export const eventDetails = (): string => `${SCHEDULE_LOCATION.sub}\n${HERO.ctaSecondary}\n${SITE_URL}/#raspored`;
+/** Hall line (§5 S4 sub) + call line + link back to the programs & times. */
+export const eventDetails = (): string => `${SCHEDULE_LOCATION.sub}\n${HERO.ctaSecondary}\n${SITE_URL}/#programi`;
 
 /** "MO,WE,FR" */
 export const byDay = (block: ScheduleBlock): string => block.days.map((d) => dayByCode(d).ical).join(",");
@@ -154,7 +154,7 @@ export function buildGroupIcs(group: ScheduleGroup, { now = new Date(), anchor =
       `SUMMARY:${escapeText(title)}`,
       `LOCATION:${escapeText(eventLocation())}`,
       `DESCRIPTION:${escapeText(eventDetails())}`,
-      `URL:${SITE_URL}/#raspored`,
+      `URL:${SITE_URL}/#programi`,
       "TRANSP:OPAQUE",
       "END:VEVENT",
     );

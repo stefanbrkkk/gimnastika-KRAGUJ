@@ -278,7 +278,7 @@ async function noJsPass(browser, url, size, report) {
       };
       const cta = document.querySelector("#top [data-hero-ctas] a");
       const text = (id) => (document.getElementById(id)?.innerText ?? "").replace(/\s+/g, " ");
-      const sched = text("raspored");
+      const sched = text("programi");
       const contact = text("kontakt");
       return {
         h1: vis(document.querySelector("h1")),

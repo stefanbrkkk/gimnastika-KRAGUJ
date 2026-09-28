@@ -2,11 +2,14 @@ import { isPhotoPlaceholder, Picture } from "@/components/ui/Picture";
 import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { PROGRAMS_COPY, visiblePrograms } from "@/content/programs";
+import { DAYS, SCHEDULE_UI } from "@/content/schedule";
 import { FLAGS } from "@/content/site";
 import { typesetSr } from "@/lib/typeset";
-import { filterHint, filterStatus, PROGRAMS_UI, usableChips } from "./model";
+import { dayStripRows, filterHint, filterStatus, PROGRAMS_UI, programSlotTable, usableChips } from "./model";
+import { ProgramCalendar } from "./ProgramCalendar";
 import { ProgramCard } from "./ProgramCard";
 import { ProgramsBrowser, type BrowserChip } from "./ProgramsBrowser";
+import { ProgramTimes } from "./ProgramTimes";
 
 /**
  * S3 „Programi“ (§5 S3, §4 Programs). A contact sheet of program frames on a navy-900
@@ -29,18 +32,27 @@ export function Programs() {
     hint: typesetSr(filterHint(c, ids)),
   }));
   const photoPlaceholder = isPhotoPlaceholder("04");
+  const calendars = Object.fromEntries(programs.map((p) => [p.id, <ProgramCalendar key={p.id} program={p} />]));
+  const times = {
+    slots: programSlotTable(programs),
+    names: programs.map((p) => typesetSr(p.title)),
+    accusatives: DAYS.map((d) => d.accusative),
+    nextLabel: SCHEDULE_UI.next,
+  };
 
   return (
     <Section id="programi" theme="dark" labelledBy="programi-title" className="programs" edge="up">
       <div className="container-site">
         <ProgramsBrowser
-          heading={<SectionHeading id="programi-title" title={PROGRAMS_COPY.heading} align="right" />}
+          heading={<SectionHeading id="programi-title" title={PROGRAMS_COPY.heading} intro={PROGRAMS_COPY.intro} align="right" />}
           chips={chips}
           dots={programs.map((p) => ({ id: p.id, color: p.color }))}
           filtersLabel={PROGRAMS_UI.filtersLabel}
           pager={{ prev: PROGRAMS_UI.prev, next: PROGRAMS_UI.next }}
           stamp={{ unit: PROGRAMS_UI.ageUnit }}
           total={programs.length}
+          times={times}
+          calendars={calendars}
         >
           {programs.map((p) => (
             <ProgramCard key={p.id} program={p} />
@@ -62,6 +74,7 @@ export function Programs() {
             />
           </div>
         </ProgramsBrowser>
+        <ProgramTimes rows={dayStripRows(programs)} />
       </div>
     </Section>
   );

@@ -1714,3 +1714,151 @@ html.js .program-card {
     }
   }
 }
+
+/* --------------------------------------------------------------------------
+   Merged day overview ("Po danu", compact) + next-training line.
+   Server-rendered text on the dark section; the island only marks today and
+   fills the next line. Without JS the next line stays hidden (hidden attr);
+   the cards above carry every time.
+   -------------------------------------------------------------------------- */
+.pg-times {
+  margin-top: 32px;
+  border-top: 1px solid var(--hairline);
+  padding-top: 20px;
+}
+
+.pg-times__title {
+  color: var(--color-steel-300);
+  margin-bottom: 12px;
+}
+
+.pg-next {
+  font-size: 1.0625rem;
+  margin-bottom: 16px;
+  color: var(--color-ice-50);
+}
+
+.pg-next__label {
+  color: var(--color-steel-300);
+}
+
+.pg-ts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pg-ts__row {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  gap: 4px 12px;
+  padding-block: 10px;
+  border-top: 1px solid var(--hairline);
+}
+
+.pg-ts__row:last-child {
+  border-bottom: 1px solid var(--hairline);
+}
+
+.pg-ts__day {
+  font-weight: 700;
+  color: var(--color-ice-50);
+}
+
+.pg-ts__today {
+  grid-column: 1;
+  font-size: 0.8125rem;
+  color: var(--color-lav-200);
+}
+
+.pg-ts__sessions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.pg-ts__session {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--color-steel-300);
+}
+
+.pg-ts__swatch {
+  flex: none;
+  width: 16px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--sw);
+  translate: 0 -2px;
+}
+
+.pg-ts__time {
+  color: var(--color-ice-50);
+  white-space: nowrap;
+}
+
+.pg-ts__row[data-today] .pg-ts__day {
+  color: var(--color-lav-200);
+}
+
+.pg-times__weekend {
+  margin-top: 12px;
+  color: var(--color-steel-300);
+}
+
+/* Card flash: the schedule-link landing (data-schedule-program delegate). A
+   box-shadow transition (var() easings are fine in transitions; only
+   @keyframes need literals). */
+.program-card {
+  transition: box-shadow var(--dur-base) var(--ease-stick);
+}
+
+.program-card[data-flash] {
+  box-shadow:
+    0 0 0 3px var(--color-lav-200),
+    var(--shadow-2);
+}
+
+/* --------------------------------------------------------------------------
+   Sheet calendar actions (merged S4 per-group calendar, fixed slots only).
+   The sheet is a light print: ink-on-white links with the house underline.
+   -------------------------------------------------------------------------- */
+.ps-cal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline);
+}
+
+.ps-cal__label {
+  color: var(--color-steel-300);
+}
+
+.ps-cal__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.2em;
+  min-height: 48px;
+}
+
+@media (hover: hover) {
+  .ps-cal__link:hover {
+    text-decoration-thickness: 2.5px;
+  }
+}
+
+.ps-cal__note {
+  font-size: 0.9375rem;
+  color: var(--color-steel-300);
+}

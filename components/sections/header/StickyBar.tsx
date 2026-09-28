@@ -42,7 +42,7 @@ export function StickyBar() {
           </a>
         </li>
         <li style={{ ["--i" as string]: 2 }}>
-          <a href="#raspored" className="sticky-bar__btn">
+          <a href="#programi" className="sticky-bar__btn">
             <ScheduleIcon />
             <span>{STICKY_BAR.schedule}</span>
           </a>

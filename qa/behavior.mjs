@@ -94,10 +94,10 @@ async function stickyBar(browser, url, report, consoleLog) {
     `max scroll: contact block in view ${endBlockInView}, data-visible="${atEnd.attr}"`,
   );
 
-  const midY = await page.evaluate(() => document.getElementById("raspored")?.getBoundingClientRect().top + window.scrollY);
+  const midY = await page.evaluate(() => document.getElementById("programi")?.getBoundingClientRect().top + window.scrollY);
   await scrollToY(page, midY);
   const back = await barState(page);
-  report.check("stickyBar.showsAgain", back.attr === "true", `back in the page (#raspored): data-visible="${back.attr}"`);
+  report.check("stickyBar.showsAgain", back.attr === "true", `back in the page (#programi): data-visible="${back.attr}"`);
 
   await page.evaluate(() => {
     const vv = window.visualViewport;
@@ -250,7 +250,7 @@ async function heroDeepLink(browser, url, report) {
       for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value;
     }).observe({ type: "layout-shift", buffered: true });
   });
-  for (const hash of ["#raspored", "#uspesi"]) {
+  for (const hash of ["#programi", "#uspesi"]) {
     await page.goto(`${url}/${hash}`, { waitUntil: "load" });
     await page.waitForTimeout(3500);
     const r = await page.evaluate((h) => ({
