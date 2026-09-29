@@ -39,7 +39,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-01",
     alt: "Šest takmičarki u klupskim trikoima sa medaljama oko vrata i trenerica koja čuči ispred njih u sportskoj hali",
     hasMinors: true,
-    publication: "pending",
+    publication: "approved",
   },
   "02": {
     id: "02",
@@ -58,7 +58,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-03",
     alt: "Članice kluba u trikoima i trenerkama stoje u redu ispod plavog klupskog banera „Gimnastički klub Kraguj“",
     hasMinors: true,
-    publication: "pending",
+    publication: "approved",
   },
   "04": {
     id: "04",
@@ -67,7 +67,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-04",
     alt: "Gimnastičarka u skoku sa raširenim rukama na naduvanoj stazi tokom treninga, u pozadini klupski baner",
     hasMinors: true,
-    publication: "pending",
+    publication: "approved",
   },
   "05": {
     id: "05",
@@ -76,7 +76,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-05",
     alt: "Dve trenerice u plavim klupskim jaknama zagrljene u sportskoj hali na takmičenju",
     hasMinors: true,
-    publication: "pending",
+    publication: "approved",
   },
   "06": {
     id: "06",
@@ -95,7 +95,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     alt: "Takmičarke aerobne gimnastike u crnim trikoima i trenerica prave zajednički selfi",
     hasMinors: true,
     noCrop: true,
-    publication: "pending",
+    publication: "approved",
   },
   "09": {
     id: "09",
@@ -114,7 +114,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-10",
     alt: "Trenerica pravi selfi sa grupom nasmejanih devojčica na stazi u parku",
     hasMinors: true,
-    publication: "pending",
+    publication: "approved",
   },
   "11": {
     id: "11",
@@ -123,7 +123,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-11",
     alt: "Dve devojčice sa kacigama i pojasevima za penjanje u avanturističkom parku",
     hasMinors: true,
-    publication: "pending",
+    publication: "approved",
   },
   "12": {
     id: "12",
@@ -132,7 +132,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-12",
     alt: "Gimnastičarke poziraju na gredi ispred šarenog geometrijskog murala",
     hasMinors: true,
-    publication: "pending",
+    publication: "approved",
   },
   "14": {
     id: "14",
@@ -141,7 +141,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-14",
     alt: "Gimnastičarke stoje na gredi ispred šarenog murala, a trenerica ispred njih",
     hasMinors: true,
-    publication: "pending",
+    publication: "approved",
   },
   "15": {
     id: "15",
@@ -150,7 +150,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-15",
     alt: "Gimnastičarka u uporu na dvovisinskom razboju tokom treninga",
     hasMinors: true,
-    publication: "pending",
+    publication: "approved",
   },
   "16": {
     id: "16",
@@ -159,7 +159,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-16",
     alt: "Zajednički ručak na kampu za dugim stolom pod tendom",
     hasMinors: true,
-    publication: "pending",
+    publication: "approved",
   },
   "17": {
     id: "17",

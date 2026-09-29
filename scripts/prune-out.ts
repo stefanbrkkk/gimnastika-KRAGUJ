@@ -9,7 +9,12 @@ const OUT = "out/img";
 const hidden = Object.values(PHOTOS).filter(
   (p) => !mayPublishPhoto(p, FLAGS),
 );
-const files = await readdir(OUT);
+let files: string[];
+try {
+  files = await readdir(OUT);
+} catch {
+  throw new Error(`prune-out: ${OUT} is missing — the static export did not produce images; refusing to pass silently`);
+}
 let removed = 0;
 for (const p of hidden) {
   for (const f of files.filter((f) => f.startsWith(`${p.slug}-`))) {
