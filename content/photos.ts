@@ -49,7 +49,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     alt: "Velika grupa devojčica u majicama gimnastičkog kampa sa sertifikatima u rukama, u gimnastičkoj sali",
     hasMinors: true,
     campGroup: true,
-    publication: "excluded",
+    publication: "approved",
   },
   "03": {
     id: "03",
@@ -105,7 +105,7 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     alt: "Devojčice i trenerice u majicama gimnastičkog kampa sede na klupi u sali i drže sertifikate",
     hasMinors: true,
     campGroup: true,
-    publication: "excluded",
+    publication: "approved",
   },
   "10": {
     id: "10",

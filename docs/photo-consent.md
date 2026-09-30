@@ -11,16 +11,22 @@ mixed-club groups, possibly other clubs' children) stay **excluded**: the owner
 previously and explicitly ordered that image left out, so enabling them needs a
 separate explicit instruction, not inference.
 
+Update 30 September 2026 (owner explicit instruction "add all other images"):
+frames 02 and 09 approved as well, on the owner's responsibility, with the
+mixed-club risk explicitly noted and reversible at any time (flip back to
+`"excluded"`). Written cross-club permissions are still recommended. Note both
+frames additionally require the `CAMP_GROUP_PHOTOS` gate (see below).
+
 | ID | Visual match / provenance | Publication |
 |----|---------------------------|-------------|
 | 01 | Coach kneeling with young medalists; exact "coach with her gymnasts" reference uncertain | Approved 29 Sep (owner instruction) |
-| 02 | Indoor white-shirt “Gimnastički kamp 2026” certificate group, mixed-club risk | **Excluded**, regardless of flags |
+| 02 | Indoor white-shirt “Gimnastički kamp 2026” certificate group, mixed-club risk | Approved 30 Sep (owner explicit instruction; cross-club permissions recommended) |
 | 03 | Club lineup under banner; Instagram-sized source | Approved 29 Sep (owner instruction) |
 | 04 | Gymnast on airtrack; Instagram-sized source | Approved 29 Sep (owner instruction) |
 | 05 | Two coaches foreground, **children visible behind them** | Approved 29 Sep (owner instruction); not adults-only |
 | 06 | Single coach portrait | Approved (adult) |
 | 08 | Aerobic team selfie with a pixelated face | Approved 29 Sep (owner instruction); never undo pixelation |
-| 09 | Coach with white-shirt camp gymnasts and certificates indoors | **Excluded**, regardless of flags |
+| 09 | Coach with white-shirt camp gymnasts and certificates indoors | Approved 30 Sep (owner explicit instruction; cross-club permissions recommended) |
 | 10 | Coach and girls outdoors in a park; seaside-camp ID unproven | Approved 29 Sep (owner instruction) |
 | 11 | Two girls at an outdoor climbing park; seaside-camp ID unproven | Approved 29 Sep (owner instruction) |
 | 12 | Gymnasts on beam before mural | Approved 29 Sep (owner instruction) |

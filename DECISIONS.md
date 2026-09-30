@@ -1376,6 +1376,15 @@ docs/plan-figure-system.md; the owner approved it and the pose sheet (docs/poses
   (`TimeParts` + `GLUED_NOTE`), program swatches kept. Verified 1440/390,
   no overflow, zero console errors.
 
+## 2026-09-30 — enable 02/09 as well (owner explicit "add all other images")
+
+- `publication: "approved"` for 02 and 09 on the owner's explicit instruction and
+  responsibility; mixed-club risk noted in `docs/photo-consent.md`, reversible at
+  any time. Both additionally require effective `CAMP_GROUP_PHOTOS=true`.
+- Vercel needs `NEXT_PUBLIC_MINOR_PHOTOS=true` AND `NEXT_PUBLIC_CAMP_GROUP_PHOTOS=true`
+  plus redeploy; without both, fail-closed defaults keep children unpublished.
+- Enabled-build proof: all 15 frames as real `<img>`, `out/img` 79 files.
+
 ## 2026-09-29 — enable club minors (owner instruction, 02/09 stay excluded)
 
 - `publication: "approved"` for 01, 03, 04, 05, 08, 10, 11, 12, 14, 15, 16 on the
