@@ -8,8 +8,8 @@
  */
 
 export type PhotoId =
-  | "01" | "02" | "03" | "04" | "05" | "06" | "08" | "09" | "10" | "11" | "12"
-  | "14" | "15" | "16" | "17";
+  | "01" | "02" | "03" | "04" | "05" | "06" | "07" | "08" | "09" | "10" | "11"
+  | "12" | "14" | "15" | "16" | "17";
 
 export interface Photo {
   id: PhotoId;
@@ -84,6 +84,15 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     file: "assets-source/slike/web/06-trener-portret-mladja.jpg",
     frame: "KR-06",
     alt: "Portret trenerice u plavoj klupskoj jakni sa belim potezima na rukavima",
+    hasMinors: false,
+    publication: "approved",
+  },
+  "07": {
+    id: "07",
+    slug: "07-trener-portret-klub",
+    file: "assets-source/slike/web/07-trener-portret-klub.jpg",
+    frame: "KR-07",
+    alt: "Nasmejana trenerica u plavoj klupskoj jakni sa belim potezima na rukavima",
     hasMinors: false,
     publication: "approved",
   },

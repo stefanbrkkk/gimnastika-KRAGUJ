@@ -74,7 +74,7 @@ export interface Coach {
   /** Role lines, rendered in order. */
   roles: readonly CoachRole[];
   /** null → silhouette placeholder in a contact-sheet frame. */
-  photoId: "06" | null;
+  photoId: "06" | "07" | null;
   /** Stays empty — no invented bios. */
   bio?: string;
 }
@@ -95,8 +95,8 @@ export const COACHES: readonly Coach[] = [
       { text: "Licencirana trenerica sportske gimnastike (GSS)", sourceUrl: SOURCES.coachLicences },
       { text: "Licencirana sutkinja za žensku sportsku gimnastiku (GSS)", sourceUrl: SOURCES.judgeLicences },
     ],
-    // TODO(klub): request a portrait in club kit (photo 07 excluded — beauty-studio rights).
-    photoId: null,
+    // Club-kit portrait received 1 Oct 2026 (was photo 07 placeholder — beauty-studio rights).
+    photoId: "07",
   },
   {
     name: "Ivana Kovačević",

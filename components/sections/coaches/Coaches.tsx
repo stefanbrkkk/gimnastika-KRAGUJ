@@ -34,8 +34,8 @@ const POSE_SINK = 1 - (PLATE_POSE.floor ?? PLATE_POSE.viewBox.height) / PLATE_PO
  * promise in the UI. Purely decorative, hidden from assistive tech (the name and roles carry
  * the card). Static and complete without JS: the finished scale with the ghost of her leg
  * lifting. With motion, coaches-motion.ts scrubs the whole exercise with the scroll (standing →
- * tendu → the leg lifts into the scale; lib/exercise-scrub.ts, D-52).
- * TODO(klub): request a portrait in club kit (dosije §7, item 7) → then set photoId in content/copy.ts.
+ * tendu → the leg lifts into the scale; lib/exercise-scrub.ts, D-52). Used while a
+ * coach still awaits her portrait (photoId null in content/copy.ts).
  */
 function PortraitPending() {
   const sink: CSSProperties = { ["--pose-sink" as string]: `${Math.round(POSE_SINK * 10000) / 100}%` };

@@ -4,7 +4,7 @@ import { PHOTOS, mayPublishPhoto } from "@/content/photos";
 const enabled = { MINOR_PHOTOS: true, CAMP_GROUP_PHOTOS: true };
 const disabled = { MINOR_PHOTOS: false, CAMP_GROUP_PHOTOS: false };
 
-const APPROVED = ["01", "02", "03", "04", "05", "06", "08", "09", "10", "11", "12", "14", "15", "16", "17"];
+const APPROVED = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "14", "15", "16", "17"];
 
 describe("per-image publication rights", () => {
   it("publishes individually cleared images when both switches are enabled", () => {
@@ -26,10 +26,10 @@ describe("per-image publication rights", () => {
     ).toEqual(APPROVED.filter((id) => id !== "02" && id !== "09"));
     expect(
       Object.values(PHOTOS).filter((p) => mayPublishPhoto(p, { MINOR_PHOTOS: false, CAMP_GROUP_PHOTOS: true })).map((p) => p.id).sort(),
-    ).toEqual(["06", "17"]);
+    ).toEqual(["06", "07", "17"]);
   });
 
   it("absent-equivalent disabled flags expose only consent-free frames", () => {
-    expect(Object.values(PHOTOS).filter((p) => mayPublishPhoto(p, disabled)).map((p) => p.id).sort()).toEqual(["06", "17"]);
+    expect(Object.values(PHOTOS).filter((p) => mayPublishPhoto(p, disabled)).map((p) => p.id).sort()).toEqual(["06", "07", "17"]);
   });
 });

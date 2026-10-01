@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { EXERCISE_COACH_SCALE } from "@/components/brand/exercises/coachScale.generated";
 import { EXERCISE_ENROLL_CARTWHEEL } from "@/components/brand/exercises/enrollCartwheel.generated";
 import { POSES } from "@/components/brand/poses.generated";
 import { LeapBand } from "@/components/sections/enrollment/LeapBand";
@@ -88,18 +87,12 @@ describe("enrollment band: one cartwheel, its phases spread over the steps", () 
   });
 });
 
-describe("coach plate: rising into the scale", () => {
-  it("renders the scale exercise at rest: the ghost of the leg lifting and the final scale", async () => {
+describe("coach plate: real portraits for both coaches", () => {
+  it("renders both portraits as photos (no pending scale-exercise plate)", async () => {
     const { Coaches } = await import("@/components/sections/coaches/Coaches");
     const html = renderToStaticMarkup(createElement(Coaches));
-    const plate = html.slice(html.indexOf('class="coach__plate-pose"'));
-    const svg = plate.slice(0, plate.indexOf("</svg>"));
-    expect(svg).toContain('data-figure="pose:scale"');
-    expect(svg).toContain('overflow="visible"');
-    const ex = EXERCISE_COACH_SCALE;
-    expect(count(svg, /class="ex-ghost"/g)).toBe(ex.ghosts.length);
-    for (const f of ex.ghosts) expect(svg).toContain(`data-frame="${f}" d="${ex.frames[f]}"`);
-    expect(svg).toContain(`<path class="ex-solid" d="${POSES.scale.d}"`);
-    expect(ex.frames[ex.frames.length - 1]).toBe(POSES.scale.d);
+    expect(html).toContain('data-photo-id="06"');
+    expect(html).toContain('data-photo-id="07"');
+    expect(html).not.toContain("coach__plate-pose");
   });
 });

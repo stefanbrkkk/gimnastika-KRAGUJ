@@ -25,6 +25,7 @@ frames additionally require the `CAMP_GROUP_PHOTOS` gate (see below).
 | 04 | Gymnast on airtrack; Instagram-sized source | Approved 29 Sep (owner instruction) |
 | 05 | Two coaches foreground, **children visible behind them** | Approved 29 Sep (owner instruction); not adults-only |
 | 06 | Single coach portrait | Approved (adult) |
+| 07 | Club-kit coach portrait, received 1 Oct 2026 | Approved (adult) |
 | 08 | Aerobic team selfie with a pixelated face | Approved 29 Sep (owner instruction); never undo pixelation |
 | 09 | Coach with white-shirt camp gymnasts and certificates indoors | Approved 30 Sep (owner explicit instruction; cross-club permissions recommended) |
 | 10 | Coach and girls outdoors in a park; seaside-camp ID unproven | Approved 29 Sep (owner instruction) |
@@ -35,7 +36,7 @@ frames additionally require the `CAMP_GROUP_PHOTOS` gate (see below).
 | 16 | Camp meal with children and adults; seaside-camp ID unproven | Approved 29 Sep (owner instruction) |
 | 17 | Birthday cake with no people | Approved (no people) |
 
-ID 07 is an excluded beauty-studio portrait; Slađana has no uniform portrait yet. Reserve IDs 13/18/19 and Instagram screenshot 5657 are not registered for generation. The club cannot supply the exact 2023 medal count.
+ID 07 is now the club-kit coach portrait (received 1 Oct 2026); the old excluded beauty-studio portrait is gone. Reserve IDs 13/18/19 and Instagram screenshot 5657 are not registered for generation. The club cannot supply the exact 2023 medal count.
 
 ## Release check
 
