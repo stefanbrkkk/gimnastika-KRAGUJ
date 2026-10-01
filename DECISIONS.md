@@ -1399,3 +1399,11 @@ docs/plan-figure-system.md; the owner approved it and the pose sheet (docs/poses
 - Stale doc lines (S4-04, string catalog `#raspored`) marked superseded.
 - Enabled-build proof: 0 rendered placeholders, 13/13 approved frames as real
   `<img>` (19 instances), `out/img` 67 files, no 02/09 artifacts.
+
+## 2026-10-01 — compact sheet calendar pills (parent request)
+
+- `.ics` download buttons removed from program sheets (route + files stay:
+  old shared links keep working, QA still validates them).
+- Calendar block is now small inline pills right under the times: one Google
+  pill per fixed block + one call pill per program; `fixedOnly`/`noFixed` notes
+  kept verbatim. Sheet footer is a single primary booking CTA.

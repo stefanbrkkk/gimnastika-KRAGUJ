@@ -4,22 +4,10 @@ import { formatBlock, groupById, SCHEDULE_UI as T } from "@/content/schedule";
 import { PRIMARY_PHONE } from "@/content/site";
 import { telHref } from "@/lib/links";
 import { gcalData, googleCalendarUrl } from "@/lib/gcal";
-import { fixedBlocks, icsHref } from "@/lib/ics";
+import { fixedBlocks } from "@/lib/ics";
 import { typesetSr } from "@/lib/typeset";
 
-/** Drawn icons (24px grid, 1.75 stroke) — same drawings as the schedule cards used. */
-const DownloadIcon = () => (
-  <svg className="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-    <path
-      d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 15.5v3a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5v-3"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
+/** Drawn icons (24px grid, 1.75 stroke) for the compact calendar pills. */
 const ExternalIcon = () => (
   <svg className="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
     <path
@@ -45,11 +33,11 @@ const PhoneIcon = () => (
 );
 
 /**
- * Calendar actions of one program, inside its detail sheet (the merged S4
- * per-group calendar). Server-rendered: .ics is a static file, Google links
- * carry the build-date occurrence (the sheet chunk rewrites `dates` to the
- * next occurrence via data-gcal). Only fixed slots are exported — exactly the
- * old schedule rule; a group without one gets the honest note + call link.
+ * Compact calendar actions of one program, right under its schedule lines: one
+ * small pill per fixed block ("Google kalendar") plus a small call pill — no
+ * scrolling to a footer, no .ics detour. A group without a fixed slot gets only
+ * the call pill with the honest note. Google links carry the build-date
+ * occurrence; the sheet chunk rewrites `dates` to the next one via data-gcal.
  */
 export function ProgramCalendar({ program }: { program: Program }) {
   const anchor = new Date();
@@ -59,22 +47,7 @@ export function ProgramCalendar({ program }: { program: Program }) {
         const group = groupById(id);
         const fixed = fixedBlocks(group);
         const titleId = `ps-cal-${group.id}`;
-        if (fixed.length === 0)
-          return (
-            <div key={id} className="ps-cal ps-cal--none">
-              {label ? (
-                <p className="ps-cal__label label-caps" id={titleId}>
-                  {typesetSr(label)}
-                </p>
-              ) : null}
-              <p className="ps-cal__note">{typesetSr(T.noFixed)}</p>
-              <a className="ps-cal__link" href={telHref(PRIMARY_PHONE.e164)} aria-describedby={label ? titleId : undefined}>
-                <PhoneIcon />
-                {typesetSr(HERO.ctaSecondary)}
-              </a>
-            </div>
-          );
-        const mixed = fixed.length < group.blocks.length;
+        const mixed = fixed.length > 0 && fixed.length < group.blocks.length;
         return (
           <div key={id} className="ps-cal">
             {label ? (
@@ -82,30 +55,37 @@ export function ProgramCalendar({ program }: { program: Program }) {
                 {typesetSr(label)}
               </p>
             ) : null}
-            <a className="ps-cal__link" href={icsHref(group)} type="text/calendar" aria-describedby={label ? titleId : undefined}>
-              <DownloadIcon />
-              {typesetSr(T.ics)}
-            </a>
-            {fixed.map((block) => (
-              <a
-                key={block.days.join("") + (block.times[0]?.start ?? "")}
-                className="ps-cal__link"
-                href={googleCalendarUrl(group, block, anchor)}
-                data-gcal={gcalData(block)}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-describedby={label ? titleId : undefined}
-              >
-                <ExternalIcon />
-                {typesetSr(T.gcal)}
-                {fixed.length > 1 ? ` · ${typesetSr(formatBlock(block))}` : null}
-                <span className="sr-only"> {T.newTab}</span>
-              </a>
-            ))}
+            <p className="ps-cal__pills">
+              {fixed.map((block) => (
+                <a
+                  key={block.days.join("") + (block.times[0]?.start ?? "")}
+                  className="ps-cal__pill"
+                  href={googleCalendarUrl(group, block, anchor)}
+                  data-gcal={gcalData(block)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-describedby={label ? titleId : undefined}
+                >
+                  <ExternalIcon />
+                  {typesetSr(T.gcal)}
+                  <span className="sr-only">
+                    {" "}
+                    {typesetSr(formatBlock(block))} {T.newTab}
+                  </span>
+                </a>
+              ))}
+            </p>
             {mixed ? <p className="ps-cal__note">{typesetSr(T.fixedOnly(fixed.map((b) => formatBlock(b)).join("; ")))}</p> : null}
+            {fixed.length === 0 ? <p className="ps-cal__note">{typesetSr(T.noFixed)}</p> : null}
           </div>
         );
       })}
+      <p className="ps-cal__pills">
+        <a className="ps-cal__pill" href={telHref(PRIMARY_PHONE.e164)}>
+          <PhoneIcon />
+          {typesetSr(HERO.ctaSecondary)}
+        </a>
+      </p>
     </>
   );
 }

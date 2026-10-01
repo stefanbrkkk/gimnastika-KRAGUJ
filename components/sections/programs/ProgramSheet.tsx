@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { BOOKING, HERO } from "@/content/copy";
+import { BOOKING } from "@/content/copy";
 import { programById } from "@/content/programs";
 import { SCHEDULE_LOCATION, type DayCode, type ProgramId } from "@/content/schedule";
-import { CTA, PRIMARY_PHONE } from "@/content/site";
+import { CTA } from "@/content/site";
 import { playExercise } from "@/lib/exercise-scrub";
-import { telHref } from "@/lib/links";
 import { loadMotion } from "@/lib/load-motion";
 import { DUR, EASE, MQ, motionAllowed } from "@/lib/motion-env";
 import { occurrenceDates, withGcalDates } from "@/lib/schedule-logic";
@@ -314,8 +313,8 @@ export default function ProgramSheet({ programId, card, onClosed, calendar }: Pr
                 {PROGRAMS_UI.scheduleLabel}
               </h3>
               <ScheduleLines groups={groups} week className="ps-sched" />
-              <p className="ps-where text-small">{glueVenue(typesetSr(SCHEDULE_LOCATION.sub))}</p>
               {calendar}
+              <p className="ps-where text-small">{glueVenue(typesetSr(SCHEDULE_LOCATION.sub))}</p>
             </section>
           </div>
           {/* After the text, outside its scroller: pinned under it in portrait, under the scene in
@@ -323,9 +322,6 @@ export default function ProgramSheet({ programId, card, onClosed, calendar }: Pr
           <div className="ps-actions">
             <a href="#kontakt" data-booking={program.title} className="btn btn-primary">
               {CTA.trial}
-            </a>
-            <a href={telHref(PRIMARY_PHONE.e164)} className="btn btn-secondary">
-              {typesetSr(HERO.ctaSecondary)}
             </a>
           </div>
         </div>

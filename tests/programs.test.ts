@@ -762,6 +762,24 @@ describe("programs: detail sheet (QP4-02, QP4-03)", async () => {
     expect(css).toMatch(/\.ps-scene \{[^}]*container: ps-scene \/ size;/);
   });
 
+  it("packs calendar actions as small pills under the times: Google + call, never .ics", async () => {
+    const { ProgramCalendar } = await import("@/components/sections/programs/ProgramCalendar");
+    const { programById } = await import("@/content/programs");
+    for (const programId of ["mladja", "c-program", "ab-program"] as const) {
+      const cal = renderToStaticMarkup(createElement(ProgramCalendar, { program: programById(programId) }));
+      expect(cal, programId).not.toContain(".ics");
+      expect(cal, programId).toContain("calendar.google.com");
+      expect(cal, programId).toContain('href="tel:+381600287631"');
+    }
+    // c-starije has no fixed slot: the honest note + call pill, no Google link.
+    const { fixedBlocks } = await import("@/lib/ics");
+    const { groupById } = await import("@/content/schedule");
+    expect(fixedBlocks(groupById("c-starije"))).toEqual([]);
+    const cal = renderToStaticMarkup(createElement(ProgramCalendar, { program: programById("c-program") }));
+    expect(cal).toContain("nemaju stalno vreme");
+    expect(cal.match(/calendar\.google\.com/g)?.length).toBe(1); // only c-mlađe's fixed block
+  });
+
   it("draws the card's ghost frames and the final pose, so the sheet's static state is the finished exercise", async () => {
     const { POSES } = await import("@/components/brand/poses.generated");
     for (const [programId, icon] of [["ab-program", "preskok"], ["starija", "greda"]] as const) {
