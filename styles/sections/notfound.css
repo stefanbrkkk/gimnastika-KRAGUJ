@@ -164,6 +164,7 @@
   left: -100vw;
   right: -100vw;
   height: 100vh;
+  height: 100svh;
   background: var(--color-navy-950);
   pointer-events: none;
 }

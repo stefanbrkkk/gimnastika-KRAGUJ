@@ -552,10 +552,11 @@ html[data-lightbox-open] body {
   overflow: hidden;
   overscroll-behavior: contain;
   /* Stage: top bar, bottom bar (prev · rule · next on phones) and the print foot's reserve
-     (frame row + three caption lines on phones, two on desktop). */
-  --lb-top: 72px;
-  --lb-bottom: 92px;
-  --lb-foot: 112px;
+     (frame row + three caption lines on phones, two on desktop). Phone chrome is
+     deliberately tight so the photo, not the navy, owns the screen. */
+  --lb-top: 64px;
+  --lb-bottom: 84px;
+  --lb-foot: 100px;
 }
 
 .lightbox::backdrop {
@@ -699,7 +700,7 @@ html[data-lightbox-open] body {
   margin: 8px 0 0;
   font-size: var(--text-small);
   line-height: 1.45;
-  color: var(--color-steel-300);
+  color: color-mix(in oklab, var(--color-ice-50) 80%, transparent);
   text-wrap: pretty;
 }
 
@@ -730,9 +731,9 @@ html[data-lightbox-open] body {
   padding: 0;
   border: 0;
   border-radius: var(--radius-full);
-  background: rgba(17, 45, 95, 0.72);
+  background: rgba(17, 45, 95, 0.85);
   color: var(--color-ice-50);
-  box-shadow: inset 0 0 0 1.5px rgba(141, 169, 198, 0.4);
+  box-shadow: inset 0 0 0 1.5px rgba(141, 169, 198, 0.55);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
