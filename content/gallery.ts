@@ -18,13 +18,16 @@ export interface GalleryItem {
 
 export const GALLERY: readonly GalleryItem[] = [
   { photoId: "01", category: "takmicenja" },
+  { photoId: "18", category: "takmicenja" },
+  { photoId: "19", category: "takmicenja" },
+  { photoId: "20", category: "takmicenja" },
+  { photoId: "21", category: "takmicenja" },
   { photoId: "05", category: "takmicenja" },
   { photoId: "08", category: "takmicenja" },
   { photoId: "03", category: "treninzi" },
   { photoId: "04", category: "treninzi" },
   { photoId: "12", category: "treninzi" },
   { photoId: "14", category: "treninzi" },
-  { photoId: "15", category: "treninzi" },
   { photoId: "10", category: "kampovi" },
   { photoId: "11", category: "kampovi" },
   { photoId: "16", category: "kampovi" },

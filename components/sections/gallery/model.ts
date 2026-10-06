@@ -80,6 +80,8 @@ export const GRID_SIZES =
 export const flipId = (id: PhotoId): string => `gl-${id}`;
 
 /**
+ * Updated 6 October 2026: new competition frames 18–21 enrich the opening rows;
+ * clear bars frame 20 replaces blurred frame 15 in the gallery.
  * Contact-sheet order (presentation only — the category mapping stays in
  * content/gallery.ts). The sheet opens on the sport: KR-04 (the only photo of a
  * gymnast in flight, the logo's own split leap) leads, then result → sport
@@ -87,10 +89,10 @@ export const flipId = (id: PhotoId): string => `gl-${id}`;
  * gallery.css turns this order into equal-height strips — ≥1024: 04·01·15 |
  * 05·12·08·03 | 10·11·14·16; tablets: 04·01 | 15·05·12 | 08·03·10 | 11·14·16;
  * phones: 04 | 01·15 | 05·12 | 08·03 | 10·11 | 14·16. The near-identical mural
- * frames 12/14 are never side by side, filtered („Treninzi“ 04·15·12 | 03·14)
- * or not. Photos not listed (02/09 with CAMP_GROUP_PHOTOS) follow in content order.
+ * frames 12/14 are never side by side, filtered („Treninzi“ 04·12 | 03·14)
+ * or not. Photos not listed (02/09/15) follow in content order.
  */
-export const SHEET_ORDER: readonly PhotoId[] = ["04", "01", "15", "05", "12", "08", "03", "10", "11", "14", "16"];
+export const SHEET_ORDER: readonly PhotoId[] = ["04", "18", "20", "01", "19", "21", "05", "12", "08", "03", "10", "11", "14", "16"];
 
 export function inSheetOrder<T extends { photoId: PhotoId }>(items: readonly T[]): T[] {
   const rank = (item: T, i: number) => {

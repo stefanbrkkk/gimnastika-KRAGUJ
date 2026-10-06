@@ -4,7 +4,7 @@ import { PHOTOS, mayPublishPhoto } from "@/content/photos";
 const enabled = { MINOR_PHOTOS: true, CAMP_GROUP_PHOTOS: true };
 const disabled = { MINOR_PHOTOS: false, CAMP_GROUP_PHOTOS: false };
 
-const APPROVED = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "14", "15", "16", "17"];
+const APPROVED = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "14", "15", "16", "17", "18", "19", "20", "21"];
 
 describe("per-image publication rights", () => {
   it("publishes individually cleared images when both switches are enabled", () => {

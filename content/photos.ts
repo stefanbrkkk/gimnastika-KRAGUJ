@@ -9,7 +9,7 @@
 
 export type PhotoId =
   | "01" | "02" | "03" | "04" | "05" | "06" | "07" | "08" | "09" | "10" | "11"
-  | "12" | "14" | "15" | "16" | "17";
+  | "12" | "14" | "15" | "16" | "17" | "18" | "19" | "20" | "21";
 
 export interface Photo {
   id: PhotoId;
@@ -177,6 +177,42 @@ export const PHOTOS: Record<PhotoId, Photo> = {
     frame: "KR-17",
     alt: "Rođendanska torta sa ružama i natpisom „Srećan rođendan Kraguj“",
     hasMinors: false,
+    publication: "approved",
+  },
+  "18": {
+    id: "18",
+    slug: "18-takmicenje-a-ekipa",
+    file: "assets-source/slike/web/18-takmicenje-a-ekipa.jpg",
+    frame: "KR-18",
+    alt: "Takmičarke u crnim i plavim klupskim trikoima sa trenericom u hali na takmičenju",
+    hasMinors: true,
+    publication: "approved",
+  },
+  "19": {
+    id: "19",
+    slug: "19-takmicenje-greda",
+    file: "assets-source/slike/web/19-takmicenje-greda.jpg",
+    frame: "KR-19",
+    alt: "Gimnastičarka u klupskom trikou priprema se za nastup na gredi",
+    hasMinors: true,
+    publication: "approved",
+  },
+  "20": {
+    id: "20",
+    slug: "20-takmicenje-razboj",
+    file: "assets-source/slike/web/20-takmicenje-razboj.jpg",
+    frame: "KR-20",
+    alt: "Gimnastičarka u uporu na dvovisinskom razboju tokom takmičarskog nastupa, uz trenericu pored sprave",
+    hasMinors: true,
+    publication: "approved",
+  },
+  "21": {
+    id: "21",
+    slug: "21-takmicenje-medalje",
+    file: "assets-source/slike/web/21-takmicenje-medalje.jpg",
+    frame: "KR-21",
+    alt: "Tri nasmejane članice kluba pokazuju medalje posle takmičenja",
+    hasMinors: true,
     publication: "approved",
   },
 };

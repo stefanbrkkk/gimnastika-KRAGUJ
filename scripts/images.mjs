@@ -32,6 +32,8 @@ for (const { slug, file } of entries) {
   const meta = await sharp(input).metadata();
   const native = meta.width;
   const widths = WIDTHS.filter((w) => w <= native);
+  // Preserve full detail in small Instagram sources and screenshots.
+  if (native < 960 && !widths.includes(native)) widths.push(native);
   if (widths.length === 0) widths.push(native);
 
   for (const w of widths) {

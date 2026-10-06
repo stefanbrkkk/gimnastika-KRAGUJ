@@ -41,3 +41,31 @@ ID 07 is now the club-kit coach portrait (received 1 Oct 2026); the old excluded
 ## Release check
 
 Default build and malformed photo flags must not emit child images. Even `MINOR_PHOTOS=true` is insufficient until a child frame's `publication` changes with per-ID evidence. Image generation runs before every build and clears `public/img`; the export pruner checks the same predicate. Inspect `public/img`, `content/images.generated.json`, `out/img`, rendered HTML, RSC/JS payloads and direct URLs before any public deployment. `noindex` is not photo authorization.
+
+## Update 6 October 2026 — Instagram competition photographs
+
+Client email thread “Upit za sajt”: at 10:00 the club confirmed the parental
+permissions had been collected and permitted more Instagram photographs; at
+11:49 it explicitly approved the proposed competition/apparatus additions.
+The site owner directly requested downloading/screenshotting that account and
+adding the selected pictures to the website on 6 October 2026.
+
+| ID | Source | Selection |
+|----|--------|-----------|
+| 18 | https://www.instagram.com/p/DWtgeBOjVbV/ | A-program team, source JPEG 1440×1920 |
+| 19 | https://www.instagram.com/reel/DWtgmdNjdha/ | Competition beam cover, source JPEG 640×1136 |
+| 20 | https://www.instagram.com/p/DWtgiekDeQV/ | First video, clean screenshot of supported position on bars, 570×770 |
+| 21 | https://www.instagram.com/p/DV86l6XjXIZ/ | Three club medalists, clean screenshot 614×819 |
+
+All four are approved under the above correspondence and owner request, and
+remain behind the existing MINOR_PHOTOS gate. Captures contain no Instagram
+controls or cursor. No faces were edited, no synthetic imagery was used, and no
+new athlete names or medal counts were added. Frame 15 is retained in source
+but removed from the gallery in favor of the clearer competition frame 20.
+
+Production finalization: confirmed Vercel custom domain is
+`https://www.gimnastikakraguj.rs` (apex redirects there). On 6 October 2026
+NEXT_PUBLIC_SITE_URL was updated from the staging Vercel origin and
+NEXT_PUBLIC_INDEXABLE enabled for production, following the client’s completed
+consent confirmation and request to finish publication. Existing minor and camp
+photo gates remain enabled exactly as in the prior production deployment.

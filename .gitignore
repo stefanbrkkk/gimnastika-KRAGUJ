@@ -20,3 +20,4 @@ qa/variants/
 # figure rig (tools/figure-rig): local Python venv and bytecode
 tools/figure-rig/.venv/
 __pycache__/
+.vercel
