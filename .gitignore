@@ -21,3 +21,16 @@ qa/variants/
 tools/figure-rig/.venv/
 __pycache__/
 .vercel
+
+# Credentials and local request captures
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.har
+cookies.txt
+cookies*.txt
