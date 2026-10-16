@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/blog",
+      "destination": "https://o--41c0457c-5765-4b75-b025-21589e5a5605.outrankblog.com/"
+    },
+    {
+      "source": "/blog/:path*",
+      "destination": "https://o--41c0457c-5765-4b75-b025-21589e5a5605.outrankblog.com/:path*"
+    }
+  ]
+}
