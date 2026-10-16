@@ -19,7 +19,7 @@ export default function BlogPage() {
         <p className={styles.eyebrow}>{article.category}</p>
         <h2><a href={`/blog/${article.slug}`}>{article.title}</a></h2>
         <p>{article.description}</p>
-        <p className={styles.meta}>GSU „Kraguj“ · <time dateTime={article.updated}>{new Date(`${article.updated}T12:00:00Z`).toLocaleDateString("sr-Latn-RS",{day:"numeric",month:"long",year:"numeric",timeZone:"Europe/Belgrade"})}</time></p>
+        <p className={styles.meta}>GSU „Kraguj“ · <time dateTime={article.updated}>{new Date(article.updated).toLocaleDateString("sr-Latn-RS",{day:"numeric",month:"long",year:"numeric",timeZone:"Europe/Belgrade"})}</time></p>
       </article>)}
     </div>
     <aside className={styles.cta}><h2>Tražite gimnastiku u Kragujevcu?</h2><p>Početne grupe su za decu od 3. godine i starije početnike od 8 godina. Upis traje cele godine. {FLAGS.FREE_TRIAL ? "Probni trening je besplatan uz prethodni dogovor." : "Za uslove probnog treninga javite se trenerici."}</p><a className={styles.button} href="/#programi">Pogledajte programe i termine</a></aside>

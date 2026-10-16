@@ -39,4 +39,4 @@ export default async function ArticlePage({params}: {params: Promise<{slug: stri
     <script type="application/ld+json" dangerouslySetInnerHTML={{__html:serializeJsonLd(buildArticleJsonLd(article))}} />
   </>;
 }
-function formatDate(date: string) { return new Date(`${date}T12:00:00Z`).toLocaleDateString("sr-Latn-RS",{day:"numeric",month:"long",year:"numeric",timeZone:"Europe/Belgrade"}); }
+function formatDate(date: string) { return new Date(date).toLocaleDateString("sr-Latn-RS",{day:"numeric",month:"long",year:"numeric",timeZone:"Europe/Belgrade"}); }

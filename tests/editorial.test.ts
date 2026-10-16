@@ -31,6 +31,18 @@ describe("discoverable self-hosted editorial content", () => {
     expect(graph.some(n=>n["@type"]==="BreadcrumbList")).toBe(true);
     expect(JSON.stringify(graph)).not.toMatch(/outrank|ratingValue|reviewedBy/);
   });
+  it("publishes timezone-qualified article dates and valid RSS dates", () => {
+    for (const article of ARTICLES) {
+      for (const date of [article.published, article.updated]) {
+        expect(date).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/);
+        expect(Number.isFinite(Date.parse(date))).toBe(true);
+      }
+      expect(Date.parse(article.updated)).toBeGreaterThanOrEqual(Date.parse(article.published));
+    }
+    const pubDates = [...buildRss().matchAll(/<pubDate>(.*?)<\/pubDate>/g)].map(match=>match[1]!);
+    expect(pubDates).toHaveLength(ARTICLES.length);
+    expect(pubDates.every(date=>Number.isFinite(Date.parse(date)))).toBe(true);
+  });
   it("RSS includes every real article and escapes XML-sensitive text", () => {
     const rss = buildRss();
     for (const a of ARTICLES) expect(rss).toContain(`${SITE}/blog/${a.slug}`);

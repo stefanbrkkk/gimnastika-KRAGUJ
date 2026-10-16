@@ -13,6 +13,7 @@ export interface Article {
   description: string;
   intro: string;
   category: string;
+  /** ISO 8601 publication timestamp with timezone; never regenerated at build time. */
   published: string;
   updated: string;
   sections: readonly ArticleSection[];
@@ -46,6 +47,9 @@ const COACH_SOURCE = { label: "GSS: registrovane trenerice ženske sportske gimn
  * Author/publisher: GSU „Kraguj“. Publication does not imply a coach reviewed these drafts.
  * General practical guidance is editorial advice, not medical or individualized training advice.
  */
+// Vercel READY time of first native release (13920f8, dpl_Ba9BpsGc6cUAA2sZyAP3qYByrczt).
+const FIRST_NATIVE_PUBLICATION = "2026-10-16T13:26:23.300Z";
+
 export const ARTICLES: readonly Article[] = [
   {
     slug: "sportska-gimnastika",
@@ -53,8 +57,9 @@ export const ARTICLES: readonly Article[] = [
     description: "Šta je sportska gimnastika, koje grupe postoje u Kraguju i kako izabrati prvi trening za dete od 3 godine ili starijeg početnika.",
     intro: "Sportska gimnastika obuhvata vežbe na parteru i spravama. Za dete koje tek počinje, prvi korak je početna grupa primerena uzrastu i iskustvu. U Kraguju u Kragujevcu postoje početne grupe od 3. godine, kao i posebne takmičarske grupe za devojčice.",
     category: "Vodič za roditelje",
-    published: "2026-10-16",
-    updated: "2026-10-16",
+    // Original URL publication from the archived Outrank RSS, retained after migration.
+    published: "2026-10-16T13:05:53Z",
+    updated: FIRST_NATIVE_PUBLICATION,
     sections: [
       {
         id: "sta-je-sportska-gimnastika",
@@ -111,8 +116,8 @@ export const ARTICLES: readonly Article[] = [
     description: "Šta poneti na prvi trening gimnastike, kako dogovoriti probni termin u Kragujevcu i koja pitanja postaviti pre upisa u Kraguj.",
     intro: `Za prvi trening gimnastike u Kraguju najpre se javite telefonom ili porukom. Klub prima članove tokom cele godine, a ${TRIAL_TERMS}. Ponesite helanke, majicu, čarape i vodu, vežite detetu kosu i dođite u dogovoreni termin u školu „Toza Dragović“ u Kragujevcu.`,
     category: "Prvi trening",
-    published: "2026-10-16",
-    updated: "2026-10-16",
+    published: FIRST_NATIVE_PUBLICATION,
+    updated: FIRST_NATIVE_PUBLICATION,
     sections: [
       {
         id: "dogovor-pre-dolaska",
@@ -189,8 +194,8 @@ export const ARTICLES: readonly Article[] = [
     description: "Uporedite sportsku i aerobnu gimnastiku, ulogu sprava i muzike, početne grupe i termine koje nudi Kraguj u Kragujevcu.",
     intro: "Sportska i aerobna gimnastika su različite discipline. Ženska sportska gimnastika obuhvata četiri sprave, dok aerobna povezuje pokret i gimnastičke elemente u koreografiju uz muziku. U Kraguju postoje oba programa; odgovarajuću grupu i mogućnost početka dogovorite sa trenericom.",
     category: "Programi gimnastike",
-    published: "2026-10-16",
-    updated: "2026-10-16",
+    published: FIRST_NATIVE_PUBLICATION,
+    updated: FIRST_NATIVE_PUBLICATION,
     sections: [
       {
         id: "glavna-razlika",
@@ -254,8 +259,8 @@ export const ARTICLES: readonly Article[] = [
     description: "Praktična pitanja za izbor gimnastičkog kluba u Srbiji: disciplina, treneri, početne grupe, raspored, probni trening i uslovi članstva.",
     intro: "Gimnastički klub birajte prema programu koji odgovara detetu, ljudima koji vode trening i uslovima koje porodica može redovno da prati. Proverite disciplinu, uzrast početne grupe, trenerske licence, mesto treninga i cenu članstva. Ovaj vodič daje pitanja za izbor bilo gde u Srbiji; Kraguj trenira u Kragujevcu.",
     category: "Vodič za roditelje",
-    published: "2026-10-16",
-    updated: "2026-10-16",
+    published: FIRST_NATIVE_PUBLICATION,
+    updated: FIRST_NATIVE_PUBLICATION,
     sections: [
       {
         id: "prvo-disciplina",

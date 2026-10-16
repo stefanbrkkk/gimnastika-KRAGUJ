@@ -48,6 +48,6 @@ export function buildBlogJsonLd(): Record<string, unknown> {
 
 const escapeXml = (text: string): string => text.replace(/[<>&"']/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&apos;" }[c]!));
 export function buildRss(): string {
-  const items = ARTICLES.map(a => `<item><title>${escapeXml(a.title)}</title><link>${absoluteUrl(`/blog/${a.slug}`)}</link><guid isPermaLink="true">${absoluteUrl(`/blog/${a.slug}`)}</guid><description>${escapeXml(a.description)}</description><pubDate>${new Date(`${a.published}T12:00:00+02:00`).toUTCString()}</pubDate></item>`).join("");
+  const items = ARTICLES.map(a => `<item><title>${escapeXml(a.title)}</title><link>${absoluteUrl(`/blog/${a.slug}`)}</link><guid isPermaLink="true">${absoluteUrl(`/blog/${a.slug}`)}</guid><description>${escapeXml(a.description)}</description><pubDate>${new Date(a.published).toUTCString()}</pubDate></item>`).join("");
   return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Gimnastika — vodiči za roditelje | Kraguj</title><link>${absoluteUrl("/blog")}</link><description>Praktični odgovori o gimnastici za decu, programima i prvom treningu u Kragujevcu.</description><language>sr-Latn</language><atom:link href="${absoluteUrl("/blog/rss.xml")}" rel="self" type="application/rss+xml"/>${items}</channel></rss>`;
 }
