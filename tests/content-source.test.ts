@@ -32,7 +32,7 @@ const DOSIJE_URLS = new Set((dosije.match(URL_RE) ?? []).map(clean));
 const EXEMPT: ReadonlyMap<string, string> = new Map([
   [VENUE.mapsUrl, "navigation link (Google Maps search), pinned in links.test.ts"],
   [GSS.url, "federation homepage for JSON-LD memberOf.url; dossier cites pages on this host"],
-  ["https://gimnastikakraguj.rs", "the site's own canonical origin (SITE_URL default), not a source"],
+  ["https://www.gimnastikakraguj.rs", "the site's own canonical origin (SITE_URL default), not a source"],
 ]);
 
 const structured: [string, string][] = [

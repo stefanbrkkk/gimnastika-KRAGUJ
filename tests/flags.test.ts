@@ -44,7 +44,7 @@ describe("§0 defaults", () => {
       SHOW_EQUIPMENT_2026: false,
       MINOR_PHOTOS: false,
       CAMP_GROUP_PHOTOS: false,
-      INDEXABLE: false,
+      INDEXABLE: true,
     });
   });
 
@@ -55,7 +55,7 @@ describe("§0 defaults", () => {
 
   it("site URL and credit", async () => {
     const site = await loadSite();
-    expect(site.SITE_URL).toBe("https://gimnastikakraguj.rs");
+    expect(site.SITE_URL).toBe("https://www.gimnastikakraguj.rs");
     expect(site.CREDIT_NAME).toBe("Stefan Brkljačić");
     expect(site.CREDIT_URL).toBe("");
   });

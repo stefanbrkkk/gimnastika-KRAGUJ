@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Fragment } from "react";
+import { Sprite } from "@/components/brand/Sprite";
 import { Logo } from "@/components/brand/Logo";
 import { BeamScene, ScorePlate } from "@/components/notfound/BeamScene";
 import { BeamTiltLoader } from "@/components/notfound/BeamTiltLoader";
@@ -47,6 +48,8 @@ export const metadata: Metadata = {
 
 export default function NotFound() {
   return (
+    <>
+    <Sprite />
     <main id="sadrzaj" tabIndex={-1} className="nf" data-theme="dark">
       <div className="container-site nf__inner">
         <Link className="nf__brand" href="/">
@@ -81,5 +84,6 @@ export default function NotFound() {
         </div>
       </div>
     </main>
+    </>
   );
 }

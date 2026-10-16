@@ -491,3 +491,16 @@ Pre predaje je nezavisni agent proverio dosije, master prompt i originalni mejl.
 - zavisnost od odgovora kluba (odeljak 7);
 - hero treba testirati na pravom Android telefonu;
 - Viber i SMS tokove proveriti na pravom uređaju.
+
+
+## Izvori za vodiče za roditelje (16. oktobar 2026)
+
+- https://www.gssrb.rs/aerobna-gimnastika/
+- https://www.gssrb.rs/registracija-trenera/
+- https://www.gssrb.rs/zenska-sportska-gimnastika/
+- https://www.gymnastics.sport/site/pages/disciplines/aer-presentation.php
+- https://www.gymnastics.sport/site/pages/disciplines/app-wag.php
+
+Podaci o klubu ostaju zasnovani na potvrđenim programima i kontaktima. Opšti opisi disciplina potiču od saveza i World Gymnastics; nema medicinskih tvrdnji niti tvrdnje da su trenerice pregledale članke.
+
+Tehnički XML namespace za sitemap (nije izvor poslovne tvrdnje): http://www.sitemaps.org/schemas/sitemap/0.9

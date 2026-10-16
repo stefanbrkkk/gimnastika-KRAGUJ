@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { Sprite } from "@/components/brand/Sprite";
 import { HeadingLandings } from "@/components/ui/HeadingLandings";
 import { SKIP_LINK } from "@/content/copy";
 import { siteMetadata } from "@/lib/seo";
@@ -41,7 +40,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <a className="skip-link" href="#sadrzaj">
           {SKIP_LINK}
         </a>
-        <Sprite />
         {children}
         <HeadingLandings />
       </body>

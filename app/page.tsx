@@ -1,3 +1,4 @@
+import { Sprite } from "@/components/brand/Sprite";
 import { BookingSheet } from "@/components/booking/BookingSheet";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { About } from "@/components/sections/about/About";
@@ -23,6 +24,7 @@ import { Results } from "@/components/sections/results/Results";
 export default function HomePage() {
   return (
     <>
+      <Sprite />
       <Header />
       <main id="sadrzaj" tabIndex={-1}>
         <Hero />

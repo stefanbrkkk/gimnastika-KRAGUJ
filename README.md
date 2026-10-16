@@ -1,6 +1,6 @@
 # Gimnastički klub Kraguj — sajt
 
-Zvanični sajt Gimnastičkog sportskog udruženja „Kraguj“ iz Kragujevca: jedna stranica i
+Zvanični sajt Gimnastičkog sportskog udruženja „Kraguj“ iz Kragujevca: početna stranica, samostalan blog sa vodičima za roditelje i
 posebna 404 stranica. Statički izvoz (Next.js 16, `output: 'export'`), bez servera, baze, kolačića
 i analitike.
 
@@ -77,8 +77,8 @@ zadati i kroz promenljivu okruženja: `NEXT_PUBLIC_<IME>=true|false npm run buil
 | `SHOW_EQUIPMENT_2026` | `false` | Stavka „novi dvovisinski razboj uz podršku Grada“ u hronologiji. |
 | `MINOR_PHOTOS` | `false` | Dodatna globalna kapija za fotografije dece. Objavljuju se samo konkretni kadrovi sa `publication: "approved"`; svi ostali ostaju placeholderi i ne ulaze u `out/`. |
 | `CAMP_GROUP_PHOTOS` | `false` | Dodatna kapija za pojedinačno odobrene kamp kadrove; 02 i 09 su trajno isključeni jer mešaju klubove. |
-| `INDEXABLE` | `false` | Samo `<meta name="robots">`, `robots.txt` i `sitemap.xml`. `false` → `noindex, nofollow, noimageindex`; `robots.txt` dozvoljava HTML (da bi pretraživač video `noindex`), ali zabranjuje `/img/`; bez linije `Sitemap`; prazan `sitemap.xml`. `true` → `index, follow`; `robots.txt` sa `Sitemap`; `sitemap.xml` sadrži `SITE_URL/`. |
-| `SITE_URL` (env) | `https://gimnastikakraguj.rs` | Kanonska adresa (domen još nije kupljen). |
+| `INDEXABLE` | `true` | Samo `<meta name="robots">`, `robots.txt` i `sitemap.xml`. `false` → `noindex, nofollow, noimageindex`; `robots.txt` dozvoljava HTML (da bi pretraživač video `noindex`), ali zabranjuje `/img/`; bez linije `Sitemap`; prazan `sitemap.xml`. `true` → `index, follow`; `robots.txt` sa `Sitemap`; `sitemap.xml` sadrži `SITE_URL/`. |
+| `SITE_URL` (env) | `https://www.gimnastikakraguj.rs` | Javni kanonski domen. |
 | `CREDIT_NAME` | `Stefan Brkljačić` | Ime u footeru („Izrada sajta: …“). |
 | `CREDIT_URL` | `""` | Opcioni link iza imena u footeru; prazno = bez linka. |
 
@@ -127,3 +127,14 @@ qa/             Playwright / axe / Lighthouse provere
 ```
 
 Izrada sajta: Stefan Brkljačić.
+
+
+## SEO i samostalan blog (16. oktobar 2026)
+
+Blog se gradi iz `content/articles.ts` na `/blog` i `/blog/[slug]`; ne koristi Outrank niti eksterni API. Postojeća adresa `/blog/sportska-gimnastika` je sačuvana. Novi članak mora imati stvarne izvore, datume izmene i jedinstven slug. Ne menjati datum samo zbog novog builda.
+
+Glavni `/sitemap.xml` sadrži početnu, blog i sve članke. `/blog/sitemap.xml` ostaje kompatibilan, a `/blog/rss.xml` sadrži RSS. Google verifikacioni fajl u `public/` mora ostati. Proveriti produkcijske env vrednosti `NEXT_PUBLIC_SITE_URL` i `NEXT_PUBLIC_INDEXABLE` pre objave; podrazumevano je javni www domen i indexable=true. Eksplicitno `false` i dalje podržava privatne/noindex preglede. Ograničenja objavljivanja fotografija ostaju nepromenjena.
+
+Navigacija bloga namerno koristi normalne HTML linkove (nov dokument), jer postbuild obrada RSC/CSS nije namenjena SPA prelazima između ruta. Nepoznati članci vraćaju404; Vercel uklanja završnu kosu crtu.
+
+Search Console URL Inspection je na dan rada prikazao „URL is unknown to Google“, dok je Live Test potvrdio „URL is available to Google“. Slanje sitemapa/zahtev za indeksiranje ne garantuje prihvatanje niti poziciju. Ne koristiti automatske mreže linkova, izmišljene recenzije, medicinske tvrdnje niti garantovati rangiranje.

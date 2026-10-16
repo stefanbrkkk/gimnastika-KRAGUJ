@@ -178,9 +178,9 @@ describe("metadata (§5 SEO)", () => {
   const meta = buildMetadata({ indexable: false, siteUrl: SITE });
 
   it("uses the exact title and description", () => {
-    expect(meta.title).toBe("Gimnastički klub Kraguj — sportska gimnastika za decu u Kragujevcu");
+    expect(meta.title).toBe("Gimnastika Kragujevac za decu od 3 godine | Kraguj");
     expect(meta.description).toBe(
-      "Sportska gimnastika za decu od 3. godine i aerobna gimnastika u Kragujevcu. Licencirane trenerice, član Gimnastičkog saveza Srbije, upis tokom cele godine. Zakažite probni trening.",
+      "Sportska i aerobna gimnastika za decu u Kragujevcu. Početne grupe od 3. godine, licencirane trenerice i besplatan probni trening u klubu Kraguj.",
     );
   });
 
@@ -222,7 +222,7 @@ describe("robots.txt and sitemap.xml (§6 Indexing)", () => {
     expect(off).not.toContain("<loc>");
     const on = resolveSitemap(buildSitemap({ indexable: true, siteUrl: SITE }));
     expect(on).toContain(`<loc>${SITE}/</loc>`);
-    expect(on.match(/<url>/g)).toHaveLength(1);
+    expect(on).toContain(`<loc>${SITE}/blog</loc>`);
   });
 });
 

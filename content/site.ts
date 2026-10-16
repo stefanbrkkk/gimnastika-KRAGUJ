@@ -39,11 +39,11 @@ export const FLAGS = {
   /** An extra gate for individually cleared camp images; 02 and 09 are excluded regardless. */
   CAMP_GROUP_PHOTOS: bool(process.env.NEXT_PUBLIC_CAMP_GROUP_PHOTOS, false),
   /** Controls only <meta name="robots">, robots.txt and sitemap. */
-  INDEXABLE: bool(process.env.NEXT_PUBLIC_INDEXABLE, false),
+  INDEXABLE: bool(process.env.NEXT_PUBLIC_INDEXABLE, true),
 } as const;
 
-/** Canonical origin. The domain is not bought yet. */
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "https://gimnastikakraguj.rs").replace(/\/$/, "");
+/** Public canonical origin; explicit environment overrides remain supported. */
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || "https://www.gimnastikakraguj.rs").replace(/\/$/, "");
 
 export const CREDIT_NAME = "Stefan Brkljačić";
 export const CREDIT_URL = "";
@@ -121,9 +121,9 @@ export const SOURCES = {
 } as const;
 
 export const SEO = {
-  title: "Gimnastički klub Kraguj — sportska gimnastika za decu u Kragujevcu",
+  title: "Gimnastika Kragujevac za decu od 3 godine | Kraguj",
   description:
-    "Sportska gimnastika za decu od 3. godine i aerobna gimnastika u Kragujevcu. Licencirane trenerice, član Gimnastičkog saveza Srbije, upis tokom cele godine. Zakažite probni trening.",
+    `Sportska i aerobna gimnastika za decu u Kragujevcu. Početne grupe od 3. godine, licencirane trenerice i ${FLAGS.FREE_TRIAL ? "besplatan probni trening" : "probni trening uz dogovor"} u klubu Kraguj.`,
   locale: "sr_RS",
 } as const;
 
@@ -134,6 +134,7 @@ export const NAV = [
   { href: "#uspesi", label: "Uspesi" },
   { href: "#kamp", label: "Kamp" },
   { href: "#kontakt", label: "Kontakt" },
+  { href: "/blog", label: "Blog" },
 ] as const;
 
 export const CTA = {

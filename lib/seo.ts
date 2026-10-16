@@ -17,6 +17,7 @@
  * noindex is NOT consent: per-image publication rights and the photo flags decide what is emitted.
  */
 import type { Metadata, MetadataRoute } from "next";
+import { ARTICLES } from "@/content/articles";
 import { visibleFaq, type FaqItem } from "@/content/faq";
 import { CLUB, EMAIL, FLAGS, GSS, PRIMARY_PHONE, SEO, SITE_URL, SOCIAL, VENUE } from "@/content/site";
 
@@ -111,7 +112,11 @@ export function buildRobots({ indexable, siteUrl = SITE_URL }: IndexOptions): Me
 
 /** Loc only: Google ignores changefreq/priority, and a build date is not a real lastmod. */
 export function buildSitemap({ indexable, siteUrl = SITE_URL }: IndexOptions): MetadataRoute.Sitemap {
-  return indexable ? [{ url: homeUrl(siteUrl) }] : [];
+  return indexable ? [
+    { url: homeUrl(siteUrl) },
+    { url: absoluteUrl("/blog", siteUrl) },
+    ...ARTICLES.map(article => ({ url: absoluteUrl(`/blog/${article.slug}`, siteUrl), lastModified: article.updated })),
+  ] : [];
 }
 
 // ---------------------------------------------------------------------------
