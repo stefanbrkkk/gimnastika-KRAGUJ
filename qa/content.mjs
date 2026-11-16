@@ -54,6 +54,15 @@ const SURNAME_RE = word("\\p{Lu}\\p{Ll}*ić(?:a|u|em|i|e|om|ima)?", "gu");
 
 // ── Privacy: dates ───────────────────────────────────────────────────────────
 const KNOWN_EVENT_DATES = new Set(["2023-12-02", "2022-05-29", "2025-12-13", "2026-05-15", "2024-11-30", "2024-12-01"]);
+// Publication dates of documents (never of people), as machine-readable values in <time>,
+// Open Graph and JSON-LD. Keep in step with content/articles.ts (published / updated) and
+// content/site.ts (PRESS, PAGE_UPDATED): a new article date must be added here on purpose.
+const KNOWN_PUBLICATION_DATES = new Set([
+  "2026-10-16", // blog: first publication of the guides
+  "2026-11-17", // November 2026 revision (articles, home page dateModified)
+  "2026-09-22", // Grad Kragujevac: release about the new uneven bars (PRESS)
+  "2024-09-13", // Glas Šumadije: the City helps the club buy equipment (PRESS)
+]);
 const DATE_RES = [
   { re: /(?<!\d)(\d{1,2})\.\s?(\d{1,2})\.\s?((?:19|20)\d{2})(?!\d)/g, order: "dmy" },
   { re: /(?<!\d)((?:19|20)\d{2})-(\d{2})-(\d{2})(?!\d)/g, order: "ymd" },
@@ -103,7 +112,7 @@ function scanDates(corpus) {
       const year = Number(y);
       if (year > 2026 || Number(mo) < 1 || Number(mo) > 12 || Number(d) < 1 || Number(d) > 31) continue;
       const iso = `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      if (!KNOWN_EVENT_DATES.has(iso)) hits.push({ date: m[0], iso, context: snippet(corpus, m.index) });
+      if (!KNOWN_EVENT_DATES.has(iso) && !KNOWN_PUBLICATION_DATES.has(iso)) hits.push({ date: m[0], iso, context: snippet(corpus, m.index) });
     }
   }
   for (const m of corpus.matchAll(BIRTH_WORDS)) hits.push({ date: m[0], context: snippet(corpus, m.index) });

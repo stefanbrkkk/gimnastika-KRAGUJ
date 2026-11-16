@@ -17,16 +17,20 @@ import { CLUB, PRIMARY_PHONE } from "@/content/site";
 import { telHref } from "@/lib/links";
 import { MAX_TILT, balanceTarget, createBalance, gravityAngle, isSettled, stepBalance } from "@/components/notfound/tilt";
 import { FAQ, visibleFaq, type FaqItem } from "@/content/faq";
+import { ARTICLES } from "@/content/articles";
 import {
   ICON_FILES,
   OG_IMAGE,
+  buildCoaches,
   buildFaqPage,
+  buildHomePage,
   buildJsonLd,
   buildMetadata,
   buildRobots,
   buildSitemap,
   buildSportsClub,
   serializeJsonLd,
+  slugify,
 } from "@/lib/seo";
 
 // Next's own serializers for app/robots.ts and app/sitemap.ts (what lands in out/).
@@ -42,7 +46,23 @@ const FACEBOOK = "https://www.facebook.com/sportskagimnastika.kraguj/";
 
 type Node = Record<string, unknown>;
 const graphOf = (ld: Node) => ld["@graph"] as Node[];
-const byType = (ld: Node, type: string) => graphOf(ld).find((n) => n["@type"] === type)!;
+const typesOf = (n: Node): string[] => [n["@type"]].flat() as string[];
+const byType = (ld: Node, type: string) => graphOf(ld).find((n) => typesOf(n).includes(type))!;
+const CITY_2026 =
+  "https://www.kragujevac.ls.gov.rs/vest/sr/135460/podrska-mladim-talentima-grad-nabavio-novi-dvovisinski-razboj-za-gimnasticki-klub-kraguj.php";
+const GLAS_2024 = "https://www.glassumadije.rs/grad-podrzava-gimnasticki-klub-kraguj-u-nabavci-sportske-opreme/";
+const COACH_LIST = "https://www.gssrb.rs/wp-content/uploads/2026/09/ЖСГ-Ажирирани-списак-регистрованих-тренера-септембар-2026.pdf";
+const JUDGE_LIST = "https://www.gssrb.rs/wp-content/uploads/2026/09/Licencirane-sutkinje-2026.pdf";
+const GSS_ORG = { "@type": "SportsOrganization", name: "Gimnastički savez Srbije", url: "https://www.gssrb.rs" };
+/**
+ * „Not in the future“ for a hand-kept date. A date-only value („2026-11-17“) is a calendar day
+ * in Belgrade, so it is compared with today's Belgrade date (as UTC midnight it would be „in
+ * the future“ for the first hours of that day); a full timestamp is compared exactly.
+ */
+const TODAY_BELGRADE = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Belgrade" }).format(new Date());
+const isPast = (date: string): boolean => (/^\d{4}-\d{2}-\d{2}$/.test(date) ? date <= TODAY_BELGRADE : Date.parse(date) <= Date.now());
+/** Properties this site must never emit: nothing here is verified, measured or consented. */
+const FORBIDDEN_KEYS = ["aggregateRating", "review", "ratingValue", "openingHours", "openingHoursSpecification", "foundingDate", "birthDate", "priceRange", "geo"];
 
 /** Every key anywhere in a JSON value. */
 function allKeys(value: unknown, keys = new Set<string>()): Set<string> {
@@ -60,7 +80,8 @@ describe("JSON-LD SportsClub (§5 SEO)", () => {
   const club = buildSportsClub({ siteUrl: SITE, showFacebook: false });
 
   it("has the exact names", () => {
-    expect(club["@type"]).toBe("SportsClub");
+    // Both types: `sport` is a SportsOrganization property (unknown on a bare SportsClub).
+    expect(club["@type"]).toEqual(["SportsClub", "SportsOrganization"]);
     expect(club.name).toBe("Gimnastičko sportsko udruženje „Kraguj“");
     expect(club.alternateName).toEqual(["Gimnastički klub Kraguj", "Sportska Gimnastika Kraguj"]);
   });
@@ -93,7 +114,53 @@ describe("JSON-LD SportsClub (§5 SEO)", () => {
   });
 
   it("is a member of the Gymnastics Federation of Serbia", () => {
-    expect(club.memberOf).toEqual({ "@type": "SportsOrganization", name: "Gimnastički savez Srbije", url: "https://www.gssrb.rs" });
+    expect(club.memberOf).toEqual(GSS_ORG);
+  });
+
+  it("lists both phone numbers as contact points and serves Kragujevac", () => {
+    expect(club.contactPoint).toEqual([
+      { "@type": "ContactPoint", telephone: "+381600287631", contactType: "upis i probni trening", availableLanguage: "sr" },
+      { "@type": "ContactPoint", telephone: "+381614224386", contactType: "upis i probni trening", availableLanguage: "sr" },
+    ]);
+    expect(club.areaServed).toEqual({ "@type": "City", name: "Kragujevac" });
+  });
+
+  it("emits only the training venue — never the registered seat from the GSS directory", () => {
+    expect(JSON.stringify(buildJsonLd({ siteUrl: SITE }))).not.toMatch(/Cara Dušana/);
+  });
+
+  it("offers the free trial only while FREE_TRIAL holds", () => {
+    expect(buildSportsClub({ siteUrl: SITE, freeTrial: true }).makesOffer).toMatchObject({
+      "@type": "Offer",
+      name: "Besplatan probni trening",
+      price: 0,
+      priceCurrency: "RSD",
+      url: `${SITE}/#kontakt`,
+    });
+    // (The whole-graph guarantee under FREE_TRIAL=false — description and FAQ included — is in
+    // editorial.test.ts, which rebuilds the modules with the flag off.)
+    const off = buildSportsClub({ siteUrl: SITE, freeTrial: false });
+    expect(allKeys(off).has("makesOffer")).toBe(false);
+    expect(JSON.stringify({ ...off, description: "" })).not.toMatch(/besplat/i);
+  });
+
+  it("cites the independent coverage with the publishers' own headlines and dates", () => {
+    expect(club.subjectOf).toEqual([
+      {
+        "@type": "CreativeWork",
+        name: "Podrška mladim talentima: Grad nabavio novi dvovisinski razboj za Gimnastički klub „Kraguj“",
+        url: CITY_2026,
+        datePublished: "2026-09-22",
+        publisher: { "@type": "Organization", name: "Grad Kragujevac" },
+      },
+      {
+        "@type": "CreativeWork",
+        name: "Grad podržava Gimnastički klub „Kraguj“ u nabavci sportske opreme",
+        url: GLAS_2024,
+        datePublished: "2024-09-13",
+        publisher: { "@type": "Organization", name: "Glas Šumadije" },
+      },
+    ]);
   });
 
   it("names the sports", () => {
@@ -115,6 +182,79 @@ describe("JSON-LD SportsClub (§5 SEO)", () => {
       expect(keys.has("foundingDate")).toBe(false);
       expect([...keys].some((k) => /founding/i.test(k))).toBe(false);
     }
+  });
+
+  it("never emits ratings, reviews, opening hours, coordinates or personal dates", () => {
+    const keys = allKeys(buildJsonLd({ siteUrl: SITE, showFacebook: true }));
+    for (const key of FORBIDDEN_KEYS) expect(keys.has(key), key).toBe(false);
+  });
+});
+
+describe("JSON-LD coaches (Person) — only what the „Trenerice“ section shows", () => {
+  const [sladjana, ivana] = buildCoaches({ siteUrl: SITE }) as [Node, Node];
+
+  it("names both coaches with their visible role lines", () => {
+    expect(buildCoaches({ siteUrl: SITE })).toHaveLength(2);
+    expect(sladjana).toMatchObject({
+      "@type": "Person",
+      "@id": `${SITE}/#sladjana-kovacevic`,
+      name: "Slađana Kovačević",
+      jobTitle: [
+        "Predsednica kluba",
+        "Licencirana trenerica sportske gimnastike (GSS)",
+        "Licencirana sutkinja za žensku sportsku gimnastiku (GSS)",
+      ],
+      affiliation: { "@id": `${SITE}/#klub` },
+      url: `${SITE}/#treneri`,
+    });
+    expect(ivana).toMatchObject({
+      "@id": `${SITE}/#ivana-kovacevic`,
+      name: "Ivana Kovačević",
+      jobTitle: ["Licencirana trenerica sportske gimnastike (GSS)", "Članica upravnog odbora kluba"],
+    });
+  });
+
+  it("emits a credential only for a role with a GSS source, recognised by the federation", () => {
+    const credential = (name: string, url: string) => ({
+      "@type": "EducationalOccupationalCredential",
+      name,
+      credentialCategory: "licenca",
+      recognizedBy: GSS_ORG,
+      url,
+    });
+    expect(sladjana.hasCredential).toEqual([
+      credential("Licencirana trenerica sportske gimnastike (GSS)", COACH_LIST),
+      credential("Licencirana sutkinja za žensku sportsku gimnastiku (GSS)", JUDGE_LIST),
+    ]);
+    expect(ivana.hasCredential).toEqual([credential("Licencirana trenerica sportske gimnastike (GSS)", COACH_LIST)]);
+  });
+
+  it("carries no photo, birth date, licence number or contact detail of a person", () => {
+    const keys = allKeys([sladjana, ivana]);
+    for (const key of ["image", "birthDate", "email", "telephone", "identifier", "address"]) expect(keys.has(key), key).toBe(false);
+    expect(JSON.stringify([sladjana, ivana])).not.toMatch(/ŽSG\d|S56/);
+  });
+
+  it("slugify handles Serbian Latin letters", () => {
+    expect(slugify("Slađana Kovačević")).toBe("sladjana-kovacevic");
+    expect(slugify("Šžćč — Đ!")).toBe("szcc-dj");
+  });
+});
+
+describe("JSON-LD WebPage (home)", () => {
+  it("is about the club, part of the site, with a hand-kept modification date", () => {
+    const page = buildHomePage({ siteUrl: SITE });
+    expect(page).toMatchObject({
+      "@type": "WebPage",
+      "@id": `${SITE}/#pocetna`,
+      url: `${SITE}/`,
+      name: "Gimnastika Kragujevac za decu od 3 godine | Kraguj",
+      inLanguage: "sr-Latn",
+      isPartOf: { "@id": `${SITE}/#sajt` },
+      about: { "@id": `${SITE}/#klub` },
+    });
+    expect(page.dateModified).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(isPast(page.dateModified as string)).toBe(true);
   });
 });
 
@@ -156,11 +296,36 @@ describe("JSON-LD serialization", () => {
     expect(JSON.parse(serializeJsonLd(ld))).toEqual(ld);
   });
 
-  it("is one @graph with WebSite, SportsClub and FAQPage", () => {
+  it("is one @graph: WebSite, the club, the home WebPage, both coaches and FAQPage", () => {
     const ld = buildJsonLd({ siteUrl: SITE });
     expect(ld["@context"]).toBe("https://schema.org");
-    expect(graphOf(ld).map((n) => n["@type"])).toEqual(["WebSite", "SportsClub", "FAQPage"]);
+    expect(graphOf(ld).map((n) => n["@type"])).toEqual([
+      "WebSite",
+      ["SportsClub", "SportsOrganization"],
+      "WebPage",
+      "Person",
+      "Person",
+      "FAQPage",
+    ]);
     expect(byType(ld, "WebSite").name).toBe("Gimnastički klub Kraguj");
+  });
+
+  it("every @id reference inside the graph resolves to a node of the graph", () => {
+    const ld = buildJsonLd({ siteUrl: SITE });
+    const ids = new Set(graphOf(ld).map((n) => n["@id"]));
+    const refs: string[] = [];
+    const collect = (value: unknown, top: boolean): void => {
+      if (Array.isArray(value)) value.forEach((v) => collect(v, false));
+      else if (value && typeof value === "object") {
+        const node = value as Node;
+        // a bare reference: { "@id": … } and nothing else
+        if (!top && Object.keys(node).length === 1 && typeof node["@id"] === "string") refs.push(node["@id"]);
+        Object.values(node).forEach((v) => collect(v, false));
+      }
+    };
+    graphOf(ld).forEach((n) => collect(n, true));
+    expect(refs.length).toBeGreaterThan(3);
+    for (const ref of refs) expect(ids.has(ref), ref).toBe(true);
   });
 
   it("cannot break out of the <script> element", () => {
@@ -223,6 +388,17 @@ describe("robots.txt and sitemap.xml (§6 Indexing)", () => {
     const on = resolveSitemap(buildSitemap({ indexable: true, siteUrl: SITE }));
     expect(on).toContain(`<loc>${SITE}/</loc>`);
     expect(on).toContain(`<loc>${SITE}/blog</loc>`);
+  });
+
+  it("sitemap: every URL has a real, past lastmod — the blog index follows its newest article", () => {
+    const pages = buildSitemap({ indexable: true, siteUrl: SITE });
+    for (const page of pages) {
+      expect(page.lastModified, page.url).toBeTruthy();
+      expect(Number.isFinite(Date.parse(String(page.lastModified))), page.url).toBe(true);
+      expect(isPast(String(page.lastModified)), `${page.url} lastmod ${String(page.lastModified)}`).toBe(true);
+    }
+    const newest = Math.max(...ARTICLES.map((a) => Date.parse(a.updated)));
+    expect(Date.parse(String(pages.find((p) => p.url === `${SITE}/blog`)!.lastModified))).toBe(newest);
   });
 });
 

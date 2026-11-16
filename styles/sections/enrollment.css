@@ -690,6 +690,49 @@
   font-weight: 600;
 }
 
+/* „Vodiči za roditelje“: the blog's guides as one quiet list under the FAQ — the same link
+   recipe as .faq__more (accent, 700, 1.5px underline), each row a 48px target. */
+.en-guides {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--hairline);
+}
+
+.en-guides__title {
+  margin: 0 0 4px;
+  color: var(--muted);
+}
+
+.en-guides__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.en-guides__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding-block: 6px;
+  color: var(--accent);
+  font-size: var(--text-small);
+  font-weight: 700;
+  text-wrap: balance;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.2em;
+}
+
+.en-guides__link--all {
+  color: var(--fg);
+}
+
+@media (hover: hover) {
+  .en-guides__link:hover {
+    text-decoration-thickness: 2.5px;
+  }
+}
+
 .faq__tel {
   display: inline-block;
   padding-block: 12px;

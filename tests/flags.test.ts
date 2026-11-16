@@ -1,7 +1,10 @@
 /**
- * §0 ASSUMPTIONS = FLAGS: the defaults in content/site.ts are exactly the master
- * prompt's, and the NEXT_PUBLIC_<FLAG> overrides (DECISIONS D-07) that the QA
- * variants (qa/run-all.mjs) rely on actually flip them.
+ * §0 ASSUMPTIONS = FLAGS: the defaults in content/site.ts are the master prompt's, and the
+ * NEXT_PUBLIC_<FLAG> overrides (DECISIONS D-07) that the QA variants (qa/run-all.mjs) rely on
+ * actually flip them.
+ * One default has changed since the master prompt, with its evidence recorded in
+ * docs/dosije.md: SHOW_EQUIPMENT_2026 is on since 17 November 2026 (official City of
+ * Kragujevac release of 22 September 2026; before that, an Instagram post only).
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -41,7 +44,7 @@ describe("§0 defaults", () => {
       SHOW_FEES: false,
       SHOW_VIBER: true,
       SHOW_FACEBOOK: false,
-      SHOW_EQUIPMENT_2026: false,
+      SHOW_EQUIPMENT_2026: true,
       MINOR_PHOTOS: false,
       CAMP_GROUP_PHOTOS: false,
       INDEXABLE: true,

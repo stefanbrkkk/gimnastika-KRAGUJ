@@ -8,7 +8,7 @@ export interface FaqItem {
   q: string;
   a: string;
   flag?: "SHOW_FEES" | "FREE_TRIAL";
-  /** The obvious next action under the answer (existing copy only). Not part of the FAQPage JSON-LD. */
+  /** The obvious next action under the answer (maps, schedule, the matching guide). Not part of the FAQPage JSON-LD. */
   link?: { label: string; href: string; external?: boolean; program?: string };
 }
 
@@ -25,6 +25,7 @@ export const FAQ: readonly FaqItem[] = [
   {
     q: "Kako izgleda prvi trening?",
     a: "Javite se unapred telefonom ili porukom, pa dovedite dete na probni trening; ako mu se dopadne, postaje član kluba.",
+    link: { label: "Pročitajte vodič za prvi trening", href: "/blog/prvi-trening-gimnastike-za-decu" },
   },
   {
     q: "Šta dete treba da ponese?",
@@ -55,4 +56,7 @@ export const visibleFaq = (): readonly FaqItem[] =>
 export const FAQ_COPY = {
   heading: "Pitanja roditelja",
   lastLine: "Niste našli odgovor? Pozovite 060 028 7631.",
+  /** Label of the guides list under the FAQ (links to every article in content/articles.ts). */
+  guidesLabel: "Vodiči za roditelje",
+  guidesAll: "Svi vodiči",
 } as const;

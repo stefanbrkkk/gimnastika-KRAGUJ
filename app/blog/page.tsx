@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-html-link-for-pages -- Full-document navigation preserves the static export postprocessed CSS and RSC payload. */
 import { FLAGS } from "@/content/site";
 import { ARTICLES } from "@/content/articles";
-import { buildBlogJsonLd, buildEditorialMetadata } from "@/lib/editorial";
+import { BLOG_LABEL, buildBlogJsonLd, buildEditorialMetadata } from "@/lib/editorial";
 import { serializeJsonLd } from "@/lib/seo";
 import styles from "./blog.module.css";
 
@@ -11,9 +11,10 @@ export const metadata = buildEditorialMetadata({
 });
 export default function BlogPage() {
   return <>
-    <p className={styles.eyebrow}>Kraguj · vodiči za roditelje</p>
-    <h1 className={styles.title}>Gimnastika počinje dobrim pitanjem.</h1>
-    <p className={styles.lead}>Od prvog treninga do izbora programa: jasni odgovori o gimnastici za decu, uz informacije o radu našeg kluba u Kragujevcu.</p>
+    <nav className={styles.breadcrumbs} aria-label="Putanja stranice"><a href="/">Početna</a><span aria-hidden="true">/</span><span aria-current="page">{BLOG_LABEL}</span></nav>
+    <p className={styles.eyebrow}>Gimnastički klub Kraguj · Kragujevac</p>
+    <h1 className={styles.title}>Gimnastika za decu: vodiči za roditelje</h1>
+    <p className={styles.lead}>Gimnastika počinje dobrim pitanjem. Od prvog treninga do izbora programa: jasni odgovori o gimnastici za decu, uz informacije o radu našeg kluba u Kragujevcu.</p>
     <div className={styles.list}>
       {ARTICLES.map(article => <article key={article.slug} className={styles.card}>
         <p className={styles.eyebrow}>{article.category}</p>

@@ -28,8 +28,12 @@ export const FLAGS = {
   SHOW_VIBER: bool(process.env.NEXT_PUBLIC_SHOW_VIBER, true),
   /** The Facebook page is only confirmed via the search index. */
   SHOW_FACEBOOK: bool(process.env.NEXT_PUBLIC_SHOW_FACEBOOK, false),
-  /** New uneven bars (2026) are sourced only from an Instagram post. */
-  SHOW_EQUIPMENT_2026: bool(process.env.NEXT_PUBLIC_SHOW_EQUIPMENT_2026, false),
+  /**
+   * New uneven bars (2026). On since 17 November 2026: the City of Kragujevac published
+   * an official release on 22 September 2026 (SOURCES.cityEquipment2026); before that the
+   * only source was an Instagram post.
+   */
+  SHOW_EQUIPMENT_2026: bool(process.env.NEXT_PUBLIC_SHOW_EQUIPMENT_2026, true),
   /**
  * Global gate for photos showing children. The per-image publication decision in
  * content/photos.ts is authoritative; flags can only restrict an image further.
@@ -101,10 +105,15 @@ export const GSS = {
   name: "Gimnastički savez Srbije",
   url: "https://www.gssrb.rs",
   clubPage: "https://www.gssrb.rs/kragujevac/",
+  /** National club directory: seat address, training venue and the link to this site. */
+  directory: "https://www.gssrb.rs/klubovi-gss/",
 } as const;
 
 /** Source URLs (every one of them also appears in docs/dosije.md). */
 export const SOURCES = {
+  /** Grad Kragujevac, 22. 9. 2026: new uneven bars bought with the City's support; about 130 members. */
+  cityEquipment2026:
+    "https://www.kragujevac.ls.gov.rs/vest/sr/135460/podrska-mladim-talentima-grad-nabavio-novi-dvovisinski-razboj-za-gimnasticki-klub-kraguj.php",
   glasSumadije: "https://www.glassumadije.rs/grad-podrzava-gimnasticki-klub-kraguj-u-nabavci-sportske-opreme/",
   bulletin2022: "https://www.gssrb.rs/wp-content/uploads/2022/05/Bilten-I-kolo-B-Program-ZSG-GSS-2022.pdf",
   bulletin2023: "https://www.gssrb.rs/wp-content/uploads/2024/02/BILTEN-PRVENSTVO-SRBIJE-B-PROGRAM-FINALE-naslov.pdf",
@@ -118,6 +127,33 @@ export const SOURCES = {
   coachLicences: "https://www.gssrb.rs/wp-content/uploads/2026/09/ЖСГ-Ажирирани-списак-регистрованих-тренера-септембар-2026.pdf",
   /** GSS list of licensed judges 2026 — Slađana Kovačević. */
   judgeLicences: "https://www.gssrb.rs/wp-content/uploads/2026/09/Licencirane-sutkinje-2026.pdf",
+} as const;
+
+/**
+ * Independent coverage of the club, emitted as `subjectOf` in the JSON-LD (lib/seo.ts).
+ * Headline, publisher and date are taken from each page as published — never paraphrased.
+ */
+export const PRESS = [
+  {
+    headline: "Podrška mladim talentima: Grad nabavio novi dvovisinski razboj za Gimnastički klub „Kraguj“",
+    url: SOURCES.cityEquipment2026,
+    datePublished: "2026-09-22",
+    publisher: "Grad Kragujevac",
+  },
+  {
+    headline: "Grad podržava Gimnastički klub „Kraguj“ u nabavci sportske opreme",
+    url: SOURCES.glasSumadije,
+    datePublished: "2024-09-13",
+    publisher: "Glas Šumadije",
+  },
+] as const;
+
+/**
+ * Real content-change dates for the sitemap's <lastmod> (ISO 8601). Edit by hand when the
+ * page's visible content changes — never derive from the build time (lib/seo.ts).
+ */
+export const PAGE_UPDATED = {
+  home: "2026-11-17",
 } as const;
 
 export const SEO = {

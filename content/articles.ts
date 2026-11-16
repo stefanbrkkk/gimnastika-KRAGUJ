@@ -20,6 +20,13 @@ export interface Article {
   faq: readonly { question: string; answer: string }[];
   sources: readonly { label: string; url: string }[];
   relatedSlugs: readonly string[];
+  /**
+   * Expert review. Set ONLY after the named person has actually read and approved this exact
+   * text — never as a default, never for a draft. `name` should match a coach in
+   * content/copy.ts (COACHES); `date` is the ISO day of the review. When set, the article
+   * shows „Stručno pregledala“ and the JSON-LD gets reviewedBy / lastReviewed.
+   */
+  reviewedBy?: { name: string; role: string; date: string };
 }
 
 const TRIAL_TERMS = FLAGS.FREE_TRIAL
@@ -39,6 +46,15 @@ const GSS_ARTISTIC_SOURCE = {
   url: "https://www.gssrb.rs/zenska-sportska-gimnastika/",
 };
 const CLUB_SOURCE = { label: "GSU „Kraguj“ u imeniku Gimnastičkog saveza Srbije", url: GSS.clubPage };
+const GSS_DIRECTORY_SOURCE = { label: "Gimnastički savez Srbije: zvanični imenik klubova (sedište i mesto treninga)", url: GSS.directory };
+const CITY_2026_SOURCE = {
+  label: "Grad Kragujevac: vest o nabavci novog dvovisinskog razboja za Gimnastički klub „Kraguj“, 22. septembar 2026.",
+  url: SOURCES.cityEquipment2026,
+};
+const GLAS_2024_SOURCE = {
+  label: "Glas Šumadije: Grad podržava Gimnastički klub „Kraguj“ u nabavci sportske opreme, 13. septembar 2024.",
+  url: SOURCES.glasSumadije,
+};
 const COACH_SOURCE = { label: "GSS: registrovane trenerice ženske sportske gimnastike, septembar 2026.", url: SOURCES.coachLicences };
 
 /**
@@ -49,6 +65,12 @@ const COACH_SOURCE = { label: "GSS: registrovane trenerice ženske sportske gimn
  */
 // Vercel READY time of first native release (13920f8, dpl_Ba9BpsGc6cUAA2sZyAP3qYByrczt).
 const FIRST_NATIVE_PUBLICATION = "2026-10-16T13:26:23.300Z";
+/**
+ * November 2026 revision: the day (Europe/Belgrade) the revised and new texts below were
+ * written. It is a content date, not a build date — if this revision reaches production on a
+ * later day, set that day here.
+ */
+const NOVEMBER_2026_REVISION = "2026-11-17T00:00:00+01:00";
 
 export const ARTICLES: readonly Article[] = [
   {
@@ -59,7 +81,7 @@ export const ARTICLES: readonly Article[] = [
     category: "Vodič za roditelje",
     // Original URL publication from the archived Outrank RSS, retained after migration.
     published: "2026-10-16T13:05:53Z",
-    updated: FIRST_NATIVE_PUBLICATION,
+    updated: NOVEMBER_2026_REVISION,
     sections: [
       {
         id: "sta-je-sportska-gimnastika",
@@ -99,6 +121,7 @@ export const ARTICLES: readonly Article[] = [
         paragraphs: [
           `Treninzi se održavaju u sali Trgovinsko-ugostiteljske škole „Toza Dragović“, Save Kovačevića 25, poznate u gradu kao „ŠUP“. Upis je moguć tokom cele godine, a ${TRIAL_TERMS}. Javite se unapred na 060 028 7631 ili 061 422 4386 kako biste dogovorili grupu i termin.`,
           "Za prvi dolazak klub navodi helanke, majicu, čarape i flašicu vode; odeća treba da bude uska, a kosa vezana. Sa decom rade Slađana Kovačević i Ivana Kovačević, licencirane trenerice sportske gimnastike. Iznos članarine nije objavljen, pa ga proverite direktno pre odluke o nastavku.",
+          "Sala se oprema postepeno. Grad Kragujevac je 22. septembra 2026. objavio da je podržao nabavku novog dvovisinskog razboja za klub; u istoj objavi navodi se da Kraguj okuplja oko 130 mladih članova.",
         ],
       },
     ],
@@ -107,8 +130,8 @@ export const ARTICLES: readonly Article[] = [
       { question: "Koje su sprave u ženskoj sportskoj gimnastici?", answer: "Preskok, dvovisinski razboj, greda i parter. Početni trening prilagođava se grupi; ne podrazumeva izvođenje takmičarskih elemenata sa prvog susreta." },
       { question: "Da li upis u početnu grupu znači i prijavu za takmičenje?", answer: "Početne i takmičarske grupe imaju odvojene programe i rasporede. O eventualnom takmičarskom putu razgovarajte sa trenericom." },
     ],
-    sources: [WOMENS_ARTISTIC_SOURCE, GSS_ARTISTIC_SOURCE, CLUB_SOURCE, COACH_SOURCE],
-    relatedSlugs: ["prvi-trening-gimnastike-za-decu", "sportska-i-aerobna-gimnastika"],
+    sources: [WOMENS_ARTISTIC_SOURCE, GSS_ARTISTIC_SOURCE, CLUB_SOURCE, COACH_SOURCE, CITY_2026_SOURCE],
+    relatedSlugs: ["prvi-trening-gimnastike-za-decu", "sportska-i-aerobna-gimnastika", "novi-dvovisinski-razboj-podrska-grada-kragujevca"],
   },
   {
     slug: "prvi-trening-gimnastike-za-decu",
@@ -117,7 +140,7 @@ export const ARTICLES: readonly Article[] = [
     intro: `Za prvi trening gimnastike u Kraguju najpre se javite telefonom ili porukom. Klub prima članove tokom cele godine, a ${TRIAL_TERMS}. Ponesite helanke, majicu, čarape i vodu, vežite detetu kosu i dođite u dogovoreni termin u školu „Toza Dragović“ u Kragujevcu.`,
     category: "Prvi trening",
     published: FIRST_NATIVE_PUBLICATION,
-    updated: FIRST_NATIVE_PUBLICATION,
+    updated: NOVEMBER_2026_REVISION,
     sections: [
       {
         id: "dogovor-pre-dolaska",
@@ -145,7 +168,7 @@ export const ARTICLES: readonly Article[] = [
         heading: "Gde se dolazi na trening?",
         paragraphs: [
           "Sala je u Trgovinsko-ugostiteljskoj školi „Toza Dragović“, na adresi Save Kovačevića 25 u Kragujevcu. Lokalni naziv „ŠUP“ može pomoći pri snalaženju, ali za mapu koristite pun naziv škole i adresu. Pri prvom dogovoru pitajte gde je ulaz u salu i gde treba da se javite.",
-          "U imeniku Gimnastičkog saveza Srbije uz klub je navedena druga adresa, Cara Dušana 21. Za trening koristite adresu škole koju klub objavljuje za dolazak. Nemojte pretpostaviti da adresa iz sportskog imenika istovremeno označava mesto na kom se održava početna grupa.",
+          "U imeniku Gimnastičkog saveza Srbije klub je upisan na adresi Cara Dušana 21, a kao mesto održavanja treninga naveden je TUŠ „Toza Dragović“, Save Kovačevića 25. To su dve različite adrese: na trening se dolazi u školu, ne na adresu sedišta.",
         ],
       },
       {
@@ -180,10 +203,10 @@ export const ARTICLES: readonly Article[] = [
           : "Javite se klubu unapred da dogovorite grupu i dolazak i proverite aktuelne uslove probnog treninga.",
       },
       { question: "Da li za prvi trening treba kupiti triko?", answer: "Uputstvo kluba za prvi trening navodi helanke, majicu, čarape, vezanu kosu i flašicu vode. Za svaku dodatnu kupovinu prvo pitajte trenericu." },
-      { question: "Da li se na prvi trening dolazi na adresu iz GSS imenika?", answer: "Na trening se dolazi u salu škole „Toza Dragović“, Save Kovačevića 25, Kragujevac. Pre prvog dolaska potvrdite detalje sa klubom." },
+      { question: "Da li se na prvi trening dolazi na adresu iz GSS imenika?", answer: "Na trening se dolazi u salu škole „Toza Dragović“, Save Kovačevića 25, Kragujevac. Imenik Saveza tu adresu navodi kao mesto održavanja treninga, a Cara Dušana 21 kao adresu kluba. Pre prvog dolaska potvrdite detalje sa klubom." },
     ],
     sources: [
-      CLUB_SOURCE,
+      GSS_DIRECTORY_SOURCE,
       { label: "Trgovinsko-ugostiteljska škola „Toza Dragović“: kontakt i adresa", url: "https://www.tozadragovic.edu.rs/kontakt/" },
     ],
     relatedSlugs: ["sportska-gimnastika", "sportska-i-aerobna-gimnastika"],
@@ -260,7 +283,7 @@ export const ARTICLES: readonly Article[] = [
     intro: "Gimnastički klub birajte prema programu koji odgovara detetu, ljudima koji vode trening i uslovima koje porodica može redovno da prati. Proverite disciplinu, uzrast početne grupe, trenerske licence, mesto treninga i cenu članstva. Ovaj vodič daje pitanja za izbor bilo gde u Srbiji; Kraguj trenira u Kragujevcu.",
     category: "Vodič za roditelje",
     published: FIRST_NATIVE_PUBLICATION,
-    updated: FIRST_NATIVE_PUBLICATION,
+    updated: NOVEMBER_2026_REVISION,
     sections: [
       {
         id: "prvo-disciplina",
@@ -276,6 +299,7 @@ export const ARTICLES: readonly Article[] = [
         paragraphs: [
           "Zvanični imenik Gimnastičkog saveza Srbije koristan je početak za proveru naziva kluba i kontakta. Za trenera tražite ime, disciplinu za koju vodi rad i podatak o važećoj dozvoli za rad. GSS objavljuje registracije i liste trenera po disciplinama, pa je bolje proveriti konkretno ime nego se osloniti na opšti opis „stručan tim“.",
           "Imenik ne daje sve informacije za upis. Proverite direktno ko vodi grupu, na kojoj adresi se vežba i kome se obraćate za pitanja. U Kraguju su Slađana Kovačević i Ivana Kovačević navedene u GSS listi registrovanih trenerica ženske sportske gimnastike iz septembra 2026. To je proverljiv podatak o licencama, a ne obećanje određenog rezultata za svako dete.",
+          "Potražite i tragove o radu kluba koje nije napisao sam klub: objave lokalne samouprave, biltene takmičenja ili tekstove lokalnih medija. O Kraguju je, na primer, Grad Kragujevac 22. septembra 2026. objavio vest o nabavci novog dvovisinskog razboja, a Glas Šumadije je o podršci Grada klubu pisao 2024. godine.",
         ],
       },
       {
@@ -316,13 +340,66 @@ export const ARTICLES: readonly Article[] = [
       { question: "Da li Kraguj ima treninge u drugim gradovima Srbije?", answer: "Ovde navedena ponuda Kraguja odnosi se na Kragujevac, na salu škole „Toza Dragović“, Save Kovačevića 25. Vodič za izbor kluba može da se koristi i u drugim gradovima." },
     ],
     sources: [
-      { label: "Gimnastički savez Srbije: zvanični imenik klubova", url: "https://www.gssrb.rs/klubovi-gss/" },
+      { label: "Gimnastički savez Srbije: zvanični imenik klubova", url: GSS.directory },
       { label: "Gimnastički savez Srbije: registracija trenera", url: "https://www.gssrb.rs/registracija-trenera/" },
       GSS_ARTISTIC_SOURCE,
       COACH_SOURCE,
       CLUB_SOURCE,
+      CITY_2026_SOURCE,
+      GLAS_2024_SOURCE,
     ],
-    relatedSlugs: ["sportska-gimnastika", "prvi-trening-gimnastike-za-decu", "sportska-i-aerobna-gimnastika"],
+    relatedSlugs: ["sportska-gimnastika", "prvi-trening-gimnastike-za-decu", "novi-dvovisinski-razboj-podrska-grada-kragujevca"],
+  },
+  {
+    slug: "novi-dvovisinski-razboj-podrska-grada-kragujevca",
+    title: "Novi dvovisinski razboj u Kraguju uz podršku Grada Kragujevca",
+    description: "Grad Kragujevac podržao je nabavku novog dvovisinskog razboja za Gimnastički klub Kraguj. Šta je objavljeno, šta je razboj i šta to znači za roditelje.",
+    intro: "Gimnastički klub Kraguj dobio je novi dvovisinski razboj. Kupovinu sprave, u vrednosti od oko 800.000 dinara, podržao je Grad Kragujevac, koji je o tome objavio zvaničnu vest 22. septembra 2026. godine. U istoj objavi navodi se da klub okuplja oko 130 mladih članova.",
+    category: "Iz kluba",
+    published: NOVEMBER_2026_REVISION,
+    updated: NOVEMBER_2026_REVISION,
+    sections: [
+      {
+        id: "sta-je-grad-objavio",
+        heading: "Šta je Grad Kragujevac objavio?",
+        paragraphs: [
+          "Prema objavi na zvaničnom sajtu Grada, član Gradskog veća za sport i omladinu posetio je klub i obišao trening gimnastičarki. Povod je bila nabavka dvovisinskog razboja, čiju je kupovinu u vrednosti od oko 800.000 dinara podržao Grad Kragujevac.",
+          "U objavi se navodi i da Kraguj okuplja oko 130 mladih članova i da je prepoznatljiv po uspesima i medaljama, posebno u B programu takmičenja. Najavljeno je i da će Grad naredne godine učestvovati u nabavci sprava koje klubu budu potrebne.",
+        ],
+      },
+      {
+        id: "sta-je-dvovisinski-razboj",
+        heading: "Šta je dvovisinski razboj?",
+        paragraphs: [
+          "Dvovisinski razboj je jedna od četiri sprave ženske sportske gimnastike, uz preskok, gredu i parter. Čine ga dve pritke postavljene na različitim visinama, a vežba se sastoji od njihanja i prelazaka sa jedne pritke na drugu.",
+          "Trenerica Slađana Kovačević je u objavi Grada istakla da je razboj jedan od ključnih rekvizita za vežbanje i da su dobre sprave uslov da gimnastičarke napreduju. „Nova sprava nam izuzetno znači“, rekla je tom prilikom.",
+        ],
+      },
+      {
+        id: "sala-se-oprema-postepeno",
+        heading: "Sala se oprema korak po korak",
+        paragraphs: [
+          "Ovo nije prva podrška Grada klubu. Glas Šumadije je u septembru 2024. pisao o pomoći Grada u nabavci sportske opreme; klub je tada imao oko 120 članova. U objavi iz 2026. Slađana Kovačević navodi da se sala oprema postepeno, iz godine u godinu, novim spravama i strunjačama.",
+          "Klub trenira u sali Trgovinsko-ugostiteljske škole „Toza Dragović“, Save Kovačevića 25, u Kragujevcu.",
+        ],
+      },
+      {
+        id: "sta-to-znaci-za-roditelje",
+        heading: "Šta ovo znači za roditelje koji biraju klub?",
+        paragraphs: [
+          "Vest o novoj spravi ne govori kojoj grupi dete pripada niti kako izgleda trening početnika. Mlađa početna grupa radi kroz igru na koordinaciji, ravnoteži i gipkosti, a starija uči osnovne elemente na parteru i spravama; konkretne zadatke određuje trenerica.",
+          "Korisna je kao podatak koji možete sami da proverite. O radu kluba pišu Grad Kragujevac i lokalni mediji, klub je u imeniku Gimnastičkog saveza Srbije, a obe trenerice su na listi registrovanih trenerica Saveza. To su izvori koje nije napisao sam klub.",
+          `Ako želite da dete proba gimnastiku, javite se na 060 028 7631 ili 061 422 4386. Upis traje tokom cele godine, a ${TRIAL_TERMS}.`,
+        ],
+      },
+    ],
+    faq: [
+      { question: "Ko je pomogao nabavku novog dvovisinskog razboja?", answer: "Prema zvaničnoj objavi Grada Kragujevca od 22. septembra 2026, kupovinu razboja u vrednosti od oko 800.000 dinara podržao je Grad Kragujevac." },
+      { question: "Koliko članova ima Gimnastički klub Kraguj?", answer: "Grad Kragujevac je u septembru 2026. naveo da klub okuplja oko 130 mladih članova. Glas Šumadije je 2024. naveo oko 120 članova." },
+      { question: "Gde trenira Gimnastički klub Kraguj?", answer: "U sali Trgovinsko-ugostiteljske škole „Toza Dragović“, Save Kovačevića 25, Kragujevac. Prvi dolazak dogovorite unapred telefonom ili porukom." },
+    ],
+    sources: [CITY_2026_SOURCE, GLAS_2024_SOURCE, WOMENS_ARTISTIC_SOURCE, GSS_DIRECTORY_SOURCE, COACH_SOURCE],
+    relatedSlugs: ["sportska-gimnastika", "kako-izabrati-gimnasticki-klub-u-srbiji", "prvi-trening-gimnastike-za-decu"],
   },
 ];
 

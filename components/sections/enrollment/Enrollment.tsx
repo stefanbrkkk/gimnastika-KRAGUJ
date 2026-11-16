@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { Section } from "@/components/ui/Section";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { ARTICLES } from "@/content/articles";
 import { ENROLLMENT, HERO } from "@/content/copy";
 import { FAQ_COPY, visibleFaq } from "@/content/faq";
 import { SCHEDULE_UI } from "@/content/schedule";
@@ -14,6 +15,7 @@ import { LeapBandPlayer } from "./LeapBandPlayer";
 const LEAP_ROOT_ID = "upis-skok";
 const KIT_TITLE_ID = "upis-kit-title";
 const FAQ_TITLE_ID = "upis-faq-title";
+const GUIDES_TITLE_ID = "upis-vodici-title";
 
 /** Month initials under the year strip (J F M A M J J A S O N D — the same in Serbian). Aria-hidden. */
 const MONTH_INITIALS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"] as const;
@@ -39,6 +41,8 @@ function splitAtPhone(line: string, phone: string): [string, string] {
  * - FAQ „Pitanja roditelja“: native <details>; + turns into ×; the answer opens
  *   0fr → 1fr in 280ms and settles in (CSS only); two answers end with their
  *   next action (maps, schedule).
+ * - „Vodiči za roditelje“: a quiet list of the blog's guides under the FAQ — the home page's
+ *   only links to the individual articles (plain <a>: the blog is a separate document).
  * FAQPage JSON-LD is emitted by the SEO layer (components/seo), not here.
  */
 export function Enrollment() {
@@ -163,6 +167,27 @@ export function Enrollment() {
                 </a>
                 {typesetSr(lastAfter)}
               </p>
+              <nav className="en-guides" aria-labelledby={GUIDES_TITLE_ID}>
+                <p id={GUIDES_TITLE_ID} className="en-guides__title label-caps">
+                  {typesetSr(FAQ_COPY.guidesLabel)}
+                </p>
+                <ul className="en-guides__list" role="list">
+                  {ARTICLES.map((article) => (
+                    <li key={article.slug}>
+                      <a className="en-guides__link" href={`/blog/${article.slug}`}>
+                        {typesetSr(article.title)}
+                      </a>
+                    </li>
+                  ))}
+                  <li>
+                    {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- Full-document navigation, as everywhere to and inside the blog (static export postprocessed CSS and RSC payload). */}
+                    <a className="en-guides__link en-guides__link--all" href="/blog">
+                      {typesetSr(FAQ_COPY.guidesAll)}
+                      <span aria-hidden="true">&nbsp;→</span>
+                    </a>
+                  </li>
+                </ul>
+              </nav>
             </div>
           </div>
         </div>

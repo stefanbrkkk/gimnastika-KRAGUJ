@@ -14,14 +14,14 @@ const isYearTile = ({ prefix, value }: StatTile): boolean => !prefix && /^(19|20
 
 /**
  * Presentation order (RC-17): competitive strength leads, heritage closes — the year tile
- * goes last (42 · 12 · oko 120 · 2007). content/results.ts is unchanged.
+ * goes last (42 · 12 · oko 130 · 2007). content/results.ts is unchanged.
  */
 const BOARD: readonly StatTile[] = [...STATS.filter((s) => !isYearTile(s)), ...STATS.filter(isYearTile)];
 
 /**
  * What a tile's „izvor“ link proves, for its accessible name. A year tile reads like
  * the §5 S7 line („2007 — početak rada“); the others read as one phrase
- * („42 registrovane takmičarke …“, „oko 120 članova (2024)“).
+ * („42 registrovane takmičarke …“, „oko 130 članova (2026)“).
  */
 const statContext = (stat: StatTile): string =>
   isYearTile(stat) ? `${stat.value} — ${stat.label}` : `${stat.prefix ? `${stat.prefix} ` : ""}${stat.value} ${stat.label}`;

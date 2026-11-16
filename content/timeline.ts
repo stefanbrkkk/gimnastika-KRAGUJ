@@ -56,7 +56,8 @@ export const TIMELINE: readonly TimelineItem[] = [
   },
   {
     year: 2026,
-    title: "Novi dvovisinski razboj uz podršku Grada",
+    title: "Novi dvovisinski razboj uz podršku Grada Kragujevca",
+    sources: [SOURCES.cityEquipment2026],
     flag: "SHOW_EQUIPMENT_2026",
   },
 ];

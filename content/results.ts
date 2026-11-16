@@ -70,12 +70,13 @@ export const STATS: readonly StatTile[] = [
     label: "registrovanih takmičarki u aerobnoj gimnastici (GSS, 2026)",
     sourceUrl: SOURCES.registered2026Aer,
   },
-  { value: "120", prefix: "oko", label: "članova (2024)", sourceUrl: SOURCES.glasSumadije },
+  // Grad Kragujevac, 22. 9. 2026: „trenutno okuplja oko 130 mladih članova“ (2024: oko 120, Glas Šumadije).
+  { value: "130", prefix: "oko", label: "članova (2026)", sourceUrl: SOURCES.cityEquipment2026 },
 ];
 
 export const TRUST_ROW = [
   { text: "Član Gimnastičkog saveza Srbije", href: GSS.clubPage },
-  { text: "Uz podršku Grada Kragujevca (2024)", href: SOURCES.glasSumadije },
+  { text: "Uz podršku Grada Kragujevca (2026)", href: SOURCES.cityEquipment2026 },
 ] as const;
 
 export const RESULTS_COPY = {

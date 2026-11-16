@@ -504,3 +504,22 @@ Pre predaje je nezavisni agent proverio dosije, master prompt i originalni mejl.
 Podaci o klubu ostaju zasnovani na potvrđenim programima i kontaktima. Opšti opisi disciplina potiču od saveza i World Gymnastics; nema medicinskih tvrdnji niti tvrdnje da su trenerice pregledale članke.
 
 Tehnički XML namespace za sitemap (nije izvor poslovne tvrdnje): http://www.sitemaps.org/schemas/sitemap/0.9
+
+
+## Dopuna: SEO / E-E-A-T pregled (17. novembar 2026)
+
+Oba linka su ponovo otvorena i pročitana 17. 11. 2026.
+
+| Činjenica | Vrednost | Izvor | Status |
+|---|---|---|---|
+| Novi dvovisinski razboj uz podršku Grada (2026) | Zvanična vest Grada od 22. 9. 2026: član Gradskog veća za sport i omladinu Predrag Stevović posetio je klub; kupovinu razboja „u vrednosti od oko 800.000 dinara podržao Grad Kragujevac“. Slađana Kovačević se u tekstu navodi kao trener kluba. | https://www.kragujevac.ls.gov.rs/vest/sr/135460/podrska-mladim-talentima-grad-nabavio-novi-dvovisinski-razboj-za-gimnasticki-klub-kraguj.php | ✅ (zvaničan izvor; ranije 🟡 samo Instagram) |
+| Broj članova (2026) | „trenutno okuplja oko 130 mladih članova“; „prepoznatljiv po brojnim uspesima i medaljama, posebno u okviru B programa“ | isti link | ✅ |
+| GSS imenik: sedište i mesto treninga | Imenik navodi adresu kluba Cara Dušana 21 i posebno „Mesto održavanja treninga: TUŠ „Toza Dragović“, Save Kovačevića 25, Kragujevac“, telefon 060/0287631 i sajt kluba (link ka gimnastikakraguj.rs). Stranica /kragujevac/ i dalje nema mesto treninga ni sajt. | https://www.gssrb.rs/klubovi-gss/ | ✅ |
+
+Posledice na sajtu:
+- `SHOW_EQUIPMENT_2026` je podrazumevano uključen; stavka u hronologiji ima link ka vesti Grada.
+- Tabla u „Uspesima“: „oko 130 članova (2026)“ umesto „oko 120 (2024)“; podatak iz 2024. ostaje u vodiču o razboju, sa izvorom.
+- Sedište (Cara Dušana 21) se i dalje **ne** objavljuje kao adresa kluba na početnoj ni u JSON-LD; pominje se samo u vodiču za prvi trening, da roditelj ne ode na pogrešnu adresu.
+- Citat iz vesti Grada u vodiču: najviše jedna kratka rečenica, uz navođenje izvora; ostalo je prepričano.
+- Iznos „oko 800.000 dinara“ stoji samo u vodiču o razboju (sa izvorom), ne na početnoj.
+

@@ -18,8 +18,9 @@
  */
 import type { Metadata, MetadataRoute } from "next";
 import { ARTICLES } from "@/content/articles";
+import { COACHES, type Coach } from "@/content/copy";
 import { visibleFaq, type FaqItem } from "@/content/faq";
-import { CLUB, EMAIL, FLAGS, GSS, PRIMARY_PHONE, SEO, SITE_URL, SOCIAL, VENUE } from "@/content/site";
+import { CLUB, EMAIL, FLAGS, GSS, PAGE_UPDATED, PHONES, PRESS, PRIMARY_PHONE, SEO, SITE_URL, SOCIAL, VENUE } from "@/content/site";
 
 /** Build-time generated assets (app/og.png/route.tsx, app/icons/[file]/route.tsx). */
 export const OG_IMAGE = {
@@ -110,11 +111,19 @@ export function buildRobots({ indexable, siteUrl = SITE_URL }: IndexOptions): Me
   return { rules: { userAgent: "*", allow: "/", disallow: "/img/" } };
 }
 
-/** Loc only: Google ignores changefreq/priority, and a build date is not a real lastmod. */
+/** The newest article change — the blog index lists every article, so it changes with them. */
+export const blogUpdated = (): string =>
+  ARTICLES.map((article) => article.updated).reduce((latest, date) => (Date.parse(date) > Date.parse(latest) ? date : latest));
+
+/**
+ * Loc + lastmod: Google ignores changefreq/priority. Every lastmod is a real content-change
+ * date kept by hand (PAGE_UPDATED, article.updated) — never the build time, which would teach
+ * crawlers to distrust it.
+ */
 export function buildSitemap({ indexable, siteUrl = SITE_URL }: IndexOptions): MetadataRoute.Sitemap {
   return indexable ? [
-    { url: homeUrl(siteUrl) },
-    { url: absoluteUrl("/blog", siteUrl) },
+    { url: homeUrl(siteUrl), lastModified: PAGE_UPDATED.home },
+    { url: absoluteUrl("/blog", siteUrl), lastModified: blogUpdated() },
     ...ARTICLES.map(article => ({ url: absoluteUrl(`/blog/${article.slug}`, siteUrl), lastModified: article.updated })),
   ] : [];
 }
@@ -128,10 +137,25 @@ type JsonLdNode = Record<string, unknown>;
 export interface ClubJsonLdOptions {
   siteUrl?: string;
   showFacebook?: boolean;
+  freeTrial?: boolean;
 }
 
 export const CLUB_ID = "#klub";
 export const WEBSITE_ID = "#sajt";
+export const HOME_PAGE_ID = "#pocetna";
+
+const GSS_NODE: JsonLdNode = { "@type": "SportsOrganization", name: GSS.name, url: GSS.url };
+
+/** „Slađana Kovačević“ → „sladjana-kovacevic“ (fragment ids for the coaches' Person nodes). */
+const SLUG_MAP: Record<string, string> = { đ: "dj", č: "c", ć: "c", š: "s", ž: "z" };
+export const slugify = (text: string): string =>
+  text
+    .toLowerCase()
+    .replace(/[đčćšž]/g, (ch) => SLUG_MAP[ch] ?? ch)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+export const coachId = (coach: Pick<Coach, "name">, siteUrl: string = SITE_URL): string => absoluteUrl(`/#${slugify(coach.name)}`, siteUrl);
 
 export function buildAddress(): JsonLdNode {
   return {
@@ -143,12 +167,27 @@ export function buildAddress(): JsonLdNode {
   };
 }
 
-/** SportsClub (§5 SEO). No foundingDate — the founding year is not a verified date. */
-export function buildSportsClub({ siteUrl = SITE_URL, showFacebook = FLAGS.SHOW_FACEBOOK }: ClubJsonLdOptions = {}): JsonLdNode {
+/**
+ * The club (§5 SEO). No foundingDate — the founding year is not a verified date.
+ *
+ * Two types on purpose: SportsClub (a LocalBusiness — the place parents bring a child to) and
+ * SportsOrganization (an association in a federation). `sport` exists only on the latter;
+ * on a bare SportsClub validator.schema.org reports it as an unknown field.
+ *
+ * `address` is the TRAINING VENUE (where a parent actually goes), named again in `location`.
+ * The registered seat (GSS directory: Cara Dušana 21) is deliberately not emitted — the club
+ * has not asked to publish it, and two addresses on one LocalBusiness confuse map listings.
+ * No openingHours (training times differ per group), no ratings, no reviews.
+ */
+export function buildSportsClub({
+  siteUrl = SITE_URL,
+  showFacebook = FLAGS.SHOW_FACEBOOK,
+  freeTrial = FLAGS.FREE_TRIAL,
+}: ClubJsonLdOptions = {}): JsonLdNode {
   const sameAs: string[] = [SOCIAL.instagram];
   if (showFacebook) sameAs.push(SOCIAL.facebook);
   return {
-    "@type": "SportsClub",
+    "@type": ["SportsClub", "SportsOrganization"],
     "@id": absoluteUrl(`/${CLUB_ID}`, siteUrl),
     name: CLUB.legalName,
     alternateName: [CLUB.brandName, CLUB.instagramName],
@@ -158,6 +197,12 @@ export function buildSportsClub({ siteUrl = SITE_URL, showFacebook = FLAGS.SHOW_
     image: absoluteUrl(OG_IMAGE.path, siteUrl),
     telephone: PRIMARY_PHONE.e164,
     email: EMAIL,
+    contactPoint: PHONES.map((phone) => ({
+      "@type": "ContactPoint",
+      telephone: phone.e164,
+      contactType: "upis i probni trening",
+      availableLanguage: "sr",
+    })),
     address: buildAddress(),
     location: {
       "@type": "Place",
@@ -165,13 +210,78 @@ export function buildSportsClub({ siteUrl = SITE_URL, showFacebook = FLAGS.SHOW_
       address: buildAddress(),
       hasMap: VENUE.mapsUrl,
     },
+    areaServed: { "@type": "City", name: CLUB.city },
     sameAs,
-    memberOf: {
-      "@type": "SportsOrganization",
-      name: GSS.name,
-      url: GSS.url,
-    },
+    memberOf: GSS_NODE,
     sport: ["Sportska gimnastika", "Aerobna gimnastika"],
+    ...(freeTrial
+      ? {
+          makesOffer: {
+            "@type": "Offer",
+            name: "Besplatan probni trening",
+            price: 0,
+            priceCurrency: "RSD",
+            url: absoluteUrl("/#kontakt", siteUrl),
+            itemOffered: { "@type": "Service", name: "Probni trening gimnastike za decu", areaServed: CLUB.city },
+          },
+        }
+      : {}),
+    // Independent coverage (content/site.ts PRESS). CreativeWork, not NewsArticle: these are
+    // other publishers' pages, not articles on this site.
+    subjectOf: PRESS.map((item) => ({
+      "@type": "CreativeWork",
+      name: item.headline,
+      url: item.url,
+      datePublished: item.datePublished,
+      publisher: { "@type": "Organization", name: item.publisher },
+    })),
+  };
+}
+
+/**
+ * The coaches as Person nodes, built from the same COACHES list the „Trenerice“ section
+ * renders: the job titles are the visible role lines, and a credential is emitted only for a
+ * role that links its GSS source (licence lists). No bios, birth dates, licence numbers or
+ * photos — nothing that is not on the page.
+ */
+export function buildCoaches({ siteUrl = SITE_URL }: { siteUrl?: string } = {}): JsonLdNode[] {
+  return COACHES.map((coach) => {
+    const credentials = coach.roles.filter((role) => role.sourceUrl);
+    return {
+      "@type": "Person",
+      "@id": coachId(coach, siteUrl),
+      name: coach.name,
+      jobTitle: coach.roles.map((role) => role.text),
+      affiliation: { "@id": absoluteUrl(`/${CLUB_ID}`, siteUrl) },
+      url: absoluteUrl("/#treneri", siteUrl),
+      ...(credentials.length > 0
+        ? {
+            hasCredential: credentials.map((role) => ({
+              "@type": "EducationalOccupationalCredential",
+              name: role.text,
+              credentialCategory: "licenca",
+              recognizedBy: GSS_NODE,
+              url: role.sourceUrl,
+            })),
+          }
+        : {}),
+    };
+  });
+}
+
+/** The home page itself: what it is about, and when its content last really changed. */
+export function buildHomePage({ siteUrl = SITE_URL }: { siteUrl?: string } = {}): JsonLdNode {
+  return {
+    "@type": "WebPage",
+    "@id": absoluteUrl(`/${HOME_PAGE_ID}`, siteUrl),
+    url: homeUrl(siteUrl),
+    name: SEO.title,
+    description: SEO.description,
+    inLanguage: "sr-Latn",
+    isPartOf: { "@id": absoluteUrl(`/${WEBSITE_ID}`, siteUrl) },
+    about: { "@id": absoluteUrl(`/${CLUB_ID}`, siteUrl) },
+    primaryImageOfPage: { "@type": "ImageObject", url: absoluteUrl(OG_IMAGE.path, siteUrl), width: OG_IMAGE.width, height: OG_IMAGE.height },
+    dateModified: PAGE_UPDATED.home,
   };
 }
 
@@ -208,11 +318,22 @@ export interface JsonLdOptions extends ClubJsonLdOptions {
   faq?: readonly FaqItem[];
 }
 
-/** One @graph: WebSite + SportsClub + FAQPage. */
-export function buildJsonLd({ siteUrl = SITE_URL, showFacebook = FLAGS.SHOW_FACEBOOK, faq = visibleFaq() }: JsonLdOptions = {}): JsonLdNode {
+/** One @graph: WebSite + the club + the home WebPage + the coaches + FAQPage. */
+export function buildJsonLd({
+  siteUrl = SITE_URL,
+  showFacebook = FLAGS.SHOW_FACEBOOK,
+  freeTrial = FLAGS.FREE_TRIAL,
+  faq = visibleFaq(),
+}: JsonLdOptions = {}): JsonLdNode {
   return {
     "@context": "https://schema.org",
-    "@graph": [buildWebSite({ siteUrl }), buildSportsClub({ siteUrl, showFacebook }), buildFaqPage(faq, siteUrl)],
+    "@graph": [
+      buildWebSite({ siteUrl }),
+      buildSportsClub({ siteUrl, showFacebook, freeTrial }),
+      buildHomePage({ siteUrl }),
+      ...buildCoaches({ siteUrl }),
+      buildFaqPage(faq, siteUrl),
+    ],
   };
 }
 

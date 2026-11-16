@@ -74,7 +74,7 @@ zadati i kroz promenljivu okruženja: `NEXT_PUBLIC_<IME>=true|false npm run buil
 | `SHOW_FEES` | `false` | FAQ o članarini (traži i odgovor u `content/faq.ts`). |
 | `SHOW_VIBER` | `true` | Klub uglavnom koristi Viber. Direktan Viber link se prikazuje tek kada `NEXT_PUBLIC_VIBER_PHONE_E164` potvrdi stvarni javni broj; do tada je vidljiv poziv/SMS fallback. |
 | `SHOW_FACEBOOK` | `false` | Link ka Facebook stranici (i u JSON-LD `sameAs`). |
-| `SHOW_EQUIPMENT_2026` | `false` | Stavka „novi dvovisinski razboj uz podršku Grada“ u hronologiji. |
+| `SHOW_EQUIPMENT_2026` | `true` | Stavka „Novi dvovisinski razboj uz podršku Grada Kragujevca“ u hronologiji, sa linkom ka zvaničnoj vesti Grada (22. 9. 2026). Uključeno 17. 11. 2026, kada je izvor potvrđen (`docs/dosije.md`). |
 | `MINOR_PHOTOS` | `false` | Dodatna globalna kapija za fotografije dece. Objavljuju se samo konkretni kadrovi sa `publication: "approved"`; svi ostali ostaju placeholderi i ne ulaze u `out/`. |
 | `CAMP_GROUP_PHOTOS` | `false` | Dodatna kapija za pojedinačno odobrene kamp kadrove; 02 i 09 su trajno isključeni jer mešaju klubove. |
 | `INDEXABLE` | `true` | Samo `<meta name="robots">`, `robots.txt` i `sitemap.xml`. `false` → `noindex, nofollow, noimageindex`; `robots.txt` dozvoljava HTML (da bi pretraživač video `noindex`), ali zabranjuje `/img/`; bez linije `Sitemap`; prazan `sitemap.xml`. `true` → `index, follow`; `robots.txt` sa `Sitemap`; `sitemap.xml` sadrži `SITE_URL/`. |
@@ -140,3 +140,20 @@ Navigacija bloga namerno koristi normalne HTML linkove (nov dokument), jer postb
 Search Console je 16. oktobra najpre prikazao „URL is unknown to Google“. Kasnija provera istog dana potvrdila je „URL is on Google“ i „Page is indexed“ za početnu, uz uspešno obrađen sitemap sa šest stranica. Blog je tada bio „Discovered - currently not indexed“. Statusi su istorijski zapis, ne trajna garancija. Slanje sitemapa/zahtev za indeksiranje ne garantuje prihvatanje niti poziciju. Ne koristiti automatske mreže linkova, izmišljene recenzije, medicinske tvrdnje niti garantovati rangiranje.
 
 IndexNow: vlasništvo se potvrđuje javnim UTF-8 fajlom `public/<32-heksadecimalna-znaka>.txt` čiji sadržaj odgovara imenu bez ekstenzije. Fajl mora trajno ostati dostupan na istom www hostu. Ovo je namerno javni token za prijavu URL-ova, a ne privatni ključ aplikacije. Posle produkcione objave izmenjenih stranica mogu se poslati njihove kanonske adrese prema https://www.indexnow.org/documentation. Slati samo stvarne izmene, bez periodičnog ponavljanja neizmenjenih URL-ova; HTTP200/202 potvrđuje prijem ili čekanje validacije, ne indeksiranje. IndexNow nije zamena za Google Search Console.
+
+## SEO / E-E-A-T revizija (17. novembar 2026)
+
+**Strukturirani podaci (`lib/seo.ts`, `lib/editorial.ts`).** Početna emituje jedan `@graph`: `WebSite`, klub (`SportsClub` + `SportsOrganization`), `WebPage`, dve trenerice (`Person`) i `FAQPage`. Klub ima oba tipa namerno: svojstvo `sport` postoji samo na `SportsOrganization`, pa ga validator.schema.org na golom `SportsClub` prijavljuje kao nepoznato polje. Trenerice se grade iz iste liste `COACHES` koju prikazuje sekcija „Trenerice“; licenca se navodi samo za ulogu koja ima link ka GSS listi. `subjectOf` navodi nezavisne objave o klubu (`PRESS` u `content/site.ts`) sa naslovom i datumom kako ih je izdavač objavio. Nikada ne dodavati: ocene, recenzije, radno vreme, koordinate, datum osnivanja, datume rođenja, brojeve licenci, adresu sedišta. To čuvaju testovi u `tests/seo.test.ts`.
+
+**Adrese.** Na sajtu i u JSON-LD stoji samo adresa sale (Save Kovačevića 25). GSS imenik vodi klub na adresi Cara Dušana 21 i posebno navodi salu kao mesto treninga. To su dve različite adrese i ne spajaju se; sedište se pominje samo u vodiču za prvi trening.
+
+**Datumi.** `PAGE_UPDATED.home` (`content/site.ts`) i `updated` svakog članka su ručno vođeni datumi stvarne izmene sadržaja i idu u `sitemap.xml` (`lastmod`) i JSON-LD (`dateModified`). Menjati ih samo kad se promeni vidljiv sadržaj, nikad zbog novog builda. Datum u budućnosti obara test.
+
+**Stručni pregled članka.** `reviewedBy` u `content/articles.ts` postaviti tek kada je navedena osoba zaista pročitala i odobrila baš taj tekst. Tada se na članku prikazuje „Stručno pregledala“, a JSON-LD dobija `reviewedBy` i `lastReviewed`. Dok toga nema, autor je klub i ništa se ne tvrdi o pregledu.
+
+**Interne veze.** Početna u sekciji „Upis i prvi trening“ ima listu „Vodiči za roditelje“ sa linkovima ka svim člancima (`components/sections/enrollment/Enrollment.tsx`); svaki članak na dnu ima blok „Ko objavljuje ove vodiče“.
+
+**Dupli host.** `vercel.json` trajno (308) preusmerava `gimnastika-kraguj.vercel.app` na `https://www.gimnastikakraguj.rs`. Preview adrese (`…-git-…vercel.app`) nisu obuhvaćene.
+
+**Posle objave izmena.** U Search Console-u pokrenuti „URL inspection → Request indexing“ za početnu i izmenjene članke; po želji poslati iste adrese na IndexNow (ključ je u `public/`). Proveriti JSON-LD u Rich Results Test-u i na validator.schema.org.
+
