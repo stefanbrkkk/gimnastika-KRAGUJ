@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-html-link-for-pages -- Full-document navigation preserves the static export postprocessed CSS and RSC payload. */
 import type { ReactNode } from "react";
+import { FOOTER } from "@/content/copy";
 import { CLUB, PRIMARY_PHONE } from "@/content/site";
 import { telHref } from "@/lib/links";
 import styles from "./blog.module.css";
@@ -21,6 +22,7 @@ export default function BlogLayout({ children }: { children: ReactNode }) {
     <footer className={styles.footer}>
       <p>{CLUB.legalName} · Kragujevac</p>
       <p>Treninzi: škola „Toza Dragović“, Save Kovačevića 25.</p>
+      <p>{FOOTER.privacy}</p>
       <nav aria-label="Kontakt i korisni linkovi"><a href={telHref(PRIMARY_PHONE.e164)}>{PRIMARY_PHONE.display}</a><a href="/#kontakt">Kontakt i dolazak</a><a href="/blog/rss.xml">RSS</a></nav>
     </footer>
   </div>;

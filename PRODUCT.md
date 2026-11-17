@@ -51,7 +51,8 @@ had no website before.
 
 ## Capabilities and Constraints
 
-- One page + custom 404. No CMS, backend, analytics, cookies or third-party embeds.
+- One page + blog + custom 404. No CMS, backend, cookies or third-party embeds. Since 17 Nov 2026:
+  Vercel Web Analytics, page views only (cookieless, own domain, production host only — `lib/analytics.ts`).
 - Copy lives in typed files under `content/`; unconfirmed facts sit behind flags in
   `content/site.ts` (FREE_TRIAL, SHOW_VIBER, SHOW_FACEBOOK, SHOW_TRAMPOLINE, SHOW_FEES,
   SHOW_SHIFT_NOTE, SHOW_EQUIPMENT_2026, MINOR_PHOTOS, CAMP_GROUP_PHOTOS, INDEXABLE).

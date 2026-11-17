@@ -197,6 +197,8 @@ export const FOOTER = {
   line: "Gimnastičko sportsko udruženje „Kraguj“ · Kragujevac",
   gss: "Član Gimnastičkog saveza Srbije",
   copyright: "© 2026",
+  /** What the site measures (lib/analytics.ts): Vercel Web Analytics, page views only, no cookies. */
+  privacy: "Sajt ne koristi kolačiće; posete brojimo anonimno.",
   creditPrefix: "Izrada sajta:",
 } as const;
 

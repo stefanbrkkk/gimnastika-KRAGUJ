@@ -1407,3 +1407,19 @@ docs/plan-figure-system.md; the owner approved it and the pose sheet (docs/poses
 - Calendar block is now small inline pills right under the times: one Google
   pill per fixed block + one call pill per program; `fixedOnly`/`noFixed` notes
   kept verbatim. Sheet footer is a single primary booking CTA.
+
+
+## 2026-11-17 — Vercel Web Analytics, page views only (owner decision)
+
+- Owner chose Vercel Web Analytics over Umami Cloud and PostHog. The team is on the Hobby
+  plan: page views only (50,000 events/month, 30 days of history); custom events are a Pro
+  feature, so calls, SMS, Viber and trial-booking taps are NOT counted. Nothing in the code
+  sends events.
+- Loader is an inline script (`lib/analytics.ts`), not the `@vercel/analytics` package: no
+  dependency, no hydration cost, and the package would request `/_vercel/insights/script.js`
+  on every host — a 404 and a console error on `serve out`, in QA and in Lighthouse.
+- Rules (tests/analytics.test.ts): canonical host only; Do Not Track and Global Privacy
+  Control are respected; requested after `load`; no cookies or storage.
+- Disclosure: `FOOTER.privacy` („Sajt ne koristi kolačiće; posete brojimo anonimno.“) in the
+  home and blog footers. The booking sheet's line („Sajt ne čuva vaše podatke“) stays true:
+  form contents never leave the visitor's own SMS/e-mail app.

@@ -1,8 +1,8 @@
 # Gimnastički klub Kraguj — sajt
 
 Zvanični sajt Gimnastičkog sportskog udruženja „Kraguj“ iz Kragujevca: početna stranica, samostalan blog sa vodičima za roditelje i
-posebna 404 stranica. Statički izvoz (Next.js 16, `output: 'export'`), bez servera, baze, kolačića
-i analitike.
+posebna 404 stranica. Statički izvoz (Next.js 16, `output: 'export'`), bez servera, baze i kolačića.
+Posete se broje anonimno preko Vercel Web Analytics (vidi „Analitika“ na dnu).
 
 - Specifikacija: `docs/master-prompt.md`
 - Činjenice i izvori: `docs/dosije.md`
@@ -157,3 +157,17 @@ IndexNow: vlasništvo se potvrđuje javnim UTF-8 fajlom `public/<32-heksadecimal
 
 **Posle objave izmena.** U Search Console-u pokrenuti „URL inspection → Request indexing“ za početnu i izmenjene članke; po želji poslati iste adrese na IndexNow (ključ je u `public/`). Proveriti JSON-LD u Rich Results Test-u i na validator.schema.org.
 
+
+
+## Analitika (17. novembar 2026)
+
+Vercel Web Analytics je uključen za projekat (Hobby opcija: do 50.000 događaja mesečno, 30 dana istorije). Broje se **samo posete stranica**: izvori poseta, stranice, zemlje i uređaji. Klikovi na poziv, SMS, Viber i slanje prijave se **ne** broje, jer Hobby plan ne beleži prilagođene događaje (to traži Pro plan ili drugi alat).
+
+Učitavač je `lib/analytics.ts` (inline skripta na kraju `<body>` u `app/layout.tsx`), bez npm paketa. Pravila, sva pokrivena testovima u `tests/analytics.test.ts`:
+
+- radi samo na kanonskom hostu iz `SITE_URL`; lokalni build, `serve out`, QA i preview adrese ne traže skriptu i ne broje se;
+- ne broji posetioca čiji pregledač šalje Do Not Track ili Global Privacy Control;
+- skripta se traži tek posle `load` događaja, da ne utiče na prvo iscrtavanje;
+- bez kolačića i bez lokalnog skladišta; skripta se služi sa domena sajta (`/_vercel/insights/script.js`).
+
+Podaci se gledaju u Vercel dashboardu, kartica Analytics. Ako se analitika isključi u Vercelu, treba ukloniti i skriptu iz `app/layout.tsx` i rečenicu `FOOTER.privacy` iz `content/copy.ts` (prikazuje se u oba footera).

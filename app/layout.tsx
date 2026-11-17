@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { HeadingLandings } from "@/components/ui/HeadingLandings";
 import { SKIP_LINK } from "@/content/copy";
+import { ANALYTICS_SCRIPT } from "@/lib/analytics";
 import { siteMetadata } from "@/lib/seo";
 import { doto, mona } from "./fonts";
 import "./globals.css";
@@ -42,6 +43,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         </a>
         {children}
         <HeadingLandings />
+        {/* Vercel Web Analytics: cookieless page views, production host only, after load (lib/analytics.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: ANALYTICS_SCRIPT }} />
       </body>
     </html>
   );

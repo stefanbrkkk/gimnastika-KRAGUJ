@@ -100,6 +100,7 @@ export function Footer() {
 
           <div className="site-footer__base">
             <p>{typeset(FOOTER.copyright)}</p>
+            <p>{typeset(FOOTER.privacy)}</p>
             <p>
               {typeset(FOOTER.creditPrefix)}{" "}
               {CREDIT_URL ? (
